@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:doctordesktop/constants/Methods.dart';
 import 'package:doctordesktop/constants/Url.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -538,8 +539,7 @@ Widget _buildBillResponse(Map<String, dynamic> response, BuildContext context) {
         const SizedBox(height: 20),
         ElevatedButton(
           onPressed: () {
-            downloadFile(response['fileLink'],
-                'Bill_${billDetails['patientId']}.pdf', context);
+            Methods().openPdf(fileLink);
           },
           child: const Text('Download Bill PDF'),
         ),
