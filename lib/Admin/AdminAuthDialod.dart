@@ -5,6 +5,7 @@ import 'package:doctordesktop/reception/PatientDischarge.dart';
 import 'package:doctordesktop/reception/PatientRegister.dart';
 import 'package:doctordesktop/screens/DoctorRegister.dart';
 import 'package:doctordesktop/screens/ListPatienAssignToDoctor.dart';
+import 'package:doctordesktop/screens/NurseRegister.dart';
 import 'package:flutter/material.dart';
 
 class AdminAuthDialog extends StatefulWidget {
@@ -152,7 +153,7 @@ class DesktopButtonScreen extends StatelessWidget {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Color(0XFF7CDCE8), // Background color
                         padding:
-                            EdgeInsets.symmetric(horizontal: 60, vertical: 30),
+                            EdgeInsets.symmetric(horizontal: 80, vertical: 30),
                         textStyle: TextStyle(fontSize: 20),
                         shape: RoundedRectangleBorder(
                           borderRadius:
@@ -174,7 +175,7 @@ class DesktopButtonScreen extends StatelessWidget {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Color(0XFF7CDCE8), // Background color
                         padding:
-                            EdgeInsets.symmetric(horizontal: 80, vertical: 30),
+                            EdgeInsets.symmetric(horizontal: 60, vertical: 30),
                         textStyle: TextStyle(fontSize: 20),
                         shape: RoundedRectangleBorder(
                           borderRadius:
@@ -200,7 +201,7 @@ class DesktopButtonScreen extends StatelessWidget {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Color(0XFF7CDCE8), // Background color
                         padding:
-                            EdgeInsets.symmetric(horizontal: 100, vertical: 30),
+                            EdgeInsets.symmetric(horizontal: 95, vertical: 30),
                         textStyle: TextStyle(fontSize: 20),
                         shape: RoundedRectangleBorder(
                           borderRadius:
@@ -222,7 +223,7 @@ class DesktopButtonScreen extends StatelessWidget {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Color(0XFF7CDCE8), // Background color
                         padding:
-                            EdgeInsets.symmetric(horizontal: 90, vertical: 30),
+                            EdgeInsets.symmetric(horizontal: 95, vertical: 30),
                         textStyle: TextStyle(fontSize: 20),
                         shape: RoundedRectangleBorder(
                           borderRadius:
@@ -230,6 +231,54 @@ class DesktopButtonScreen extends StatelessWidget {
                         ),
                       ),
                       child: const Text('Patients'),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 30),
+                Row(
+                  children: [
+                    ElevatedButton(
+                      onPressed: () {
+                        // Handle button 3 press
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => DoctorRegisterScreen()),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0XFF7CDCE8), // Background color
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 60, vertical: 30),
+                        textStyle: TextStyle(fontSize: 20),
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(8), // Rectangular shape
+                        ),
+                      ),
+                      child: const Text('Doctor Register'),
+                    ),
+                    const SizedBox(width: 30),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => NurseRegisterScreen()),
+                        );
+                        // Handle button 4 press
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0XFF7CDCE8), // Background color
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 60, vertical: 30),
+                        textStyle: TextStyle(fontSize: 20),
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(8), // Rectangular shape
+                        ),
+                      ),
+                      child: const Text('Nurse Register'),
                     ),
                   ],
                 ),
