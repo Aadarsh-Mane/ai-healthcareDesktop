@@ -203,7 +203,7 @@ class DoctorRepository {
         },
       }),
     );
-
+    print("vitas response ${response.body}");
     if (response.statusCode != 200) {
       throw Exception('Failed to add prescription: ${response.statusCode}');
     }
@@ -222,7 +222,7 @@ class DoctorRepository {
     final response = await http.get(
       url,
     );
-    print(response.body); // Print the response body to inspect it
+    print("vitas fetch ${response.body}");
 
     if (response.statusCode == 200) {
       // Assuming the response body contains a "prescriptions" array

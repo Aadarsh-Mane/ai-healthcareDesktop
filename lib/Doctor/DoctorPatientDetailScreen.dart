@@ -1,6 +1,7 @@
 import 'dart:ffi';
 
 import 'package:doctordesktop/Doctor/AddPrescriptionDialod.dart';
+import 'package:doctordesktop/Doctor/AddSymptomsScreen.dart';
 import 'package:doctordesktop/Doctor/Animate.dart';
 import 'package:doctordesktop/Doctor/DoctorConsultantScreen.dart';
 import 'package:doctordesktop/Doctor/PatientHistoryDetailScreen.dart';
@@ -1208,9 +1209,28 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
       ),
     ).then((value) {
       if (value != null && value) {
-        // Refresh data after returning from the screen
+        // Refresh data af ter returning from the screen
         setState(() {
           doctor.fetchPrescriptions(patientId, admissionId);
+        });
+      }
+    });
+  }
+
+  void _openAddSymptomsScreen(String patientId, String admissionId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddSymptomScreen(
+          patientId: patientId,
+          admissionId: admissionId,
+        ),
+      ),
+    ).then((value) {
+      if (value != null && value) {
+        // Refresh data after returning from the screen
+        setState(() {
+          doctor.fetchSymptomsByDoctor(patientId, admissionId);
         });
       }
     });
@@ -1577,7 +1597,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                 ),
               const SizedBox(height: 20),
               ElevatedButton.icon(
-                onPressed: () => _openAddSymptomsByDoctorDialog(admissionId),
+                onPressed: () => _openAddSymptomsScreen(patientId, admissionId),
                 icon: const Icon(Icons.add, color: Colors.white),
                 label: const Text('Add Symptom',
                     style: TextStyle(color: Colors.white)),

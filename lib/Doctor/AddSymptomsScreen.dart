@@ -4,22 +4,23 @@ import 'package:doctordesktop/model/getNewPatientModel.dart';
 import 'package:doctordesktop/repositories/doctor_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 
-class AddPrescriptionScreen extends StatefulWidget {
+class AddSymptomScreen extends StatefulWidget {
   final String patientId;
   final String admissionId;
 
-  const AddPrescriptionScreen({
+  const AddSymptomScreen({
     Key? key,
     required this.patientId,
     required this.admissionId,
   }) : super(key: key);
 
   @override
-  State<AddPrescriptionScreen> createState() => _AddPrescriptionScreenState();
+  State<AddSymptomScreen> createState() => _AddSymptomScreenState();
 }
 
-class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
+class _AddSymptomScreenState extends State<AddSymptomScreen> {
   final doctor = DoctorRepository();
   final TextEditingController medicineNameController = TextEditingController();
   final TextEditingController commentController = TextEditingController();
@@ -29,9 +30,6 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
   bool isLoadingSuggestions = false;
 
   // Dropdown values for dosage (1 to 5)
-  int? selectedMorningDosage = 0;
-  int? selectedAfternoonDosage = 0;
-  int? selectedNightDosage = 0;
 
   Future<void> _fetchMedicineSuggestions(String query) async {
     if (query.isEmpty) {
@@ -70,22 +68,20 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
     }
   }
 
-  Future<void> _addPrescription() async {
-    final medicine = Medicine(
-      name: selectedMedicines, // Use the single string for the medicines
-      morning: selectedMorningDosage.toString(),
-      afternoon: selectedAfternoonDosage.toString(),
-      night: selectedNightDosage.toString(),
-      comment: commentController.text,
-    );
+  Future<void> _addSymptom() async {
+    // Get current date and time
+    final String currentDateTime =
+        DateFormat('yyyy-MM-dd hh:mm:ss a').format(DateTime.now());
 
-    final doctorPrescription = DoctorPrescription(medicine: medicine);
+    // Append the current date and time to the symptom string
+    final String newSymptom =
+        '$selectedMedicines - $currentDateTime'; // Append date to symptoms
 
     try {
-      await doctor.addPrescription(
-        widget.patientId,
+      await doctor.addSymptomsByDoctor(
         widget.admissionId,
-        doctorPrescription,
+        newSymptom, // Pass the newSymptom with the date appended
+        widget.patientId,
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -95,10 +91,6 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
       // Clear fields for new prescription without popping the screen
       setState(() {
         selectedMedicines = '';
-        selectedMorningDosage = 0;
-        selectedAfternoonDosage = 0;
-        selectedNightDosage = 0;
-        commentController.clear();
       });
     } catch (e) {
       print('Error adding prescription: $e');
@@ -107,12 +99,37 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
       );
     }
   }
+  // Future<void> _addSymptom() async {
+  //   final String newSymptom = selectedMedicines; // Define the variable
+
+  //   try {
+  //     await doctor.addSymptomsByDoctor(
+  //       widget.admissionId,
+  //       newSymptom, // Pass the variable
+  //       widget.patientId,
+  //     );
+
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       const SnackBar(content: Text('Prescription added successfully')),
+  //     );
+
+  //     // Clear fields for new prescription without popping the screen
+  //     setState(() {
+  //       selectedMedicines = '';
+  //     });
+  //   } catch (e) {
+  //     print('Error adding prescription: $e');
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       SnackBar(content: Text('Error: $e')),
+  //     );
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add Prescription'),
+        title: const Text('Add Symptoms'),
         backgroundColor: Colors.teal,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -129,7 +146,7 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
             children: [
               // Title
               Text(
-                'Prescription Details',
+                'Symptoms Details',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       color: Colors.teal,
                     ),
@@ -173,127 +190,14 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
               const SizedBox(height: 20),
 
               // Dosage dropdowns for Morning, Afternoon, and Night
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Morning Dosage Dropdown
-                  Expanded(
-                    child: DropdownButtonFormField<int>(
-                      value: selectedMorningDosage,
-                      onChanged: (int? newValue) {
-                        setState(() {
-                          selectedMorningDosage = newValue;
-                        });
-                      },
-                      decoration: InputDecoration(
-                        labelText: 'Morning',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      items: List.generate(
-                        6,
-                        (index) => DropdownMenuItem<int>(
-                          value: index,
-                          child: Text('$index'),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
 
-                  // Afternoon Dosage Dropdown
-                  Expanded(
-                    child: DropdownButtonFormField<int>(
-                      value: selectedAfternoonDosage,
-                      onChanged: (int? newValue) {
-                        setState(() {
-                          selectedAfternoonDosage = newValue;
-                        });
-                      },
-                      decoration: InputDecoration(
-                        labelText: 'Afternoon',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      items: List.generate(
-                        6,
-                        (index) => DropdownMenuItem<int>(
-                          value: index,
-                          child: Text('$index'),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-
-                  // Night Dosage Dropdown
-                  Expanded(
-                    child: DropdownButtonFormField<int>(
-                      value: selectedNightDosage,
-                      onChanged: (int? newValue) {
-                        setState(() {
-                          selectedNightDosage = newValue;
-                        });
-                      },
-                      decoration: InputDecoration(
-                        labelText: 'Night',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      items: List.generate(
-                        6,
-                        (index) => DropdownMenuItem<int>(
-                          value: index,
-                          child: Text('$index'),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
               const SizedBox(height: 20),
-
-              // _buildDropdownField(
-              //   label: 'Morning Dosage',
-              //   value: selectedMorningDosage,
-              //   onChanged: (int? newValue) {
-              //     setState(() {
-              //       selectedMorningDosage = newValue;
-              //     });
-              //   },
-              // ),
-              // _buildDropdownField(
-              //   label: 'Afternoon Dosage',
-              //   value: selectedAfternoonDosage,
-              //   onChanged: (int? newValue) {
-              //     setState(() {
-              //       selectedAfternoonDosage = newValue;
-              //     });
-              //   },
-              // ),
-              // _buildDropdownField(
-              //   label: 'Night Dosage',
-              //   value: selectedNightDosage,
-              //   onChanged: (int? newValue) {
-              //     setState(() {
-              //       selectedNightDosage = newValue;
-              //     });
-              //   },
-              // ),
-
-              _buildTextField(
-                controller: commentController,
-                label: 'Comment',
-              ),
 
               const SizedBox(height: 20),
 
               // Submit button
               ElevatedButton(
-                onPressed: _addPrescription,
+                onPressed: _addSymptom,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.teal, // Button color
                   padding: const EdgeInsets.symmetric(
@@ -305,7 +209,7 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
                       double.infinity, 50), // Ensures the button is wide enough
                 ),
                 child: const Text(
-                  'Add Prescription',
+                  'Add Symptoms',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight
@@ -374,39 +278,6 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
             },
           );
         },
-      ),
-    );
-  }
-
-  // Helper function to build the dropdowns for dosage
-  Widget _buildDropdownField({
-    required String label,
-    required int? value,
-    required Function(int?) onChanged,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
-      child: DropdownButtonFormField<int>(
-        value: value,
-        onChanged: onChanged,
-        decoration: InputDecoration(
-          labelText: label,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Colors.teal),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Colors.teal, width: 2),
-          ),
-        ),
-        items: List.generate(
-          6,
-          (index) => DropdownMenuItem<int>(
-            value: index,
-            child: Text('$index'), // Use index directly
-          ),
-        ),
       ),
     );
   }
