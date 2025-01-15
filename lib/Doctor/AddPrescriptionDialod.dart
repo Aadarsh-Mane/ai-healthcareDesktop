@@ -68,6 +68,16 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
         isLoadingSuggestions = false;
       });
     }
+
+    // If no suggestions are found and the text field is not empty, add the custom input
+    if (medicineSuggestions.isEmpty && query.isNotEmpty) {
+      setState(() {
+        // Add the custom text if it's not in the list already
+        if (!medicineSuggestions.contains(query)) {
+          medicineSuggestions = [query];
+        }
+      });
+    }
   }
 
   Future<void> _addPrescription() async {
@@ -378,36 +388,36 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
     );
   }
 
-  // Helper function to build the dropdowns for dosage
-  Widget _buildDropdownField({
-    required String label,
-    required int? value,
-    required Function(int?) onChanged,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
-      child: DropdownButtonFormField<int>(
-        value: value,
-        onChanged: onChanged,
-        decoration: InputDecoration(
-          labelText: label,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Colors.teal),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Colors.teal, width: 2),
-          ),
-        ),
-        items: List.generate(
-          6,
-          (index) => DropdownMenuItem<int>(
-            value: index,
-            child: Text('$index'), // Use index directly
-          ),
-        ),
-      ),
-    );
-  }
+  // // Helper function to build the dropdowns for dosage
+  // Widget _buildDropdownField({
+  //   required String label,
+  //   required int? value,
+  //   required Function(int?) onChanged,
+  // }) {
+  //   return Padding(
+  //     padding: const EdgeInsets.only(bottom: 16.0),
+  //     child: DropdownButtonFormField<int>(
+  //       value: value,
+  //       onChanged: onChanged,
+  //       decoration: InputDecoration(
+  //         labelText: label,
+  //         border: OutlineInputBorder(
+  //           borderRadius: BorderRadius.circular(8),
+  //           borderSide: const BorderSide(color: Colors.teal),
+  //         ),
+  //         focusedBorder: OutlineInputBorder(
+  //           borderRadius: BorderRadius.circular(8),
+  //           borderSide: const BorderSide(color: Colors.teal, width: 2),
+  //         ),
+  //       ),
+  //       items: List.generate(
+  //         6,
+  //         (index) => DropdownMenuItem<int>(
+  //           value: index,
+  //           child: Text('$index'), // Use index directly
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  // }
 }

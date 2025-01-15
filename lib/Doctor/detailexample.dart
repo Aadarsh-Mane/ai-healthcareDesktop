@@ -1031,6 +1031,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -1070,64 +1071,70 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
           ),
         ],
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Stack(
         children: [
-          // Overview Tab
-          SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child:
-                _currentTabIndex == 0 ? _buildOverviewSection() : Container(),
+          // Main content (TabBarView)
+          TabBarView(
+            controller: _tabController,
+            children: [
+              SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: _buildOverviewSection(),
+              ),
+              SingleChildScrollView(
+                child: _buildVitalsSection(
+                  widget.patient.patientId,
+                  widget.patient.admissionRecords.first.id,
+                ),
+              ),
+              SingleChildScrollView(
+                child: _buildSymptomsByDoctorSection(
+                  widget.patient.patientId,
+                  widget.patient.admissionRecords.first.id,
+                ),
+              ),
+              SingleChildScrollView(
+                child: _buildFollowUpSection(
+                  widget.patient.admissionRecords.first.id,
+                ),
+              ),
+              SingleChildScrollView(
+                child: _buildDoctorPrescriptionsSection(),
+              ),
+              SingleChildScrollView(
+                child: _buildDoctorConsultingSection(),
+              ),
+              SingleChildScrollView(
+                child: _buildDoctorDiagnosiSection(
+                  widget.patient.admissionRecords.first.id,
+                  widget.patient.patientId,
+                ),
+              ),
+            ],
           ),
-          // Vitals Tab
-          SingleChildScrollView(
-            child: _currentTabIndex == 1
-                ? _buildVitalsSection(
-                    widget.patient.patientId,
-                    widget.patient.admissionRecords.first.id,
-                  )
-                : _buildShimmerEffect(),
-          ),
-          // Symptoms Tab
-          SingleChildScrollView(
-            child: _currentTabIndex == 2
-                ? _buildSymptomsByDoctorSection(
-                    widget.patient.patientId,
-                    widget.patient.admissionRecords.first.id,
-                  )
-                : _buildShimmerEffect(),
-          ),
-          // Consultations Tab
-          // SingleChildScrollView(
-          //   child: _currentTabIndex == 3
-          //       ? _buildConsultantSection()
-          //       : _buildShimmerEffect(),
-          // ),
-          // Follow Ups Tab
-          SingleChildScrollView(
-            child: _currentTabIndex == 3
-                ? _buildFollowUpSection(
-                    widget.patient.admissionRecords.first.id)
-                : _buildShimmerEffect(),
-          ),
-          // Doctor Prescription Tab
-          SingleChildScrollView(
-            child: _currentTabIndex == 4
-                ? _buildDoctorPrescriptionsSection()
-                : _buildShimmerEffect(),
-          ),
-          SingleChildScrollView(
-            child: _currentTabIndex == 5
-                ? _buildDoctorConsultingSection()
-                : _buildShimmerEffect(),
-          ),
-
-          SingleChildScrollView(
-            child: _currentTabIndex == 6
-                ? _buildDoctorDiagnosiSection(
-                    widget.patient.admissionRecords.first.id,
-                    widget.patient.patientId)
-                : _buildShimmerEffect(),
+          // Floating Sidebar
+          // Floating Sidebar Widget
+          Positioned(
+            top: 100, // Adjust based on desired vertical placement
+            left: 10, // Slight padding from the screen edge
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSidebarTab(Icons.calendar_today, 'Overview', 0),
+                SizedBox(height: 16),
+                _buildSidebarTab(Icons.monitor_heart, 'Vitals', 1),
+                SizedBox(height: 16),
+                _buildSidebarTab(Icons.warning, 'Symptoms', 2),
+                SizedBox(height: 16),
+                _buildSidebarTab(Icons.follow_the_signs, 'Follow Ups', 3),
+                SizedBox(height: 16),
+                _buildSidebarTab(Icons.description, 'Prescription', 4),
+                SizedBox(height: 16),
+                _buildSidebarTab(Icons.chat, 'Consultation', 5),
+                SizedBox(height: 16),
+                _buildSidebarTab(Icons.local_hospital, 'Diagnosis', 6),
+              ],
+            ),
           ),
         ],
       ),
@@ -1146,46 +1153,29 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
               );
             },
           ),
-          // FloatingActionButton.extended(
-          //   label: Text('Add Prescription'),
-          //   heroTag: 'fab2',
-          //   onPressed: () {
-          //     () {
-          //       (_openAddPrescriptionScreen(
-          //         widget.patient.patientId,
-          //         widget.patient.admissionRecords.first.id,
-          //       ));
-          //     };
-
-          //     // _openAddPrescriptionDialog(
-          //     //   widget.patient.patientId,
-          //     //   widget.patient.admissionRecords.first.id,
-          //     // );
-          //   },
-          // ),
           FloatingActionButton.extended(
             label: Text('Add DoctorConsulting'),
             heroTag: 'fab2',
             onPressed: () {
-              (_openAddDoctorConsultingScreen(
+              _openAddDoctorConsultingScreen(
                 widget.patient.patientId,
                 widget.patient.admissionRecords.first.id,
-              ));
+              );
             },
           ),
           FloatingActionButton.extended(
             label: Text('Add Prescription'),
-            heroTag: 'fab2',
+            heroTag: 'fab3',
             onPressed: () {
-              (_openAddPrescriptionScreen(
+              _openAddPrescriptionScreen(
                 widget.patient.patientId,
                 widget.patient.admissionRecords.first.id,
-              ));
+              );
             },
           ),
           FloatingActionButton.extended(
             label: Text('Add Vitals'),
-            heroTag: 'fab3',
+            heroTag: 'fab4',
             onPressed: () {
               _openAddVitalsDialog(
                 widget.patient.patientId,
@@ -1195,6 +1185,73 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSidebarTab(IconData icon, String label, int index) {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _tabController.index = index;
+        });
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color:
+              _tabController.index == index ? Colors.transparent : Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            if (_tabController.index == index)
+              BoxShadow(
+                color: Colors.black.withOpacity(0.4),
+                blurRadius: 5,
+                offset: Offset(0, 3),
+              ),
+          ],
+        ),
+        padding: EdgeInsets.all(10),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              size: 32,
+              color: _tabController.index == index
+                  ? Colors.transparent
+                  : Colors.transparent,
+            ),
+            SizedBox(height: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: _tabController.index == index
+                    ? Colors.transparent
+                    : Colors.teal,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+// Helper function to build floating tabs
+  Widget _buildFloatingTab(String title, int index) {
+    return ListTile(
+      title: Text(
+        title,
+        style: TextStyle(
+          color: _tabController.index == index ? Colors.teal : Colors.black54,
+          fontWeight: _tabController.index == index
+              ? FontWeight.bold
+              : FontWeight.normal,
+        ),
+      ),
+      onTap: () {
+        setState(() {
+          _tabController.index = index;
+        });
+      },
     );
   }
 
@@ -2092,7 +2149,6 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
           itemCount: prescriptions.length,
           itemBuilder: (context, index) {
             final prescription = prescriptions[index];
-
             return Card(
               margin: const EdgeInsets.symmetric(vertical: 8.0),
               shape: RoundedRectangleBorder(
@@ -2123,71 +2179,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                           style: const TextStyle(fontStyle: FontStyle.italic),
                         ),
                       ),
-                    Text('Date: ${prescription.medicine.date}'),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'ID: ${prescription.medicine.id}', // Adjusted to show the prescription ID
-                          style: const TextStyle(color: Colors.grey),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () async {
-                            // Confirm deletion
-                            final shouldDelete = await showDialog<bool>(
-                              context: context,
-                              builder: (BuildContext context) {
-                                return AlertDialog(
-                                  title: const Text('Delete Prescription'),
-                                  content: const Text(
-                                      'Are you sure you want to delete this prescription?'),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.of(context).pop(false),
-                                      child: const Text('Cancel'),
-                                    ),
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.of(context).pop(true),
-                                      child: const Text('Delete'),
-                                    ),
-                                  ],
-                                );
-                              },
-                            );
-
-                            if (shouldDelete ?? false) {
-                              try {
-                                // Call the backend to delete the prescription
-                                await doctor.deletePrescription(
-                                  widget.patient.patientId,
-                                  widget.patient.admissionRecords.first.id,
-                                  prescription.medicine.id ?? '',
-                                );
-
-                                // Fetch prescriptions again to refresh UI
-                                setState(() {
-                                  doctor.fetchPrescriptions(
-                                    widget.patient.patientId,
-                                    widget.patient.admissionRecords.first.id,
-                                  );
-                                });
-                              } catch (error) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                        'Failed to delete prescription: $error'),
-                                  ),
-                                );
-                              }
-                            }
-                          },
-                        ),
-                      ],
-                    ),
+                    Text('Date ${prescription.medicine.date}')
                   ],
                 ),
               ),
@@ -2197,88 +2189,6 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
       },
     );
   }
-
-  // Widget _buildDoctorPrescriptionsSection() {
-  //   return FutureBuilder<List<DoctorPrescription>>(
-  //     future: doctor.fetchPrescriptions(
-  //       widget.patient.patientId,
-  //       widget.patient.admissionRecords.first.id,
-  //     ),
-  //     builder: (context, snapshot) {
-  //       if (snapshot.connectionState == ConnectionState.waiting) {
-  //         return const Center(child: CircularProgressIndicator());
-  //       }
-
-  //       if (snapshot.hasError) {
-  //         return Padding(
-  //           padding: const EdgeInsets.all(16.0),
-  //           child: Text(
-  //             'Error: ${snapshot.error}',
-  //             style: const TextStyle(color: Colors.red, fontSize: 14),
-  //           ),
-  //         );
-  //       }
-
-  //       if (!snapshot.hasData || snapshot.data!.isEmpty) {
-  //         return const Padding(
-  //           padding: EdgeInsets.all(16.0),
-  //           child: Text(
-  //             'No prescriptions found.',
-  //             style: TextStyle(color: Colors.grey, fontSize: 14),
-  //           ),
-  //         );
-  //       }
-
-  //       // Prescriptions are available
-  //       final prescriptions = snapshot.data!;
-
-  //       return ListView.builder(
-  //         shrinkWrap: true, // Ensures it doesn't cause layout issues
-  //         physics: const NeverScrollableScrollPhysics(), // Avoid nested scroll
-  //         itemCount: prescriptions.length,
-  //         itemBuilder: (context, index) {
-  //           final prescription = prescriptions[index];
-  //           return Card(
-  //             margin: const EdgeInsets.symmetric(vertical: 8.0),
-  //             shape: RoundedRectangleBorder(
-  //               borderRadius: BorderRadius.circular(10.0),
-  //             ),
-  //             elevation: 3,
-  //             child: Padding(
-  //               padding: const EdgeInsets.all(16.0),
-  //               child: Column(
-  //                 crossAxisAlignment: CrossAxisAlignment.start,
-  //                 children: [
-  //                   Text(
-  //                     'Medicine: ${prescription.medicine.name}',
-  //                     style: const TextStyle(
-  //                       fontSize: 18,
-  //                       fontWeight: FontWeight.bold,
-  //                     ),
-  //                   ),
-  //                   const SizedBox(height: 8),
-  //                   Text('Morning: ${prescription.medicine.morning}'),
-  //                   Text('Afternoon: ${prescription.medicine.afternoon}'),
-  //                   Text('Night: ${prescription.medicine.night}'),
-  //                   if (prescription.medicine.comment.isNotEmpty)
-  //                     Padding(
-  //                       padding: const EdgeInsets.only(top: 8.0),
-  //                       child: Text(
-  //                         'Comment: ${prescription.medicine.comment}',
-  //                         style: const TextStyle(fontStyle: FontStyle.italic),
-  //                       ),
-  //                     ),
-  //                   Text('Date ${prescription.medicine.date}'),
-  //                   Text('iD ${prescription.medicine.id}')
-  //                 ],
-  //               ),
-  //             ),
-  //           );
-  //         },
-  //       );
-  //     },
-  //   );
-  // }
 
   Widget _buildDoctorConsultingSection() {
     return FutureBuilder<List<DoctorConsulting>>(

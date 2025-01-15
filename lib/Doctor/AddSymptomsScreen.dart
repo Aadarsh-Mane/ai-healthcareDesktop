@@ -22,19 +22,17 @@ class AddSymptomScreen extends StatefulWidget {
 
 class _AddSymptomScreenState extends State<AddSymptomScreen> {
   final doctor = DoctorRepository();
-  final TextEditingController medicineNameController = TextEditingController();
+  final TextEditingController symptomController = TextEditingController();
   final TextEditingController commentController = TextEditingController();
 
-  List<String> medicineSuggestions = [];
-  String selectedMedicines = ''; // Store as a single string
+  List<String> symptomSuggestions = [];
+  String selectedSymptoms = ''; // Store as a single string
   bool isLoadingSuggestions = false;
 
-  // Dropdown values for dosage (1 to 5)
-
-  Future<void> _fetchMedicineSuggestions(String query) async {
+  Future<void> _fetchSymptomSuggestions(String query) async {
     if (query.isEmpty) {
       setState(() {
-        medicineSuggestions = [];
+        symptomSuggestions = [];
       });
       return;
     }
@@ -51,7 +49,7 @@ class _AddSymptomScreenState extends State<AddSymptomScreen> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body) as Map<String, dynamic>;
         setState(() {
-          medicineSuggestions = List<String>.from(data['suggestions'] ?? []);
+          symptomSuggestions = List<String>.from(data['suggestions'] ?? []);
         });
       } else {
         throw Exception('Failed to fetch suggestions');
@@ -59,7 +57,7 @@ class _AddSymptomScreenState extends State<AddSymptomScreen> {
     } catch (e) {
       print('Error fetching suggestions: $e');
       setState(() {
-        medicineSuggestions = [];
+        symptomSuggestions = [];
       });
     } finally {
       setState(() {
@@ -69,61 +67,41 @@ class _AddSymptomScreenState extends State<AddSymptomScreen> {
   }
 
   Future<void> _addSymptom() async {
+    // If the symptom entered by the user is not in the suggestions, add it
+    final newSymptom = symptomSuggestions.contains(symptomController.text)
+        ? symptomController.text
+        : symptomController.text;
+
     // Get current date and time
     final String currentDateTime =
         DateFormat('yyyy-MM-dd hh:mm:ss a').format(DateTime.now());
 
     // Append the current date and time to the symptom string
-    final String newSymptom =
-        '$selectedMedicines - $currentDateTime'; // Append date to symptoms
+    final String fullSymptom =
+        '$newSymptom - $currentDateTime'; // Append date to symptoms
 
     try {
       await doctor.addSymptomsByDoctor(
         widget.admissionId,
-        newSymptom, // Pass the newSymptom with the date appended
+        fullSymptom, // Pass the fullSymptom with the date appended
         widget.patientId,
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Prescription added successfully')),
+        const SnackBar(content: Text('Symptom added successfully')),
       );
 
-      // Clear fields for new prescription without popping the screen
+      // Clear fields for new symptom without popping the screen
       setState(() {
-        selectedMedicines = '';
+        selectedSymptoms = '';
       });
     } catch (e) {
-      print('Error adding prescription: $e');
+      print('Error adding symptom: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
     }
   }
-  // Future<void> _addSymptom() async {
-  //   final String newSymptom = selectedMedicines; // Define the variable
-
-  //   try {
-  //     await doctor.addSymptomsByDoctor(
-  //       widget.admissionId,
-  //       newSymptom, // Pass the variable
-  //       widget.patientId,
-  //     );
-
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       const SnackBar(content: Text('Prescription added successfully')),
-  //     );
-
-  //     // Clear fields for new prescription without popping the screen
-  //     setState(() {
-  //       selectedMedicines = '';
-  //     });
-  //   } catch (e) {
-  //     print('Error adding prescription: $e');
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       SnackBar(content: Text('Error: $e')),
-  //     );
-  //   }
-  // }
 
   @override
   Widget build(BuildContext context) {
@@ -153,21 +131,21 @@ class _AddSymptomScreenState extends State<AddSymptomScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Display selected medicines as chips above the medicine name field
+              // Display selected symptoms as chips
               Wrap(
                 spacing: 10.0,
                 runSpacing: 10.0,
-                children: selectedMedicines
+                children: selectedSymptoms
                     .split(', ')
-                    .map((medicine) => Chip(
-                          label: Text(medicine,
+                    .map((symptom) => Chip(
+                          label: Text(symptom,
                               style: const TextStyle(color: Colors.white)),
                           backgroundColor: Colors.teal,
                           onDeleted: () {
                             setState(() {
-                              selectedMedicines = selectedMedicines
+                              selectedSymptoms = selectedSymptoms
                                   .split(', ')
-                                  .where((e) => e != medicine)
+                                  .where((e) => e != symptom)
                                   .join(', ');
                             });
                           },
@@ -177,21 +155,15 @@ class _AddSymptomScreenState extends State<AddSymptomScreen> {
 
               const SizedBox(height: 20),
 
-              // Medicine name field with suggestions
+              // Symptom name field with suggestions
               _buildTextField(
-                controller: medicineNameController,
-                label: 'Medicine Name',
-                onChanged: _fetchMedicineSuggestions,
+                controller: symptomController,
+                label: 'Symptom Name',
+                onChanged: _fetchSymptomSuggestions,
               ),
 
               if (isLoadingSuggestions) const LinearProgressIndicator(),
-              if (medicineSuggestions.isNotEmpty) _buildSuggestionsList(),
-
-              const SizedBox(height: 20),
-
-              // Dosage dropdowns for Morning, Afternoon, and Night
-
-              const SizedBox(height: 20),
+              if (symptomSuggestions.isNotEmpty) _buildSuggestionsList(),
 
               const SizedBox(height: 20),
 
@@ -209,7 +181,7 @@ class _AddSymptomScreenState extends State<AddSymptomScreen> {
                       double.infinity, 50), // Ensures the button is wide enough
                 ),
                 child: const Text(
-                  'Add Symptoms',
+                  'Add Symptom',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight
@@ -254,26 +226,26 @@ class _AddSymptomScreenState extends State<AddSymptomScreen> {
     );
   }
 
-  // Helper function to build the medicine suggestions list
+  // Helper function to build the symptom suggestions list
   Widget _buildSuggestionsList() {
     return Container(
       padding: const EdgeInsets.only(top: 10),
       height: 200,
       child: ListView.builder(
-        itemCount: medicineSuggestions.length,
+        itemCount: symptomSuggestions.length,
         itemBuilder: (context, index) {
-          final suggestion = medicineSuggestions[index];
+          final suggestion = symptomSuggestions[index];
           return ListTile(
             title: Text(suggestion),
             onTap: () {
               setState(() {
-                if (selectedMedicines.isEmpty) {
-                  selectedMedicines = suggestion;
+                if (selectedSymptoms.isEmpty) {
+                  selectedSymptoms = suggestion;
                 } else {
-                  selectedMedicines += ', ' + suggestion;
+                  selectedSymptoms += ', ' + suggestion;
                 }
-                medicineNameController.clear();
-                medicineSuggestions = [];
+                symptomController.clear();
+                symptomSuggestions = [];
               });
             },
           );

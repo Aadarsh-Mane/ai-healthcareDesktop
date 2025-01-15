@@ -129,6 +129,7 @@ class FollowUp {
 }
 
 class Medicine {
+  final String? id; // MongoDB ID
   final String name;
   final String morning;
   final String afternoon;
@@ -136,16 +137,19 @@ class Medicine {
   final String comment;
   final DateTime? date;
 
-  Medicine(
-      {required this.name,
-      required this.morning,
-      required this.afternoon,
-      required this.night,
-      required this.comment,
-      this.date});
+  Medicine({
+    this.id,
+    required this.name,
+    required this.morning,
+    required this.afternoon,
+    required this.night,
+    required this.comment,
+    this.date,
+  });
 
   factory Medicine.fromJson(Map<String, dynamic> json) {
     return Medicine(
+      id: json['_id'] ?? '', // Extract the ID from the JSON
       name: json['name'] ?? '',
       morning: json['morning'] ?? '',
       afternoon: json['afternoon'] ?? '',
@@ -155,9 +159,19 @@ class Medicine {
           ? DateTime.parse(json['date'])
               .add(const Duration(hours: 5, minutes: 30))
           : null,
-      // date: json['date'] ?? '',
-      // date: json['date']
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '_id': id,
+      'name': name,
+      'morning': morning,
+      'afternoon': afternoon,
+      'night': night,
+      'comment': comment,
+      'date': date?.toIso8601String(),
+    };
   }
 }
 
@@ -168,8 +182,17 @@ class DoctorPrescription {
 
   factory DoctorPrescription.fromJson(Map<String, dynamic> json) {
     return DoctorPrescription(
-      medicine: Medicine.fromJson(json['medicine']),
+      medicine: Medicine.fromJson({
+        ...json['medicine'],
+        '_id': json['_id'], // Pass the ID to the Medicine model
+      }),
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'medicine': medicine.toJson(),
+    };
   }
 }
 

@@ -155,6 +155,17 @@ class DoctorRepository {
     }
   }
 
+  Future<void> deletePrescription(
+      String patientId, String admissionId, String prescriptionId) async {
+    final url = Uri.parse(
+        'http://localhost:3000/doctors/deletePrescription/$patientId/$admissionId/$prescriptionId');
+    final response = await http.delete(url);
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete prescription');
+    }
+  }
+
   Future<void> addSymptomsByDoctor(
       String admissionId, String newSymptom, String patientId) async {
     try {
