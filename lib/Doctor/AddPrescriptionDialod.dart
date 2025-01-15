@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:doctordesktop/constants/Url.dart';
 import 'package:doctordesktop/model/getNewPatientModel.dart';
 import 'package:doctordesktop/repositories/doctor_repository.dart';
 import 'package:flutter/material.dart';
@@ -46,7 +47,7 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:3000/search?q=$query'),
+        Uri.parse('${VERCEL_URL}/search?q=$query'),
       );
 
       if (response.statusCode == 200) {

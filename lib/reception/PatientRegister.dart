@@ -97,7 +97,7 @@ class _PatientAddScreenState extends State<PatientAddScreen>
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Center(
-                  child: Image.asset("assets/images/spanddd.jpeg", height: 100),
+                  child: Image.asset("assets/images/saideep.ico", height: 100),
                 ),
                 Text(
                   "IPD Patient Registration",

@@ -556,11 +556,11 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Add Consultant'),
+          title: Text('Add Diagnosis'),
           content: TextField(
             controller: _prescriptionController,
             decoration: InputDecoration(
-              labelText: 'Enter Consultant',
+              labelText: 'Enter Diagnosis',
               border: OutlineInputBorder(),
             ),
             maxLines: 3,
@@ -1136,7 +1136,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
         type: ExpandableFabType.up,
         children: [
           FloatingActionButton.extended(
-            label: Text('Add Consultant'),
+            label: Text('Add Diagnosis'),
             heroTag: 'fab1',
             onPressed: () {
               _openAddConsultantDialog(
@@ -1617,7 +1617,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Symptoms by Doctor:',
+                'Diagnosis by Doctor:',
                 style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -1626,7 +1626,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
               const SizedBox(height: 12),
               if (symptoms.isEmpty)
                 const Text(
-                  'No symptoms added by the doctor.',
+                  'No diagnosis added by the doctor.',
                   style: TextStyle(
                       fontStyle: FontStyle.italic, color: Colors.grey),
                 )
