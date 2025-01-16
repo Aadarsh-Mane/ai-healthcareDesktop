@@ -54,7 +54,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 SizedBox(height: 30),
                 // Welcome text
                 Text(
-                  "Welcome to Saideep Hospital",
+                  "Welcome to 20s Hospital",
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 32,

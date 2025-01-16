@@ -133,8 +133,7 @@ class DesktopButtonScreen extends StatelessWidget {
         child: Align(
           alignment: Alignment.bottomLeft,
           child: Padding(
-            padding:
-                const EdgeInsets.only(bottom: 160.0, left: 130.0, top: 80.0),
+            padding: const EdgeInsets.only(bottom: 90.0, left: 60.0, top: 80.0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
