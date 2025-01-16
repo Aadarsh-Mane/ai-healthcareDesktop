@@ -57,25 +57,30 @@ class _GenerateBillScreenState extends ConsumerState<GenerateBillScreen> {
   final TextEditingController _singleAcRateController = TextEditingController();
   final TextEditingController _singleAcQuantityController =
       TextEditingController();
-  final TextEditingController _singleAcDateController = TextEditingController();
   final TextEditingController _singleRoomRateController =
       TextEditingController();
   final TextEditingController _singleRoomQuantityController =
       TextEditingController();
-  final TextEditingController _singleRoomDateController =
-      TextEditingController();
+
   final TextEditingController _generalWardRateController =
       TextEditingController();
   final TextEditingController _generalWardQuantityController =
       TextEditingController();
+  final TextEditingController _singleAcDateController = TextEditingController();
+
+  final TextEditingController _singleRoomDateController =
+      TextEditingController();
+
   final TextEditingController _generalWardDateController =
       TextEditingController();
+
   final TextEditingController _icuVisitingRateController =
       TextEditingController();
   final TextEditingController _icuVisitingVisitsController =
       TextEditingController();
-  final TextEditingController _icuVisitingDateController =
-      TextEditingController();
+  final TextEditingController _icuVisitingDateController = TextEditingController(
+      text:
+          "${DateTime.now().day.toString().padLeft(2, '0')}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().year.toString().substring(2)}");
   final TextEditingController _generalVisitingRateController =
       TextEditingController();
   final TextEditingController _generalVisitingVisitsController =
@@ -130,30 +135,217 @@ class _GenerateBillScreenState extends ConsumerState<GenerateBillScreen> {
               ExpansionTile(
                 title: _buildSectionTitle('Bed Charges'),
                 children: [
-                  _buildTextField(
-                      _icuRateController, 'ICU Rate/Day', TextInputType.number),
-                  _buildTextField(_icuQuantityController, 'ICU Quantity',
-                      TextInputType.number),
-                  _buildTextField(
-                      _icuDateController, 'ICU Date', TextInputType.datetime),
-                  _buildTextField(_singleAcRateController, 'Single AC Rate/Day',
-                      TextInputType.number),
-                  _buildTextField(_singleAcQuantityController,
-                      'Single AC Quantity', TextInputType.number),
-                  _buildTextField(_singleAcDateController, 'Single AC Date',
-                      TextInputType.datetime),
-                  _buildTextField(_singleRoomRateController,
-                      'Single Room Rate/Day', TextInputType.number),
-                  _buildTextField(_singleRoomQuantityController,
-                      'Single Room Quantity', TextInputType.number),
-                  _buildTextField(_singleRoomDateController, 'Single Room Date',
-                      TextInputType.datetime),
-                  _buildTextField(_generalWardRateController,
-                      'General Ward Rate/Day', TextInputType.number),
-                  _buildTextField(_generalWardQuantityController,
-                      'General Ward Quantity', TextInputType.number),
-                  _buildTextField(_generalWardDateController,
-                      'General Ward Date', TextInputType.datetime),
+                  // ICU Section
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTextField(_icuRateController,
+                            'ICU Rate/Day', TextInputType.number),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () async {
+                            DateTime? selectedDate = await showDatePicker(
+                              context: context,
+                              initialDate: DateTime.now(),
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime(2100),
+                            );
+                            if (selectedDate != null) {
+                              _icuDateController.text =
+                                  "${selectedDate.day.toString().padLeft(2, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.year.toString().substring(2)}";
+                            }
+                          },
+                          child: AbsorbPointer(
+                            child: _buildTextField(_icuDateController,
+                                'ICU Date', TextInputType.datetime),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          value: _icuQuantityController.text.isNotEmpty
+                              ? int.tryParse(_icuQuantityController.text)
+                              : null,
+                          onChanged: (value) {
+                            if (value != null) {
+                              _icuQuantityController.text = value.toString();
+                            }
+                          },
+                          items: List.generate(10, (index) => index)
+                              .map((quantity) => DropdownMenuItem<int>(
+                                    value: quantity,
+                                    child: Text(quantity.toString()),
+                                  ))
+                              .toList(),
+                          decoration:
+                              const InputDecoration(labelText: 'ICU Quantity'),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Single AC Section
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTextField(_singleAcRateController,
+                            'Single AC Rate/Day', TextInputType.number),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () async {
+                            DateTime? selectedDate = await showDatePicker(
+                              context: context,
+                              initialDate: DateTime.now(),
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime(2100),
+                            );
+                            if (selectedDate != null) {
+                              _singleAcDateController.text =
+                                  "${selectedDate.day.toString().padLeft(2, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.year.toString().substring(2)}";
+                            }
+                          },
+                          child: AbsorbPointer(
+                            child: _buildTextField(_singleAcDateController,
+                                'Single AC Date', TextInputType.datetime),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          value: _singleAcQuantityController.text.isNotEmpty
+                              ? int.tryParse(_singleAcQuantityController.text)
+                              : null,
+                          onChanged: (value) {
+                            if (value != null) {
+                              _singleAcQuantityController.text =
+                                  value.toString();
+                            }
+                          },
+                          items: List.generate(10, (index) => index)
+                              .map((quantity) => DropdownMenuItem<int>(
+                                    value: quantity,
+                                    child: Text(quantity.toString()),
+                                  ))
+                              .toList(),
+                          decoration: const InputDecoration(
+                              labelText: 'Single AC Quantity'),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Single Room Section
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTextField(_singleRoomRateController,
+                            'Single Room Rate/Day', TextInputType.number),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () async {
+                            DateTime? selectedDate = await showDatePicker(
+                              context: context,
+                              initialDate: DateTime.now(),
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime(2100),
+                            );
+                            if (selectedDate != null) {
+                              _singleRoomDateController.text =
+                                  "${selectedDate.day.toString().padLeft(2, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.year.toString().substring(2)}";
+                            }
+                          },
+                          child: AbsorbPointer(
+                            child: _buildTextField(_singleRoomDateController,
+                                'Single Room Date', TextInputType.datetime),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          value: _singleRoomQuantityController.text.isNotEmpty
+                              ? int.tryParse(_singleRoomQuantityController.text)
+                              : null,
+                          onChanged: (value) {
+                            if (value != null) {
+                              _singleRoomQuantityController.text =
+                                  value.toString();
+                            }
+                          },
+                          items: List.generate(10, (index) => index)
+                              .map((quantity) => DropdownMenuItem<int>(
+                                    value: quantity,
+                                    child: Text(quantity.toString()),
+                                  ))
+                              .toList(),
+                          decoration: const InputDecoration(
+                              labelText: 'Single Room Quantity'),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // General Ward Section
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTextField(_generalWardRateController,
+                            'General Ward Rate/Day', TextInputType.number),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () async {
+                            DateTime? selectedDate = await showDatePicker(
+                              context: context,
+                              initialDate: DateTime.now(),
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime(2100),
+                            );
+                            if (selectedDate != null) {
+                              _generalWardDateController.text =
+                                  "${selectedDate.day.toString().padLeft(2, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.year.toString().substring(2)}";
+                            }
+                          },
+                          child: AbsorbPointer(
+                            child: _buildTextField(_generalWardDateController,
+                                'General Ward Date', TextInputType.datetime),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          value: _generalWardQuantityController.text.isNotEmpty
+                              ? int.tryParse(
+                                  _generalWardQuantityController.text)
+                              : null,
+                          onChanged: (value) {
+                            if (value != null) {
+                              _generalWardQuantityController.text =
+                                  value.toString();
+                            }
+                          },
+                          items: List.generate(10, (index) => index)
+                              .map((quantity) => DropdownMenuItem<int>(
+                                    value: quantity,
+                                    child: Text(quantity.toString()),
+                                  ))
+                              .toList(),
+                          decoration: const InputDecoration(
+                              labelText: 'General Ward Quantity'),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
 
@@ -161,24 +353,176 @@ class _GenerateBillScreenState extends ConsumerState<GenerateBillScreen> {
               ExpansionTile(
                 title: _buildSectionTitle('Doctor Charges'),
                 children: [
-                  _buildTextField(_icuVisitingRateController,
-                      'ICU Visiting Rate/Visit', TextInputType.number),
-                  _buildTextField(_icuVisitingVisitsController,
-                      'ICU Visiting Visits', TextInputType.number),
-                  _buildTextField(_icuVisitingDateController,
-                      'ICU Visiting Date', TextInputType.datetime),
-                  _buildTextField(_generalVisitingRateController,
-                      'General Visiting Rate/Visit', TextInputType.number),
-                  _buildTextField(_generalVisitingVisitsController,
-                      'General Visiting Visits', TextInputType.number),
-                  _buildTextField(_generalVisitingDateController,
-                      'General Visiting Date', TextInputType.datetime),
-                  _buildTextField(_externalVisitingRateController,
-                      'External Visiting Rate/Visit', TextInputType.number),
-                  _buildTextField(_externalVisitingVisitsController,
-                      'External Visiting Visits', TextInputType.number),
-                  _buildTextField(_externalVisitingDateController,
-                      'External Visiting Date', TextInputType.datetime),
+                  // ICU Visiting Section
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTextField(_icuVisitingRateController,
+                            'ICU Visiting Rate/Visit', TextInputType.number),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () async {
+                            DateTime? selectedDate = await showDatePicker(
+                              context: context,
+                              initialDate: DateTime.now(),
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime(2100),
+                            );
+                            if (selectedDate != null) {
+                              _icuVisitingDateController.text =
+                                  "${selectedDate.day.toString().padLeft(2, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.year.toString().substring(2)}";
+                            }
+                          },
+                          child: AbsorbPointer(
+                            child: _buildTextField(_icuVisitingDateController,
+                                'ICU Visiting Date', TextInputType.datetime),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          value: _icuVisitingVisitsController.text.isNotEmpty
+                              ? int.tryParse(_icuVisitingVisitsController.text)
+                              : null,
+                          onChanged: (value) {
+                            if (value != null) {
+                              _icuVisitingVisitsController.text =
+                                  value.toString();
+                            }
+                          },
+                          items: List.generate(10, (index) => index)
+                              .map((quantity) => DropdownMenuItem<int>(
+                                    value: quantity,
+                                    child: Text(quantity.toString()),
+                                  ))
+                              .toList(),
+                          decoration:
+                              const InputDecoration(labelText: 'ICU Visits'),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // General Visiting Section
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTextField(
+                            _generalVisitingRateController,
+                            'General Visiting Rate/Visit',
+                            TextInputType.number),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () async {
+                            DateTime? selectedDate = await showDatePicker(
+                              context: context,
+                              initialDate: DateTime.now(),
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime(2100),
+                            );
+                            if (selectedDate != null) {
+                              _generalVisitingDateController.text =
+                                  "${selectedDate.day.toString().padLeft(2, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.year.toString().substring(2)}";
+                            }
+                          },
+                          child: AbsorbPointer(
+                            child: _buildTextField(
+                                _generalVisitingDateController,
+                                'General Visiting Date',
+                                TextInputType.datetime),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          value:
+                              _generalVisitingVisitsController.text.isNotEmpty
+                                  ? int.tryParse(
+                                      _generalVisitingVisitsController.text)
+                                  : null,
+                          onChanged: (value) {
+                            if (value != null) {
+                              _generalVisitingVisitsController.text =
+                                  value.toString();
+                            }
+                          },
+                          items: List.generate(10, (index) => index)
+                              .map((quantity) => DropdownMenuItem<int>(
+                                    value: quantity,
+                                    child: Text(quantity.toString()),
+                                  ))
+                              .toList(),
+                          decoration: const InputDecoration(
+                              labelText: 'General Visits'),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // External Visiting Section
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTextField(
+                            _externalVisitingRateController,
+                            'External Visiting Rate/Visit',
+                            TextInputType.number),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () async {
+                            DateTime? selectedDate = await showDatePicker(
+                              context: context,
+                              initialDate: DateTime.now(),
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime(2100),
+                            );
+                            if (selectedDate != null) {
+                              _externalVisitingDateController.text =
+                                  "${selectedDate.day.toString().padLeft(2, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.year.toString().substring(2)}";
+                            }
+                          },
+                          child: AbsorbPointer(
+                            child: _buildTextField(
+                                _externalVisitingDateController,
+                                'External Visiting Date',
+                                TextInputType.datetime),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          value:
+                              _externalVisitingVisitsController.text.isNotEmpty
+                                  ? int.tryParse(
+                                      _externalVisitingVisitsController.text)
+                                  : null,
+                          onChanged: (value) {
+                            if (value != null) {
+                              _externalVisitingVisitsController.text =
+                                  value.toString();
+                            }
+                          },
+                          items: List.generate(10, (index) => index)
+                              .map((quantity) => DropdownMenuItem<int>(
+                                    value: quantity,
+                                    child: Text(quantity.toString()),
+                                  ))
+                              .toList(),
+                          decoration: const InputDecoration(
+                              labelText: 'External Visits'),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
 
@@ -199,30 +543,214 @@ class _GenerateBillScreenState extends ConsumerState<GenerateBillScreen> {
               ExpansionTile(
                 title: _buildSectionTitle('Investigation Charges'),
                 children: [
-                  _buildTextField(_ecgRateController, 'ECG Rate/Test',
-                      TextInputType.number),
-                  _buildTextField(_ecgQuantityController, 'ECG Quantity',
-                      TextInputType.number),
-                  _buildTextField(
-                      _ecgDateController, 'ECG Date', TextInputType.datetime),
-                  _buildTextField(_xrayRateController, 'X-Ray Rate/Test',
-                      TextInputType.number),
-                  _buildTextField(_xrayQuantityController, 'X-Ray Quantity',
-                      TextInputType.number),
-                  _buildTextField(_xrayDateController, 'X-Ray Date',
-                      TextInputType.datetime),
-                  _buildTextField(_ctScanRateController, 'CT Scan Rate/Test',
-                      TextInputType.number),
-                  _buildTextField(_ctScanQuantityController, 'CT Scan Quantity',
-                      TextInputType.number),
-                  _buildTextField(_ctScanDateController, 'CT Scan Date',
-                      TextInputType.datetime),
-                  _buildTextField(_sonographyRateController,
-                      'Sonography Rate/Test', TextInputType.number),
-                  _buildTextField(_sonographyQuantityController,
-                      'Sonography Quantity', TextInputType.number),
-                  _buildTextField(_sonographyDateController, 'Sonography Date',
-                      TextInputType.datetime),
+                  // ECG Section
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTextField(_ecgRateController,
+                            'ECG Rate/Test', TextInputType.number),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () async {
+                            DateTime? selectedDate = await showDatePicker(
+                              context: context,
+                              initialDate: DateTime.now(),
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime(2100),
+                            );
+                            if (selectedDate != null) {
+                              _ecgDateController.text =
+                                  "${selectedDate.day.toString().padLeft(2, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.year.toString().substring(2)}";
+                            }
+                          },
+                          child: AbsorbPointer(
+                            child: _buildTextField(_ecgDateController,
+                                'ECG Date', TextInputType.datetime),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          value: _ecgQuantityController.text.isNotEmpty
+                              ? int.tryParse(_ecgQuantityController.text)
+                              : null,
+                          onChanged: (value) {
+                            if (value != null) {
+                              _ecgQuantityController.text = value.toString();
+                            }
+                          },
+                          items: List.generate(10, (index) => index)
+                              .map((quantity) => DropdownMenuItem<int>(
+                                    value: quantity,
+                                    child: Text(quantity.toString()),
+                                  ))
+                              .toList(),
+                          decoration:
+                              const InputDecoration(labelText: 'ECG Quantity'),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // X-Ray Section
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTextField(_xrayRateController,
+                            'X-Ray Rate/Test', TextInputType.number),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () async {
+                            DateTime? selectedDate = await showDatePicker(
+                              context: context,
+                              initialDate: DateTime.now(),
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime(2100),
+                            );
+                            if (selectedDate != null) {
+                              _xrayDateController.text =
+                                  "${selectedDate.day.toString().padLeft(2, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.year.toString().substring(2)}";
+                            }
+                          },
+                          child: AbsorbPointer(
+                            child: _buildTextField(_xrayDateController,
+                                'X-Ray Date', TextInputType.datetime),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          value: _xrayQuantityController.text.isNotEmpty
+                              ? int.tryParse(_xrayQuantityController.text)
+                              : null,
+                          onChanged: (value) {
+                            if (value != null) {
+                              _xrayQuantityController.text = value.toString();
+                            }
+                          },
+                          items: List.generate(10, (index) => index)
+                              .map((quantity) => DropdownMenuItem<int>(
+                                    value: quantity,
+                                    child: Text(quantity.toString()),
+                                  ))
+                              .toList(),
+                          decoration: const InputDecoration(
+                              labelText: 'X-Ray Quantity'),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // CT Scan Section
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTextField(_ctScanRateController,
+                            'CT Scan Rate/Test', TextInputType.number),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () async {
+                            DateTime? selectedDate = await showDatePicker(
+                              context: context,
+                              initialDate: DateTime.now(),
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime(2100),
+                            );
+                            if (selectedDate != null) {
+                              _ctScanDateController.text =
+                                  "${selectedDate.day.toString().padLeft(2, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.year.toString().substring(2)}";
+                            }
+                          },
+                          child: AbsorbPointer(
+                            child: _buildTextField(_ctScanDateController,
+                                'CT Scan Date', TextInputType.datetime),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          value: _ctScanQuantityController.text.isNotEmpty
+                              ? int.tryParse(_ctScanQuantityController.text)
+                              : null,
+                          onChanged: (value) {
+                            if (value != null) {
+                              _ctScanQuantityController.text = value.toString();
+                            }
+                          },
+                          items: List.generate(10, (index) => index)
+                              .map((quantity) => DropdownMenuItem<int>(
+                                    value: quantity,
+                                    child: Text(quantity.toString()),
+                                  ))
+                              .toList(),
+                          decoration: const InputDecoration(
+                              labelText: 'CT Scan Quantity'),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Sonography Section
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTextField(_sonographyRateController,
+                            'Sonography Rate/Test', TextInputType.number),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () async {
+                            DateTime? selectedDate = await showDatePicker(
+                              context: context,
+                              initialDate: DateTime.now(),
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime(2100),
+                            );
+                            if (selectedDate != null) {
+                              _sonographyDateController.text =
+                                  "${selectedDate.day.toString().padLeft(2, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.year.toString().substring(2)}";
+                            }
+                          },
+                          child: AbsorbPointer(
+                            child: _buildTextField(_sonographyDateController,
+                                'Sonography Date', TextInputType.datetime),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          value: _sonographyQuantityController.text.isNotEmpty
+                              ? int.tryParse(_sonographyQuantityController.text)
+                              : null,
+                          onChanged: (value) {
+                            if (value != null) {
+                              _sonographyQuantityController.text =
+                                  value.toString();
+                            }
+                          },
+                          items: List.generate(10, (index) => index + 1)
+                              .map((quantity) => DropdownMenuItem<int>(
+                                    value: quantity,
+                                    child: Text(quantity.toString()),
+                                  ))
+                              .toList(),
+                          decoration: const InputDecoration(
+                              labelText: 'Sonography Quantity'),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
 
@@ -403,7 +931,7 @@ class _GenerateBillScreenState extends ConsumerState<GenerateBillScreen> {
         controller: controller,
         decoration: InputDecoration(labelText: label),
         keyboardType: keyboardType,
-        validator: (value) => _validateNumber(value),
+        // validator: (value) => _validateNumber(value),
       ),
     );
   }
@@ -423,7 +951,7 @@ class _GenerateBillScreenState extends ConsumerState<GenerateBillScreen> {
 
   String? _validateNumber(String? value) {
     if (value == null || value.isEmpty) {
-      return 'This field is required';
+      return null; // No error for empty input
     }
     final number = int.tryParse(value);
     if (number == null) {

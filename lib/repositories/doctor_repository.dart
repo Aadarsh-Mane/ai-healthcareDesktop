@@ -158,7 +158,7 @@ class DoctorRepository {
   Future<void> deletePrescription(
       String patientId, String admissionId, String prescriptionId) async {
     final url = Uri.parse(
-        'http://localhost:3000/doctors/deletePrescription/$patientId/$admissionId/$prescriptionId');
+        '${VERCEL_URL}/doctors/deletePrescription/$patientId/$admissionId/$prescriptionId');
     final response = await http.delete(url);
 
     if (response.statusCode != 200) {
