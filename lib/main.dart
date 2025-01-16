@@ -245,7 +245,7 @@ class _HomeScreenState extends State<HomeScreen>
         Container(
           decoration: BoxDecoration(
             image: DecorationImage(
-              image: AssetImage('assets/images/saideepbanner.png'),
+              image: AssetImage('assets/images/20s.png'),
               fit: BoxFit.fill,
             ),
           ),
@@ -312,7 +312,7 @@ class _HomeScreenState extends State<HomeScreen>
     return Container(
       decoration: BoxDecoration(
         image: DecorationImage(
-          image: AssetImage('assets/images/sk.jpg'),
+          image: AssetImage('assets/images/20s.jpg'),
           fit: BoxFit.cover,
         ),
       ),
@@ -388,7 +388,7 @@ class _HomeScreenState extends State<HomeScreen>
     return Container(
       decoration: BoxDecoration(
         image: DecorationImage(
-          image: AssetImage('assets/images/saideepbanner.png'),
+          image: AssetImage('assets/images/20s.jpg'),
           fit: BoxFit.fill,
         ),
       ),

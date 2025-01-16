@@ -126,7 +126,7 @@ class DesktopButtonScreen extends StatelessWidget {
       body: Container(
         decoration: BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/images/2.png'),
+            image: AssetImage('assets/images/admin20s.png'),
             fit: BoxFit.contain,
           ),
         ),
