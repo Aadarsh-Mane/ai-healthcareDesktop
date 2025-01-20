@@ -179,15 +179,19 @@ class _PatientAddScreenState extends State<PatientAddScreen>
                         hintText: 'Enter initial diagnosis',
                       ),
                       const SizedBox(height: 24.0),
+                      _genderSelection(),
+                      SizedBox(
+                        height: 20,
+                      ),
                       Row(
                         children: [
-                          Expanded(
-                            child: _buildField(
-                              label: "Caste",
-                              controller: _casteController,
-                              hintText: 'Enter caste',
-                            ),
-                          ),
+                          // Expanded(
+                          //   child: _buildField(
+                          //     label: "Caste",
+                          //     controller: _casteController,
+                          //     hintText: 'Enter caste',
+                          //   ),
+                          // ),
                           const SizedBox(width: 16.0),
                           Expanded(
                             child: _buildField(
@@ -199,7 +203,6 @@ class _PatientAddScreenState extends State<PatientAddScreen>
                         ],
                       ),
                       const SizedBox(height: 24.0),
-                      _genderSelection(),
                       const SizedBox(height: 24.0),
                       _readmissionSelection(),
                     ],
@@ -361,6 +364,7 @@ class _PatientAddScreenState extends State<PatientAddScreen>
                         hintText: 'Enter initial diagnosis',
                       ),
                       const SizedBox(height: 24.0),
+                      _genderSelection(),
                       Row(
                         children: [
                           Expanded(
@@ -381,7 +385,6 @@ class _PatientAddScreenState extends State<PatientAddScreen>
                         ],
                       ),
                       const SizedBox(height: 24.0),
-                      _genderSelection(),
                       const SizedBox(height: 24.0),
                       _readmissionSelection(),
                     ],

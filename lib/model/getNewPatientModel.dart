@@ -199,7 +199,7 @@ class DoctorPrescription {
 class Vitals {
   final double temperature;
   final int pulse;
-  final int bloodPressure;
+  final String bloodPressure;
   final int bloodSugarLevel;
   final String other;
   // final String recordedAt;
@@ -217,7 +217,7 @@ class Vitals {
     return Vitals(
       temperature: json['temperature']?.toDouble() ?? 0.0,
       pulse: json['pulse'] ?? 0,
-      bloodPressure: json['bloodPressure'] ?? 0,
+      bloodPressure: json['bloodPressure'] ?? '',
       bloodSugarLevel: json['bloodSugarLevel'] ?? 0,
       other: json['other'] ?? '',
       // recordedAt: json['recordedAt'] ?? '',

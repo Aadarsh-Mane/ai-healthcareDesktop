@@ -10,6 +10,7 @@ import 'package:doctordesktop/repositories/doctor_repository.dart';
 import 'package:doctordesktop/constants/Url.dart';
 import 'package:doctordesktop/model/getNewPatientModel.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_expandable_fab/flutter_expandable_fab.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -37,9 +38,24 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
   final doctor = DoctorRepository();
   final TextEditingController _prescriptionController = TextEditingController();
   late Future<List<String>> _prescriptionsFuture;
+  // late FlutterTts _flutterTts;
+  // final FlutterTts flutterTts = FlutterTts();
+
+  // Future<void> initializeTts() async {
+  //   try {
+  //     await flutterTts.setLanguage("en-US");
+  //     await flutterTts.setPitch(1.0);
+  //   } catch (e) {
+  //     print("Error initializing TTS: $e");
+  //   }
+  // }
+
   @override
   void initState() {
     super.initState();
+    // initializeTts();
+    // _flutterTts = FlutterTts();
+
     // Fetch initial prescriptions
     _refreshConsultations();
     _prescriptionsFuture =
@@ -54,6 +70,43 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     });
   }
 
+  // Future<void> _speak(String text) async {
+  //   await _flutterTts.setLanguage("en-US");
+  //   await _flutterTts.setPitch(1.0);
+  //   await _flutterTts.speak(text);
+  // }
+
+  // void _performAction(String section) {
+  //   switch (section) {
+  //     case 'Diagnosis':
+  //       _speak('Opening Diagnosis Section');
+  //       _openAddConsultantDialog(
+  //           widget.patient.patientId, widget.patient.admissionRecords.first.id);
+  //       break;
+  //     case 'Consultation':
+  //       _speak('Opening Consultation Section');
+  //       _openAddDoctorConsultingScreen(
+  //           widget.patient.patientId, widget.patient.admissionRecords.first.id);
+  //       break;
+  //     case 'Prescription':
+  //       _speak('Opening Prescription Section');
+  //       _openAddPrescriptionScreen(
+  //           widget.patient.patientId, widget.patient.admissionRecords.first.id);
+  //       break;
+  //     case 'Vitals':
+  //       _speak('Opening Vitals Section');
+  //       _openAddVitalsDialog(
+  //           widget.patient.patientId, widget.patient.admissionRecords.first.id);
+  //       break;
+  //     default:
+  //       _speak('Section not recognized');
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         SnackBar(content: Text('Section "$section" not recognized.')),
+  //       );
+  //       break;
+  //   }
+  // }
+
   void _refreshConsultations() {
     setState(() {
       doctor.fetchDoctorConsultant(
@@ -64,6 +117,8 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
   @override
   void dispose() {
     _tabController.dispose();
+    // _flutterTts.stop();
+
     super.dispose();
   }
 
@@ -368,7 +423,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                 final vitals = Vitals(
                   temperature: double.parse(pulse.text.toString()),
                   pulse: int.parse(pulse.text.toString()),
-                  bloodPressure: int.parse(bloodPressure.text.toString()),
+                  bloodPressure: bloodPressure.text,
                   bloodSugarLevel: int.parse(bloodSugarLevel.text.toString()),
                   other: otherWithDateTime,
                 );
@@ -389,7 +444,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                   );
                 }
               },
-              child: const Text('Add Prescription'),
+              child: const Text('Add Vitals'),
             ),
           ],
         );
@@ -415,142 +470,6 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
       }
     });
   }
-
-  // void _openAddDoctorConsultingDialog(String patientId, String admissionId) {
-  //   final allergiesController = TextEditingController();
-  //   final cheifComplaintController = TextEditingController(); // Fixed spelling
-  //   final describeAllergiesController = TextEditingController();
-  //   final historyOfPresentIllnessController = TextEditingController();
-  //   final personalHabitsController = TextEditingController();
-  //   final familyHistoryController = TextEditingController();
-  //   final menstrualHistoryController = TextEditingController();
-  //   final wongBakerController = TextEditingController();
-  //   final visualAnalogueController = TextEditingController();
-  //   final relevantPreviousInvestigationsController = TextEditingController();
-  //   final immunizationHistoryController = TextEditingController();
-  //   final pastMedicalHistoryController = TextEditingController();
-  //   ;
-
-  //   showDialog(
-  //     context: context,
-  //     builder: (BuildContext context) {
-  //       return AlertDialog(
-  //         title: const Text('Add Doctor Consulting'),
-  //         content: SizedBox(
-  //           width: MediaQuery.of(context).size.width * 0.8, // Wider dialog
-  //           child: SingleChildScrollView(
-  //             child: Column(
-  //               mainAxisSize: MainAxisSize.min,
-  //               children: [
-  //                 TextField(
-  //                   controller: allergiesController,
-  //                   decoration:
-  //                       const InputDecoration(labelText: 'Known Allergies'),
-  //                 ),
-  //                 TextField(
-  //                   controller: cheifComplaintController,
-  //                   decoration:
-  //                       const InputDecoration(labelText: 'Chief Complaint'),
-  //                 ),
-  //                 TextField(
-  //                   controller: describeAllergiesController,
-  //                   decoration:
-  //                       const InputDecoration(labelText: 'Describe Allergies'),
-  //                 ),
-  //                 TextField(
-  //                   controller: historyOfPresentIllnessController,
-  //                   decoration: const InputDecoration(
-  //                       labelText: 'History of Present Illness'),
-  //                 ),
-  //                 TextField(
-  //                   controller: personalHabitsController,
-  //                   decoration:
-  //                       const InputDecoration(labelText: 'Personal Habits'),
-  //                 ),
-  //                 TextField(
-  //                   controller: familyHistoryController,
-  //                   decoration:
-  //                       const InputDecoration(labelText: 'Family History'),
-  //                 ),
-  //                 TextField(
-  //                   controller: menstrualHistoryController,
-  //                   decoration:
-  //                       const InputDecoration(labelText: 'Menstrual History'),
-  //                 ),
-  //                 TextField(
-  //                   controller: wongBakerController,
-  //                   decoration: const InputDecoration(labelText: 'Wong Baker'),
-  //                 ),
-  //                 TextField(
-  //                   controller: visualAnalogueController,
-  //                   decoration:
-  //                       const InputDecoration(labelText: 'Visual Analogue'),
-  //                 ),
-  //                 TextField(
-  //                   controller: relevantPreviousInvestigationsController,
-  //                   decoration: const InputDecoration(
-  //                       labelText: 'Relevant Previous Investigations'),
-  //                 ),
-  //                 TextField(
-  //                   controller: immunizationHistoryController,
-  //                   decoration: const InputDecoration(
-  //                       labelText: 'Immunization History'),
-  //                 ),
-  //                 TextField(
-  //                   controller: pastMedicalHistoryController,
-  //                   decoration: const InputDecoration(
-  //                       labelText: 'Past Medical History'),
-  //                 ),
-  //               ],
-  //             ),
-  //           ),
-  //         ),
-  //         actions: <Widget>[
-  //           TextButton(
-  //             onPressed: () {
-  //               Navigator.of(context).pop();
-  //             },
-  //             child: const Text('Cancel'),
-  //           ),
-  //           TextButton(
-  //             onPressed: () async {
-  //               final consulting = DoctorConsulting(
-  //                   allergies: allergiesController.text,
-  //                   cheifComplaint: cheifComplaintController.text,
-  //                   describeAllergies: describeAllergiesController.text,
-  //                   historyOfPresentIllness:
-  //                       historyOfPresentIllnessController.text,
-  //                   personalHabits: personalHabitsController.text,
-  //                   familyHistory: familyHistoryController.text,
-  //                   menstrualHistory: menstrualHistoryController.text,
-  //                   wongBaker: wongBakerController.text,
-  //                   visualAnalogue: visualAnalogueController.text,
-  //                   relevantPreviousInvestigations:
-  //                       relevantPreviousInvestigationsController.text,
-  //                   immunizationHistory: immunizationHistoryController.text,
-  //                   pastMedicalHistory: pastMedicalHistoryController.text);
-
-  //               try {
-  //                 await doctor.addDoctorConsultant(
-  //                     patientId, admissionId, consulting);
-  //                 setState(() {
-  //                   doctor.fetchDoctorConsultant(patientId, admissionId);
-  //                 });
-  //                 Navigator.of(context).pop();
-  //               } catch (e) {
-  //                 print('Error adding consulting: $e');
-  //                 ScaffoldMessenger.of(context).showSnackBar(
-  //                   SnackBar(content: Text('Error: $e')),
-  //                 );
-  //               }
-  //             },
-  //             child: const Text('Add Doctor Consultant'),
-  //           ),
-  //         ],
-  //       );
-  //     },
-  //   );
-  // }
 
   void _openAddConsultantDialog(String patientId, String admissionId) {
     showDialog(
@@ -603,597 +522,148 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     );
   }
 
-  // Future<void> generatePdf(
-  //     List<FollowUp> followUps, BuildContext context) async {
-  //   final pdf = pw.Document();
-
-  //   pdf.addPage(
-  //     pw.MultiPage(
-  //       pageFormat: PdfPageFormat.a4,
-  //       margin: pw.EdgeInsets.all(32),
-  //       build: (pw.Context context) {
-  //         return [
-  //           // Header Section
-  //           pw.Column(
-  //             crossAxisAlignment: pw.CrossAxisAlignment.start,
-  //             children: [
-  //               pw.Text(
-  //                 'Tambe Hospital',
-  //                 style: pw.TextStyle(
-  //                   fontSize: 28,
-  //                   fontWeight: pw.FontWeight.bold,
-  //                   color: PdfColors.teal,
-  //                 ),
-  //               ),
-  //               pw.SizedBox(height: 10),
-  //               pw.Text(
-  //                 'Patient Follow-Up Report',
-  //                 style: pw.TextStyle(
-  //                   fontSize: 24,
-  //                   fontWeight: pw.FontWeight.bold,
-  //                 ),
-  //               ),
-  //               pw.Divider(thickness: 1.5, color: PdfColors.teal),
-  //               pw.SizedBox(height: 10),
-  //               pw.Text(
-  //                 'Patient Name: ${widget.patient.name}',
-  //                 style: pw.TextStyle(
-  //                   fontSize: 16,
-  //                   fontWeight: pw.FontWeight.bold,
-  //                 ),
-  //               ),
-  //               pw.Text(
-  //                 'Report Generated: ${DateFormat('dd/MM/yyyy, HH:mm').format(DateTime.now())}',
-  //                 style: pw.TextStyle(fontSize: 12, color: PdfColors.grey),
-  //               ),
-  //               pw.SizedBox(height: 20),
-  //             ],
-  //           ),
-
-  //           // Follow-Ups Section (2-hour fields)
-  //           if (followUps.isNotEmpty)
-  //             pw.Column(
-  //               children: followUps.map((followUp) {
-  //                 return pw.Container(
-  //                   margin: pw.EdgeInsets.only(bottom: 15),
-  //                   padding: pw.EdgeInsets.all(8),
-  //                   decoration: pw.BoxDecoration(
-  //                     border: pw.Border.all(color: PdfColors.grey400),
-  //                     borderRadius: pw.BorderRadius.circular(4),
-  //                   ),
-  //                   child: pw.Column(
-  //                     crossAxisAlignment: pw.CrossAxisAlignment.start,
-  //                     children: [
-  //                       pw.Text(
-  //                         '2hr Fields - Date: ${followUp.date}',
-  //                         style: pw.TextStyle(
-  //                           fontWeight: pw.FontWeight.bold,
-  //                           fontSize: 14,
-  //                           color: PdfColors.teal,
-  //                         ),
-  //                       ),
-  //                       pw.Divider(),
-
-  //                       // Table for 2-hour Fields
-  //                       pw.Table(
-  //                         columnWidths: {
-  //                           0: pw.FlexColumnWidth(1),
-  //                           1: pw.FlexColumnWidth(2),
-  //                         },
-  //                         border: pw.TableBorder(
-  //                           horizontalInside: pw.BorderSide(
-  //                             color: PdfColors.grey300,
-  //                             width: 0.5,
-  //                           ),
-  //                         ),
-  //                         children: [
-  //                           pw.TableRow(children: [
-  //                             pw.Text('Notes:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text(followUp.notes),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('Temperature:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.temperature}°C'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('Oxygen Saturation:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.oxygenSaturation}%'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('Peep/Cap:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.peepCpap}'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('Ie Ratio:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.fiO2}'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('Blood Pressure:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.bloodPressure}'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('Oxygen Saturation:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.oxygenSaturation} %'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('Blood Sugar Level:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.bloodSugarLevel} mg/dL'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('Other Vitals:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.otherVitals}'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('IV Fluid:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.ivFluid} ml'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('Nasogastric:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.nasogastric}'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('RT Feed/Oral:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.rtFeedOral}'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('Total Intake:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.totalIntake} ml'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('CVP:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.cvp} mmHg'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('Urine:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.urine} ml'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('Stool:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.stool}'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('RT Aspirate:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.rtAspirate}'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('Other Output:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.otherOutput}'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('Ventilator Mode:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.ventyMode}'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('Set Rate:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.setRate} bpm'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('FiO2:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.fiO2} %'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('PIP:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.pip} cmH2O'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('PEEP/CPAP:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.peepCpap} cmH2O'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('IE Ratio:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.ieRatio}'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('Other Ventilator Info:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.otherVentilator}'),
-  //                           ]),
-  //                         ],
-  //                       ),
-  //                     ],
-  //                   ),
-  //                 );
-  //               }).toList(),
-  //             ),
-
-  //           // Start new page for 4-hour Fields
-  //           pw.NewPage(),
-
-  //           // 4-hour Fields Section
-  //           if (followUps.isNotEmpty)
-  //             pw.Column(
-  //               children: followUps.map((followUp) {
-  //                 return pw.Container(
-  //                   margin: pw.EdgeInsets.only(bottom: 15),
-  //                   padding: pw.EdgeInsets.all(8),
-  //                   decoration: pw.BoxDecoration(
-  //                     border: pw.Border.all(color: PdfColors.grey400),
-  //                     borderRadius: pw.BorderRadius.circular(4),
-  //                   ),
-  //                   child: pw.Column(
-  //                     crossAxisAlignment: pw.CrossAxisAlignment.start,
-  //                     children: [
-  //                       // Date for 4-hour fields
-  //                       pw.Text(
-  //                         '4hr Fields - Date: ${followUp.date}',
-  //                         style: pw.TextStyle(
-  //                           fontWeight: pw.FontWeight.bold,
-  //                           fontSize: 14,
-  //                           color: PdfColors.teal,
-  //                         ),
-  //                       ),
-  //                       pw.Divider(),
-
-  //                       // Table for 4-hour Fields
-  //                       pw.Table(
-  //                         columnWidths: {
-  //                           0: pw.FlexColumnWidth(1),
-  //                           1: pw.FlexColumnWidth(2),
-  //                         },
-  //                         border: pw.TableBorder(
-  //                           horizontalInside: pw.BorderSide(
-  //                             color: PdfColors.grey300,
-  //                             width: 0.5,
-  //                           ),
-  //                         ),
-  //                         children: [
-  //                           pw.TableRow(children: [
-  //                             pw.Text('4hr Temperature:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.fourhrTemperature}°C'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('4hr Blood Pressure:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.fourhrbloodPressure}'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('4hr IV Fluid:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.fourhrivFluid} ml'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('4hr Pulse:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.fourhrpulse} bpm'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('4hr Oxygen Saturation:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.fourhroxygenSaturation} %'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('4hr Blood Sugar Level:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text(
-  //                                 '${followUp.fourhrbloodSugarLevel} mg/dL'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('4hr Other Vitals:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.fourhrotherVitals}'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('4hr Urine:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.fourhrurine} ml'),
-  //                           ]),
-  //                           pw.TableRow(children: [
-  //                             pw.Text('4hr IV Fluid:',
-  //                                 style: pw.TextStyle(
-  //                                     fontWeight: pw.FontWeight.bold)),
-  //                             pw.Text('${followUp.fourhrivFluid} ml'),
-  //                           ]),
-  //                         ],
-  //                       ),
-  //                     ],
-  //                   ),
-  //                 );
-  //               }).toList(),
-  //             )
-  //           else
-  //             pw.Text(
-  //               'No follow-up records available.',
-  //               style: pw.TextStyle(fontSize: 14, color: PdfColors.red),
-  //             ),
-
-  //           // Footer Section
-  //           pw.SizedBox(height: 40),
-  //           pw.Divider(thickness: 1),
-  //           pw.Align(
-  //             alignment: pw.Alignment.centerRight,
-  //             child: pw.Text(
-  //               'Generated on ${DateFormat('dd/MM/yyyy, HH:mm').format(DateTime.now())}',
-  //               style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
-  //             ),
-  //           ),
-  //         ];
-  //       },
-  //     ),
-  //   );
-
-  //   // Display the generated PDF
-  //   await Printing.layoutPdf(onLayout: (PdfPageFormat format) async {
-  //     return pdf.save();
-  //   });
-  // }
-
-// Reusable section title builder
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12.0),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.bold,
-          color: Colors.grey[700],
-        ),
-      ),
-    );
-  }
-
-// Reusable text field builder function
-  Widget _buildTextField(TextEditingController controller, String label) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: TextFormField(
-        controller: controller,
-        decoration: InputDecoration(
-          labelText: label,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          filled: true,
-          fillColor: Colors.blueGrey[50], // Soft background color
-          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        ),
-      ),
-    );
-  }
-
-// Reusable number input field builder
-  Widget _buildNumberInputField(
-      TextEditingController controller, String label) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: TextFormField(
-        controller: controller,
-        decoration: InputDecoration(
-          labelText: label,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          filled: true,
-          fillColor: Colors.blueGrey[50], // Soft background color
-          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        ),
-        keyboardType: TextInputType.number,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('${widget.patient.name} Details'),
-        backgroundColor: Colors.teal,
-        elevation: 5,
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabs: [
-            Tab(text: 'Overview'),
-            Tab(text: 'Vitals'),
-            Tab(text: 'Symptoms'),
-            Tab(text: 'Follow Ups'),
-            Tab(text: 'Prescription'),
-            Tab(text: 'Consultation'),
-            Tab(text: 'Diagnosis'),
-          ],
+    return Shortcuts(
+      shortcuts: <LogicalKeySet, Intent>{
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyD):
+            AddDiagnosisIntent(),
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyC):
+            AddDoctorConsultingIntent(),
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyP):
+            AddPrescriptionIntent(),
+        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyV):
+            AddVitalsIntent(),
+      },
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          AddDiagnosisIntent: CallbackAction<AddDiagnosisIntent>(
+            onInvoke: (intent) {
+              _openAddConsultantDialog(widget.patient.patientId,
+                  widget.patient.admissionRecords.first.id);
+              return null;
+            },
+          ),
+          AddDoctorConsultingIntent: CallbackAction<AddDoctorConsultingIntent>(
+            onInvoke: (intent) {
+              _openAddDoctorConsultingScreen(widget.patient.patientId,
+                  widget.patient.admissionRecords.first.id);
+              return null;
+            },
+          ),
+          AddPrescriptionIntent: CallbackAction<AddPrescriptionIntent>(
+            onInvoke: (intent) {
+              _openAddPrescriptionScreen(widget.patient.patientId,
+                  widget.patient.admissionRecords.first.id);
+              return null;
+            },
+          ),
+          AddVitalsIntent: CallbackAction<AddVitalsIntent>(
+            onInvoke: (intent) {
+              _openAddVitalsDialog(widget.patient.patientId,
+                  widget.patient.admissionRecords.first.id);
+              return null;
+            },
+          ),
+        },
+        child: Focus(
+          autofocus: true,
+          child: Scaffold(
+            appBar: AppBar(
+              title: Text('${widget.patient.name} Details'),
+              backgroundColor: Colors.teal,
+              elevation: 5,
+              bottom: TabBar(
+                controller: _tabController,
+                isScrollable: true,
+                tabs: const [
+                  Tab(text: 'Overview'),
+                  Tab(text: 'Vitals'),
+                  Tab(text: 'Symptoms'),
+                  Tab(text: 'Follow Ups'),
+                  Tab(text: 'Prescription'),
+                  Tab(text: 'Consultation'),
+                  Tab(text: 'Diagnosis'),
+                ],
+              ),
+              actions: [
+                // IconButton(
+                //   icon: const Icon(Icons.refresh),
+                //   onPressed: () {
+                //     setState(() {
+                //       doctor.fetchFollowUps(
+                //           widget.patient.admissionRecords.first.id);
+                //     });
+                //   },
+                // ),
+                // IconButton(
+                //   icon: const Icon(Icons.mic),
+                //   onPressed: () async {
+                //     _speak('What section would you like to open?');
+                //   },
+                // ),
+              ],
+            ),
+            body: Stack(
+              children: [
+                TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildOverviewSection(),
+                    _buildVitalsSection(widget.patient.patientId,
+                        widget.patient.admissionRecords.first.id),
+                    _buildSymptomsByDoctorSection(widget.patient.patientId,
+                        widget.patient.admissionRecords.first.id),
+                    _buildFollowUpSection(
+                        widget.patient.admissionRecords.first.id),
+                    _buildDoctorPrescriptionsSection(),
+                    _buildDoctorConsultingSection(),
+                    // _buildDoctorDiagnosisSection(widget.patient.admissionRecords.first.id, widget.patient.patientId),
+                  ],
+                ),
+              ],
+            ),
+            floatingActionButtonLocation: ExpandableFab.location,
+            floatingActionButton: ExpandableFab(
+              distance: 100.0,
+              type: ExpandableFabType.up,
+              children: [
+                FloatingActionButton.extended(
+                  label: const Text('Add Diagnosis'),
+                  heroTag: 'fab1',
+                  onPressed: () {
+                    _openAddConsultantDialog(widget.patient.patientId,
+                        widget.patient.admissionRecords.first.id);
+                  },
+                ),
+                FloatingActionButton.extended(
+                  label: const Text('Add DoctorConsulting'),
+                  heroTag: 'fab2',
+                  onPressed: () {
+                    _openAddDoctorConsultingScreen(widget.patient.patientId,
+                        widget.patient.admissionRecords.first.id);
+                  },
+                ),
+                FloatingActionButton.extended(
+                  label: const Text('Add Prescription'),
+                  heroTag: 'fab3',
+                  onPressed: () {
+                    _openAddPrescriptionScreen(widget.patient.patientId,
+                        widget.patient.admissionRecords.first.id);
+                  },
+                ),
+                FloatingActionButton.extended(
+                  label: const Text('Add Vitals'),
+                  heroTag: 'fab4',
+                  onPressed: () {
+                    _openAddVitalsDialog(widget.patient.patientId,
+                        widget.patient.admissionRecords.first.id);
+                  },
+                ),
+              ],
+            ),
+          ),
         ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh),
-            onPressed: () async {
-              setState(() {
-                doctor.fetchFollowUps(widget.patient.admissionRecords.first.id);
-              });
-            },
-          ),
-          IconButton(
-            icon: Icon(Icons.print),
-            onPressed: () async {
-              final followUps = await doctor.fetchFollowUps(
-                widget.patient.admissionRecords.first.id,
-              );
-              // generatePdf(followUps, context);
-            },
-          ),
-        ],
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // Overview Tab
-          SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child:
-                _currentTabIndex == 0 ? _buildOverviewSection() : Container(),
-          ),
-          // Vitals Tab
-          SingleChildScrollView(
-            child: _currentTabIndex == 1
-                ? _buildVitalsSection(
-                    widget.patient.patientId,
-                    widget.patient.admissionRecords.first.id,
-                  )
-                : _buildShimmerEffect(),
-          ),
-          // Symptoms Tab
-          SingleChildScrollView(
-            child: _currentTabIndex == 2
-                ? _buildSymptomsByDoctorSection(
-                    widget.patient.patientId,
-                    widget.patient.admissionRecords.first.id,
-                  )
-                : _buildShimmerEffect(),
-          ),
-          // Consultations Tab
-          // SingleChildScrollView(
-          //   child: _currentTabIndex == 3
-          //       ? _buildConsultantSection()
-          //       : _buildShimmerEffect(),
-          // ),
-          // Follow Ups Tab
-          SingleChildScrollView(
-            child: _currentTabIndex == 3
-                ? _buildFollowUpSection(
-                    widget.patient.admissionRecords.first.id)
-                : _buildShimmerEffect(),
-          ),
-          // Doctor Prescription Tab
-          SingleChildScrollView(
-            child: _currentTabIndex == 4
-                ? _buildDoctorPrescriptionsSection()
-                : _buildShimmerEffect(),
-          ),
-          SingleChildScrollView(
-            child: _currentTabIndex == 5
-                ? _buildDoctorConsultingSection()
-                : _buildShimmerEffect(),
-          ),
-
-          SingleChildScrollView(
-            child: _currentTabIndex == 6
-                ? _buildDoctorDiagnosiSection(
-                    widget.patient.admissionRecords.first.id,
-                    widget.patient.patientId)
-                : _buildShimmerEffect(),
-          ),
-        ],
-      ),
-      floatingActionButtonLocation: ExpandableFab.location,
-      floatingActionButton: ExpandableFab(
-        distance: 100.0,
-        type: ExpandableFabType.up,
-        children: [
-          FloatingActionButton.extended(
-            label: Text('Add Diagnosis'),
-            heroTag: 'fab1',
-            onPressed: () {
-              _openAddConsultantDialog(
-                widget.patient.patientId,
-                widget.patient.admissionRecords.first.id,
-              );
-            },
-          ),
-          // FloatingActionButton.extended(
-          //   label: Text('Add Prescription'),
-          //   heroTag: 'fab2',
-          //   onPressed: () {
-          //     () {
-          //       (_openAddPrescriptionScreen(
-          //         widget.patient.patientId,
-          //         widget.patient.admissionRecords.first.id,
-          //       ));
-          //     };
-
-          //     // _openAddPrescriptionDialog(
-          //     //   widget.patient.patientId,
-          //     //   widget.patient.admissionRecords.first.id,
-          //     // );
-          //   },
-          // ),
-          FloatingActionButton.extended(
-            label: Text('Add DoctorConsulting'),
-            heroTag: 'fab2',
-            onPressed: () {
-              (_openAddDoctorConsultingScreen(
-                widget.patient.patientId,
-                widget.patient.admissionRecords.first.id,
-              ));
-            },
-          ),
-          FloatingActionButton.extended(
-            label: Text('Add Prescription'),
-            heroTag: 'fab2',
-            onPressed: () {
-              (_openAddPrescriptionScreen(
-                widget.patient.patientId,
-                widget.patient.admissionRecords.first.id,
-              ));
-            },
-          ),
-          FloatingActionButton.extended(
-            label: Text('Add Vitals'),
-            heroTag: 'fab3',
-            onPressed: () {
-              _openAddVitalsDialog(
-                widget.patient.patientId,
-                widget.patient.admissionRecords.first.id,
-              );
-            },
-          ),
-        ],
       ),
     );
   }
@@ -2053,148 +1523,182 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
   }
 
   Widget _buildDoctorPrescriptionsSection() {
-    return FutureBuilder<List<DoctorPrescription>>(
-      future: doctor.fetchPrescriptions(
-        widget.patient.patientId,
-        widget.patient.admissionRecords.first.id,
-      ),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+    return Column(
+      children: [
+        SizedBox(height: 16),
+        // Elevated Button to generate prescription
+        ElevatedButton(
+          onPressed: () async {
+            setState(() {
+              _isLoading = true; // Start loading animation
+            });
 
-        if (snapshot.hasError) {
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              'Error: ${snapshot.error}',
-              style: const TextStyle(color: Colors.red, fontSize: 14),
-            ),
-          );
-        }
+            // Perform the fetch operation
+            await _fetchDoctorAdvice(
+              context,
+              widget.patient.patientId,
+              widget.patient.admissionRecords.first.id,
+            );
 
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Text(
-              'No prescriptions found.',
-              style: TextStyle(color: Colors.grey, fontSize: 14),
-            ),
-          );
-        }
+            setState(() {
+              _isLoading = false; // Stop loading animation
+            });
+          },
+          child: _isLoading
+              ? const CustomLoadingAnimation() // Show loading animation
+              : const Text(
+                  'Generate Prescription'), // Show button text when not loading
+        ),
+        SizedBox(height: 16),
 
-        // Prescriptions are available
-        final prescriptions = snapshot.data!;
+        // FutureBuilder for prescriptions
+        FutureBuilder<List<DoctorPrescription>>(
+          future: doctor.fetchPrescriptions(
+            widget.patient.patientId,
+            widget.patient.admissionRecords.first.id,
+          ),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-        return ListView.builder(
-          shrinkWrap: true, // Ensures it doesn't cause layout issues
-          physics: const NeverScrollableScrollPhysics(), // Avoid nested scroll
-          itemCount: prescriptions.length,
-          itemBuilder: (context, index) {
-            final prescription = prescriptions[index];
-
-            return Card(
-              margin: const EdgeInsets.symmetric(vertical: 8.0),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10.0),
-              ),
-              elevation: 3,
-              child: Padding(
+            if (snapshot.hasError) {
+              return Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Medicine: ${prescription.medicine.name}',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text('Morning: ${prescription.medicine.morning}'),
-                    Text('Afternoon: ${prescription.medicine.afternoon}'),
-                    Text('Night: ${prescription.medicine.night}'),
-                    if (prescription.medicine.comment.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8.0),
-                        child: Text(
-                          'Comment: ${prescription.medicine.comment}',
-                          style: const TextStyle(fontStyle: FontStyle.italic),
-                        ),
-                      ),
-                    Text('Date: ${prescription.medicine.date}'),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                child: Text(
+                  'Error: ${snapshot.error}',
+                  style: const TextStyle(color: Colors.red, fontSize: 14),
+                ),
+              );
+            }
+
+            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  'No prescriptions found.',
+                  style: TextStyle(color: Colors.grey, fontSize: 14),
+                ),
+              );
+            }
+
+            // Prescriptions are available
+            final prescriptions = snapshot.data!;
+
+            return ListView.builder(
+              shrinkWrap: true, // Ensures it doesn't cause layout issues
+              physics:
+                  const NeverScrollableScrollPhysics(), // Avoid nested scroll
+              itemCount: prescriptions.length,
+              itemBuilder: (context, index) {
+                final prescription = prescriptions[index];
+
+                return Card(
+                  margin: const EdgeInsets.symmetric(vertical: 8.0),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10.0),
+                  ),
+                  elevation: 3,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'ID: ${prescription.medicine.id}', // Adjusted to show the prescription ID
-                          style: const TextStyle(color: Colors.grey),
+                          'Medicine: ${prescription.medicine.name}',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () async {
-                            // Confirm deletion
-                            final shouldDelete = await showDialog<bool>(
-                              context: context,
-                              builder: (BuildContext context) {
-                                return AlertDialog(
-                                  title: const Text('Delete Prescription'),
-                                  content: const Text(
-                                      'Are you sure you want to delete this prescription?'),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.of(context).pop(false),
-                                      child: const Text('Cancel'),
-                                    ),
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.of(context).pop(true),
-                                      child: const Text('Delete'),
-                                    ),
-                                  ],
+                        const SizedBox(height: 8),
+                        Text('Morning: ${prescription.medicine.morning}'),
+                        Text('Afternoon: ${prescription.medicine.afternoon}'),
+                        Text('Night: ${prescription.medicine.night}'),
+                        if (prescription.medicine.comment.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text(
+                              'Comment: ${prescription.medicine.comment}',
+                              style:
+                                  const TextStyle(fontStyle: FontStyle.italic),
+                            ),
+                          ),
+                        Text('Date: ${prescription.medicine.date}'),
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'ID: ${prescription.medicine.id}', // Adjusted to show the prescription ID
+                              style: const TextStyle(color: Colors.grey),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () async {
+                                // Confirm deletion
+                                final shouldDelete = await showDialog<bool>(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    return AlertDialog(
+                                      title: const Text('Delete Prescription'),
+                                      content: const Text(
+                                          'Are you sure you want to delete this prescription?'),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.of(context).pop(false),
+                                          child: const Text('Cancel'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.of(context).pop(true),
+                                          child: const Text('Delete'),
+                                        ),
+                                      ],
+                                    );
+                                  },
                                 );
+
+                                if (shouldDelete ?? false) {
+                                  try {
+                                    // Call the backend to delete the prescription
+                                    await doctor.deletePrescription(
+                                      widget.patient.patientId,
+                                      widget.patient.admissionRecords.first.id,
+                                      prescription.medicine.id ?? '',
+                                    );
+
+                                    // Fetch prescriptions again to refresh UI
+                                    setState(() {
+                                      doctor.fetchPrescriptions(
+                                        widget.patient.patientId,
+                                        widget
+                                            .patient.admissionRecords.first.id,
+                                      );
+                                    });
+                                  } catch (error) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                            'Failed to delete prescription: $error'),
+                                      ),
+                                    );
+                                  }
+                                }
                               },
-                            );
-
-                            if (shouldDelete ?? false) {
-                              try {
-                                // Call the backend to delete the prescription
-                                await doctor.deletePrescription(
-                                  widget.patient.patientId,
-                                  widget.patient.admissionRecords.first.id,
-                                  prescription.medicine.id ?? '',
-                                );
-
-                                // Fetch prescriptions again to refresh UI
-                                setState(() {
-                                  doctor.fetchPrescriptions(
-                                    widget.patient.patientId,
-                                    widget.patient.admissionRecords.first.id,
-                                  );
-                                });
-                              } catch (error) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                        'Failed to delete prescription: $error'),
-                                  ),
-                                );
-                              }
-                            }
-                          },
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             );
           },
-        );
-      },
+        ),
+      ],
     );
   }
 
@@ -2681,3 +2185,11 @@ DataRow _buildTableRow(String label, String value) {
     ],
   );
 }
+
+class AddDiagnosisIntent extends Intent {}
+
+class AddDoctorConsultingIntent extends Intent {}
+
+class AddPrescriptionIntent extends Intent {}
+
+class AddVitalsIntent extends Intent {}

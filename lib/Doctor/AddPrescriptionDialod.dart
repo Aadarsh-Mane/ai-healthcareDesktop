@@ -22,16 +22,17 @@ class AddPrescriptionScreen extends StatefulWidget {
 class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
   final doctor = DoctorRepository();
   final TextEditingController medicineNameController = TextEditingController();
+  final TextEditingController morningDosageController =
+      TextEditingController(text: "0");
+  final TextEditingController afternoonDosageController =
+      TextEditingController(text: "0");
+  final TextEditingController nightDosageController =
+      TextEditingController(text: "0");
   final TextEditingController commentController = TextEditingController();
 
   List<String> medicineSuggestions = [];
   String selectedMedicines = ''; // Store as a single string
   bool isLoadingSuggestions = false;
-
-  // Dropdown values for dosage (1 to 5)
-  int? selectedMorningDosage = 0;
-  int? selectedAfternoonDosage = 0;
-  int? selectedNightDosage = 0;
 
   Future<void> _fetchMedicineSuggestions(String query) async {
     if (query.isEmpty) {
@@ -69,10 +70,8 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
       });
     }
 
-    // If no suggestions are found and the text field is not empty, add the custom input
     if (medicineSuggestions.isEmpty && query.isNotEmpty) {
       setState(() {
-        // Add the custom text if it's not in the list already
         if (!medicineSuggestions.contains(query)) {
           medicineSuggestions = [query];
         }
@@ -82,10 +81,10 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
 
   Future<void> _addPrescription() async {
     final medicine = Medicine(
-      name: selectedMedicines, // Use the single string for the medicines
-      morning: selectedMorningDosage.toString(),
-      afternoon: selectedAfternoonDosage.toString(),
-      night: selectedNightDosage.toString(),
+      name: selectedMedicines,
+      morning: morningDosageController.text,
+      afternoon: afternoonDosageController.text,
+      night: nightDosageController.text,
       comment: commentController.text,
     );
 
@@ -102,12 +101,11 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
         const SnackBar(content: Text('Prescription added successfully')),
       );
 
-      // Clear fields for new prescription without popping the screen
       setState(() {
         selectedMedicines = '';
-        selectedMorningDosage = 0;
-        selectedAfternoonDosage = 0;
-        selectedNightDosage = 0;
+        morningDosageController.clear();
+        afternoonDosageController.clear();
+        nightDosageController.clear();
         commentController.clear();
       });
     } catch (e) {
@@ -137,7 +135,6 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Title
               Text(
                 'Prescription Details',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -145,8 +142,6 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
                     ),
               ),
               const SizedBox(height: 20),
-
-              // Display selected medicines as chips above the medicine name field
               Wrap(
                 spacing: 10.0,
                 runSpacing: 10.0,
@@ -167,161 +162,49 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
                         ))
                     .toList(),
               ),
-
               const SizedBox(height: 20),
-
-              // Medicine name field with suggestions
               _buildTextField(
                 controller: medicineNameController,
                 label: 'Medicine Name',
                 onChanged: _fetchMedicineSuggestions,
               ),
-
               if (isLoadingSuggestions) const LinearProgressIndicator(),
               if (medicineSuggestions.isNotEmpty) _buildSuggestionsList(),
-
               const SizedBox(height: 20),
-
-              // Dosage dropdowns for Morning, Afternoon, and Night
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Morning Dosage Dropdown
-                  Expanded(
-                    child: DropdownButtonFormField<int>(
-                      value: selectedMorningDosage,
-                      onChanged: (int? newValue) {
-                        setState(() {
-                          selectedMorningDosage = newValue;
-                        });
-                      },
-                      decoration: InputDecoration(
-                        labelText: 'Morning',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      items: List.generate(
-                        6,
-                        (index) => DropdownMenuItem<int>(
-                          value: index,
-                          child: Text('$index'),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-
-                  // Afternoon Dosage Dropdown
-                  Expanded(
-                    child: DropdownButtonFormField<int>(
-                      value: selectedAfternoonDosage,
-                      onChanged: (int? newValue) {
-                        setState(() {
-                          selectedAfternoonDosage = newValue;
-                        });
-                      },
-                      decoration: InputDecoration(
-                        labelText: 'Afternoon',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      items: List.generate(
-                        6,
-                        (index) => DropdownMenuItem<int>(
-                          value: index,
-                          child: Text('$index'),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-
-                  // Night Dosage Dropdown
-                  Expanded(
-                    child: DropdownButtonFormField<int>(
-                      value: selectedNightDosage,
-                      onChanged: (int? newValue) {
-                        setState(() {
-                          selectedNightDosage = newValue;
-                        });
-                      },
-                      decoration: InputDecoration(
-                        labelText: 'Night',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      items: List.generate(
-                        6,
-                        (index) => DropdownMenuItem<int>(
-                          value: index,
-                          child: Text('$index'),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+              _buildTextField(
+                controller: morningDosageController..text = '0',
+                label: 'Morning Dosage',
               ),
-              const SizedBox(height: 20),
-
-              // _buildDropdownField(
-              //   label: 'Morning Dosage',
-              //   value: selectedMorningDosage,
-              //   onChanged: (int? newValue) {
-              //     setState(() {
-              //       selectedMorningDosage = newValue;
-              //     });
-              //   },
-              // ),
-              // _buildDropdownField(
-              //   label: 'Afternoon Dosage',
-              //   value: selectedAfternoonDosage,
-              //   onChanged: (int? newValue) {
-              //     setState(() {
-              //       selectedAfternoonDosage = newValue;
-              //     });
-              //   },
-              // ),
-              // _buildDropdownField(
-              //   label: 'Night Dosage',
-              //   value: selectedNightDosage,
-              //   onChanged: (int? newValue) {
-              //     setState(() {
-              //       selectedNightDosage = newValue;
-              //     });
-              //   },
-              // ),
-
+              _buildTextField(
+                controller: afternoonDosageController..text = '0',
+                label: 'Afternoon Dosage',
+              ),
+              _buildTextField(
+                controller: nightDosageController..text = '0',
+                label: 'Night Dosage',
+              ),
               _buildTextField(
                 controller: commentController,
                 label: 'Comment',
               ),
-
               const SizedBox(height: 20),
-
-              // Submit button
               ElevatedButton(
                 onPressed: _addPrescription,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.teal, // Button color
-                  padding: const EdgeInsets.symmetric(
-                      vertical: 18, horizontal: 30), // Added horizontal padding
+                  backgroundColor: Colors.teal,
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 18, horizontal: 30),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(17), // Rounded corners
+                    borderRadius: BorderRadius.circular(17),
                   ),
-                  minimumSize: const Size(
-                      double.infinity, 50), // Ensures the button is wide enough
+                  minimumSize: const Size(double.infinity, 50),
                 ),
                 child: const Text(
                   'Add Prescription',
                   style: TextStyle(
                     fontSize: 18,
-                    fontWeight: FontWeight
-                        .w600, // Slightly bolder text for better visibility
-                    color:
-                        Colors.white, // Ensure text is readable on the button
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
                   ),
                 ),
               ),
@@ -332,7 +215,6 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
     );
   }
 
-  // Helper function to create styled text fields
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
@@ -360,7 +242,6 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
     );
   }
 
-  // Helper function to build the medicine suggestions list
   Widget _buildSuggestionsList() {
     return Container(
       padding: const EdgeInsets.only(top: 10),
@@ -387,37 +268,4 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
       ),
     );
   }
-
-  // // Helper function to build the dropdowns for dosage
-  // Widget _buildDropdownField({
-  //   required String label,
-  //   required int? value,
-  //   required Function(int?) onChanged,
-  // }) {
-  //   return Padding(
-  //     padding: const EdgeInsets.only(bottom: 16.0),
-  //     child: DropdownButtonFormField<int>(
-  //       value: value,
-  //       onChanged: onChanged,
-  //       decoration: InputDecoration(
-  //         labelText: label,
-  //         border: OutlineInputBorder(
-  //           borderRadius: BorderRadius.circular(8),
-  //           borderSide: const BorderSide(color: Colors.teal),
-  //         ),
-  //         focusedBorder: OutlineInputBorder(
-  //           borderRadius: BorderRadius.circular(8),
-  //           borderSide: const BorderSide(color: Colors.teal, width: 2),
-  //         ),
-  //       ),
-  //       items: List.generate(
-  //         6,
-  //         (index) => DropdownMenuItem<int>(
-  //           value: index,
-  //           child: Text('$index'), // Use index directly
-  //         ),
-  //       ),
-  //     ),
-  //   );
-  // }
 }

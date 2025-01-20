@@ -71,7 +71,7 @@ class _HomeScreenState extends State<HomeScreen>
       appBar: AppBar(
         backgroundColor: Color(0xFFeff7f8),
         title: Text(
-          '20S  Hospital',
+          'Saideep  Hospital',
           style: TextStyle(
             color: Colors.cyan,
           ),
@@ -245,7 +245,7 @@ class _HomeScreenState extends State<HomeScreen>
         Container(
           decoration: BoxDecoration(
             image: DecorationImage(
-              image: AssetImage('assets/images/20s.jpg'),
+              image: AssetImage('assets/images/saideepbanner.png'),
               fit: BoxFit.fill,
             ),
           ),
@@ -312,7 +312,7 @@ class _HomeScreenState extends State<HomeScreen>
     return Container(
       decoration: BoxDecoration(
         image: DecorationImage(
-          image: AssetImage('assets/images/20s.jpg'),
+          image: AssetImage('assets/images/sk.jpg'),
           fit: BoxFit.cover,
         ),
       ),
@@ -388,7 +388,7 @@ class _HomeScreenState extends State<HomeScreen>
     return Container(
       decoration: BoxDecoration(
         image: DecorationImage(
-          image: AssetImage('assets/images/20s.jpg'),
+          image: AssetImage('assets/images/saideepbanner.png'),
           fit: BoxFit.fill,
         ),
       ),

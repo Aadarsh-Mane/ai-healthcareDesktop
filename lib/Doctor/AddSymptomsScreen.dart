@@ -159,7 +159,7 @@ class _AddSymptomScreenState extends State<AddSymptomScreen> {
               _buildTextField(
                 controller: symptomController,
                 label: 'Symptom Name',
-                onChanged: _fetchSymptomSuggestions,
+                // onChanged: _fetchSymptomSuggestions,
               ),
 
               if (isLoadingSuggestions) const LinearProgressIndicator(),

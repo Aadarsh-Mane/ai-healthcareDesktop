@@ -7,6 +7,7 @@ import 'package:doctordesktop/screens/DoctorRegister.dart';
 import 'package:doctordesktop/screens/ListPatienAssignToDoctor.dart';
 import 'package:doctordesktop/screens/NurseRegister.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class AdminAuthDialog extends StatefulWidget {
   @override
@@ -48,58 +49,67 @@ class _AdminAuthDialogState extends State<AdminAuthDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Text(
-        'Reception Login',
-        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _userIdController,
-            decoration: InputDecoration(
-              labelText: 'User ID',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.person),
+    return RawKeyboardListener(
+      focusNode: FocusNode(), // Needed to capture keyboard events
+      onKey: (RawKeyEvent event) {
+        if (event.isKeyPressed(LogicalKeyboardKey.enter)) {
+          // Trigger login on Enter key press
+          _authenticate(context);
+        }
+      },
+      child: AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Reception Login',
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _userIdController,
+              decoration: InputDecoration(
+                labelText: 'User ID',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.person),
+              ),
+            ),
+            SizedBox(height: 15),
+            TextField(
+              controller: _passwordController,
+              obscureText: true,
+              decoration: InputDecoration(
+                labelText: 'Password',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.lock),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: Colors.red),
             ),
           ),
-          SizedBox(height: 15),
-          TextField(
-            controller: _passwordController,
-            obscureText: true,
-            decoration: InputDecoration(
-              labelText: 'Password',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.lock),
+          ElevatedButton(
+            onPressed: () {
+              _authenticate(context);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
+            child: Text('Login'),
           ),
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          child: Text(
-            'Cancel',
-            style: TextStyle(color: Colors.red),
-          ),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            _authenticate(context);
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          child: Text('Login'),
-        ),
-      ],
     );
   }
 }

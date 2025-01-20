@@ -368,7 +368,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                 final vitals = Vitals(
                   temperature: double.parse(pulse.text.toString()),
                   pulse: int.parse(pulse.text.toString()),
-                  bloodPressure: int.parse(bloodPressure.text.toString()),
+                  bloodPressure: bloodPressure.text,
                   bloodSugarLevel: int.parse(bloodSugarLevel.text.toString()),
                   other: otherWithDateTime,
                 );
