@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 class AddDiagnosisDoctorScreen extends StatefulWidget {
@@ -30,6 +31,12 @@ class _AddDiagnosisDoctorScreenState extends State<AddDiagnosisDoctorScreen> {
   void dispose() {
     _symptomsController.dispose();
     super.dispose();
+  }
+
+  void _handleKeyPress(RawKeyEvent event) {
+    if (event.isKeyPressed(LogicalKeyboardKey.enter)) {
+      _addDiagnosis();
+    }
   }
 
   Future<void> _addDiagnosis() async {
@@ -79,11 +86,15 @@ class _AddDiagnosisDoctorScreenState extends State<AddDiagnosisDoctorScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            TextField(
-              controller: _symptomsController,
-              decoration: const InputDecoration(
-                labelText: 'Enter diagnosis',
-                border: OutlineInputBorder(),
+            RawKeyboardListener(
+              focusNode: FocusNode(),
+              onKey: _handleKeyPress,
+              child: TextField(
+                controller: _symptomsController,
+                decoration: const InputDecoration(
+                  labelText: 'Enter diagnosis',
+                  border: OutlineInputBorder(),
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -92,7 +103,7 @@ class _AddDiagnosisDoctorScreenState extends State<AddDiagnosisDoctorScreen> {
                 onPressed: _addDiagnosis,
                 child: const Text('Add Diagnosis'),
               ),
-            )
+            ),
           ],
         ),
       ),
