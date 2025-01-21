@@ -1137,7 +1137,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                       )),
                       DataColumn(
                           label: Text(
-                        'Symptom',
+                        'Diagnosis',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.teal,
