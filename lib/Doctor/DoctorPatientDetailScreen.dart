@@ -185,62 +185,62 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     );
   }
 
-  void _openAddDiagnosisDialog(String admissionId) {
-    final TextEditingController _symptomsController = TextEditingController();
+  // void _openAddDiagnosisDialog(String admissionId) {
+  //   final TextEditingController _symptomsController = TextEditingController();
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Add Diagnosis by Doctor'),
-          content: TextField(
-            controller: _symptomsController,
-            decoration: const InputDecoration(
-              labelText: 'Enter diaassgnosis',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final newSymptom = _symptomsController.text.trim();
-                if (newSymptom.isNotEmpty) {
-                  // Get current date
-                  final String currentDateTime =
-                      DateFormat('yyyy-MM-dd hh:mm:ss a')
-                          .format(DateTime.now());
+  //   showDialog(
+  //     context: context,
+  //     builder: (context) {
+  //       return AlertDialog(
+  //         title: const Text('Add Diagnosis by Doctor'),
+  //         content: TextField(
+  //           controller: _symptomsController,
+  //           decoration: const InputDecoration(
+  //             labelText: 'Enter diaassgnosis',
+  //             border: OutlineInputBorder(),
+  //           ),
+  //         ),
+  //         actions: [
+  //           TextButton(
+  //             onPressed: () => Navigator.of(context).pop(),
+  //             child: const Text('Cancel'),
+  //           ),
+  //           ElevatedButton(
+  //             onPressed: () async {
+  //               final newSymptom = _symptomsController.text.trim();
+  //               if (newSymptom.isNotEmpty) {
+  //                 // Get current date
+  //                 final String currentDateTime =
+  //                     DateFormat('yyyy-MM-dd hh:mm:ss a')
+  //                         .format(DateTime.now());
 
-                  // Append date and time to the symptom
-                  final String symptomWithDateTime =
-                      '$newSymptom Date: $currentDateTime';
+  //                 // Append date and time to the symptom
+  //                 final String symptomWithDateTime =
+  //                     '$newSymptom Date: $currentDateTime';
 
-                  // Call the API with the appended symptom
-                  await doctor.addDoctorDiagnosis(
-                    admissionId,
-                    symptomWithDateTime,
-                    widget.patient.patientId,
-                  );
+  //                 // Call the API with the appended symptom
+  //                 await doctor.addDoctorDiagnosis(
+  //                   admissionId,
+  //                   symptomWithDateTime,
+  //                   widget.patient.patientId,
+  //                 );
 
-                  setState(() {
-                    doctor.fetchDoctorDiagnosis(
-                      widget.patient.patientId,
-                      admissionId,
-                    );
-                  });
-                }
-                Navigator.of(context).pop();
-              },
-              child: const Text('Add'),
-            ),
-          ],
-        );
-      },
-    );
-  }
+  //                 setState(() {
+  //                   doctor.fetchDoctorDiagnosis(
+  //                     widget.patient.patientId,
+  //                     admissionId,
+  //                   );
+  //                 });
+  //               }
+  //               Navigator.of(context).pop();
+  //             },
+  //             child: const Text('Add'),
+  //           ),
+  //         ],
+  //       );
+  //     },
+  //   );
+  // }
 
   void _openAddPrescriptionDialog(String patientId, String admissionId) {
     final medicineNameController = TextEditingController();
@@ -503,7 +503,8 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
         actions: <Type, Action<Intent>>{
           AddDiagnosisIntent: CallbackAction<AddDiagnosisIntent>(
             onInvoke: (intent) {
-              _openAddDiagnosisDialog(widget.patient.admissionRecords.first.id);
+              _openAddDiagnosisScreen(widget.patient.patientId,
+                  widget.patient.admissionRecords.first.id);
               return null;
             },
           ),
@@ -1178,7 +1179,8 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                 ),
               const SizedBox(height: 20),
               ElevatedButton.icon(
-                onPressed: () => _openAddDiagnosisDialog(admissionId),
+                onPressed: () =>
+                    _openAddDiagnosisScreen(patientId, admissionId),
                 icon: const Icon(Icons.add, color: Colors.white),
                 label: const Text('Add Diagnosis',
                     style: TextStyle(color: Colors.white)),
