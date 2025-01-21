@@ -5,6 +5,7 @@ import 'package:doctordesktop/constants/Url.dart';
 import 'package:doctordesktop/reception/AssignScreen.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:toastification/toastification.dart';
@@ -19,6 +20,8 @@ class PatientAddScreen extends StatefulWidget {
 
 class _PatientAddScreenState extends State<PatientAddScreen>
     with SingleTickerProviderStateMixin {
+  final TextEditingController _searchController = TextEditingController();
+  String? _patientIdResult;
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _ageController = TextEditingController();
@@ -34,6 +37,69 @@ class _PatientAddScreenState extends State<PatientAddScreen>
   String _selectedGender = "Male";
   bool _isReadmission = false;
   late TabController _tabController;
+  Future<void> _fetchPatientId() async {
+    final name = _searchController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Please enter a name to search.")),
+      );
+      return;
+    }
+
+    try {
+      final response = await http.get(
+        Uri.parse('http://localhost:3000/reception/info?name=$name'),
+      );
+      print("Response: ${response.body}");
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print("Parsed data: $data");
+        setState(() {
+          _patientIdResult = data['patientId'];
+        });
+        print("Patient ID set: $_patientIdResult");
+      } else {
+        setState(() {
+          _patientIdResult = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("No patient found with that name.")),
+        );
+      }
+    } catch (e) {
+      print("Error: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("An error occurred. Please try again.")),
+      );
+    }
+  }
+
+  List<String> _patientSuggestions = []; // Store patient name suggestions
+
+  Future<void> _fetchSuggestions(String query) async {
+    if (query.isEmpty) {
+      setState(() {
+        _patientSuggestions = [];
+      });
+      return;
+    }
+
+    try {
+      final response = await http.get(
+        Uri.parse('http://localhost:3000/reception/suggestions?name=$query'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as List;
+        setState(() {
+          _patientSuggestions =
+              data.cast<String>(); // Assuming API returns a list of names
+        });
+      }
+    } catch (e) {
+      print("Error fetching suggestions: $e");
+    }
+  }
 
   @override
   void initState() {
@@ -118,6 +184,76 @@ class _PatientAddScreenState extends State<PatientAddScreen>
                         hintText: 'Enter full name',
                       ),
                       const SizedBox(height: 24.0),
+                      // Search by name to get Patient ID
+                      Autocomplete<String>(
+                        optionsBuilder: (TextEditingValue textEditingValue) {
+                          _fetchSuggestions(textEditingValue.text);
+                          return _patientSuggestions.where((option) {
+                            return option
+                                .toLowerCase()
+                                .contains(textEditingValue.text.toLowerCase());
+                          });
+                        },
+                        onSelected: (String selectedPatient) async {
+                          _searchController.text = selectedPatient;
+                          await _fetchPatientId(); // Fetch patient ID for selected name
+                        },
+                        fieldViewBuilder:
+                            (context, controller, focusNode, onFieldSubmitted) {
+                          return TextField(
+                            controller: controller,
+                            focusNode: focusNode,
+                            decoration: InputDecoration(
+                              labelText: "Search Patient by Name",
+                              hintText: "Enter patient name",
+                              border: OutlineInputBorder(),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 16.0),
+                      Container(
+                        padding: const EdgeInsets.all(12.0),
+                        margin: const EdgeInsets.symmetric(vertical: 8.0),
+                        decoration: BoxDecoration(
+                          color:
+                              Colors.grey[200], // Background color for the box
+                          border: Border.all(
+                              color: Colors.grey), // Border color and style
+                          borderRadius:
+                              BorderRadius.circular(8.0), // Rounded corners
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SelectableText(
+                              _patientIdResult != null
+                                  ? "Patient ID: $_patientIdResult"
+                                  : "No patient found.",
+                              style: Theme.of(context).textTheme.bodyLarge,
+                              textAlign: TextAlign.center,
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.copy),
+                              onPressed: () {
+                                if (_patientIdResult != null) {
+                                  Clipboard.setData(ClipboardData(
+                                      text: _patientIdResult ?? ''));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            "Patient ID copied to clipboard!")),
+                                  );
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 16.0),
+
+                      const SizedBox(height: 24.0),
                       Row(
                         children: [
                           Expanded(
@@ -180,18 +316,9 @@ class _PatientAddScreenState extends State<PatientAddScreen>
                       ),
                       const SizedBox(height: 24.0),
                       _genderSelection(),
-                      SizedBox(
-                        height: 20,
-                      ),
+                      SizedBox(height: 20),
                       Row(
                         children: [
-                          // Expanded(
-                          //   child: _buildField(
-                          //     label: "Caste",
-                          //     controller: _casteController,
-                          //     hintText: 'Enter caste',
-                          //   ),
-                          // ),
                           const SizedBox(width: 16.0),
                           Expanded(
                             child: _buildField(
@@ -202,7 +329,6 @@ class _PatientAddScreenState extends State<PatientAddScreen>
                           ),
                         ],
                       ),
-                      const SizedBox(height: 24.0),
                       const SizedBox(height: 24.0),
                       _readmissionSelection(),
                     ],
@@ -288,7 +414,7 @@ class _PatientAddScreenState extends State<PatientAddScreen>
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Center(
-                  child: Image.asset("assets/images/spanddd.jpeg", height: 100),
+                  child: Image.asset("assets/images/saideep.ico", height: 100),
                 ),
                 Text(
                   "OPD Patient Registration",
@@ -308,6 +434,74 @@ class _PatientAddScreenState extends State<PatientAddScreen>
                         controller: _nameController,
                         hintText: 'Enter full name',
                       ),
+                      const SizedBox(height: 24.0),
+                      // Search by name to get Patient ID
+                      Autocomplete<String>(
+                        optionsBuilder: (TextEditingValue textEditingValue) {
+                          _fetchSuggestions(textEditingValue.text);
+                          return _patientSuggestions.where((option) {
+                            return option
+                                .toLowerCase()
+                                .contains(textEditingValue.text.toLowerCase());
+                          });
+                        },
+                        onSelected: (String selectedPatient) async {
+                          _searchController.text = selectedPatient;
+                          await _fetchPatientId(); // Fetch patient ID for selected name
+                        },
+                        fieldViewBuilder:
+                            (context, controller, focusNode, onFieldSubmitted) {
+                          return TextField(
+                            controller: controller,
+                            focusNode: focusNode,
+                            decoration: InputDecoration(
+                              labelText: "Search Patient by Name",
+                              hintText: "Enter patient name",
+                              border: OutlineInputBorder(),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 16.0),
+                      Container(
+                        padding: const EdgeInsets.all(7.0),
+                        margin: const EdgeInsets.symmetric(vertical: 3.0),
+                        decoration: BoxDecoration(
+                          color:
+                              Colors.grey[200], // Background color for the box
+                          border: Border.all(
+                              color: Colors.grey), // Border color and style
+                          borderRadius:
+                              BorderRadius.circular(8.0), // Rounded corners
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SelectableText(
+                              _patientIdResult != null
+                                  ? "Patient ID: $_patientIdResult"
+                                  : "No patient found.",
+                              style: Theme.of(context).textTheme.bodyLarge,
+                              textAlign: TextAlign.center,
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.copy),
+                              onPressed: () {
+                                if (_patientIdResult != null) {
+                                  Clipboard.setData(ClipboardData(
+                                      text: _patientIdResult ?? ''));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            "Patient ID copied to clipboard!")),
+                                  );
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+
                       const SizedBox(height: 24.0),
                       Row(
                         children: [
@@ -353,6 +547,12 @@ class _PatientAddScreenState extends State<PatientAddScreen>
                       ),
                       const SizedBox(height: 24.0),
                       _buildField(
+                        label: "Reason for Admission",
+                        controller: _reasonForAdmissionController,
+                        hintText: 'Enter reason for admission',
+                      ),
+                      const SizedBox(height: 24.0),
+                      _buildField(
                         label: "Symptoms",
                         controller: _symptomsController,
                         hintText: 'Enter symptoms',
@@ -365,15 +565,9 @@ class _PatientAddScreenState extends State<PatientAddScreen>
                       ),
                       const SizedBox(height: 24.0),
                       _genderSelection(),
+                      SizedBox(height: 20),
                       Row(
                         children: [
-                          Expanded(
-                            child: _buildField(
-                              label: "Caste",
-                              controller: _casteController,
-                              hintText: 'Enter caste',
-                            ),
-                          ),
                           const SizedBox(width: 16.0),
                           Expanded(
                             child: _buildField(
@@ -384,7 +578,6 @@ class _PatientAddScreenState extends State<PatientAddScreen>
                           ),
                         ],
                       ),
-                      const SizedBox(height: 24.0),
                       const SizedBox(height: 24.0),
                       _readmissionSelection(),
                     ],
@@ -610,7 +803,7 @@ class _PatientAddScreenState extends State<PatientAddScreen>
         final responseBody = jsonDecode(await response.stream.bytesToString());
         print("this should be the error: $responseBody");
         final errorMessage =
-            responseBody['error'] ?? 'An unknown error occurred';
+            responseBody['message'] ?? 'An unknown error occurred';
         ToastMessage()
             .showToast(context, errorMessage, '', ToastificationType.error);
       }

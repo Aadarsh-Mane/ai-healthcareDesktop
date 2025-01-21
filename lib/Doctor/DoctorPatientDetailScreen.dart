@@ -1,5 +1,6 @@
 import 'dart:ffi';
 
+import 'package:doctordesktop/Doctor/AddDiagnosisScreen.dart';
 import 'package:doctordesktop/Doctor/AddPrescriptionDialod.dart';
 import 'package:doctordesktop/Doctor/AddSymptomsScreen.dart';
 import 'package:doctordesktop/Doctor/Animate.dart';
@@ -69,43 +70,6 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
       }
     });
   }
-
-  // Future<void> _speak(String text) async {
-  //   await _flutterTts.setLanguage("en-US");
-  //   await _flutterTts.setPitch(1.0);
-  //   await _flutterTts.speak(text);
-  // }
-
-  // void _performAction(String section) {
-  //   switch (section) {
-  //     case 'Diagnosis':
-  //       _speak('Opening Diagnosis Section');
-  //       _openAddConsultantDialog(
-  //           widget.patient.patientId, widget.patient.admissionRecords.first.id);
-  //       break;
-  //     case 'Consultation':
-  //       _speak('Opening Consultation Section');
-  //       _openAddDoctorConsultingScreen(
-  //           widget.patient.patientId, widget.patient.admissionRecords.first.id);
-  //       break;
-  //     case 'Prescription':
-  //       _speak('Opening Prescription Section');
-  //       _openAddPrescriptionScreen(
-  //           widget.patient.patientId, widget.patient.admissionRecords.first.id);
-  //       break;
-  //     case 'Vitals':
-  //       _speak('Opening Vitals Section');
-  //       _openAddVitalsDialog(
-  //           widget.patient.patientId, widget.patient.admissionRecords.first.id);
-  //       break;
-  //     default:
-  //       _speak('Section not recognized');
-  //       ScaffoldMessenger.of(context).showSnackBar(
-  //         SnackBar(content: Text('Section "$section" not recognized.')),
-  //       );
-  //       break;
-  //   }
-  // }
 
   void _refreshConsultations() {
     setState(() {
@@ -232,7 +196,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
           content: TextField(
             controller: _symptomsController,
             decoration: const InputDecoration(
-              labelText: 'Enter diagnosis',
+              labelText: 'Enter diaassgnosis',
               border: OutlineInputBorder(),
             ),
           ),
@@ -471,56 +435,56 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     });
   }
 
-  void _openAddConsultantDialog(String patientId, String admissionId) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Add Diagnosis'),
-          content: TextField(
-            controller: _prescriptionController,
-            decoration: InputDecoration(
-              labelText: 'Enter Diagnosis',
-              border: OutlineInputBorder(),
-            ),
-            maxLines: 3,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final prescription = _prescriptionController.text;
-                if (prescription.isNotEmpty) {
-                  // Add current date and time
-                  final now = DateTime.now();
-                  final formattedDateTime =
-                      '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-                  final consultantWithDateTime =
-                      '$prescription $formattedDateTime';
+  // void _openAddDiagnosisaDialog(String patientId, String admissionId) {
+  //   showDialog(
+  //     context: context,
+  //     builder: (context) {
+  //       return AlertDialog(
+  //         title: Text('Add Diagnosis'),
+  //         content: TextField(
+  //           controller: _prescriptionController,
+  //           decoration: InputDecoration(
+  //             labelText: 'Enter Diagnosis',
+  //             border: OutlineInputBorder(),
+  //           ),
+  //           maxLines: 3,
+  //         ),
+  //         actions: [
+  //           TextButton(
+  //             onPressed: () {
+  //               Navigator.pop(context);
+  //             },
+  //             child: Text('Cancel'),
+  //           ),
+  //           ElevatedButton(
+  //             onPressed: () async {
+  //               final prescription = _prescriptionController.text;
+  //               if (prescription.isNotEmpty) {
+  //                 // Add current date and time
+  //                 final now = DateTime.now();
+  //                 final formattedDateTime =
+  //                     '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+  //                 final consultantWithDateTime =
+  //                     '$prescription $formattedDateTime';
 
-                  await _addConsultant(
-                      patientId, admissionId, consultantWithDateTime);
+  //                 await _addConsultant(
+  //                     patientId, admissionId, consultantWithDateTime);
 
-                  _prescriptionController.clear();
-                  Navigator.pop(context);
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('consultant cannot be empty!')),
-                  );
-                }
-              },
-              child: Text('Submit'),
-            ),
-          ],
-        );
-      },
-    );
-  }
+  //                 _prescriptionController.clear();
+  //                 Navigator.pop(context);
+  //               } else {
+  //                 ScaffoldMessenger.of(context).showSnackBar(
+  //                   SnackBar(content: Text('consultant cannot be empty!')),
+  //                 );
+  //               }
+  //             },
+  //             child: Text('Submit'),
+  //           ),
+  //         ],
+  //       );
+  //     },
+  //   );
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -539,8 +503,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
         actions: <Type, Action<Intent>>{
           AddDiagnosisIntent: CallbackAction<AddDiagnosisIntent>(
             onInvoke: (intent) {
-              _openAddConsultantDialog(widget.patient.patientId,
-                  widget.patient.admissionRecords.first.id);
+              _openAddDiagnosisDialog(widget.patient.admissionRecords.first.id);
               return null;
             },
           ),
@@ -618,7 +581,9 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                         widget.patient.admissionRecords.first.id),
                     _buildDoctorPrescriptionsSection(),
                     _buildDoctorConsultingSection(),
-                    // _buildDoctorDiagnosisSection(widget.patient.admissionRecords.first.id, widget.patient.patientId),
+                    _buildDoctorDiagnosiSection(
+                        widget.patient.admissionRecords.first.id,
+                        widget.patient.patientId),
                   ],
                 ),
               ],
@@ -632,7 +597,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                   label: const Text('Add Diagnosis'),
                   heroTag: 'fab1',
                   onPressed: () {
-                    _openAddConsultantDialog(widget.patient.patientId,
+                    _openAddDiagnosisScreen(widget.patient.patientId,
                         widget.patient.admissionRecords.first.id);
                   },
                 ),
@@ -682,6 +647,27 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
         // Refresh data af ter returning from the screen
         setState(() {
           doctor.fetchPrescriptions(patientId, admissionId);
+        });
+      }
+    });
+  }
+
+  void _openAddDiagnosisScreen(String patientId, String admissionId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddDiagnosisDoctorScreen(
+          patientId: patientId,
+          admissionId: admissionId,
+          addDoctorDiagnosis: doctor.addDoctorDiagnosis,
+          fetchDoctorDiagnosis: doctor.fetchDoctorDiagnosis,
+        ),
+      ),
+    ).then((value) {
+      if (value != null && value) {
+        // Refresh data af ter returning from the screen
+        setState(() {
+          doctor.fetchDoctorDiagnosis(patientId, admissionId);
         });
       }
     });
@@ -1194,7 +1180,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
               ElevatedButton.icon(
                 onPressed: () => _openAddDiagnosisDialog(admissionId),
                 icon: const Icon(Icons.add, color: Colors.white),
-                label: const Text('Add Symptom',
+                label: const Text('Add Diagnosis',
                     style: TextStyle(color: Colors.white)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.teal,
