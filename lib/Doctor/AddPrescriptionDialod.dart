@@ -22,12 +22,10 @@ class AddPrescriptionScreen extends StatefulWidget {
 class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
   final doctor = DoctorRepository();
   final TextEditingController medicineNameController = TextEditingController();
-  final TextEditingController morningDosageController =
-      TextEditingController(text: "0");
+  final TextEditingController morningDosageController = TextEditingController();
   final TextEditingController afternoonDosageController =
-      TextEditingController(text: "0");
-  final TextEditingController nightDosageController =
-      TextEditingController(text: "0");
+      TextEditingController();
+  final TextEditingController nightDosageController = TextEditingController();
   final TextEditingController commentController = TextEditingController();
 
   List<String> medicineSuggestions = [];
@@ -80,11 +78,19 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
   }
 
   Future<void> _addPrescription() async {
+    final morningDosage = morningDosageController.text.isEmpty
+        ? '0'
+        : morningDosageController.text;
+    final afternoonDosage = afternoonDosageController.text.isEmpty
+        ? '0'
+        : afternoonDosageController.text;
+    final nightDosage =
+        nightDosageController.text.isEmpty ? '0' : nightDosageController.text;
     final medicine = Medicine(
       name: selectedMedicines,
-      morning: morningDosageController.text,
-      afternoon: afternoonDosageController.text,
-      night: nightDosageController.text,
+      morning: morningDosage,
+      afternoon: afternoonDosage,
+      night: nightDosage,
       comment: commentController.text,
     );
 
@@ -172,15 +178,15 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
               if (medicineSuggestions.isNotEmpty) _buildSuggestionsList(),
               const SizedBox(height: 20),
               _buildTextField(
-                controller: morningDosageController..text = '0',
+                controller: morningDosageController,
                 label: 'Morning Dosage',
               ),
               _buildTextField(
-                controller: afternoonDosageController..text = '0',
+                controller: afternoonDosageController,
                 label: 'Afternoon Dosage',
               ),
               _buildTextField(
-                controller: nightDosageController..text = '0',
+                controller: nightDosageController,
                 label: 'Night Dosage',
               ),
               _buildTextField(

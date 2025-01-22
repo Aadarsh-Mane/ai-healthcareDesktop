@@ -151,9 +151,9 @@ class Medicine {
     return Medicine(
       id: json['_id'] ?? '', // Extract the ID from the JSON
       name: json['name'] ?? '',
-      morning: json['morning'] ?? '',
-      afternoon: json['afternoon'] ?? '',
-      night: json['night'] ?? '',
+      morning: json['morning'] ?? '0',
+      afternoon: json['afternoon'] ?? '0',
+      night: json['night'] ?? '0',
       comment: json['comment'] ?? '',
       date: json['date'] != null
           ? DateTime.parse(json['date'])

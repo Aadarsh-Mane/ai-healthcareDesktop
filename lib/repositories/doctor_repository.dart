@@ -210,6 +210,8 @@ class DoctorRepository {
         'vitals': {
           'temperature': vitals.temperature,
           'pulse': vitals.pulse,
+          'bloodPressure': vitals.bloodPressure,
+          'bloodSugarLevel': vitals.bloodSugarLevel,
           'other': vitals.other,
         },
       }),

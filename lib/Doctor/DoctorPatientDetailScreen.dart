@@ -393,6 +393,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                 );
 
                 try {
+                  // print("vital are ${vitals.}");
                   await doctor.addVitals(patientId, admissionId, vitals);
 
                   // Refresh the data after adding the prescription
@@ -1511,182 +1512,189 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
   }
 
   Widget _buildDoctorPrescriptionsSection() {
-    return Column(
-      children: [
-        SizedBox(height: 16),
-        // Elevated Button to generate prescription
-        ElevatedButton(
-          onPressed: () async {
-            setState(() {
-              _isLoading = true; // Start loading animation
-            });
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          SizedBox(height: 16),
+          // Elevated Button to generate prescription
+          ElevatedButton(
+            onPressed: () async {
+              setState(() {
+                _isLoading = true; // Start loading animation
+              });
 
-            // Perform the fetch operation
-            await _fetchDoctorAdvice(
-              context,
+              // Perform the fetch operation
+              await _fetchDoctorAdvice(
+                context,
+                widget.patient.patientId,
+                widget.patient.admissionRecords.first.id,
+              );
+
+              setState(() {
+                _isLoading = false; // Stop loading animation
+              });
+            },
+            child: _isLoading
+                ? const CustomLoadingAnimation() // Show loading animation
+                : const Text(
+                    'Generate Prescription'), // Show button text when not loading
+          ),
+          SizedBox(height: 16),
+
+          // FutureBuilder for prescriptions
+          FutureBuilder<List<DoctorPrescription>>(
+            future: doctor.fetchPrescriptions(
               widget.patient.patientId,
               widget.patient.admissionRecords.first.id,
-            );
+            ),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-            setState(() {
-              _isLoading = false; // Stop loading animation
-            });
-          },
-          child: _isLoading
-              ? const CustomLoadingAnimation() // Show loading animation
-              : const Text(
-                  'Generate Prescription'), // Show button text when not loading
-        ),
-        SizedBox(height: 16),
-
-        // FutureBuilder for prescriptions
-        FutureBuilder<List<DoctorPrescription>>(
-          future: doctor.fetchPrescriptions(
-            widget.patient.patientId,
-            widget.patient.admissionRecords.first.id,
-          ),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            if (snapshot.hasError) {
-              return Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  'Error: ${snapshot.error}',
-                  style: const TextStyle(color: Colors.red, fontSize: 14),
-                ),
-              );
-            }
-
-            if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Text(
-                  'No prescriptions found.',
-                  style: TextStyle(color: Colors.grey, fontSize: 14),
-                ),
-              );
-            }
-
-            // Prescriptions are available
-            final prescriptions = snapshot.data!;
-
-            return ListView.builder(
-              shrinkWrap: true, // Ensures it doesn't cause layout issues
-              physics:
-                  const NeverScrollableScrollPhysics(), // Avoid nested scroll
-              itemCount: prescriptions.length,
-              itemBuilder: (context, index) {
-                final prescription = prescriptions[index];
-
-                return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 8.0),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10.0),
+              if (snapshot.hasError) {
+                return Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    'Error: ${snapshot.error}',
+                    style: const TextStyle(color: Colors.red, fontSize: 14),
                   ),
-                  elevation: 3,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Medicine: ${prescription.medicine.name}',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text('Morning: ${prescription.medicine.morning}'),
-                        Text('Afternoon: ${prescription.medicine.afternoon}'),
-                        Text('Night: ${prescription.medicine.night}'),
-                        if (prescription.medicine.comment.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
-                            child: Text(
-                              'Comment: ${prescription.medicine.comment}',
-                              style:
-                                  const TextStyle(fontStyle: FontStyle.italic),
+                );
+              }
+
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text(
+                    'No prescriptions found.',
+                    style: TextStyle(color: Colors.grey, fontSize: 14),
+                  ),
+                );
+              }
+
+              // Prescriptions are available
+              final prescriptions = snapshot.data!;
+
+              return ListView.builder(
+                shrinkWrap: true, // Ensures it doesn't cause layout issues
+                physics:
+                    const NeverScrollableScrollPhysics(), // Avoid nested scroll
+                itemCount: prescriptions.length,
+                itemBuilder: (context, index) {
+                  final prescription = prescriptions[index];
+
+                  return Card(
+                    margin: const EdgeInsets.symmetric(vertical: 8.0),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10.0),
+                    ),
+                    elevation: 3,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Medicine: ${prescription.medicine.name}',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                        Text('Date: ${prescription.medicine.date}'),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'ID: ${prescription.medicine.id}', // Adjusted to show the prescription ID
-                              style: const TextStyle(color: Colors.grey),
+                          const SizedBox(height: 8),
+                          Text('Morning: ${prescription.medicine.morning}'),
+                          Text('Afternoon: ${prescription.medicine.afternoon}'),
+                          Text('Night: ${prescription.medicine.night}'),
+                          if (prescription.medicine.comment.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Text(
+                                'Comment: ${prescription.medicine.comment}',
+                                style: const TextStyle(
+                                    fontStyle: FontStyle.italic),
+                              ),
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () async {
-                                // Confirm deletion
-                                final shouldDelete = await showDialog<bool>(
-                                  context: context,
-                                  builder: (BuildContext context) {
-                                    return AlertDialog(
-                                      title: const Text('Delete Prescription'),
-                                      content: const Text(
-                                          'Are you sure you want to delete this prescription?'),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.of(context).pop(false),
-                                          child: const Text('Cancel'),
-                                        ),
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.of(context).pop(true),
-                                          child: const Text('Delete'),
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                );
+                          Text('Date: ${prescription.medicine.date}'),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'ID: ${prescription.medicine.id}', // Adjusted to show the prescription ID
+                                style: const TextStyle(color: Colors.grey),
+                              ),
+                              IconButton(
+                                icon:
+                                    const Icon(Icons.delete, color: Colors.red),
+                                onPressed: () async {
+                                  // Confirm deletion
+                                  final shouldDelete = await showDialog<bool>(
+                                    context: context,
+                                    builder: (BuildContext context) {
+                                      return AlertDialog(
+                                        title:
+                                            const Text('Delete Prescription'),
+                                        content: const Text(
+                                            'Are you sure you want to delete this prescription?'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.of(context)
+                                                    .pop(false),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.of(context).pop(true),
+                                            child: const Text('Delete'),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
 
-                                if (shouldDelete ?? false) {
-                                  try {
-                                    // Call the backend to delete the prescription
-                                    await doctor.deletePrescription(
-                                      widget.patient.patientId,
-                                      widget.patient.admissionRecords.first.id,
-                                      prescription.medicine.id ?? '',
-                                    );
-
-                                    // Fetch prescriptions again to refresh UI
-                                    setState(() {
-                                      doctor.fetchPrescriptions(
+                                  if (shouldDelete ?? false) {
+                                    try {
+                                      // Call the backend to delete the prescription
+                                      await doctor.deletePrescription(
                                         widget.patient.patientId,
                                         widget
                                             .patient.admissionRecords.first.id,
+                                        prescription.medicine.id ?? '',
                                       );
-                                    });
-                                  } catch (error) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                            'Failed to delete prescription: $error'),
-                                      ),
-                                    );
+
+                                      // Fetch prescriptions again to refresh UI
+                                      setState(() {
+                                        doctor.fetchPrescriptions(
+                                          widget.patient.patientId,
+                                          widget.patient.admissionRecords.first
+                                              .id,
+                                        );
+                                      });
+                                    } catch (error) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                              'Failed to delete prescription: $error'),
+                                        ),
+                                      );
+                                    }
                                   }
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ],
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                );
-              },
-            );
-          },
-        ),
-      ],
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 
