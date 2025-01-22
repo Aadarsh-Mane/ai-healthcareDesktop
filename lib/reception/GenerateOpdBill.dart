@@ -154,6 +154,19 @@ class _GenerateOpdBillScreenState extends State<GenerateOpdBillScreen> {
                 controller: _labDateController,
                 decoration: InputDecoration(labelText: 'Lab Charges Date'),
                 keyboardType: TextInputType.datetime,
+                readOnly: true, // Prevent manual editing
+                onTap: () async {
+                  DateTime? selectedDate = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime(2100),
+                  );
+                  if (selectedDate != null) {
+                    _labDateController.text =
+                        "${selectedDate.day.toString().padLeft(2, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.year.toString().substring(2)}";
+                  }
+                },
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter Lab Charges Date';
@@ -161,6 +174,43 @@ class _GenerateOpdBillScreenState extends State<GenerateOpdBillScreen> {
                   return null;
                 },
               ),
+
+              TextFormField(
+                controller: _otherDateController,
+                decoration: InputDecoration(labelText: 'Other Charges Date'),
+                keyboardType: TextInputType.datetime,
+                readOnly: true, // Prevent manual editing
+                onTap: () async {
+                  DateTime? selectedDate = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime(2100),
+                  );
+                  if (selectedDate != null) {
+                    _otherDateController.text =
+                        "${selectedDate.day.toString().padLeft(2, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.year.toString().substring(2)}";
+                  }
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter Other Charges Date';
+                  }
+                  return null;
+                },
+              ),
+
+              // TextFormField(
+              //   controller: _labDateController,
+              //   decoration: InputDecoration(labelText: 'Lab Charges Date'),
+              //   keyboardType: TextInputType.datetime,
+              //   validator: (value) {
+              //     if (value == null || value.isEmpty) {
+              //       return 'Please enter Lab Charges Date';
+              //     }
+              //     return null;
+              //   },
+              // ),
               TextFormField(
                 controller: _otherAmountController,
                 decoration: InputDecoration(labelText: 'Other Charges Amount'),
@@ -172,17 +222,17 @@ class _GenerateOpdBillScreenState extends State<GenerateOpdBillScreen> {
                   return null;
                 },
               ),
-              TextFormField(
-                controller: _otherDateController,
-                decoration: InputDecoration(labelText: 'Other Charges Date'),
-                keyboardType: TextInputType.datetime,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter Other Charges Date';
-                  }
-                  return null;
-                },
-              ),
+              // TextFormField(
+              //   controller: _otherDateController,
+              //   decoration: InputDecoration(labelText: 'Other Charges Date'),
+              //   keyboardType: TextInputType.datetime,
+              //   validator: (value) {
+              //     if (value == null || value.isEmpty) {
+              //       return 'Please enter Other Charges Date';
+              //     }
+              //     return null;
+              //   },
+              // ),
               SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () async {
