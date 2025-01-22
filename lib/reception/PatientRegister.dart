@@ -48,7 +48,7 @@ class _PatientAddScreenState extends State<PatientAddScreen>
 
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:3000/reception/info?name=$name'),
+        Uri.parse('${VERCEL_URL}/reception/info?name=$name'),
       );
       print("Response: ${response.body}");
       if (response.statusCode == 200) {
@@ -86,7 +86,7 @@ class _PatientAddScreenState extends State<PatientAddScreen>
 
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:3000/reception/suggestions?name=$query'),
+        Uri.parse('${VERCEL_URL}/reception/suggestions?name=$query'),
       );
 
       if (response.statusCode == 200) {
