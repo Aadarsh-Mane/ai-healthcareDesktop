@@ -5,6 +5,7 @@ import 'package:doctordesktop/model/getNewPatientModel.dart';
 import 'package:doctordesktop/repositories/doctor_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 final assignedPatientsProvider =
     StateNotifierProvider<AdmittedPatientsNotifier, AsyncValue<List<Patient1>>>(
@@ -474,16 +475,23 @@ class SelectAdmissionDialog extends StatelessWidget {
   }
 }
 
-class AssignLabDialog extends StatelessWidget {
+class AssignLabDialog extends StatefulWidget {
+  @override
+  _AssignLabDialogState createState() => _AssignLabDialogState();
+}
+
+class _AssignLabDialogState extends State<AssignLabDialog> {
+  final TextEditingController _controller = TextEditingController();
+
   @override
   Widget build(BuildContext context) {
-    final controller = TextEditingController();
-
     return AlertDialog(
-      title: const Text('Assign to Lab',
-          style: TextStyle(color: Colors.deepPurple)),
+      title: const Text(
+        'Assign to Lab',
+        style: TextStyle(color: Colors.deepPurple),
+      ),
       content: TextField(
-        controller: controller,
+        controller: _controller,
         decoration: const InputDecoration(
           labelText: 'Lab Test Name',
         ),
@@ -495,12 +503,29 @@ class AssignLabDialog extends StatelessWidget {
         ),
         TextButton(
           onPressed: () {
-            Navigator.of(context).pop(controller.text);
+            // Get the current date and time in IST
+            final now = DateTime.now()
+                .toUtc()
+                .add(const Duration(hours: 5, minutes: 30));
+            final formattedDate = DateFormat('yyyy-MM-dd h:mm a').format(now);
+
+            // Append the date and time to the test name
+            // final updatedTestName = '${_controller.text.trim()} $formattedDate';
+            final updatedTestName =
+                '${_controller.text.trim()} - $formattedDate';
+
+            Navigator.of(context).pop(updatedTestName);
           },
           child:
               const Text('Assign', style: TextStyle(color: Colors.deepPurple)),
         ),
       ],
     );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose(); // Dispose the controller to prevent memory leaks
+    super.dispose();
   }
 }

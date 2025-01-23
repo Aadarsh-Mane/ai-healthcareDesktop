@@ -546,23 +546,6 @@ class _PatientAddScreenState extends State<PatientAddScreen>
                         ],
                       ),
                       const SizedBox(height: 24.0),
-                      _buildField(
-                        label: "Reason for Admission",
-                        controller: _reasonForAdmissionController,
-                        hintText: 'Enter reason for admission',
-                      ),
-                      const SizedBox(height: 24.0),
-                      _buildField(
-                        label: "Symptoms",
-                        controller: _symptomsController,
-                        hintText: 'Enter symptoms',
-                      ),
-                      const SizedBox(height: 24.0),
-                      _buildField(
-                        label: "Initial Diagnosis",
-                        controller: _initialDiagnosisController,
-                        hintText: 'Enter initial diagnosis',
-                      ),
                       const SizedBox(height: 24.0),
                       _genderSelection(),
                       SizedBox(height: 20),

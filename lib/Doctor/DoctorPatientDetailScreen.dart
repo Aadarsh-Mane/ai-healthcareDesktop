@@ -4,8 +4,11 @@ import 'package:doctordesktop/Doctor/AddDiagnosisScreen.dart';
 import 'package:doctordesktop/Doctor/AddPrescriptionDialod.dart';
 import 'package:doctordesktop/Doctor/AddSymptomsScreen.dart';
 import 'package:doctordesktop/Doctor/Animate.dart';
+import 'package:doctordesktop/Doctor/DoctorAdmittedPatientScreen.dart';
 import 'package:doctordesktop/Doctor/DoctorConsultantScreen.dart';
 import 'package:doctordesktop/Doctor/PatientHistoryDetailScreen.dart';
+import 'package:doctordesktop/StateProvider.dart';
+import 'package:doctordesktop/authProvider/auth_provider.dart';
 import 'package:doctordesktop/constants/Methods.dart';
 import 'package:doctordesktop/repositories/doctor_repository.dart';
 import 'package:doctordesktop/constants/Url.dart';
@@ -13,12 +16,23 @@ import 'package:doctordesktop/model/getNewPatientModel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_expandable_fab/flutter_expandable_fab.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 
 import 'package:shimmer/shimmer.dart'; // For printing or viewing the PDF
+
+final assignedPatientsProvider =
+    StateNotifierProvider<AssignedPatientsNotifier, AsyncValue<List<Patient1>>>(
+  (ref) {
+    final authRepository = ref.read(authRepositoryProvider);
+    final notifier = AssignedPatientsNotifier(authRepository);
+    notifier.fetchAssignedPatients();
+    return notifier;
+  },
+);
 
 class PatientDetailScreen4 extends StatefulWidget {
   final Patient1 patient;
@@ -124,6 +138,98 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
+      );
+    }
+  }
+
+  Future<void> _handleAssignLab(
+      BuildContext context, Patient1 patient, WidgetRef ref) async {
+    final authRepository = ref.read(authRepositoryProvider);
+    final admissionId = await showDialog<String>(
+      context: context,
+      builder: (context) => SelectAdmissionDialog(
+        admissionRecords: patient.admissionRecords,
+      ),
+    );
+
+    if (admissionId == null) return;
+
+    final labTestNameGivenByDoctor = await showDialog<String>(
+      context: context,
+      builder: (context) => AssignLabDialog(),
+    );
+
+    if (labTestNameGivenByDoctor == null || labTestNameGivenByDoctor.isEmpty) {
+      return;
+    }
+
+    try {
+      final result = await authRepository.assignPatientToLab(
+        patientId: patient.id,
+        admissionId: admissionId,
+        labTestNameGivenByDoctor: labTestNameGivenByDoctor,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message']),
+          backgroundColor: result['success'] ? Colors.green : Colors.red,
+        ),
+      );
+
+      ref.refresh(assignedPatientsProvider.notifier).fetchAssignedPatients();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to assign lab: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _admitPatient(
+      Patient1 patient, WidgetRef ref, BuildContext context) async {
+    try {
+      // Assuming the first admission record's ID is used as the admissionId
+      if (patient.admissionRecords.isEmpty) {
+        throw Exception('No admission records found for this patient.');
+      }
+
+      final admissionId = patient.admissionRecords.first
+          .id; // Adjust logic if not using the first record
+
+      final authRepository = ref.read(authRepositoryProvider);
+      final result = await authRepository.admitPatient1(
+        admissionId: admissionId,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message'] ?? 'Unknown error occurred.'),
+          backgroundColor:
+              (result['success'] as bool? ?? false) ? Colors.green : Colors.red,
+        ),
+      );
+      ;
+
+      ref.refresh(assignedPatientsProvider.notifier).fetchAssignedPatients();
+    } catch (e) {
+      print(e);
+      String errorMessage = 'Failed to admit patient';
+
+      // If the error is a Map (e.g., JSON), parse it
+      if (e is Map) {
+        errorMessage = e['message'] ?? 'Unknown error occurred';
+      } else if (e is String) {
+        // If it's a string, use it directly
+        errorMessage = e;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Patient already admitted '),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -489,150 +595,162 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
 
   @override
   Widget build(BuildContext context) {
-    return Shortcuts(
-      shortcuts: <LogicalKeySet, Intent>{
-        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyD):
-            AddDiagnosisIntent(),
-        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyC):
-            AddDoctorConsultingIntent(),
-        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyP):
-            AddPrescriptionIntent(),
-        LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyV):
-            AddVitalsIntent(),
-      },
-      child: Actions(
-        actions: <Type, Action<Intent>>{
-          AddDiagnosisIntent: CallbackAction<AddDiagnosisIntent>(
-            onInvoke: (intent) {
-              _openAddDiagnosisScreen(widget.patient.patientId,
-                  widget.patient.admissionRecords.first.id);
-              return null;
-            },
-          ),
-          AddDoctorConsultingIntent: CallbackAction<AddDoctorConsultingIntent>(
-            onInvoke: (intent) {
-              _openAddDoctorConsultingScreen(widget.patient.patientId,
-                  widget.patient.admissionRecords.first.id);
-              return null;
-            },
-          ),
-          AddPrescriptionIntent: CallbackAction<AddPrescriptionIntent>(
-            onInvoke: (intent) {
-              _openAddPrescriptionScreen(widget.patient.patientId,
-                  widget.patient.admissionRecords.first.id);
-              return null;
-            },
-          ),
-          AddVitalsIntent: CallbackAction<AddVitalsIntent>(
-            onInvoke: (intent) {
-              _openAddVitalsDialog(widget.patient.patientId,
-                  widget.patient.admissionRecords.first.id);
-              return null;
-            },
-          ),
+    return Consumer(builder: (context, ref, child) {
+      return Shortcuts(
+        shortcuts: <LogicalKeySet, Intent>{
+          LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyD):
+              AddDiagnosisIntent(),
+          LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyC):
+              AddDoctorConsultingIntent(),
+          LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyP):
+              AddPrescriptionIntent(),
+          LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyV):
+              AddVitalsIntent(),
+          LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyS):
+              AddSymtomsIntent(),
         },
-        child: Focus(
-          autofocus: true,
-          child: Scaffold(
-            appBar: AppBar(
-              title: Text('${widget.patient.name} Details'),
-              backgroundColor: Colors.teal,
-              elevation: 5,
-              bottom: TabBar(
-                controller: _tabController,
-                isScrollable: true,
-                tabs: const [
-                  Tab(text: 'Overview'),
-                  Tab(text: 'Vitals'),
-                  Tab(text: 'Symptoms'),
-                  Tab(text: 'Follow Ups'),
-                  Tab(text: 'Prescription'),
-                  Tab(text: 'Consultation'),
-                  Tab(text: 'Diagnosis'),
-                ],
-              ),
-              actions: [
-                // IconButton(
-                //   icon: const Icon(Icons.refresh),
-                //   onPressed: () {
-                //     setState(() {
-                //       doctor.fetchFollowUps(
-                //           widget.patient.admissionRecords.first.id);
-                //     });
-                //   },
-                // ),
-                // IconButton(
-                //   icon: const Icon(Icons.mic),
-                //   onPressed: () async {
-                //     _speak('What section would you like to open?');
-                //   },
-                // ),
-              ],
+        child: Actions(
+          actions: <Type, Action<Intent>>{
+            AddDiagnosisIntent: CallbackAction<AddDiagnosisIntent>(
+              onInvoke: (intent) {
+                _openAddDiagnosisScreen(widget.patient.patientId,
+                    widget.patient.admissionRecords.first.id);
+                return null;
+              },
             ),
-            body: Stack(
-              children: [
-                TabBarView(
+            AddDoctorConsultingIntent:
+                CallbackAction<AddDoctorConsultingIntent>(
+              onInvoke: (intent) {
+                _openAddDoctorConsultingScreen(widget.patient.patientId,
+                    widget.patient.admissionRecords.first.id);
+                return null;
+              },
+            ),
+            AddPrescriptionIntent: CallbackAction<AddPrescriptionIntent>(
+              onInvoke: (intent) {
+                _openAddPrescriptionScreen(widget.patient.patientId,
+                    widget.patient.admissionRecords.first.id);
+                return null;
+              },
+            ),
+            AddVitalsIntent: CallbackAction<AddVitalsIntent>(
+              onInvoke: (intent) {
+                _openAddVitalsDialog(widget.patient.patientId,
+                    widget.patient.admissionRecords.first.id);
+                return null;
+              },
+            ),
+            AddSymtomsIntent: CallbackAction<AddSymtomsIntent>(
+              onInvoke: (intent) {
+                _openAddSymptomsScreen(widget.patient.patientId,
+                    widget.patient.admissionRecords.first.id);
+                return null;
+              },
+            ),
+          },
+          child: Focus(
+            autofocus: true,
+            child: Scaffold(
+              appBar: AppBar(
+                title: Text('${widget.patient.name} Details'),
+                backgroundColor: Colors.teal,
+                elevation: 5,
+                bottom: TabBar(
                   controller: _tabController,
-                  children: [
-                    _buildOverviewSection(),
-                    _buildVitalsSection(widget.patient.patientId,
-                        widget.patient.admissionRecords.first.id),
-                    _buildSymptomsByDoctorSection(widget.patient.patientId,
-                        widget.patient.admissionRecords.first.id),
-                    _buildFollowUpSection(
-                        widget.patient.admissionRecords.first.id),
-                    _buildDoctorPrescriptionsSection(),
-                    _buildDoctorConsultingSection(),
-                    _buildDoctorDiagnosiSection(
-                        widget.patient.admissionRecords.first.id,
-                        widget.patient.patientId),
+                  isScrollable: true,
+                  tabs: const [
+                    Tab(text: 'Overview'),
+                    Tab(text: 'Vitals'),
+                    Tab(text: 'Symptoms'),
+                    Tab(text: 'Follow Ups'),
+                    Tab(text: 'Prescription'),
+                    Tab(text: 'Consultation'),
+                    Tab(text: 'Diagnosis'),
                   ],
                 ),
-              ],
-            ),
-            floatingActionButtonLocation: ExpandableFab.location,
-            floatingActionButton: ExpandableFab(
-              distance: 100.0,
-              type: ExpandableFabType.up,
-              children: [
-                FloatingActionButton.extended(
-                  label: const Text('Add Diagnosis'),
-                  heroTag: 'fab1',
-                  onPressed: () {
-                    _openAddDiagnosisScreen(widget.patient.patientId,
-                        widget.patient.admissionRecords.first.id);
-                  },
-                ),
-                FloatingActionButton.extended(
-                  label: const Text('Add DoctorConsulting'),
-                  heroTag: 'fab2',
-                  onPressed: () {
-                    _openAddDoctorConsultingScreen(widget.patient.patientId,
-                        widget.patient.admissionRecords.first.id);
-                  },
-                ),
-                FloatingActionButton.extended(
-                  label: const Text('Add Prescription'),
-                  heroTag: 'fab3',
-                  onPressed: () {
-                    _openAddPrescriptionScreen(widget.patient.patientId,
-                        widget.patient.admissionRecords.first.id);
-                  },
-                ),
-                FloatingActionButton.extended(
-                  label: const Text('Add Vitals'),
-                  heroTag: 'fab4',
-                  onPressed: () {
-                    _openAddVitalsDialog(widget.patient.patientId,
-                        widget.patient.admissionRecords.first.id);
-                  },
-                ),
-              ],
+                actions: [
+                  // IconButton(
+                  //   icon: const Icon(Icons.refresh),
+                  //   onPressed: () {
+                  //     setState(() {
+                  //       doctor.fetchFollowUps(
+                  //           widget.patient.admissionRecords.first.id);
+                  //     });
+                  //   },
+                  // ),
+                  // IconButton(
+                  //   icon: const Icon(Icons.mic),
+                  //   onPressed: () async {
+                  //     _speak('What section would you like to open?');
+                  //   },
+                  // ),
+                ],
+              ),
+              body: Stack(
+                children: [
+                  TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildOverviewSection(context, ref),
+                      _buildVitalsSection(widget.patient.patientId,
+                          widget.patient.admissionRecords.first.id),
+                      _buildSymptomsByDoctorSection(widget.patient.patientId,
+                          widget.patient.admissionRecords.first.id),
+                      _buildFollowUpSection(
+                          widget.patient.admissionRecords.first.id),
+                      _buildDoctorPrescriptionsSection(),
+                      _buildDoctorConsultingSection(),
+                      _buildDoctorDiagnosiSection(
+                          widget.patient.admissionRecords.first.id,
+                          widget.patient.patientId),
+                    ],
+                  ),
+                ],
+              ),
+              floatingActionButtonLocation: ExpandableFab.location,
+              floatingActionButton: ExpandableFab(
+                distance: 100.0,
+                type: ExpandableFabType.up,
+                children: [
+                  FloatingActionButton.extended(
+                    label: const Text('Add Diagnosis'),
+                    heroTag: 'fab1',
+                    onPressed: () {
+                      _openAddDiagnosisScreen(widget.patient.patientId,
+                          widget.patient.admissionRecords.first.id);
+                    },
+                  ),
+                  FloatingActionButton.extended(
+                    label: const Text('Add DoctorConsulting'),
+                    heroTag: 'fab2',
+                    onPressed: () {
+                      _openAddDoctorConsultingScreen(widget.patient.patientId,
+                          widget.patient.admissionRecords.first.id);
+                    },
+                  ),
+                  FloatingActionButton.extended(
+                    label: const Text('Add Prescription'),
+                    heroTag: 'fab3',
+                    onPressed: () {
+                      _openAddPrescriptionScreen(widget.patient.patientId,
+                          widget.patient.admissionRecords.first.id);
+                    },
+                  ),
+                  FloatingActionButton.extended(
+                    label: const Text('Add Vitals'),
+                    heroTag: 'fab4',
+                    onPressed: () {
+                      _openAddVitalsDialog(widget.patient.patientId,
+                          widget.patient.admissionRecords.first.id);
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
+    });
   }
 
   void _openAddPrescriptionScreen(String patientId, String admissionId) {
@@ -694,7 +812,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     });
   }
 
-  Widget _buildOverviewSection() {
+  Widget _buildOverviewSection(BuildContext context, WidgetRef ref) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -723,25 +841,91 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
           ),
           const Divider(thickness: 1, color: Colors.grey),
           const SizedBox(height: 10),
-          ElevatedButton(
-            onPressed: () async {
-              setState(() {
-                _isLoading = true; // Start loading animation
-              });
+          Row(
+            // mainAxisAlignment: MainAxisAlignment.,
+            children: [
+              ElevatedButton(
+                onPressed: () async {
+                  setState(() {
+                    _isLoading = true; // Start loading animation
+                  });
 
-              // Perform the fetch operation
-              await _fetchDoctorAdvice(context, widget.patient.patientId,
-                  widget.patient.admissionRecords.first.id);
+                  // Perform the fetch operation
+                  await _fetchDoctorAdvice(context, widget.patient.patientId,
+                      widget.patient.admissionRecords.first.id);
 
-              setState(() {
-                _isLoading = false; // Stop loading animation
-              });
-            },
-            child: _isLoading
-                ? const CustomLoadingAnimation() // Show loading animation
-                : const Text(
-                    'Generate Prescription'), // Show button text when not loading
+                  setState(() {
+                    _isLoading = false; // Stop loading animation
+                  });
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      Colors.deepOrangeAccent, // Cyan background color
+                  foregroundColor: Colors.white, // White text color
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8), // Rounded corners
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8), // Padding for better appearance
+                ),
+                child: _isLoading
+                    ? const CustomLoadingAnimation() // Show loading animation
+                    : const Text(
+                        'Generate Prescription'), // Show button text when not loading
+              ),
+              SizedBox(
+                width: 15,
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  await _admitPatient(widget.patient, ref, context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      Colors.deepPurpleAccent, // Cyan background color
+                  foregroundColor: Colors.white, // White text color
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8), // Rounded corners
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8), // Padding for better appearance
+                ),
+                child: const Text(
+                  "Admit Patient",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold, // Bold text for emphasis
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: 15,
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  await _handleAssignLab(context, widget.patient, ref);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.cyan, // Cyan background color
+                  foregroundColor: Colors.white, // White text color
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8), // Rounded corners
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8), // Padding for better appearance
+                ),
+                child: const Text(
+                  "Assign to Lab",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold, // Bold text for emphasis
+                  ),
+                ),
+              ),
+            ],
           ),
+
           // Admission Records List
           if (widget.patient.admissionRecords.isNotEmpty)
             ...widget.patient.admissionRecords.map((record) {
@@ -2189,3 +2373,60 @@ class AddDoctorConsultingIntent extends Intent {}
 class AddPrescriptionIntent extends Intent {}
 
 class AddVitalsIntent extends Intent {}
+
+class AddSymtomsIntent extends Intent {}
+
+class AssignLabDialog extends StatefulWidget {
+  @override
+  _AssignLabDialogState createState() => _AssignLabDialogState();
+}
+
+class _AssignLabDialogState extends State<AssignLabDialog> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text(
+        'Assign to Lab',
+        style: TextStyle(color: Colors.deepPurple),
+      ),
+      content: TextField(
+        controller: _controller,
+        decoration: const InputDecoration(
+          labelText: 'Lab Test Name',
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+        ),
+        TextButton(
+          onPressed: () {
+            // Get the current date and time in IST
+            final now = DateTime.now()
+                .toUtc()
+                .add(const Duration(hours: 5, minutes: 30));
+            final formattedDate = DateFormat('yyyy-MM-dd h:mm a').format(now);
+
+            // Append the date and time to the test name
+            // final updatedTestName = '${_controller.text.trim()} $formattedDate';
+            final updatedTestName =
+                '${_controller.text.trim()} - $formattedDate';
+
+            Navigator.of(context).pop(updatedTestName);
+          },
+          child:
+              const Text('Assign', style: TextStyle(color: Colors.deepPurple)),
+        ),
+      ],
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose(); // Dispose the controller to prevent memory leaks
+    super.dispose();
+  }
+}
