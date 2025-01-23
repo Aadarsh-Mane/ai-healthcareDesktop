@@ -51,6 +51,9 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
   late TabController _tabController;
   int _currentTabIndex = 0; // Track the current tab index
   final doctor = DoctorRepository();
+  int _selectedTabIndex =
+      0; // Define this variable to track the selected tab index.
+
   final TextEditingController _prescriptionController = TextEditingController();
   late Future<List<String>> _prescriptionsFuture;
   // late FlutterTts _flutterTts;
@@ -594,163 +597,287 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
   // }
 
   @override
+  @override
   Widget build(BuildContext context) {
-    return Consumer(builder: (context, ref, child) {
-      return Shortcuts(
-        shortcuts: <LogicalKeySet, Intent>{
-          LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyD):
-              AddDiagnosisIntent(),
-          LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyC):
-              AddDoctorConsultingIntent(),
-          LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyP):
-              AddPrescriptionIntent(),
-          LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyV):
-              AddVitalsIntent(),
-          LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyS):
-              AddSymtomsIntent(),
-        },
-        child: Actions(
-          actions: <Type, Action<Intent>>{
-            AddDiagnosisIntent: CallbackAction<AddDiagnosisIntent>(
-              onInvoke: (intent) {
-                _openAddDiagnosisScreen(widget.patient.patientId,
-                    widget.patient.admissionRecords.first.id);
-                return null;
-              },
-            ),
-            AddDoctorConsultingIntent:
-                CallbackAction<AddDoctorConsultingIntent>(
-              onInvoke: (intent) {
-                _openAddDoctorConsultingScreen(widget.patient.patientId,
-                    widget.patient.admissionRecords.first.id);
-                return null;
-              },
-            ),
-            AddPrescriptionIntent: CallbackAction<AddPrescriptionIntent>(
-              onInvoke: (intent) {
-                _openAddPrescriptionScreen(widget.patient.patientId,
-                    widget.patient.admissionRecords.first.id);
-                return null;
-              },
-            ),
-            AddVitalsIntent: CallbackAction<AddVitalsIntent>(
-              onInvoke: (intent) {
-                _openAddVitalsDialog(widget.patient.patientId,
-                    widget.patient.admissionRecords.first.id);
-                return null;
-              },
-            ),
-            AddSymtomsIntent: CallbackAction<AddSymtomsIntent>(
-              onInvoke: (intent) {
-                _openAddSymptomsScreen(widget.patient.patientId,
-                    widget.patient.admissionRecords.first.id);
-                return null;
-              },
-            ),
+    return Consumer(
+      builder: (context, ref, child) {
+        return Shortcuts(
+          shortcuts: <LogicalKeySet, Intent>{
+            LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyD):
+                AddDiagnosisIntent(),
+            LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyC):
+                AddDoctorConsultingIntent(),
+            LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyP):
+                AddPrescriptionIntent(),
+            LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyV):
+                AddVitalsIntent(),
+            LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyS):
+                AddSymtomsIntent(),
+            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyO):
+                ViewOverviewIntent(),
+            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyV):
+                ViewVitalsIntent(),
+            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyS):
+                ViewSymptomsIntent(),
+            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyF):
+                ViewFollowUpsIntent(),
+            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyR):
+                ViewPrescriptionIntent(),
+            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyC):
+                ViewConsultationIntent(),
+            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyD):
+                ViewDiagnosisIntent(),
           },
-          child: Focus(
-            autofocus: true,
-            child: Scaffold(
-              appBar: AppBar(
-                title: Text('${widget.patient.name} Details'),
-                backgroundColor: Colors.teal,
-                elevation: 5,
-                bottom: TabBar(
-                  controller: _tabController,
-                  isScrollable: true,
-                  tabs: const [
-                    Tab(text: 'Overview'),
-                    Tab(text: 'Vitals'),
-                    Tab(text: 'Symptoms'),
-                    Tab(text: 'Follow Ups'),
-                    Tab(text: 'Prescription'),
-                    Tab(text: 'Consultation'),
-                    Tab(text: 'Diagnosis'),
+          child: Actions(
+            actions: <Type, Action<Intent>>{
+              AddDiagnosisIntent: CallbackAction<AddDiagnosisIntent>(
+                onInvoke: (intent) {
+                  _openAddDiagnosisScreen(widget.patient.patientId,
+                      widget.patient.admissionRecords.first.id);
+                  return null;
+                },
+              ),
+              AddDoctorConsultingIntent:
+                  CallbackAction<AddDoctorConsultingIntent>(
+                onInvoke: (intent) {
+                  _openAddDoctorConsultingScreen(widget.patient.patientId,
+                      widget.patient.admissionRecords.first.id);
+                  return null;
+                },
+              ),
+              AddPrescriptionIntent: CallbackAction<AddPrescriptionIntent>(
+                onInvoke: (intent) {
+                  _openAddPrescriptionScreen(widget.patient.patientId,
+                      widget.patient.admissionRecords.first.id);
+                  return null;
+                },
+              ),
+              AddVitalsIntent: CallbackAction<AddVitalsIntent>(
+                onInvoke: (intent) {
+                  _openAddVitalsDialog(widget.patient.patientId,
+                      widget.patient.admissionRecords.first.id);
+                  return null;
+                },
+              ),
+              AddSymtomsIntent: CallbackAction<AddSymtomsIntent>(
+                onInvoke: (intent) {
+                  _openAddSymptomsScreen(widget.patient.patientId,
+                      widget.patient.admissionRecords.first.id);
+                  return null;
+                },
+              ),
+              ViewOverviewIntent: CallbackAction<ViewOverviewIntent>(
+                onInvoke: (intent) {
+                  setState(() {
+                    _selectedTabIndex = 0;
+                    _tabController.animateTo(0);
+                  });
+                  return null;
+                },
+              ),
+              ViewVitalsIntent: CallbackAction<ViewVitalsIntent>(
+                onInvoke: (intent) {
+                  setState(() {
+                    _selectedTabIndex = 1;
+                    _tabController.animateTo(1);
+                  });
+                  return null;
+                },
+              ),
+              ViewSymptomsIntent: CallbackAction<ViewSymptomsIntent>(
+                onInvoke: (intent) {
+                  setState(() {
+                    _selectedTabIndex = 2;
+                    _tabController.animateTo(2);
+                  });
+                  return null;
+                },
+              ),
+              ViewFollowUpsIntent: CallbackAction<ViewFollowUpsIntent>(
+                onInvoke: (intent) {
+                  setState(() {
+                    _selectedTabIndex = 3;
+                    _tabController.animateTo(3);
+                  });
+                  return null;
+                },
+              ),
+              ViewPrescriptionIntent: CallbackAction<ViewPrescriptionIntent>(
+                onInvoke: (intent) {
+                  setState(() {
+                    _selectedTabIndex = 4;
+                    _tabController.animateTo(4);
+                  });
+                  return null;
+                },
+              ),
+              ViewConsultationIntent: CallbackAction<ViewConsultationIntent>(
+                onInvoke: (intent) {
+                  setState(() {
+                    _selectedTabIndex = 5;
+                    _tabController.animateTo(5);
+                  });
+                  return null;
+                },
+              ),
+              ViewDiagnosisIntent: CallbackAction<ViewDiagnosisIntent>(
+                onInvoke: (intent) {
+                  setState(() {
+                    _selectedTabIndex = 6;
+                    _tabController.animateTo(6);
+                  });
+                  return null;
+                },
+              ),
+            },
+            child: Focus(
+              autofocus: true,
+              child: Scaffold(
+                appBar: AppBar(
+                  title: Text('${widget.patient.name} Details'),
+                  backgroundColor: Colors.teal,
+                  elevation: 5,
+                ),
+                body: Row(
+                  children: [
+                    // Sidebar
+                    NavigationRail(
+                      selectedIndex: _selectedTabIndex,
+                      onDestinationSelected: (index) {
+                        setState(() {
+                          _selectedTabIndex = index;
+                          _tabController.animateTo(index);
+                        });
+                      },
+                      labelType: NavigationRailLabelType.all,
+                      destinations: [
+                        NavigationRailDestination(
+                          icon: Image.asset(
+                            'assets/images/okk.png', // Path to your image asset
+                            width: 24, // Adjust size as needed
+                            height: 24,
+                          ),
+                          label: Text('Overview'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Image.asset(
+                            'assets/images/vitals.png', // Path to your image asset
+                            width: 24, // Adjust size as needed
+                            height: 24,
+                          ),
+                          label: Text('Vitals'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Image.asset(
+                            'assets/images/symptoms.png', // Path to your image asset
+                            width: 24, // Adjust size as needed
+                            height: 24,
+                          ),
+                          label: Text('Symptoms'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Image.asset(
+                            'assets/images/chemotherapy.png', // Path to your image asset
+                            width: 24, // Adjust size as needed
+                            height: 24,
+                          ),
+                          label: Text('Follow Ups'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Image.asset(
+                            'assets/images/medical-folder.png', // Path to your image asset
+                            width: 24, // Adjust size as needed
+                            height: 24,
+                          ),
+                          label: Text('Prescription'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Image.asset(
+                            'assets/images/coo.png', // Path to your image asset
+                            width: 24, // Adjust size as needed
+                            height: 24,
+                          ),
+                          label: Text('Consultation'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Image.asset(
+                            'assets/images/diagnostic.png', // Path to your image asset
+                            width: 24, // Adjust size as needed
+                            height: 24,
+                          ),
+                          label: const Text('Diagnosis'),
+                        ),
+                      ],
+                    ),
+
+                    // Main Content (Tabs Section)
+                    Expanded(
+                      child: TabBarView(
+                        controller: _tabController,
+                        children: [
+                          _buildOverviewSection(context, ref),
+                          _buildVitalsSection(widget.patient.patientId,
+                              widget.patient.admissionRecords.first.id),
+                          _buildSymptomsByDoctorSection(
+                              widget.patient.patientId,
+                              widget.patient.admissionRecords.first.id),
+                          _buildFollowUpSection(
+                              widget.patient.admissionRecords.first.id),
+                          _buildDoctorPrescriptionsSection(),
+                          _buildDoctorConsultingSection(),
+                          _buildDoctorDiagnosiSection(
+                              widget.patient.admissionRecords.first.id,
+                              widget.patient.patientId),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-                actions: [
-                  // IconButton(
-                  //   icon: const Icon(Icons.refresh),
-                  //   onPressed: () {
-                  //     setState(() {
-                  //       doctor.fetchFollowUps(
-                  //           widget.patient.admissionRecords.first.id);
-                  //     });
-                  //   },
-                  // ),
-                  // IconButton(
-                  //   icon: const Icon(Icons.mic),
-                  //   onPressed: () async {
-                  //     _speak('What section would you like to open?');
-                  //   },
-                  // ),
-                ],
-              ),
-              body: Stack(
-                children: [
-                  TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildOverviewSection(context, ref),
-                      _buildVitalsSection(widget.patient.patientId,
-                          widget.patient.admissionRecords.first.id),
-                      _buildSymptomsByDoctorSection(widget.patient.patientId,
-                          widget.patient.admissionRecords.first.id),
-                      _buildFollowUpSection(
-                          widget.patient.admissionRecords.first.id),
-                      _buildDoctorPrescriptionsSection(),
-                      _buildDoctorConsultingSection(),
-                      _buildDoctorDiagnosiSection(
-                          widget.patient.admissionRecords.first.id,
-                          widget.patient.patientId),
-                    ],
-                  ),
-                ],
-              ),
-              floatingActionButtonLocation: ExpandableFab.location,
-              floatingActionButton: ExpandableFab(
-                distance: 100.0,
-                type: ExpandableFabType.up,
-                children: [
-                  FloatingActionButton.extended(
-                    label: const Text('Add Diagnosis'),
-                    heroTag: 'fab1',
-                    onPressed: () {
-                      _openAddDiagnosisScreen(widget.patient.patientId,
-                          widget.patient.admissionRecords.first.id);
-                    },
-                  ),
-                  FloatingActionButton.extended(
-                    label: const Text('Add DoctorConsulting'),
-                    heroTag: 'fab2',
-                    onPressed: () {
-                      _openAddDoctorConsultingScreen(widget.patient.patientId,
-                          widget.patient.admissionRecords.first.id);
-                    },
-                  ),
-                  FloatingActionButton.extended(
-                    label: const Text('Add Prescription'),
-                    heroTag: 'fab3',
-                    onPressed: () {
-                      _openAddPrescriptionScreen(widget.patient.patientId,
-                          widget.patient.admissionRecords.first.id);
-                    },
-                  ),
-                  FloatingActionButton.extended(
-                    label: const Text('Add Vitals'),
-                    heroTag: 'fab4',
-                    onPressed: () {
-                      _openAddVitalsDialog(widget.patient.patientId,
-                          widget.patient.admissionRecords.first.id);
-                    },
-                  ),
-                ],
+                floatingActionButtonLocation: ExpandableFab.location,
+                floatingActionButton: ExpandableFab(
+                  distance: 100.0,
+                  type: ExpandableFabType.up,
+                  children: [
+                    FloatingActionButton.extended(
+                      label: const Text('Add Diagnosis'),
+                      heroTag: 'fab1',
+                      onPressed: () {
+                        _openAddDiagnosisScreen(widget.patient.patientId,
+                            widget.patient.admissionRecords.first.id);
+                      },
+                    ),
+                    FloatingActionButton.extended(
+                      label: const Text('Add Doctor Consulting'),
+                      heroTag: 'fab2',
+                      onPressed: () {
+                        _openAddDoctorConsultingScreen(widget.patient.patientId,
+                            widget.patient.admissionRecords.first.id);
+                      },
+                    ),
+                    FloatingActionButton.extended(
+                      label: const Text('Add Prescription'),
+                      heroTag: 'fab3',
+                      onPressed: () {
+                        _openAddPrescriptionScreen(widget.patient.patientId,
+                            widget.patient.admissionRecords.first.id);
+                      },
+                    ),
+                    FloatingActionButton.extended(
+                      label: const Text('Add Vitals'),
+                      heroTag: 'fab4',
+                      onPressed: () {
+                        _openAddVitalsDialog(widget.patient.patientId,
+                            widget.patient.admissionRecords.first.id);
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
   }
 
   void _openAddPrescriptionScreen(String patientId, String admissionId) {
@@ -1137,254 +1264,261 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
   }
 
   Widget _buildSymptomsByDoctorSection(String patientId, String admissionId) {
-    return FutureBuilder<List<String>>(
-      future: doctor.fetchSymptomsByDoctor(patientId, admissionId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (snapshot.hasError) {
-          return Text(
-            'Error: ${snapshot.error}',
-            style: const TextStyle(color: Colors.red),
-          );
-        } else if (snapshot.hasData) {
-          final symptoms = snapshot.data!;
-          print("got the symbol: $admissionId");
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Symptoms by Doctor:',
-                style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.teal),
-              ),
-              const SizedBox(height: 12),
-              if (symptoms.isEmpty)
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: FutureBuilder<List<String>>(
+        future: doctor.fetchSymptomsByDoctor(patientId, admissionId),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Text(
+              'Error: ${snapshot.error}',
+              style: const TextStyle(color: Colors.red),
+            );
+          } else if (snapshot.hasData) {
+            final symptoms = snapshot.data!;
+            print("got the symbol: $admissionId");
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 const Text(
-                  'No symptoms added by the doctor.',
+                  'Symptoms by Doctor:',
                   style: TextStyle(
-                      fontStyle: FontStyle.italic, color: Colors.grey),
-                )
-              else
-                // Enhanced DataTable with improved styling
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.shade400,
-                        blurRadius: 10,
-                        spreadRadius: 3,
-                      ),
-                    ],
-                  ),
-                  child: DataTable(
-                    columnSpacing: 24,
-                    horizontalMargin: 16,
-                    columns: const [
-                      DataColumn(
-                          label: Text(
-                        'No.',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.teal,
-                          fontSize: 16,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.teal),
+                ),
+                const SizedBox(height: 12),
+                if (symptoms.isEmpty)
+                  const Text(
+                    'No symptoms added by the doctor.',
+                    style: TextStyle(
+                        fontStyle: FontStyle.italic, color: Colors.grey),
+                  )
+                else
+                  // Enhanced DataTable with improved styling
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.shade400,
+                          blurRadius: 10,
+                          spreadRadius: 3,
                         ),
-                      )),
-                      DataColumn(
-                          label: Text(
-                        'Symptom',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.teal,
-                          fontSize: 16,
-                        ),
-                      )),
-                    ],
-                    rows: symptoms
-                        .asMap()
-                        .map((index, symptom) {
-                          return MapEntry(
-                            index,
-                            DataRow(cells: [
-                              DataCell(
-                                Text(
-                                  '${index + 1}',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 16,
-                                    color: Colors.black87,
+                      ],
+                    ),
+                    child: DataTable(
+                      columnSpacing: 24,
+                      horizontalMargin: 16,
+                      columns: const [
+                        DataColumn(
+                            label: Text(
+                          'No.',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.teal,
+                            fontSize: 16,
+                          ),
+                        )),
+                        DataColumn(
+                            label: Text(
+                          'Symptom',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.teal,
+                            fontSize: 16,
+                          ),
+                        )),
+                      ],
+                      rows: symptoms
+                          .asMap()
+                          .map((index, symptom) {
+                            return MapEntry(
+                              index,
+                              DataRow(cells: [
+                                DataCell(
+                                  Text(
+                                    '${index + 1}',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 16,
+                                      color: Colors.black87,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              DataCell(
-                                Text(
-                                  symptom,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.black87,
+                                DataCell(
+                                  Text(
+                                    symptom,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.black87,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ]),
-                          );
-                        })
-                        .values
-                        .toList(),
+                              ]),
+                            );
+                          })
+                          .values
+                          .toList(),
+                    ),
+                  ),
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  onPressed: () =>
+                      _openAddSymptomsScreen(patientId, admissionId),
+                  icon: const Icon(Icons.add, color: Colors.white),
+                  label: const Text('Add Symptom',
+                      style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.teal,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    elevation: 5,
                   ),
                 ),
-              const SizedBox(height: 20),
-              ElevatedButton.icon(
-                onPressed: () => _openAddSymptomsScreen(patientId, admissionId),
-                icon: const Icon(Icons.add, color: Colors.white),
-                label: const Text('Add Symptom',
-                    style: TextStyle(color: Colors.white)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.teal,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  elevation: 5,
-                ),
-              ),
-            ],
-          );
-        } else {
-          return const Text('No data available');
-        }
-      },
+              ],
+            );
+          } else {
+            return const Text('No data available');
+          }
+        },
+      ),
     );
   }
 
   Widget _buildDoctorDiagnosiSection(String admissionId, String patientId) {
-    return FutureBuilder<List<String>>(
-      future: doctor.fetchDoctorDiagnosis(admissionId, patientId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (snapshot.hasError) {
-          return Text(
-            'Error: ${snapshot.error}',
-            style: const TextStyle(color: Colors.red),
-          );
-        } else if (snapshot.hasData) {
-          final symptoms = snapshot.data!;
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Diagnosis by Doctor:',
-                style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.teal),
-              ),
-              const SizedBox(height: 12),
-              if (symptoms.isEmpty)
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: FutureBuilder<List<String>>(
+        future: doctor.fetchDoctorDiagnosis(admissionId, patientId),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Text(
+              'Error: ${snapshot.error}',
+              style: const TextStyle(color: Colors.red),
+            );
+          } else if (snapshot.hasData) {
+            final symptoms = snapshot.data!;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 const Text(
-                  'No diagnosis added by the doctor.',
+                  'Diagnosis by Doctor:',
                   style: TextStyle(
-                      fontStyle: FontStyle.italic, color: Colors.grey),
-                )
-              else
-                // Enhanced DataTable with improved styling
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.shade400,
-                        blurRadius: 10,
-                        spreadRadius: 3,
-                      ),
-                    ],
-                  ),
-                  child: DataTable(
-                    columnSpacing: 24,
-                    horizontalMargin: 16,
-                    columns: const [
-                      DataColumn(
-                          label: Text(
-                        'No.',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.teal,
-                          fontSize: 16,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.teal),
+                ),
+                const SizedBox(height: 12),
+                if (symptoms.isEmpty)
+                  const Text(
+                    'No diagnosis added by the doctor.',
+                    style: TextStyle(
+                        fontStyle: FontStyle.italic, color: Colors.grey),
+                  )
+                else
+                  // Enhanced DataTable with improved styling
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.shade400,
+                          blurRadius: 10,
+                          spreadRadius: 3,
                         ),
-                      )),
-                      DataColumn(
-                          label: Text(
-                        'Diagnosis',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.teal,
-                          fontSize: 16,
-                        ),
-                      )),
-                    ],
-                    rows: symptoms
-                        .asMap()
-                        .map((index, symptom) {
-                          return MapEntry(
-                            index,
-                            DataRow(cells: [
-                              DataCell(
-                                Text(
-                                  '${index + 1}',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 16,
-                                    color: Colors.black87,
+                      ],
+                    ),
+                    child: DataTable(
+                      columnSpacing: 24,
+                      horizontalMargin: 16,
+                      columns: const [
+                        DataColumn(
+                            label: Text(
+                          'No.',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.teal,
+                            fontSize: 16,
+                          ),
+                        )),
+                        DataColumn(
+                            label: Text(
+                          'Diagnosis',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.teal,
+                            fontSize: 16,
+                          ),
+                        )),
+                      ],
+                      rows: symptoms
+                          .asMap()
+                          .map((index, symptom) {
+                            return MapEntry(
+                              index,
+                              DataRow(cells: [
+                                DataCell(
+                                  Text(
+                                    '${index + 1}',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 16,
+                                      color: Colors.black87,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              DataCell(
-                                Text(
-                                  symptom,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.black87,
+                                DataCell(
+                                  Text(
+                                    symptom,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.black87,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ]),
-                          );
-                        })
-                        .values
-                        .toList(),
+                              ]),
+                            );
+                          })
+                          .values
+                          .toList(),
+                    ),
+                  ),
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  onPressed: () =>
+                      _openAddDiagnosisScreen(patientId, admissionId),
+                  icon: const Icon(Icons.add, color: Colors.white),
+                  label: const Text('Add Diagnosis',
+                      style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.teal,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    elevation: 5,
                   ),
                 ),
-              const SizedBox(height: 20),
-              ElevatedButton.icon(
-                onPressed: () =>
-                    _openAddDiagnosisScreen(patientId, admissionId),
-                icon: const Icon(Icons.add, color: Colors.white),
-                label: const Text('Add Diagnosis',
-                    style: TextStyle(color: Colors.white)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.teal,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  elevation: 5,
-                ),
-              ),
-            ],
-          );
-        } else {
-          return const Text('No data available');
-        }
-      },
+              ],
+            );
+          } else {
+            return const Text('No data available');
+          }
+        },
+      ),
     );
   }
 
@@ -2375,6 +2509,20 @@ class AddPrescriptionIntent extends Intent {}
 class AddVitalsIntent extends Intent {}
 
 class AddSymtomsIntent extends Intent {}
+
+class ViewOverviewIntent extends Intent {}
+
+class ViewVitalsIntent extends Intent {}
+
+class ViewSymptomsIntent extends Intent {}
+
+class ViewFollowUpsIntent extends Intent {}
+
+class ViewPrescriptionIntent extends Intent {}
+
+class ViewConsultationIntent extends Intent {}
+
+class ViewDiagnosisIntent extends Intent {}
 
 class AssignLabDialog extends StatefulWidget {
   @override
