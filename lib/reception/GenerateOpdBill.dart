@@ -144,9 +144,14 @@ class _GenerateOpdBillScreenState extends State<GenerateOpdBillScreen> {
                 decoration: InputDecoration(labelText: 'Lab Charges Amount'),
                 keyboardType: TextInputType.number,
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter Lab Charges Amount';
+                  if (value != null &&
+                      value.isNotEmpty &&
+                      double.tryParse(value) == null) {
+                    return 'Please enter a valid number for Lab Charges Amount';
                   }
+                  // if (value == null || value.isEmpty) {
+                  //   return 'Please enter Lab Charges Amount';
+                  // }
                   return null;
                 },
               ),
@@ -168,9 +173,6 @@ class _GenerateOpdBillScreenState extends State<GenerateOpdBillScreen> {
                   }
                 },
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter Lab Charges Date';
-                  }
                   return null;
                 },
               ),
@@ -193,9 +195,9 @@ class _GenerateOpdBillScreenState extends State<GenerateOpdBillScreen> {
                   }
                 },
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter Other Charges Date';
-                  }
+                  // if (value == null || value.isEmpty) {
+                  //   return 'Please enter Other Charges Date';
+                  // }
                   return null;
                 },
               ),
