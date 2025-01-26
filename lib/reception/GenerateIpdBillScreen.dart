@@ -33,14 +33,13 @@ class _GenerateOpdBillScreenState extends State<GenerateIpdBillScreen> {
       "billingAmount": int.parse(_biilingAmountController.text),
       "amountPaid": int.parse(_amountPaidController.text),
     };
-
     try {
       final response = await http.post(
         url,
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(data),
       );
-      print(response.body);
+      print(data);
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final fileLink = data['fileLink'];

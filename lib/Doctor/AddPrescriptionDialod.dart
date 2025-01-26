@@ -3,6 +3,7 @@ import 'package:doctordesktop/constants/Url.dart';
 import 'package:doctordesktop/model/getNewPatientModel.dart';
 import 'package:doctordesktop/repositories/doctor_repository.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
 class AddPrescriptionScreen extends StatefulWidget {
@@ -122,6 +123,16 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
     }
   }
 
+  void _handleKeyPress(RawKeyEvent event) {
+    if (event is RawKeyDownEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.escape) {
+        Navigator.of(context).pop(true); // Navigate back on Escape
+      } else if (event.logicalKey == LogicalKeyboardKey.enter) {
+        _addPrescription(); // Add prescription on Enter
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -135,86 +146,90 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
           },
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Prescription Details',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: Colors.teal,
+      body: RawKeyboardListener(
+        focusNode: FocusNode(),
+        onKey: _handleKeyPress,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Prescription Details',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: Colors.teal,
+                      ),
+                ),
+                const SizedBox(height: 20),
+                Wrap(
+                  spacing: 10.0,
+                  runSpacing: 10.0,
+                  children: selectedMedicines
+                      .split(', ')
+                      .map((medicine) => Chip(
+                            label: Text(medicine,
+                                style: const TextStyle(color: Colors.white)),
+                            backgroundColor: Colors.teal,
+                            onDeleted: () {
+                              setState(() {
+                                selectedMedicines = selectedMedicines
+                                    .split(', ')
+                                    .where((e) => e != medicine)
+                                    .join(', ');
+                              });
+                            },
+                          ))
+                      .toList(),
+                ),
+                const SizedBox(height: 20),
+                _buildTextField(
+                  controller: medicineNameController,
+                  label: 'Medicine Name',
+                  onChanged: _fetchMedicineSuggestions,
+                ),
+                if (isLoadingSuggestions) const LinearProgressIndicator(),
+                if (medicineSuggestions.isNotEmpty) _buildSuggestionsList(),
+                const SizedBox(height: 20),
+                _buildTextField(
+                  controller: morningDosageController,
+                  label: 'Morning Dosage',
+                ),
+                _buildTextField(
+                  controller: afternoonDosageController,
+                  label: 'Afternoon Dosage',
+                ),
+                _buildTextField(
+                  controller: nightDosageController,
+                  label: 'Night Dosage',
+                ),
+                _buildTextField(
+                  controller: commentController,
+                  label: 'Comment',
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: _addPrescription,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.teal,
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 18, horizontal: 30),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(17),
                     ),
-              ),
-              const SizedBox(height: 20),
-              Wrap(
-                spacing: 10.0,
-                runSpacing: 10.0,
-                children: selectedMedicines
-                    .split(', ')
-                    .map((medicine) => Chip(
-                          label: Text(medicine,
-                              style: const TextStyle(color: Colors.white)),
-                          backgroundColor: Colors.teal,
-                          onDeleted: () {
-                            setState(() {
-                              selectedMedicines = selectedMedicines
-                                  .split(', ')
-                                  .where((e) => e != medicine)
-                                  .join(', ');
-                            });
-                          },
-                        ))
-                    .toList(),
-              ),
-              const SizedBox(height: 20),
-              _buildTextField(
-                controller: medicineNameController,
-                label: 'Medicine Name',
-                onChanged: _fetchMedicineSuggestions,
-              ),
-              if (isLoadingSuggestions) const LinearProgressIndicator(),
-              if (medicineSuggestions.isNotEmpty) _buildSuggestionsList(),
-              const SizedBox(height: 20),
-              _buildTextField(
-                controller: morningDosageController,
-                label: 'Morning Dosage',
-              ),
-              _buildTextField(
-                controller: afternoonDosageController,
-                label: 'Afternoon Dosage',
-              ),
-              _buildTextField(
-                controller: nightDosageController,
-                label: 'Night Dosage',
-              ),
-              _buildTextField(
-                controller: commentController,
-                label: 'Comment',
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _addPrescription,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.teal,
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 18, horizontal: 30),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(17),
+                    minimumSize: const Size(double.infinity, 50),
                   ),
-                  minimumSize: const Size(double.infinity, 50),
-                ),
-                child: const Text(
-                  'Add Prescription',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                  child: const Text(
+                    'Add Prescription',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

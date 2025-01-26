@@ -3,6 +3,7 @@ import 'package:doctordesktop/constants/Url.dart';
 import 'package:doctordesktop/model/getNewPatientModel.dart';
 import 'package:doctordesktop/repositories/doctor_repository.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
@@ -103,6 +104,16 @@ class _AddSymptomScreenState extends State<AddSymptomScreen> {
     }
   }
 
+  void _handleKeyPress(RawKeyEvent event) {
+    if (event is RawKeyDownEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.escape) {
+        Navigator.of(context).pop(true); // Navigate back on Escape
+      } else if (event.logicalKey == LogicalKeyboardKey.enter) {
+        _addSymptom(); // Add prescription on Enter
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -116,82 +127,88 @@ class _AddSymptomScreenState extends State<AddSymptomScreen> {
           },
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Title
-              Text(
-                'Symptoms Details',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: Colors.teal,
+      body: RawKeyboardListener(
+        focusNode: FocusNode(),
+        onKey: _handleKeyPress,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Title
+                Text(
+                  'Symptoms Details',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: Colors.teal,
+                      ),
+                ),
+                const SizedBox(height: 20),
+
+                // Display selected symptoms as chips
+                Wrap(
+                  spacing: 10.0,
+                  runSpacing: 10.0,
+                  children: selectedSymptoms
+                      .split(', ')
+                      .map((symptom) => Chip(
+                            label: Text(symptom,
+                                style: const TextStyle(color: Colors.white)),
+                            backgroundColor: Colors.teal,
+                            onDeleted: () {
+                              setState(() {
+                                selectedSymptoms = selectedSymptoms
+                                    .split(', ')
+                                    .where((e) => e != symptom)
+                                    .join(', ');
+                              });
+                            },
+                          ))
+                      .toList(),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Symptom name field with suggestions
+                _buildTextField(
+                  controller: symptomController,
+                  label: 'Symptom Name',
+                  // onChanged: _fetchSymptomSuggestions,
+                ),
+
+                if (isLoadingSuggestions) const LinearProgressIndicator(),
+                if (symptomSuggestions.isNotEmpty) _buildSuggestionsList(),
+
+                const SizedBox(height: 20),
+
+                // Submit button
+                ElevatedButton(
+                  onPressed: _addSymptom,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.teal, // Button color
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 18,
+                        horizontal: 30), // Added horizontal padding
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(17), // Rounded corners
                     ),
-              ),
-              const SizedBox(height: 20),
-
-              // Display selected symptoms as chips
-              Wrap(
-                spacing: 10.0,
-                runSpacing: 10.0,
-                children: selectedSymptoms
-                    .split(', ')
-                    .map((symptom) => Chip(
-                          label: Text(symptom,
-                              style: const TextStyle(color: Colors.white)),
-                          backgroundColor: Colors.teal,
-                          onDeleted: () {
-                            setState(() {
-                              selectedSymptoms = selectedSymptoms
-                                  .split(', ')
-                                  .where((e) => e != symptom)
-                                  .join(', ');
-                            });
-                          },
-                        ))
-                    .toList(),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Symptom name field with suggestions
-              _buildTextField(
-                controller: symptomController,
-                label: 'Symptom Name',
-                // onChanged: _fetchSymptomSuggestions,
-              ),
-
-              if (isLoadingSuggestions) const LinearProgressIndicator(),
-              if (symptomSuggestions.isNotEmpty) _buildSuggestionsList(),
-
-              const SizedBox(height: 20),
-
-              // Submit button
-              ElevatedButton(
-                onPressed: _addSymptom,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.teal, // Button color
-                  padding: const EdgeInsets.symmetric(
-                      vertical: 18, horizontal: 30), // Added horizontal padding
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(17), // Rounded corners
+                    minimumSize: const Size(double.infinity,
+                        50), // Ensures the button is wide enough
                   ),
-                  minimumSize: const Size(
-                      double.infinity, 50), // Ensures the button is wide enough
-                ),
-                child: const Text(
-                  'Add Symptom',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight
-                        .w600, // Slightly bolder text for better visibility
-                    color:
-                        Colors.white, // Ensure text is readable on the button
+                  child: const Text(
+                    'Add Symptom',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight
+                          .w600, // Slightly bolder text for better visibility
+                      color:
+                          Colors.white, // Ensure text is readable on the button
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

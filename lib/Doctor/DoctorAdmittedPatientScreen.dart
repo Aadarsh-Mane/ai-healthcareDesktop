@@ -16,6 +16,15 @@ final assignedPatientsProvider =
     return notifier;
   },
 );
+final assignedPatientsProvider1 =
+    StateNotifierProvider<AssignedPatientsNotifier, AsyncValue<List<Patient1>>>(
+  (ref) {
+    final authRepository = ref.read(authRepositoryProvider);
+    final notifier = AssignedPatientsNotifier(authRepository);
+    notifier.fetchAssignedPatients();
+    return notifier;
+  },
+);
 
 class AdmittedPatientsScreen extends ConsumerStatefulWidget {
   const AdmittedPatientsScreen({Key? key}) : super(key: key);
@@ -281,35 +290,36 @@ class _AssignedPatientsScreenState
 
   Future<void> _showDischargeDialog(BuildContext context, String admissionId,
       String selectedCondition, double amount, Patient1 patient) async {
-    bool? confirmDischarge = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Confirm Discharge',
-              style: TextStyle(color: Colors.deepPurple)),
-          content: const Text(
-              'Are you sure you want to discharge this patient?',
-              style: TextStyle(fontSize: 16)),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(false);
-                // Navigate back to condition dialog
-                _showConditionDialog(context, admissionId, patient);
-              },
-              child: const Text('Back', style: TextStyle(color: Colors.grey)),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(true);
-              },
-              child: const Text('Confirm Discharge',
+    bool confirmDischarge = await showDialog<bool>(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: const Text('Confirm Discharge',
                   style: TextStyle(color: Colors.deepPurple)),
-            ),
-          ],
-        );
-      },
-    );
+              content: const Text(
+                  'Are you sure you want to discharge this patient?',
+                  style: TextStyle(fontSize: 16)),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(false);
+                    _showConditionDialog(context, admissionId, patient);
+                  },
+                  child:
+                      const Text('Back', style: TextStyle(color: Colors.grey)),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(true);
+                  },
+                  child: const Text('Confirm Discharge',
+                      style: TextStyle(color: Colors.deepPurple)),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false; // Default to false if null
 
     if (confirmDischarge == true) {
       try {
@@ -335,32 +345,6 @@ class _AssignedPatientsScreenState
     }
   }
 
-  Future<bool?> _showDischargeConfirmationDialog(BuildContext context) async {
-    return showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Confirm Discharge',
-              style: TextStyle(color: Colors.deepPurple)),
-          content: const Text(
-              'Are you sure you want to discharge this patient?',
-              style: TextStyle(fontSize: 16)),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Discharge',
-                  style: TextStyle(color: Colors.deepPurple)),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   Future<void> _dischargePatient(Patient1 patient, WidgetRef ref) async {
     try {
       final admissionId = patient.admissionRecords.isNotEmpty
@@ -381,12 +365,17 @@ class _AssignedPatientsScreenState
       );
 
       ref.refresh(assignedPatientsProvider.notifier).fetchAdmittedPatients();
+      ref.refresh(assignedPatientsProvider1.notifier).fetchAssignedPatients();
     } catch (e) {
+      ref.refresh(assignedPatientsProvider.notifier).fetchAdmittedPatients();
+      // ref.refresh(assignedPatientsProvider.notifier).fe;
+      ref.refresh(assignedPatientsProvider1.notifier).fetchAssignedPatients();
+
       print('Error discharging patient: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error discharging patient: $e'),
-          backgroundColor: Colors.red,
+          content: Text('Discharged patient: $e'),
+          backgroundColor: Colors.green,
         ),
       );
     }

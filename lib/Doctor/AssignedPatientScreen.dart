@@ -45,6 +45,12 @@ class _AssignedPatientsScreenState
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    ref.refresh(assignedPatientsProvider.notifier).fetchAssignedPatients();
+  }
+
+  @override
   void dispose() {
     // Cancel the timer when the screen is disposed to avoid memory leaks
     _refreshTimer?.cancel();
@@ -106,26 +112,66 @@ class _AssignedPatientsScreenState
   }
 }
 
-class AssignedPatientsView extends ConsumerWidget {
+class AssignedPatientsView extends ConsumerStatefulWidget {
   const AssignedPatientsView({Key? key}) : super(key: key);
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AssignedPatientsView> createState() =>
+      _AssignedPatientsViewState();
+}
+
+class _AssignedPatientsViewState extends ConsumerState<AssignedPatientsView> {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh the provider when dependencies change
+    ref.refresh(assignedPatientsProvider);
+  }
+
+  Future<bool?> _showDischargeConfirmationDialog(BuildContext context) async {
+    // Implementation of the discharge confirmation dialog
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Discharge'),
+        content: const Text('Are you sure you want to discharge this patient?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _dischargePatient(Patient1 patient, WidgetRef ref) async {
+    // Add logic for discharging the patient
+    await Future.delayed(Duration(seconds: 1)); // Simulate API call
+    print('Patient ${patient.name} discharged');
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final assignedPatients = ref.watch(assignedPatientsProvider);
-    final doctor = DoctorRepository();
 
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back),
           color: Colors.black,
           onPressed: () {
-            Navigator.pop(context); // Go back to the previous screen
+            Navigator.pop(context);
           },
         ),
+        backgroundColor: Colors.white,
+        elevation: 0,
       ),
-
-      backgroundColor:
-          Color(0xFFeff7f8), // Light background for the entire list
+      backgroundColor: const Color(0xFFeff7f8),
       body: assignedPatients.when(
         data: (patients) => ListView.builder(
           itemCount: patients.length,
@@ -135,15 +181,14 @@ class AssignedPatientsView extends ConsumerWidget {
                 ? patient.admissionRecords.first.status
                 : 'Pending';
 
-            // Set status color based on the admission status
-            Color statusColor =
+            final statusColor =
                 admissionStatus == 'admitted' ? Colors.green : Colors.red;
 
             return Dismissible(
               key: Key(patient.id),
               direction: DismissDirection.startToEnd,
               onDismissed: (direction) async {
-                bool? shouldDischarge =
+                final shouldDischarge =
                     await _showDischargeConfirmationDialog(context);
 
                 if (shouldDischarge == true) {
@@ -159,7 +204,7 @@ class AssignedPatientsView extends ConsumerWidget {
               },
               background: Container(
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
+                  gradient: const LinearGradient(
                     colors: [Colors.red, Colors.deepOrange],
                     begin: Alignment.centerRight,
                     end: Alignment.centerLeft,
@@ -175,16 +220,13 @@ class AssignedPatientsView extends ConsumerWidget {
                 ),
               ),
               child: Card(
-                color: Colors.white, // Black background for the card
-                elevation: 15.0, // Add shadow for the card
+                color: Colors.white,
+                elevation: 8.0,
                 margin:
                     const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(15),
-                  side: const BorderSide(
-                    color: Color(0Xffeff7f8), // Cyan border for the card
-                    width: 2.0,
-                  ),
+                  side: const BorderSide(color: Color(0Xffeff7f8), width: 2.0),
                 ),
                 child: ListTile(
                   contentPadding:
@@ -194,25 +236,13 @@ class AssignedPatientsView extends ConsumerWidget {
                       Methods().getGoogleDriveDirectLink(patient.imageUrl),
                     ),
                     radius: 30,
-
-                    // radius: 30,
-                    // backgroundColor: Colors.cyan, // Cyan background for avatar
-                    // child: Text(
-                    //   patient.name[0].toUpperCase(),
-                    //   style: const TextStyle(
-                    //     fontSize: 24,
-                    //     fontWeight: FontWeight.bold,
-                    //     color: Colors.black, // Black text inside the avatar
-                    //   ),
-                    // ),
                   ),
                   title: Text(
                     patient.name,
                     style: const TextStyle(
-                      fontSize: 25,
+                      fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      color:
-                          Colors.deepPurpleAccent, // Cyan color for the title
+                      color: Colors.deepPurpleAccent,
                     ),
                   ),
                   subtitle: Column(
@@ -221,9 +251,9 @@ class AssignedPatientsView extends ConsumerWidget {
                       Text(
                         'Age: ${patient.age}, Gender: ${patient.gender}',
                         style: const TextStyle(
-                          fontSize: 18,
+                          fontSize: 16,
                           fontWeight: FontWeight.w400,
-                          color: Colors.black, // Cyan color for the subtitle
+                          color: Colors.black,
                         ),
                       ),
                       const SizedBox(height: 5),
@@ -232,7 +262,7 @@ class AssignedPatientsView extends ConsumerWidget {
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
-                          color: statusColor, // Status-specific color
+                          color: statusColor,
                         ),
                       ),
                     ],
@@ -240,104 +270,43 @@ class AssignedPatientsView extends ConsumerWidget {
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // First Icon (Assign to Lab)
-                      // IconButton(
-                      //   icon: const Icon(
-                      //     Icons.assignment_late,
-                      //     color: Colors.cyan,
-                      //     size: 28, // Larger icon size
-                      //   ),
-                      //   onPressed: () async {
-                      //     await _handleAssignLab(context, patient, ref);
-                      //   },
-                      // ),
-                      // Second Icon (Admit Patient)
-                      // IconButton(
-                      //   icon: const Icon(
-                      //     Icons.person_add,
-                      //     color: Colors.cyan,
-                      //     size: 28, // Larger icon size
-                      //   ),
-                      //   onPressed: () async {
-                      //     await _admitPatient(patient, ref, context);
-                      //   },
-                      // ),
+                      ElevatedButton(
+                        onPressed: () async {
+                          final admissionId = patient.admissionRecords.first.id;
+                          _showConditionDialog(
+                              context, admissionId, patient, ref);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                        ),
+                        child: const Text(
+                          "Discharge Patient",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
                       ElevatedButton(
                         onPressed: () async {
                           await _admitPatient(patient, ref, context);
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              Colors.green, // Cyan background color
-                          foregroundColor: Colors.white, // White text color
+                          backgroundColor: Colors.cyan,
+                          foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(8), // Rounded corners
+                            borderRadius: BorderRadius.circular(8),
                           ),
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8), // Padding for better appearance
+                              horizontal: 12, vertical: 8),
                         ),
                         child: const Text(
                           "Admit Patient",
-                          style: TextStyle(
-                            fontWeight:
-                                FontWeight.bold, // Bold text for emphasis
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: 10),
-                      ElevatedButton(
-                        onPressed: () async {
-                          await _handleAssignLab(context, patient, ref);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.cyan, // Cyan background color
-                          foregroundColor: Colors.white, // White text color
-                          shape: RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(8), // Rounded corners
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8), // Padding for better appearance
-                        ),
-                        child: const Text(
-                          "Assign to Lab",
-                          style: TextStyle(
-                            fontWeight:
-                                FontWeight.bold, // Bold text for emphasis
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: 10),
-                      // Third Icon (Discharge Patient)
-                      ElevatedButton(
-                        onPressed: () async {
-                          final admissionId = patient.admissionRecords.first.id;
-
-                          // _showConditionDialog(context, admissionId, patient);
-                          _showConditionDialog(
-                              context, admissionId, patient, ref);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              Colors.green, // Cyan background color
-                          foregroundColor: Colors.white, // White text color
-                          shape: RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(8), // Rounded corners
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8), // Padding for better appearance
-                        ),
-                        child: const Text(
-                          "Discharge  Patient",
-                          style: TextStyle(
-                            fontWeight:
-                                FontWeight.bold, // Bold text for emphasis
-                          ),
+                          style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
                     ],
@@ -350,7 +319,6 @@ class AssignedPatientsView extends ConsumerWidget {
                             PatientDetailScreen4(patient: patient),
                       ),
                     ).then((_) {
-                      // Trigger a refresh when returning to this screen
                       ref.refresh(assignedPatientsProvider);
                     });
                   },
@@ -369,164 +337,163 @@ class AssignedPatientsView extends ConsumerWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // Trigger the refresh when the button is pressed
           ref.refresh(assignedPatientsProvider);
         },
         child: const Icon(Icons.refresh),
-        backgroundColor: Colors.cyan, // Cyan background for the button
+        backgroundColor: Colors.cyan,
       ),
     );
   }
+}
 
-  Future<void> _showDischargeDialog(
-      BuildContext context,
-      String admissionId,
-      String selectedCondition,
-      double amount,
-      Patient1 patient,
-      WidgetRef ref) async {
-    final doctor = DoctorRepository();
-    bool? confirmDischarge = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Confirm Discharge',
-              style: TextStyle(color: Colors.deepPurple)),
-          content: const Text(
-              'Are you sure you want to discharge this patient?',
-              style: TextStyle(fontSize: 16)),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(false);
-                _showConditionDialog(context, admissionId, patient, ref);
-              },
-              child: const Text('Back', style: TextStyle(color: Colors.grey)),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(true);
-              },
-              child: const Text('Confirm Discharge',
-                  style: TextStyle(color: Colors.deepPurple)),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmDischarge == true) {
-      try {
-        final response = await doctor.updateConditionAtDischarge(
-          admissionId: admissionId,
-          conditionAtDischarge: selectedCondition,
-          amountToBePayed: amount,
-        );
-
-        await _dischargePatient(patient, ref); // Pass ref here
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Discharge successful: ${response['message']}'),
-            backgroundColor: Colors.green,
+Future<void> _showDischargeDialog(
+    BuildContext context,
+    String admissionId,
+    String selectedCondition,
+    double amount,
+    Patient1 patient,
+    WidgetRef ref) async {
+  final doctor = DoctorRepository();
+  bool? confirmDischarge = await showDialog<bool>(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text('Confirm Discharge',
+            style: TextStyle(color: Colors.deepPurple)),
+        content: const Text('Are you sure you want to discharge this patient?',
+            style: TextStyle(fontSize: 16)),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop(false);
+              _showConditionDialog(context, admissionId, patient, ref);
+            },
+            child: const Text('Back', style: TextStyle(color: Colors.grey)),
           ),
-        );
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to discharge patient')),
-        );
-      }
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop(true);
+            },
+            child: const Text('Confirm Discharge',
+                style: TextStyle(color: Colors.deepPurple)),
+          ),
+        ],
+      );
+    },
+  );
+
+  if (confirmDischarge == true) {
+    try {
+      final response = await doctor.updateConditionAtDischarge(
+        admissionId: admissionId,
+        conditionAtDischarge: selectedCondition,
+        amountToBePayed: amount,
+      );
+
+      await _dischargePatient(patient, ref); // Pass ref here
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Discharge successful: ${response['message']}'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      print("this error is $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to discharge patient')),
+      );
     }
   }
+}
 
-  Future<void> _showConditionDialog(BuildContext context, String admissionId,
-      Patient1 patient, WidgetRef ref) async {
-    String selectedCondition = 'Discharged'; // Default value for condition
-    String additionalInfo = ''; // Default empty text field
-    String amountToBePayed = ''; // New field for amount
+Future<void> _showConditionDialog(BuildContext context, String admissionId,
+    Patient1 patient, WidgetRef ref) async {
+  String selectedCondition = 'Discharged'; // Default value for condition
+  String additionalInfo = ''; // Default empty text field
+  String amountToBePayed = ''; // New field for amount
 
-    await showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setState) {
-            return AlertDialog(
-              title: const Text('Update Condition at Discharge'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  DropdownButton<String>(
-                    value: selectedCondition,
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        selectedCondition = newValue!;
-                      });
-                    },
-                    items: <String>[
-                      'Discharged',
-                      "Transferred",
-                      "A.M.A.",
-                      "Absconded",
-                      "Expired"
-                    ].map<DropdownMenuItem<String>>((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    onChanged: (text) {
-                      additionalInfo = text;
-                    },
-                    decoration: const InputDecoration(
-                      labelText: 'Additional Information',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    onChanged: (text) {
-                      amountToBePayed = text;
-                    },
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Amount to be Paid',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ],
-              ),
-              actions: <Widget>[
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
+  await showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (BuildContext context, StateSetter setState) {
+          return AlertDialog(
+            title: const Text('Update Condition at Discharge'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButton<String>(
+                  value: selectedCondition,
+                  onChanged: (String? newValue) {
+                    setState(() {
+                      selectedCondition = newValue!;
+                    });
                   },
-                  child: const Text('Cancel'),
+                  items: <String>[
+                    'Discharged',
+                    "Transferred",
+                    "A.M.A.",
+                    "Absconded",
+                    "Expired"
+                  ].map<DropdownMenuItem<String>>((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
                 ),
-                TextButton(
-                  onPressed: () async {
-                    final amount = double.tryParse(amountToBePayed);
-                    if (amount == null || amount < 0) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Invalid amount entered')),
-                      );
-                      return;
-                    }
-                    Navigator.of(context).pop();
-                    await _showDischargeDialog(context, admissionId,
-                        selectedCondition, amount, patient, ref); // Pass ref
+                const SizedBox(height: 10),
+                TextField(
+                  onChanged: (text) {
+                    additionalInfo = text;
                   },
-                  child: const Text('Next'),
+                  decoration: const InputDecoration(
+                    labelText: 'Additional Information',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  onChanged: (text) {
+                    amountToBePayed = text;
+                  },
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Amount to be Paid',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
               ],
-            );
-          },
-        );
-      },
-    );
-  }
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  final amount = double.tryParse(amountToBePayed);
+                  if (amount == null || amount < 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Invalid amount entered')),
+                    );
+                    return;
+                  }
+                  Navigator.of(context).pop();
+                  await _showDischargeDialog(context, admissionId,
+                      selectedCondition, amount, patient, ref); // Pass ref
+                },
+                child: const Text('Next'),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
 }
 
 class OtherScreenView extends StatelessWidget {

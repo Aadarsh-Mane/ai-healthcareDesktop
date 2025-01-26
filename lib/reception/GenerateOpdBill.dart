@@ -52,7 +52,7 @@ class _GenerateOpdBillScreenState extends State<GenerateOpdBillScreen> {
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(data),
       );
-      print(response.body);
+      print("HERE ${response.body}");
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final fileLink = data['fileLink'];

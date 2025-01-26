@@ -34,8 +34,12 @@ class _AddDiagnosisDoctorScreenState extends State<AddDiagnosisDoctorScreen> {
   }
 
   void _handleKeyPress(RawKeyEvent event) {
-    if (event.isKeyPressed(LogicalKeyboardKey.enter)) {
-      _addDiagnosis();
+    if (event is RawKeyDownEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.enter) {
+        _addDiagnosis();
+      } else if (event.logicalKey == LogicalKeyboardKey.escape) {
+        Navigator.of(context).pop(true);
+      }
     }
   }
 
@@ -61,7 +65,8 @@ class _AddDiagnosisDoctorScreenState extends State<AddDiagnosisDoctorScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Diagnosis added successfully!')),
       );
-      // Clear the input field and return to the previous screen
+
+      // Clear the input field
       _symptomsController.clear();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -82,29 +87,29 @@ class _AddDiagnosisDoctorScreenState extends State<AddDiagnosisDoctorScreen> {
           },
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            RawKeyboardListener(
-              focusNode: FocusNode(),
-              onKey: _handleKeyPress,
-              child: TextField(
+      body: RawKeyboardListener(
+        focusNode: FocusNode(),
+        onKey: _handleKeyPress,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              TextField(
                 controller: _symptomsController,
                 decoration: const InputDecoration(
                   labelText: 'Enter diagnosis',
                   border: OutlineInputBorder(),
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
-            Center(
-              child: ElevatedButton(
-                onPressed: _addDiagnosis,
-                child: const Text('Add Diagnosis'),
+              const SizedBox(height: 20),
+              Center(
+                child: ElevatedButton(
+                  onPressed: _addDiagnosis,
+                  child: const Text('Add Diagnosis'),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
