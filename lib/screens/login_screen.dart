@@ -61,7 +61,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   children: [
                     // Hospital logo
                     Image.asset(
-                      'assets/images/saideep.png',
+                      'assets/images/logo2.png',
                       fit: BoxFit.contain,
                       width: 270,
                       height: 150,
@@ -69,7 +69,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     SizedBox(height: 30),
                     // Welcome text
                     Text(
-                      "Welcome to Saideep Hospital",
+                      "Welcome to Spandan Hospital",
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 32,
@@ -162,7 +162,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                             SizedBox(width: 10),
                             Text(
-                              "Saideep Hospital",
+                              "Spandan Hospital",
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,

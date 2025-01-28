@@ -294,63 +294,6 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     );
   }
 
-  // void _openAddDiagnosisDialog(String admissionId) {
-  //   final TextEditingController _symptomsController = TextEditingController();
-
-  //   showDialog(
-  //     context: context,
-  //     builder: (context) {
-  //       return AlertDialog(
-  //         title: const Text('Add Diagnosis by Doctor'),
-  //         content: TextField(
-  //           controller: _symptomsController,
-  //           decoration: const InputDecoration(
-  //             labelText: 'Enter diaassgnosis',
-  //             border: OutlineInputBorder(),
-  //           ),
-  //         ),
-  //         actions: [
-  //           TextButton(
-  //             onPressed: () => Navigator.of(context).pop(),
-  //             child: const Text('Cancel'),
-  //           ),
-  //           ElevatedButton(
-  //             onPressed: () async {
-  //               final newSymptom = _symptomsController.text.trim();
-  //               if (newSymptom.isNotEmpty) {
-  //                 // Get current date
-  //                 final String currentDateTime =
-  //                     DateFormat('yyyy-MM-dd hh:mm:ss a')
-  //                         .format(DateTime.now());
-
-  //                 // Append date and time to the symptom
-  //                 final String symptomWithDateTime =
-  //                     '$newSymptom Date: $currentDateTime';
-
-  //                 // Call the API with the appended symptom
-  //                 await doctor.addDoctorDiagnosis(
-  //                   admissionId,
-  //                   symptomWithDateTime,
-  //                   widget.patient.patientId,
-  //                 );
-
-  //                 setState(() {
-  //                   doctor.fetchDoctorDiagnosis(
-  //                     widget.patient.patientId,
-  //                     admissionId,
-  //                   );
-  //                 });
-  //               }
-  //               Navigator.of(context).pop();
-  //             },
-  //             child: const Text('Add'),
-  //           ),
-  //         ],
-  //       );
-  //     },
-  //   );
-  // }
-
   void _openAddPrescriptionDialog(String patientId, String admissionId) {
     final medicineNameController = TextEditingController();
     final morningController = TextEditingController();
@@ -621,7 +564,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                 ViewSymptomsIntent(),
             LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyF):
                 ViewFollowUpsIntent(),
-            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyR):
+            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyP):
                 ViewPrescriptionIntent(),
             LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyC):
                 ViewConsultationIntent(),
@@ -815,7 +758,12 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                       child: TabBarView(
                         controller: _tabController,
                         children: [
-                          _buildOverviewSection(context, ref),
+                          // _buildOverviewSection(context, ref),
+                          _buildFourSquareLayout(
+                              context,
+                              ref,
+                              widget.patient.patientId,
+                              widget.patient.admissionRecords.first.id),
                           _buildVitalsSection(widget.patient.patientId,
                               widget.patient.admissionRecords.first.id),
                           _buildSymptomsByDoctorSection(
@@ -877,6 +825,731 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
           ),
         );
       },
+    );
+  }
+
+  final TextEditingController medicineNameController = TextEditingController();
+  final TextEditingController morningDosageController = TextEditingController();
+  final TextEditingController afternoonDosageController =
+      TextEditingController();
+  final TextEditingController nightDosageController = TextEditingController();
+  final TextEditingController commentController = TextEditingController();
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    TextInputType? keyboardType,
+    Function(String)? onChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Colors.teal),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Colors.teal, width: 2),
+          ),
+        ),
+        onChanged: onChanged,
+      ),
+    );
+  }
+
+  Future<void> _addPrescription() async {
+    final morningDosage = morningDosageController.text.isEmpty
+        ? '0'
+        : morningDosageController.text;
+    final afternoonDosage = afternoonDosageController.text.isEmpty
+        ? '0'
+        : afternoonDosageController.text;
+    final nightDosage =
+        nightDosageController.text.isEmpty ? '0' : nightDosageController.text;
+    final medicine = Medicine(
+      name: selectedMedicines,
+      morning: morningDosage,
+      afternoon: afternoonDosage,
+      night: nightDosage,
+      comment: commentController.text,
+    );
+
+    final doctorPrescription = DoctorPrescription(medicine: medicine);
+
+    try {
+      await doctor.addPrescription(
+        widget.patient.patientId,
+        widget.patient.admissionRecords.first.id,
+        doctorPrescription,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Prescription added successfully')),
+      );
+
+      setState(() {
+        selectedMedicines = '';
+        morningDosageController.clear();
+        afternoonDosageController.clear();
+        nightDosageController.clear();
+        commentController.clear();
+      });
+    } catch (e) {
+      print('Error adding prescription: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  }
+
+  Widget _buildPrescriptionLayout() {
+    return Card(
+      elevation: 19,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Prescription Details',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: Colors.teal,
+                    ),
+              ),
+              const SizedBox(height: 20),
+              // Display selected medicines as chips
+              Wrap(
+                spacing: 10.0,
+                runSpacing: 10.0,
+                children: selectedMedicines
+                    .split(', ')
+                    .map((medicine) => Chip(
+                          label: Text(medicine,
+                              style: const TextStyle(color: Colors.white)),
+                          backgroundColor: Colors.teal,
+                          onDeleted: () {
+                            setState(() {
+                              selectedMedicines = selectedMedicines
+                                  .split(', ')
+                                  .where((e) => e != medicine)
+                                  .join(', ');
+                            });
+                          },
+                        ))
+                    .toList(),
+              ),
+              const SizedBox(height: 20),
+              // Medicine Name field with suggestion fetching
+              _buildTextField(
+                controller: medicineNameController,
+                label: 'Medicine Name',
+                onChanged: _fetchMedicineSuggestions,
+              ),
+              if (isLoadingSuggestions) const LinearProgressIndicator(),
+              if (medicineSuggestions.isNotEmpty) _buildSuggestionsList(),
+              const SizedBox(height: 20),
+              // Dosage Fields
+              _buildTextField(
+                controller: morningDosageController,
+                label: 'Morning Dosage',
+              ),
+              _buildTextField(
+                controller: afternoonDosageController,
+                label: 'Afternoon Dosage',
+              ),
+              _buildTextField(
+                controller: nightDosageController,
+                label: 'Night Dosage',
+              ),
+              _buildTextField(
+                controller: commentController,
+                label: 'Comment',
+              ),
+              const SizedBox(height: 20),
+              // Submit Button
+              ElevatedButton(
+                onPressed: _addPrescription,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xffff96a8),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 18, horizontal: 30),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(17),
+                  ),
+                  // minimumSize: const Size(double.infinity, 50),
+                ),
+                child: const Text(
+                  'Add Prescription',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _addDiagnosis(String diagnosis) async {
+    final newSymptom = diagnosis.trim();
+    if (newSymptom.isNotEmpty) {
+      // Get current date and time
+      final String currentDateTime =
+          DateFormat('yyyy-MM-dd hh:mm:ss a').format(DateTime.now());
+
+      // Append date and time to the symptom
+      final String symptomWithDateTime = '$newSymptom Date: $currentDateTime';
+
+      // Call the API with the appended symptom
+      await doctor.addDoctorDiagnosis(
+        widget.patient.admissionRecords.first.id,
+        symptomWithDateTime,
+        widget.patient.patientId,
+      );
+
+      // Fetch updated diagnosis
+      doctor.fetchDoctorDiagnosis(
+          widget.patient.patientId, widget.patient.admissionRecords.first.id);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Diagnosis added successfully!')),
+      );
+
+      // Clear the input field
+      // _addDiagnosis.clear();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Diagnosis cannot be empty!')),
+      );
+    }
+  }
+
+  Widget _buildDiagnosisLayout() {
+    final TextEditingController diagnosisController = TextEditingController();
+
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Enter Diagnosis',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: Colors.teal,
+                ),
+          ),
+          const SizedBox(height: 20),
+          // TextField for entering diagnosis
+          TextField(
+            controller: diagnosisController,
+            decoration: const InputDecoration(
+              labelText: 'Diagnosis',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 20),
+          // Add Diagnosis button
+          ElevatedButton(
+            onPressed: () async {
+              if (diagnosisController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Diagnosis cannot be empty')),
+                );
+                return;
+              }
+              // Add diagnosis to patient's admission record
+              await _addDiagnosis(diagnosisController.text);
+
+              // Clear TextField
+              diagnosisController.clear();
+
+              // Show success message
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Diagnosis added successfully')),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xffff96a8), // Button color
+              padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 30),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(17), // Rounded corners
+              ),
+            ),
+            child: const Text(
+              'Add Diagnosis',
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<String> medicineSuggestions = [];
+  String selectedMedicines = ''; // Store as a single string
+  bool isLoadingSuggestions = false;
+
+  Future<void> _fetchMedicineSuggestions(String query) async {
+    if (query.isEmpty) {
+      setState(() {
+        medicineSuggestions = [];
+      });
+      return;
+    }
+
+    setState(() {
+      isLoadingSuggestions = true;
+    });
+
+    try {
+      final response = await http.get(
+        Uri.parse('${VERCEL_URL}/search?q=$query'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        setState(() {
+          medicineSuggestions = List<String>.from(data['suggestions'] ?? []);
+        });
+      } else {
+        throw Exception('Failed to fetch suggestions');
+      }
+    } catch (e) {
+      print('Error fetching suggestions: $e');
+      setState(() {
+        medicineSuggestions = [];
+      });
+    } finally {
+      setState(() {
+        isLoadingSuggestions = false;
+      });
+    }
+
+    if (medicineSuggestions.isEmpty && query.isNotEmpty) {
+      setState(() {
+        if (!medicineSuggestions.contains(query)) {
+          medicineSuggestions = [query];
+        }
+      });
+    }
+  }
+
+  Widget _buildSuggestionsList() {
+    return Container(
+      padding: const EdgeInsets.only(top: 10),
+      height: 200,
+      child: ListView.builder(
+        itemCount: medicineSuggestions.length,
+        itemBuilder: (context, index) {
+          final suggestion = medicineSuggestions[index];
+          return ListTile(
+            title: Text(suggestion),
+            onTap: () {
+              setState(() {
+                // Add the selected medicine to the list
+                if (selectedMedicines.isEmpty) {
+                  selectedMedicines = suggestion;
+                } else {
+                  selectedMedicines += ', ' + suggestion;
+                }
+                // medicineNameController.clear(); // Clear the input field
+                medicineSuggestions = []; // Clear suggestions list
+              });
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildVitalsLayout() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Title: Add Vitals
+              const Text(
+                'Add Vitals',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.teal,
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // Vitals Form Fields
+              _buildTextField(
+                controller: temperatureController,
+                label: 'Temperature',
+                keyboardType: TextInputType.number,
+              ),
+              _buildTextField(
+                controller: pulseController,
+                label: 'Pulse',
+                keyboardType: TextInputType.number,
+              ),
+              _buildTextField(
+                controller: bloodPressureController,
+                label: 'Blood Pressure',
+                keyboardType: TextInputType.number,
+              ),
+              _buildTextField(
+                controller: bloodSugarLevelController,
+                label: 'Blood Sugar Level',
+                keyboardType: TextInputType.number,
+              ),
+              _buildTextField(
+                controller: otherController,
+                label: 'Others',
+                keyboardType: TextInputType.text,
+              ),
+              const SizedBox(height: 20),
+
+              // Action Buttons (Clear & Add Vitals)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  ElevatedButton(
+                    onPressed: _clearVitalsFields,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(0xffff96a8), // Button color
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 18, horizontal: 30),
+                      shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(17), // Rounded corners
+                      ),
+                      // minimumSize: const Size(double.infinity, 50), // Ensures button width
+                    ),
+                    child: const Text(
+                      'Clear',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: _addVitals,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(0xffff96a8), // Button color
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 18, horizontal: 30),
+                      shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(17), // Rounded corners
+                      ),
+                      // minimumSize: const Size(double.infinity, 50), // Ensures button width
+                    ),
+                    child: const Text(
+                      'Add Vitals',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, color: Colors.black),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  final temperatureController = TextEditingController();
+  final pulseController = TextEditingController();
+  final bloodPressureController = TextEditingController();
+  final bloodSugarLevelController = TextEditingController();
+  final otherController = TextEditingController();
+
+  void _clearVitalsFields() {
+    temperatureController.clear();
+    pulseController.clear();
+    bloodPressureController.clear();
+    bloodSugarLevelController.clear();
+    otherController.clear();
+  }
+
+  Future<void> _addVitals() async {
+    final String currentDateTime =
+        DateFormat('yyyy-MM-dd hh:mm:ss a').format(DateTime.now());
+
+    final String otherWithDateTime =
+        '${otherController.text}\nDate: $currentDateTime';
+
+    final vitals = Vitals(
+      temperature: double.parse(temperatureController.text),
+      pulse: int.parse(pulseController.text),
+      bloodPressure: bloodPressureController.text,
+      bloodSugarLevel: int.parse(bloodSugarLevelController.text),
+      other: otherWithDateTime,
+    );
+
+    try {
+      await doctor.addVitals(widget.patient.patientId,
+          widget.patient.admissionRecords.first.id, vitals);
+      setState(() {
+        doctor.fetchVitals(
+            widget.patient.patientId, widget.patient.admissionRecords.first.id);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vitals added successfully!')),
+      );
+
+      _clearVitalsFields();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error adding vitals: $e')),
+      );
+    }
+  }
+
+  Widget _buildFourSquareLayout(BuildContext context, WidgetRef ref,
+      String patientId, String admissionId) {
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Row(
+        children: [
+          // Left Column
+          Expanded(
+            child: Column(
+              children: [
+                // Top-Left Square (Overview Section)
+                // FFB2C0
+                // FF96A8
+                Expanded(
+                  child: Container(
+                    child: _buildOverviewSection(context, ref),
+                  ),
+                ),
+                Divider(),
+                SizedBox(height: 26),
+                // Bottom-Left Square (Vitals Input)
+                Expanded(
+                  child: Container(
+                    // Background color for this section
+                    child: _buildVitalsLayout(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 26),
+          // Right Column
+          Expanded(
+            child: Column(
+              children: [
+                // Top-Right Square (Prescription Layout)
+                Expanded(
+                  child: Container(
+                    // Background color for this section
+                    child: _buildPrescriptionLayout(),
+                  ),
+                ),
+                Divider(),
+                // Bottom-Right Square (Diagnosis Layout)
+                SingleChildScrollView(
+                  child: Expanded(
+                    child: Container(
+                        // Background color f
+                        //or this section
+
+                        child: Column(
+                      children: [
+                        _buildDiagnosisLayout(),
+                        _buildSymptomsLayout(
+                            context, ref, patientId, admissionId),
+                      ],
+                    )),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSymptomsLayout(BuildContext context, WidgetRef ref,
+      String patientId, String admissionId) {
+    final TextEditingController symptomController = TextEditingController();
+    final List<String> symptomSuggestions = [];
+    bool isLoadingSuggestions = false;
+    String selectedSymptoms = '';
+
+    Future<void> _fetchSymptomSuggestions(String query) async {
+      if (query.isEmpty) {
+        return;
+      }
+
+      isLoadingSuggestions = true;
+
+      try {
+        final response = await http.get(
+          Uri.parse('${VERCEL_URL}/search?q=$query'),
+        );
+
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body) as Map<String, dynamic>;
+          symptomSuggestions.clear();
+          symptomSuggestions
+              .addAll(List<String>.from(data['suggestions'] ?? []));
+        }
+      } catch (e) {
+        print('Error fetching suggestions: $e');
+      } finally {
+        isLoadingSuggestions = false;
+      }
+    }
+
+    Future<void> _addSymptom() async {
+      if (symptomController.text.isEmpty) return;
+
+      final newSymptom = symptomSuggestions.contains(symptomController.text)
+          ? symptomController.text
+          : symptomController.text;
+
+      final String currentDateTime =
+          DateFormat('yyyy-MM-dd hh:mm:ss a').format(DateTime.now());
+      final String fullSymptom = '$newSymptom - $currentDateTime';
+
+      try {
+        await doctor.addSymptomsByDoctor(
+          widget.patient.admissionRecords.first.id,
+          fullSymptom, // Pass the fullSymptom with the date appended
+          widget.patient.patientId,
+        );
+
+        selectedSymptoms +=
+            selectedSymptoms.isEmpty ? fullSymptom : ', $fullSymptom';
+        symptomController.clear();
+        symptomSuggestions.clear();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Symptom added successfully')),
+        );
+      } catch (e) {
+        print('Error adding symptom: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Enter Symptoms',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: Colors.teal,
+                ),
+          ),
+          const SizedBox(height: 20),
+
+          // Display selected symptoms
+          if (selectedSymptoms.isNotEmpty)
+            Wrap(
+              spacing: 10.0,
+              runSpacing: 10.0,
+              children: selectedSymptoms
+                  .split(', ')
+                  .map((symptom) => Chip(
+                        label: Text(symptom,
+                            style: const TextStyle(color: Colors.white)),
+                        backgroundColor: Colors.teal,
+                        onDeleted: () {
+                          selectedSymptoms = selectedSymptoms
+                              .split(', ')
+                              .where((e) => e != symptom)
+                              .join(', ');
+                        },
+                      ))
+                  .toList(),
+            ),
+
+          const SizedBox(height: 20),
+
+          // Symptom text field
+          TextField(
+            controller: symptomController,
+            decoration: InputDecoration(
+              labelText: 'Symptom Name',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Colors.teal, width: 2),
+              ),
+            ),
+            onChanged: _fetchSymptomSuggestions,
+          ),
+          const SizedBox(height: 10),
+
+          // Loading indicator or suggestions
+          if (isLoadingSuggestions) const LinearProgressIndicator(),
+          if (symptomSuggestions.isNotEmpty)
+            Expanded(
+              child: ListView.builder(
+                itemCount: symptomSuggestions.length,
+                itemBuilder: (context, index) {
+                  final suggestion = symptomSuggestions[index];
+                  return ListTile(
+                    title: Text(suggestion),
+                    onTap: () {
+                      selectedSymptoms += selectedSymptoms.isEmpty
+                          ? suggestion
+                          : ', $suggestion';
+                      symptomController.clear();
+                      symptomSuggestions.clear();
+                    },
+                  );
+                },
+              ),
+            ),
+
+          const SizedBox(height: 20),
+
+          // Add Symptom button
+          ElevatedButton(
+            onPressed: _addSymptom,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xffff96a8), // Button color
+              padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 30),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(17), // Rounded corners
+              ),
+            ),
+            child: const Text(
+              'Add Symptom',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -946,31 +1619,50 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Patient Info Section
-          _buildPatientInfoCard(),
+          _buildPatientInfoCard(ref),
           const SizedBox(height: 20),
 
           // Admission Records Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Admission Records',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-              IconButton(
-                onPressed: () {
-                  // Add functionality for adding a record
-                },
-                icon: const Icon(Icons.add_circle_outline, color: Colors.teal),
-                tooltip: 'Add New Record',
-              ),
-            ],
-          ),
-          const Divider(thickness: 1, color: Colors.grey),
-          const SizedBox(height: 10),
-          Row(
+          // Row(
+          //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          //   children: [
+          //     const Text(
+          //       'Admission Records',
+          //       style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          //     ),
+          //     IconButton(
+          //       onPressed: () {
+          //         // Add functionality for adding a record
+          //       },
+          //       icon: const Icon(Icons.add_circle_outline, color: Colors.teal),
+          //       tooltip: 'Add New Record',
+          //     ),
+          //   ],
+          // ),
+          Wrap(
+            runAlignment: WrapAlignment.spaceEvenly,
+            spacing: 16.0, // Horizontal spacing between items
+            runSpacing: 8.0, // Vertical spacing between rows
+
             // mainAxisAlignment: MainAxisAlignment.,
             children: [
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push(MaterialPageRoute(
+                    builder: (context) => PatientHistoryDetailScreen(
+                      patientId: widget.patient.patientId,
+                    ),
+                  ));
+                },
+                icon: const Icon(Icons.details),
+                label: const Text('View Patient Details'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.teal,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+              ),
               ElevatedButton(
                 onPressed: () async {
                   setState(() {
@@ -1001,9 +1693,6 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                     : const Text(
                         'Generate Prescription'), // Show button text when not loading
               ),
-              SizedBox(
-                width: 15,
-              ),
               ElevatedButton(
                 onPressed: () async {
                   await _admitPatient(widget.patient, ref, context);
@@ -1017,7 +1706,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                   ),
                   padding: const EdgeInsets.symmetric(
                       horizontal: 12,
-                      vertical: 8), // Padding for better appearance
+                      vertical: 9), // Padding for better appearance
                 ),
                 child: const Text(
                   "Admit Patient",
@@ -1025,9 +1714,6 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                     fontWeight: FontWeight.bold, // Bold text for emphasis
                   ),
                 ),
-              ),
-              SizedBox(
-                width: 15,
               ),
               ElevatedButton(
                 onPressed: () async {
@@ -1096,69 +1782,177 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     }
   }
 
-  Widget _buildPatientInfoCard() {
+  Widget _buildPatientInfoCard(WidgetRef ref) {
     return Card(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(15.0),
       ),
-      elevation: 8,
+      elevation: 18,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CircleAvatar(
-              backgroundImage: NetworkImage(
-                Methods().getGoogleDriveDirectLink(widget.patient.imageUrl),
-              ),
-              radius: 30,
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 500),
-                    child: Text(
-                      widget.patient.name,
-                      key: ValueKey(widget.patient.name),
-                      style: const TextStyle(
-                          fontSize: 22, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildInfoRow(Icons.perm_identity, 'Patient ID',
-                      widget.patient.patientId),
-                  _buildInfoRow(Icons.cake, 'Age', '${widget.patient.age}'),
-                  _buildInfoRow(Icons.male, 'Gender', widget.patient.gender),
-                  _buildInfoRow(Icons.phone, 'Contact', widget.patient.contact),
-                  _buildInfoRow(Icons.home, 'Address', widget.patient.address),
-                  _buildInfoRow(Icons.account_balance_wallet,
-                      'Previous Remaining', '${widget.patient.pendingAmount}'),
-                  const SizedBox(height: 12),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.of(context).push(MaterialPageRoute(
-                        builder: (context) => PatientHistoryDetailScreen(
-                          patientId: widget.patient.patientId,
-                        ),
-                      ));
-                    },
-                    icon: const Icon(Icons.details),
-                    label: const Text('View Patient Details'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.teal,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ],
+            // Header: Patient Info Title
+            Text(
+              'Patient Information',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.teal,
               ),
             ),
+            const SizedBox(height: 10),
+
+            // Use Wrap to handle multiple lines for patient details
+            Wrap(
+              spacing: 16.0, // Horizontal spacing between items
+              runSpacing: 8.0, // Vertical spacing between rows
+              children: [
+                // Row 1
+                _buildPatientDetail('Patient ID', widget.patient.patientId),
+                _buildPatientDetail('Name', widget.patient.name),
+                _buildPatientDetail('Age', widget.patient.age.toString()),
+
+                // Row 2
+                _buildPatientDetail('Contact', widget.patient.contact),
+                _buildPatientDetail('Gender', widget.patient.gender),
+                _buildPatientDetail(
+                    'Previous Amt', widget.patient.pendingAmount.toString()),
+
+                // Row 3
+                _buildPatientDetail('Address', widget.patient.address),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            // Action Buttons
+            // Row(
+            //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            //   children: [
+            //     _buildActionButton(
+            //         'Generate Prescription', Colors.deepOrangeAccent, () {
+            //       // Handle Generate Prescription action
+            //       print('Generate Prescription tapped');
+            //     }),
+            //     _buildActionButton('Admit Patient', Colors.deepPurpleAccent,
+            //         () {
+            //       // Handle Admit Patient action
+            //       print('Admit Patient tapped');
+            //     }),
+            //     _buildActionButton('Assign to Lab', Colors.cyan, () {
+            //       // Handle Assign to Lab action
+            //       print('Assign to Lab tapped');
+            //     }),
+            //   ],
+            // ),
+
+            const SizedBox(height: 12),
+
+            // View Patient Details Button
+            // ElevatedButton.icon(
+            //   onPressed: () {
+            //     Navigator.of(context).push(MaterialPageRoute(
+            //       builder: (context) => PatientHistoryDetailScreen(
+            //         patientId: widget.patient.patientId,
+            //       ),
+            //     ));
+            //   },
+            //   icon: const Icon(Icons.details),
+            //   label: const Text('View Patient Details'),
+            //   style: ElevatedButton.styleFrom(
+            //     backgroundColor: Colors.teal,
+            //     foregroundColor: Colors.white,
+            //     padding:
+            //         const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            //   ),
+            // ),
           ],
         ),
       ),
     );
   }
+
+  Widget _buildPatientDetail(String label, String value) {
+    return Container(
+      constraints: BoxConstraints(maxWidth: 150), // Controls the maximum width
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$label:',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(fontSize: 13),
+            softWrap: true, // Allows text to wrap if it's too long
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton(String label, Color color, VoidCallback onPressed) {
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  // Widget _buildPatientDetail(String label, String value) {
+  //   return Container(
+  //     width: 100, // Controls the width of the container
+  //     child: Column(
+  //       crossAxisAlignment: CrossAxisAlignment.start,
+  //       children: [
+  //         Text(
+  //           '$label:',
+  //           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+  //         ),
+  //         const SizedBox(height: 4),
+  //         Text(
+  //           value,
+  //           style: TextStyle(fontSize: 12),
+  //           overflow: TextOverflow.ellipsis, // Handles text overflow
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
+
+  // Widget _buildActionButton(String label, Color color) {
+  //   return ElevatedButton(
+  //     onPressed: () async {
+  //       // Handle action
+  //     },
+  //     style: ElevatedButton.styleFrom(
+  //       backgroundColor: color,
+  //       foregroundColor: Colors.white,
+  //       shape: RoundedRectangleBorder(
+  //         borderRadius: BorderRadius.circular(8),
+  //       ),
+  //       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+  //     ),
+  //     child: Text(
+  //       label,
+  //       style: TextStyle(fontWeight: FontWeight.bold),
+  //     ),
+  //   );
+  // }
 
   Widget _buildInfoRow(IconData icon, String label, String value) {
     return Padding(
@@ -1174,7 +1968,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
             child: Text(
               value,
               style: const TextStyle(fontSize: 16),
-              overflow: TextOverflow.ellipsis,
+              overflow: TextOverflow.ellipsis, // Handling long text
             ),
           ),
         ],
