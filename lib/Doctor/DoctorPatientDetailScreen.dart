@@ -907,93 +907,90 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
   }
 
   Widget _buildPrescriptionLayout() {
-    return Card(
-      elevation: 19,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Prescription Details',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: Colors.teal,
-                    ),
-              ),
-              const SizedBox(height: 20),
-              // Display selected medicines as chips
-              Wrap(
-                spacing: 10.0,
-                runSpacing: 10.0,
-                children: selectedMedicines
-                    .split(', ')
-                    .map((medicine) => Chip(
-                          label: Text(medicine,
-                              style: const TextStyle(color: Colors.white)),
-                          backgroundColor: Colors.teal,
-                          onDeleted: () {
-                            setState(() {
-                              selectedMedicines = selectedMedicines
-                                  .split(', ')
-                                  .where((e) => e != medicine)
-                                  .join(', ');
-                            });
-                          },
-                        ))
-                    .toList(),
-              ),
-              const SizedBox(height: 20),
-              // Medicine Name field with suggestion fetching
-              _buildTextField(
-                controller: medicineNameController,
-                label: 'Medicine Name',
-                onChanged: _fetchMedicineSuggestions,
-              ),
-              if (isLoadingSuggestions) const LinearProgressIndicator(),
-              if (medicineSuggestions.isNotEmpty) _buildSuggestionsList(),
-              const SizedBox(height: 20),
-              // Dosage Fields
-              _buildTextField(
-                controller: morningDosageController,
-                label: 'Morning Dosage',
-              ),
-              _buildTextField(
-                controller: afternoonDosageController,
-                label: 'Afternoon Dosage',
-              ),
-              _buildTextField(
-                controller: nightDosageController,
-                label: 'Night Dosage',
-              ),
-              _buildTextField(
-                controller: commentController,
-                label: 'Comment',
-              ),
-              const SizedBox(height: 20),
-              // Submit Button
-              ElevatedButton(
-                onPressed: _addPrescription,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xffff96a8),
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 18, horizontal: 30),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(17),
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Prescription Details',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: Colors.teal,
                   ),
-                  // minimumSize: const Size(double.infinity, 50),
+            ),
+            const SizedBox(height: 20),
+            // Display selected medicines as chips
+            Wrap(
+              spacing: 10.0,
+              runSpacing: 10.0,
+              children: selectedMedicines
+                  .split(', ')
+                  .map((medicine) => Chip(
+                        label: Text(medicine,
+                            style: const TextStyle(color: Colors.white)),
+                        backgroundColor: Colors.teal,
+                        onDeleted: () {
+                          setState(() {
+                            selectedMedicines = selectedMedicines
+                                .split(', ')
+                                .where((e) => e != medicine)
+                                .join(', ');
+                          });
+                        },
+                      ))
+                  .toList(),
+            ),
+            const SizedBox(height: 20),
+            // Medicine Name field with suggestion fetching
+            _buildTextField(
+              controller: medicineNameController,
+              label: 'Medicine Name',
+              onChanged: _fetchMedicineSuggestions,
+            ),
+            if (isLoadingSuggestions) const LinearProgressIndicator(),
+            if (medicineSuggestions.isNotEmpty) _buildSuggestionsList(),
+            const SizedBox(height: 20),
+            // Dosage Fields
+            _buildTextField(
+              controller: morningDosageController,
+              label: 'Morning Dosage',
+            ),
+            _buildTextField(
+              controller: afternoonDosageController,
+              label: 'Afternoon Dosage',
+            ),
+            _buildTextField(
+              controller: nightDosageController,
+              label: 'Night Dosage',
+            ),
+            _buildTextField(
+              controller: commentController,
+              label: 'Comment',
+            ),
+            const SizedBox(height: 20),
+            // Submit Button
+            ElevatedButton(
+              onPressed: _addPrescription,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xffff96a8),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 18, horizontal: 30),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(17),
                 ),
-                child: const Text(
-                  'Add Prescription',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
+                // minimumSize: const Size(double.infinity, 50),
+              ),
+              child: const Text(
+                'Add Prescription',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -1330,19 +1327,16 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
             child: Column(
               children: [
                 // Top-Left Square (Overview Section)
-                // FFB2C0
-                // FF96A8
                 Expanded(
                   child: Container(
                     child: _buildOverviewSection(context, ref),
                   ),
                 ),
-                Divider(),
-                SizedBox(height: 26),
+                const Divider(),
+                const SizedBox(height: 26),
                 // Bottom-Left Square (Vitals Input)
                 Expanded(
                   child: Container(
-                    // Background color for this section
                     child: _buildVitalsLayout(),
                   ),
                 ),
@@ -1357,25 +1351,20 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                 // Top-Right Square (Prescription Layout)
                 Expanded(
                   child: Container(
-                    // Background color for this section
                     child: _buildPrescriptionLayout(),
                   ),
                 ),
-                Divider(),
+                const Divider(),
                 // Bottom-Right Square (Diagnosis Layout)
-                SingleChildScrollView(
-                  child: Expanded(
-                    child: Container(
-                        // Background color f
-                        //or this section
-
-                        child: Column(
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
                       children: [
                         _buildDiagnosisLayout(),
                         _buildSymptomsLayout(
                             context, ref, patientId, admissionId),
                       ],
-                    )),
+                    ),
                   ),
                 ),
               ],
