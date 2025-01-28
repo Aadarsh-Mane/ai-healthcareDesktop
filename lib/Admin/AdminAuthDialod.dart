@@ -18,7 +18,7 @@ class _AdminAuthDialogState extends State<AdminAuthDialog> {
   final TextEditingController _userIdController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final String correctUserId = "Admin";
-  final String correctPassword = "Spandan123";
+  final String correctPassword = "Saideep123";
 
   @override
   void dispose() {
@@ -136,7 +136,7 @@ class DesktopButtonScreen extends StatelessWidget {
       body: Container(
         decoration: BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/images/reception1.png'),
+            image: AssetImage('assets/images/reception.png'),
             fit: BoxFit.contain,
           ),
         ),

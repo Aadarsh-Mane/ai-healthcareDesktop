@@ -71,7 +71,7 @@ class _HomeScreenState extends State<HomeScreen>
       appBar: AppBar(
         backgroundColor: Color(0xFFeff7f8),
         title: Text(
-          'Spandan  Hospital',
+          'Saideep  Hospital',
           style: TextStyle(
             color: Colors.cyan,
           ),
@@ -245,7 +245,7 @@ class _HomeScreenState extends State<HomeScreen>
         Container(
           decoration: BoxDecoration(
             image: DecorationImage(
-              image: AssetImage('assets/images/main.png'),
+              image: AssetImage('assets/images/saideepbanner.png'),
               fit: BoxFit.fill,
             ),
           ),
