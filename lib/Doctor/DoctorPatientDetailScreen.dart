@@ -1174,94 +1174,102 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Title: Add Vitals
-              const Text(
-                'Add Vitals',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.teal,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Add Vitals',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.teal,
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // Vitals Fields in Compact Layout
+            Wrap(
+              spacing: 14,
+              runSpacing: 14,
+              children: [
+                _buildCompactTextField(
+                    controller: temperatureController, label: 'Temperature'),
+                _buildCompactTextField(
+                    controller: pulseController, label: 'Pulse'),
+                _buildCompactTextField(
+                    controller: bloodPressureController,
+                    label: 'Blood Pressure'),
+                _buildCompactTextField(
+                    controller: bloodSugarLevelController,
+                    label: 'Blood Sugar Level'),
+                _buildCompactTextField(
+                    controller: otherController, label: 'Others'),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Wrap(
+            //   spacing: 12,
+            //   runSpacing: 12,
+            //   children: [
+            //     _buildCompactTextField(
+            //         controller: bloodSugarLevelController,
+            //         label: 'Blood Sugar Level'),
+            //     _buildCompactTextField(
+            //         controller: otherController, label: 'Others'),
+            //   ],
+            // ),
+            const SizedBox(height: 20),
+
+            // Action Buttons
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                ElevatedButton(
+                  onPressed: _clearVitalsFields,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xffff96a8),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 14, horizontal: 24),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Clear',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
-              ),
-              const SizedBox(height: 10),
-
-              // Vitals Form Fields
-              _buildTextField(
-                controller: temperatureController,
-                label: 'Temperature',
-                keyboardType: TextInputType.number,
-              ),
-              _buildTextField(
-                controller: pulseController,
-                label: 'Pulse',
-                keyboardType: TextInputType.number,
-              ),
-              _buildTextField(
-                controller: bloodPressureController,
-                label: 'Blood Pressure',
-                keyboardType: TextInputType.number,
-              ),
-              _buildTextField(
-                controller: bloodSugarLevelController,
-                label: 'Blood Sugar Level',
-                keyboardType: TextInputType.number,
-              ),
-              _buildTextField(
-                controller: otherController,
-                label: 'Others',
-                keyboardType: TextInputType.text,
-              ),
-              const SizedBox(height: 20),
-
-              // Action Buttons (Clear & Add Vitals)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  ElevatedButton(
-                    onPressed: _clearVitalsFields,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xffff96a8), // Button color
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 18, horizontal: 30),
-                      shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(17), // Rounded corners
-                      ),
-                      // minimumSize: const Size(double.infinity, 50), // Ensures button width
-                    ),
-                    child: const Text(
-                      'Clear',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: _addVitals,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xffff96a8),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 14, horizontal: 24),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
-                  const SizedBox(width: 12),
-                  ElevatedButton(
-                    onPressed: _addVitals,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xffff96a8), // Button color
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 18, horizontal: 30),
-                      shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(17), // Rounded corners
-                      ),
-                      // minimumSize: const Size(double.infinity, 50), // Ensures button width
-                    ),
-                    child: const Text(
-                      'Add Vitals',
+                  child: const Text('Add Vitals',
                       style: TextStyle(
-                          fontWeight: FontWeight.bold, color: Colors.black),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+                          fontWeight: FontWeight.bold, color: Colors.black)),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactTextField({
+    required TextEditingController controller,
+    required String label,
+  }) {
+    return SizedBox(
+      width: 120,
+      child: TextField(
+        controller: controller,
+        keyboardType: TextInputType.number,
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         ),
       ),
     );
@@ -1333,10 +1341,11 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                   ),
                 ),
                 const Divider(),
-                const SizedBox(height: 26),
+                // const SizedBox(height: 26),
                 // Bottom-Left Square (Vitals Input)
                 Expanded(
                   child: Container(
+                    height: 26,
                     child: _buildVitalsLayout(),
                   ),
                 ),
@@ -1360,9 +1369,9 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                   child: SingleChildScrollView(
                     child: Column(
                       children: [
-                        _buildDiagnosisLayout(),
                         _buildSymptomsLayout(
                             context, ref, patientId, admissionId),
+                        _buildDiagnosisLayout(),
                       ],
                     ),
                   ),
