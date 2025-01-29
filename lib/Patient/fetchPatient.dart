@@ -155,7 +155,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
                         ),
                       ),
                       Text(
-                        'Name: ${patient.name}',
+                        'Name: ${patient.name}  Pending  amount: ${patient.pendingAmount}',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 20,

@@ -1,6 +1,7 @@
 import 'package:doctordesktop/Doctor/AssignedLabScreen.dart';
 import 'package:doctordesktop/Doctor/AssignedPatientScreen.dart';
 import 'package:doctordesktop/LogoutScreen.dart';
+import 'package:doctordesktop/Patient/fetchPatient.dart';
 import 'package:doctordesktop/authProvider/auth_provider.dart';
 import 'package:doctordesktop/main.dart';
 import 'package:flutter/material.dart';
@@ -170,6 +171,13 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => HomeScreen()),
+                  );
+                }),
+                _buildNavButton("Patiens", Icons.exit_to_app, () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => PatientListScreen()),
                   );
                 }),
                 _buildNavButton("Logout", Icons.exit_to_app, () {

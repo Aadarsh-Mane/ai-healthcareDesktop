@@ -7,6 +7,8 @@ class Patient {
   final String contact;
   final String address;
   final bool discharged;
+  final int? pendingAmount;
+
   final List<AdmissionRecord> admissionRecords;
 
   Patient({
@@ -19,6 +21,7 @@ class Patient {
     required this.address,
     required this.discharged,
     required this.admissionRecords,
+    required this.pendingAmount,
   });
 
   factory Patient.fromJson(Map<String, dynamic> json) {
@@ -31,6 +34,7 @@ class Patient {
       contact: json['contact'] ?? '',
       address: json['address'] ?? '',
       discharged: json['discharged'] ?? false,
+      pendingAmount: json['pendingAmount'] as int?,
       admissionRecords: (json['admissionRecords'] as List? ?? [])
           .map((recordJson) => AdmissionRecord.fromJson(recordJson))
           .toList(),
