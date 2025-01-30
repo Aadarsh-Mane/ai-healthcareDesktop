@@ -197,10 +197,10 @@ class DoctorPrescription {
 }
 
 class Vitals {
-  final double temperature;
-  final int pulse;
+  final String temperature;
+  final String pulse;
   final String bloodPressure;
-  final int bloodSugarLevel;
+  final String bloodSugarLevel;
   final String other;
   // final String recordedAt;
 
@@ -215,7 +215,7 @@ class Vitals {
 
   factory Vitals.fromJson(Map<String, dynamic> json) {
     return Vitals(
-      temperature: json['temperature']?.toDouble() ?? 0.0,
+      temperature: json['temperature'] ?? '',
       pulse: json['pulse'] ?? 0,
       bloodPressure: json['bloodPressure'] ?? '',
       bloodSugarLevel: json['bloodSugarLevel'] ?? 0,

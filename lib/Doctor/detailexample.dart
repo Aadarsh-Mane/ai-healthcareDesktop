@@ -366,10 +366,10 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                 final String otherWithDateTime =
                     '${other.text}\nDate: $currentDateTime';
                 final vitals = Vitals(
-                  temperature: double.parse(pulse.text.toString()),
-                  pulse: int.parse(pulse.text.toString()),
+                  temperature: temperature.text,
+                  pulse: pulse.text,
                   bloodPressure: bloodPressure.text,
-                  bloodSugarLevel: int.parse(bloodSugarLevel.text.toString()),
+                  bloodSugarLevel: bloodSugarLevel.text,
                   other: otherWithDateTime,
                 );
 
