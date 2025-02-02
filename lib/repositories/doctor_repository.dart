@@ -102,6 +102,30 @@ class DoctorRepository {
     }
   }
 
+  Future<List<FollowUp>> fetch2hrFollowUps(String admissionId) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('auth_token');
+
+    final url = Uri.parse(
+        '${VERCEL_URL}/nurse/2hrfollowups/$admissionId'); // API endpoint for fetching follow-ups
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((item) => FollowUp.fromJson(item)).toList();
+      } else {
+        throw Exception('Failed to load follow-ups');
+      }
+    } catch (e) {
+      throw Exception('Error fetching follow-ups: $e');
+    }
+  }
+
   Future<List<DoctorPrescription>> fetchPrescriptions(
       String patientId, String admissionId) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();

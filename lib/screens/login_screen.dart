@@ -1,5 +1,6 @@
 import 'package:doctordesktop/Doctor/DoctorMainScreen.dart';
 import 'package:doctordesktop/authProvider/auth_provider.dart';
+import 'package:doctordesktop/constants/Assets.dart';
 import 'package:doctordesktop/main.dart';
 import 'package:doctordesktop/repositories/auth_repository.dart';
 import 'package:flutter/material.dart';
@@ -61,7 +62,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   children: [
                     // Hospital logo
                     Image.asset(
-                      'assets/images/saideep.ico',
+                      '${AppImages.logo}',
                       fit: BoxFit.contain,
                       width: 270,
                       height: 150,
@@ -69,7 +70,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     SizedBox(height: 30),
                     // Welcome text
                     Text(
-                      "Welcome to Saideep Hospital",
+                      "Welcome to ${AppStrings.hospitalName}",
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 32,
@@ -162,7 +163,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                             SizedBox(width: 10),
                             Text(
-                              "Saideep Hospital",
+                              "${AppStrings.hospitalName}",
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,

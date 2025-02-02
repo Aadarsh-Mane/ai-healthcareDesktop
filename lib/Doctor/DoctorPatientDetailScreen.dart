@@ -769,7 +769,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                           _buildSymptomsByDoctorSection(
                               widget.patient.patientId,
                               widget.patient.admissionRecords.first.id),
-                          _buildFollowUpSection(
+                          _buildFollowUpAnd2hrSection(
                               widget.patient.admissionRecords.first.id),
                           _buildDoctorPrescriptionsSection(),
                           _buildDoctorConsultingSection(),
@@ -1326,61 +1326,97 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
 
   Widget _buildFourSquareLayout(BuildContext context, WidgetRef ref,
       String patientId, String admissionId) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Row(
-        children: [
-          // Left Column
-          Expanded(
-            child: Column(
-              children: [
-                // Top-Left Square (Overview Section)
-                Expanded(
-                  child: Container(
-                    child: _buildOverviewSection(context, ref),
-                  ),
-                ),
-                const Divider(),
-                // const SizedBox(height: 26),
-                // Bottom-Left Square (Vitals Input)
-                Expanded(
-                  child: Container(
-                    height: 26,
-                    child: _buildVitalsLayout(),
-                  ),
-                ),
-              ],
+    return Container(
+      color: Colors.white, // Light grey background
+      child: SingleChildScrollView(
+        physics:
+            const AlwaysScrollableScrollPhysics(), // Ensures scrolling anywhere
+        child: Padding(
+          padding: const EdgeInsets.all(
+              12.0), // Increased padding for better spacing
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context)
+                  .size
+                  .height, // Ensures it fills the screen
             ),
-          ),
-          const SizedBox(width: 26),
-          // Right Column
-          Expanded(
             child: Column(
               children: [
-                // Top-Right Square (Prescription Layout)
-                Expanded(
-                  child: Container(
-                    child: _buildPrescriptionLayout(),
-                  ),
-                ),
-                const Divider(),
-                // Bottom-Right Square (Diagnosis Layout)
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        _buildSymptomsLayout(
-                            context, ref, patientId, admissionId),
-                        _buildDiagnosisLayout(),
-                      ],
+                Row(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start, // Aligns content properly
+                  children: [
+                    // Left Column
+                    Expanded(
+                      child: Column(
+                        children: [
+                          // Top-Left Square (Overview Section)
+                          Container(
+                            decoration: _boxDecoration(),
+                            padding: const EdgeInsets.all(10),
+                            child: _buildOverviewSection(context, ref),
+                          ),
+                          const SizedBox(
+                              height: 12), // Better spacing than Divider
+                          // Bottom-Left Square (Vitals Input)
+                          Container(
+                            decoration: _boxDecoration(),
+                            padding: const EdgeInsets.all(10),
+                            child: _buildVitalsLayout(),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 12), // Adjusted for better alignment
+                    // Right Column
+                    Expanded(
+                      child: Column(
+                        children: [
+                          // Top-Right Square (Prescription Layout)
+                          Container(
+                            decoration: _boxDecoration(),
+                            padding: const EdgeInsets.all(10),
+                            child: _buildPrescriptionLayout(),
+                          ),
+                          const SizedBox(height: 12),
+                          // Bottom-Right Square (Diagnosis Layout)
+                          Container(
+                            decoration: _boxDecoration(),
+                            padding: const EdgeInsets.all(10),
+                            child: Column(
+                              children: [
+                                _buildSymptomsLayout(
+                                    context, ref, patientId, admissionId),
+                                const SizedBox(height: 10),
+                                _buildDiagnosisLayout(),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-        ],
+        ),
       ),
+    );
+  }
+
+// BoxDecoration for better UI consistency
+  BoxDecoration _boxDecoration() {
+    return BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black12,
+          blurRadius: 6,
+          spreadRadius: 2,
+        ),
+      ],
     );
   }
 
@@ -2362,7 +2398,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(
-            child: CircularProgressIndicator(),
+            child: Text(''),
           );
         }
         if (snapshot.hasError) {
@@ -2454,6 +2490,28 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     );
   }
 
+  Widget _buildFollowUpAnd2hrSection(String recordId) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 16),
+        Center(
+          child: Text(
+            '4 hrFollow-Ups',
+          ),
+        ),
+        _buildFollowUpSection(recordId),
+        const SizedBox(height: 16),
+        Center(
+          child: Text(
+            '2-Hour Follow-Ups',
+          ),
+        ), // Space between the two sections
+        _build2hrFollowUpSection(recordId),
+      ],
+    );
+  }
+
   Widget _buildFollowUpSection(String recordId) {
     return FutureBuilder<List<FollowUp>>(
       future: doctor.fetchFollowUps(recordId),
@@ -2486,33 +2544,6 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // const Text(
-            //   'Latest Follow-Up:',
-            //   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            // ),
-            // AnimatedOpacity(
-            //   duration: const Duration(milliseconds: 500),
-            //   opacity: 1.0,
-            //   child: Padding(
-            //     padding:
-            //         const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
-            //     child: Column(
-            //       crossAxisAlignment: CrossAxisAlignment.start,
-            //       children: [
-            //         Text('Date: ${latestFollowUp.date}',
-            //             style: const TextStyle(fontSize: 14)),
-            //         Text('Notes: ${latestFollowUp.notes}',
-            //             style: const TextStyle(fontSize: 14)),
-            //         Text('Temperature: ${latestFollowUp.temperature}',
-            //             style: const TextStyle(fontSize: 14)),
-            //       ],
-            //     ),
-            //   ),
-            // ),
-            // const Text(
-            //   'Follow-Ups:',
-            //   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            // ),
             const SizedBox(height: 8),
             ...followUps.map((followUp) {
               return Padding(
@@ -2537,6 +2568,75 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16.0),
                           child: _buildFollowUpTable(followUp),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _build2hrFollowUpSection(String recordId) {
+    return FutureBuilder<List<FollowUp>>(
+      future: doctor.fetch2hrFollowUps(recordId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return _buildShimmerEffect();
+        }
+        if (snapshot.hasError) {
+          return Text('Error: ${snapshot.error}');
+        }
+
+        var followUps = snapshot.data ?? [];
+        if (followUps.isEmpty) {
+          return const Text(
+            'No follow-ups available.',
+            style: TextStyle(fontSize: 14),
+          );
+        }
+
+        final dateFormat = DateFormat('d/M/yyyy, HH:mm:ss');
+
+        // Sort follow-ups by date (newest first)
+        followUps.sort((a, b) {
+          final dateA = dateFormat.parse(a.date);
+          final dateB = dateFormat.parse(b.date);
+          return dateB.compareTo(dateA);
+        });
+        final latestFollowUp = followUps.first;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8),
+            ...followUps.map((followUp) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4.0),
+                child: Align(
+                  alignment: Alignment.center, // Center the dropdown
+                  child: Container(
+                    width: 900, // Adjust width for desktop
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade400),
+                      color: Colors.white,
+                    ),
+                    child: ExpansionTile(
+                      title: Text('Date: ${followUp.date}',
+                          style: const TextStyle(fontSize: 14)),
+                      subtitle: Text(
+                          'Time: ${followUp.date.split(',').last.trim()}',
+                          style: const TextStyle(
+                              fontSize: 12, color: Colors.grey)),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: _build2hrFollowUpTable(followUp),
                         ),
                       ],
                     ),
@@ -3202,35 +3302,6 @@ Widget _buildFollowUpTable(FollowUp followUp) {
               ],
               rows: [
                 DataRow(cells: [
-                  DataCell(Text('2-Hour Follow-Up')),
-                  DataCell(Text(
-                      followUp.date)), // Adding the Date for 2-hour follow-up
-
-                  DataCell(Text(followUp.temperature.toString())),
-                  DataCell(Text(followUp.pulse.toString())),
-                  DataCell(Text(followUp.respirationRate.toString())),
-                  DataCell(Text(followUp.bloodPressure)),
-                  DataCell(Text(followUp.oxygenSaturation.toString())),
-                  DataCell(Text(followUp.bloodSugarLevel.toString())),
-                  DataCell(Text(followUp.otherVitals)),
-                  DataCell(Text(followUp.ivFluid)),
-                  DataCell(Text(followUp.nasogastric)),
-                  DataCell(Text(followUp.rtFeedOral)),
-                  DataCell(Text(followUp.totalIntake)),
-                  DataCell(Text(followUp.cvp)),
-                  DataCell(Text(followUp.urine)),
-                  DataCell(Text(followUp.stool)),
-                  DataCell(Text(followUp.rtAspirate)),
-                  DataCell(Text(followUp.otherOutput)),
-                  DataCell(Text(followUp.ventyMode)),
-                  DataCell(Text(followUp.setRate.toString())),
-                  DataCell(Text(followUp.fiO2.toString())),
-                  DataCell(Text(followUp.pip.toString())),
-                  DataCell(Text(followUp.peepCpap)),
-                  DataCell(Text(followUp.ieRatio)),
-                  DataCell(Text(followUp.otherVentilator)),
-                ]),
-                DataRow(cells: [
                   DataCell(Text('4-Hour Follow-Up')),
                   DataCell(Text(
                       followUp.date)), // Adding the Date for 2-hour follow-up
@@ -3248,6 +3319,107 @@ Widget _buildFollowUpTable(FollowUp followUp) {
                   DataCell(Text(followUp.totalIntake)),
                   DataCell(Text(followUp.cvp)),
                   DataCell(Text(followUp.fourhrurine)),
+                  DataCell(Text(followUp.stool)),
+                  DataCell(Text(followUp.rtAspirate)),
+                  DataCell(Text(followUp.otherOutput)),
+                  DataCell(Text(followUp.ventyMode)),
+                  DataCell(Text(followUp.setRate.toString())),
+                  DataCell(Text(followUp.fiO2.toString())),
+                  DataCell(Text(followUp.pip.toString())),
+                  DataCell(Text(followUp.peepCpap)),
+                  DataCell(Text(followUp.ieRatio)),
+                  DataCell(Text(followUp.otherVentilator)),
+                ]),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _build2hrFollowUpTable(FollowUp followUp) {
+  return Card(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(15.0),
+    ),
+    elevation: 4,
+    margin: const EdgeInsets.symmetric(vertical: 8.0),
+    child: Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Follow-Up Details',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              columnSpacing: 30, // Increased spacing for desktop readability
+              dataRowHeight: 60,
+              headingRowHeight: 50,
+              border: TableBorder.all(color: Colors.grey.shade300),
+              headingRowColor: MaterialStateProperty.all(Colors.cyan),
+              columns: const [
+                DataColumn(
+                  label: Text(
+                    'Type',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                DataColumn(label: Text('Date')),
+                DataColumn(label: Text('Temperature')),
+                DataColumn(label: Text('Pulse')),
+                DataColumn(label: Text('Respiration Rate')),
+                DataColumn(label: Text('Blood Pressure')),
+                DataColumn(label: Text('Oxygen Saturation')),
+                DataColumn(label: Text('Blood Sugar Level')),
+                DataColumn(label: Text('Other Vitals')),
+                DataColumn(label: Text('IV Fluid')),
+                DataColumn(label: Text('Nasogastric')),
+                DataColumn(label: Text('RT Feed Oral')),
+                DataColumn(label: Text('Total Intake')),
+                DataColumn(label: Text('CVP')),
+                DataColumn(label: Text('Urine Output')),
+                DataColumn(label: Text('Stool')),
+                DataColumn(label: Text('RT Aspirate')),
+                DataColumn(label: Text('Other Output')),
+                DataColumn(label: Text('Ventilator Mode')),
+                DataColumn(label: Text('Set Rate')),
+                DataColumn(label: Text('FiO2')),
+                DataColumn(label: Text('PIP')),
+                DataColumn(label: Text('PEEP/CPAP')),
+                DataColumn(label: Text('IE Ratio')),
+                DataColumn(label: Text('Other Ventilator')),
+              ],
+              rows: [
+                DataRow(cells: [
+                  DataCell(Text('2-Hour Follow-Up')),
+                  DataCell(Text(
+                      followUp.date)), // Adding the Date for 2-hour follow-up
+
+                  DataCell(Text(followUp.temperature.toString())),
+                  DataCell(Text(followUp.pulse.toString())),
+                  DataCell(Text(followUp.respirationRate.toString())),
+                  DataCell(Text(followUp.bloodPressure)),
+                  DataCell(Text(followUp.oxygenSaturation.toString())),
+                  DataCell(Text(followUp.bloodSugarLevel.toString())),
+                  DataCell(Text(followUp.otherVitals)),
+                  DataCell(Text(followUp.ivFluid)),
+                  DataCell(Text(followUp.nasogastric)),
+                  DataCell(Text(followUp.rtFeedOral)),
+                  DataCell(Text(followUp.totalIntake)),
+                  DataCell(Text(followUp.cvp)),
+                  DataCell(Text(followUp.urine)),
                   DataCell(Text(followUp.stool)),
                   DataCell(Text(followUp.rtAspirate)),
                   DataCell(Text(followUp.otherOutput)),

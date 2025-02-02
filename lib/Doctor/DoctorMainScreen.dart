@@ -3,6 +3,7 @@ import 'package:doctordesktop/Doctor/AssignedPatientScreen.dart';
 import 'package:doctordesktop/LogoutScreen.dart';
 import 'package:doctordesktop/Patient/fetchPatient.dart';
 import 'package:doctordesktop/authProvider/auth_provider.dart';
+import 'package:doctordesktop/constants/Assets.dart';
 import 'package:doctordesktop/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -65,7 +66,7 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                "Saideep's Doctor Portal,",
+                "${AppStrings.hospitalName} Doctor Portal,",
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.bold,

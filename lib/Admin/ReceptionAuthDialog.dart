@@ -1,5 +1,6 @@
 import 'package:doctordesktop/Doctor/fetchDoctor.dart';
 import 'package:doctordesktop/Patient/fetchPatient.dart';
+import 'package:doctordesktop/constants/Assets.dart';
 import 'package:doctordesktop/reception/PatientAllDischargedScreen.dart';
 import 'package:doctordesktop/reception/PatientDischarge.dart';
 import 'package:doctordesktop/reception/PatientRegister.dart';
@@ -15,8 +16,8 @@ class ReceptionAuthDialog extends StatefulWidget {
 class _ReceptionAuthDialogState extends State<ReceptionAuthDialog> {
   final TextEditingController _userIdController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final String correctUserId = "Reception";
-  final String correctPassword = "Saideep123";
+  final String correctUserId = "${AllUserPassword.receptionUser}";
+  final String correctPassword = "${AllUserPassword.receptionPassword}";
 
   @override
   void dispose() {
@@ -134,7 +135,7 @@ class DesktopButtonScreen extends StatelessWidget {
       body: Container(
         decoration: BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/images/reception.png'),
+            image: AssetImage('${AppImages.reception}'),
             fit: BoxFit.contain,
           ),
         ),

@@ -19,6 +19,7 @@ class DischargedPatientsNotifier
   }
 
   Future<void> fetchDischargedPatients() async {
+    print('Fetching discharged patients...');
     try {
       final response = await http
           .get(Uri.parse('${VERCEL_URL}/reception/getAllDischargedPatient'));
@@ -37,6 +38,7 @@ class DischargedPatientsNotifier
 
   // Manual refresh method
   Future<void> manualRefresh() async {
+    print('Manual refresh');
     state = const AsyncValue.loading(); // Set state to loading while fetching
     await fetchDischargedPatients();
   }
@@ -65,6 +67,12 @@ class _DischargedPatientsScreen1State
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    ref.read(dischargedPatientsProvider.notifier).fetchDischargedPatients();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final dischargedPatientsAsync = ref.watch(dischargedPatientsProvider);
 
@@ -79,7 +87,7 @@ class _DischargedPatientsScreen1State
               icon: const Icon(Icons.refresh),
               onPressed: () {
                 // Trigger the manual refresh
-                ref.read(dischargedPatientsProvider.notifier).manualRefresh();
+                ref.invalidate(dischargedPatientsProvider);
               },
             ),
           ],
@@ -114,7 +122,6 @@ class _DischargedPatientsScreen1State
                         ),
                       );
                       if (shouldRefresh == true) {
-                        // Fetch the data again after coming back
                         ref
                             .read(dischargedPatientsProvider.notifier)
                             .fetchDischargedPatients();
@@ -259,6 +266,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
     );
     print("heeeloooo ${response.body}");
     if (response.statusCode == 200) {
+      // Update the UI to reflect the discharge status
       _showSnackBar(context, "Patient discharged successfully.");
     } else {
       _showSnackBar(context, "Failed to discharge patient.");

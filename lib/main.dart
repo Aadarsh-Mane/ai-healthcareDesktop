@@ -3,6 +3,7 @@ import 'package:doctordesktop/Admin/ReceptionAuthDialog.dart';
 import 'package:doctordesktop/Lab/LabAuthDialog.dart';
 import 'package:doctordesktop/Lab/LabScreen.dart';
 import 'package:doctordesktop/Working.dart';
+import 'package:doctordesktop/constants/Assets.dart';
 import 'package:doctordesktop/model/getPatientHistory.dart';
 import 'package:doctordesktop/reception/PatientDischarge.dart';
 import 'package:doctordesktop/screens/3d.dart';
@@ -71,7 +72,7 @@ class _HomeScreenState extends State<HomeScreen>
       appBar: AppBar(
         backgroundColor: Color(0xFFeff7f8),
         title: Text(
-          'Saideep  Hospital',
+          '${AppStrings.hospitalName}',
           style: TextStyle(
             color: Colors.cyan,
           ),
@@ -245,7 +246,7 @@ class _HomeScreenState extends State<HomeScreen>
         Container(
           decoration: BoxDecoration(
             image: DecorationImage(
-              image: AssetImage('assets/images/saideepbanner.png'),
+              image: AssetImage(AppImages.home),
               fit: BoxFit.fill,
             ),
           ),
@@ -388,7 +389,7 @@ class _HomeScreenState extends State<HomeScreen>
     return Container(
       decoration: BoxDecoration(
         image: DecorationImage(
-          image: AssetImage('assets/images/saideepbanner.png'),
+          image: AssetImage('${AppImages.home}'),
           fit: BoxFit.fill,
         ),
       ),

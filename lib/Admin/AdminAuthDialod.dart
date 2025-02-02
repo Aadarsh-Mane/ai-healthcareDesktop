@@ -1,5 +1,7 @@
+import 'package:doctordesktop/Doctor/SeeNurseAttendace.dart';
 import 'package:doctordesktop/Doctor/fetchDoctor.dart';
 import 'package:doctordesktop/Patient/fetchPatient.dart';
+import 'package:doctordesktop/constants/Assets.dart';
 import 'package:doctordesktop/reception/PatientAllDischargedScreen.dart';
 import 'package:doctordesktop/reception/PatientDischarge.dart';
 import 'package:doctordesktop/reception/PatientRegister.dart';
@@ -17,8 +19,8 @@ class AdminAuthDialog extends StatefulWidget {
 class _AdminAuthDialogState extends State<AdminAuthDialog> {
   final TextEditingController _userIdController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final String correctUserId = "Admin";
-  final String correctPassword = "Saideep123";
+  final String correctUserId = "${AllUserPassword.adminUser}";
+  final String correctPassword = "${AllUserPassword.adminPassword}";
 
   @override
   void dispose() {
@@ -60,7 +62,7 @@ class _AdminAuthDialogState extends State<AdminAuthDialog> {
       child: AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
-          'Reception Login',
+          'Admin Login',
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         ),
         content: Column(
@@ -136,14 +138,14 @@ class DesktopButtonScreen extends StatelessWidget {
       body: Container(
         decoration: BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/images/reception.png'),
+            image: AssetImage('${AppImages.admin}'),
             fit: BoxFit.contain,
           ),
         ),
         child: Align(
           alignment: Alignment.bottomLeft,
           child: Padding(
-            padding: const EdgeInsets.only(bottom: 90.0, left: 60.0, top: 80.0),
+            padding: const EdgeInsets.only(bottom: 20.0, left: 10.0, top: 70.0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -289,6 +291,54 @@ class DesktopButtonScreen extends StatelessWidget {
                       ),
                       child: const Text('Nurse Register'),
                     ),
+                  ],
+                ),
+                SizedBox(height: 30),
+                Row(
+                  children: [
+                    ElevatedButton(
+                      onPressed: () {
+                        // Handle button 3 press
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => GetAllAttendance()),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0XFF7CDCE8), // Background color
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 60, vertical: 30),
+                        textStyle: TextStyle(fontSize: 20),
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(8), // Rectangular shape
+                        ),
+                      ),
+                      child: const Text('Nurse Attendance'),
+                    ),
+                    const SizedBox(width: 30),
+                    // ElevatedButton(
+                    //   onPressed: () {
+                    //     Navigator.push(
+                    //       context,
+                    //       MaterialPageRoute(
+                    //           builder: (context) => NurseRegisterScreen()),
+                    //     );
+                    //     // Handle button 4 press
+                    //   },
+                    //   style: ElevatedButton.styleFrom(
+                    //     backgroundColor: Color(0XFF7CDCE8), // Background color
+                    //     padding:
+                    //         EdgeInsets.symmetric(horizontal: 60, vertical: 30),
+                    //     textStyle: TextStyle(fontSize: 20),
+                    //     shape: RoundedRectangleBorder(
+                    //       borderRadius:
+                    //           BorderRadius.circular(8), // Rectangular shape
+                    //     ),
+                    //   ),
+                    //   child: const Text('Nurse Register'),
+                    // ),
                   ],
                 ),
               ],
