@@ -1051,67 +1051,276 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     }
   }
 
-  Widget _buildDiagnosisLayout() {
-    final TextEditingController diagnosisController = TextEditingController();
+  // Widget buildDiagnosisLayout({
+  //   required String admissionId,
+  //   required String patientId,
+  //   required Future<void> Function(
+  //           String admissionId, String symptomWithDateTime, String patientId)
+  //       addDoctorDiagnosis,
+  //   required void Function(String patientId, String admissionId)
+  //       fetchDoctorDiagnosis,
+  // }) {
+  //   final TextEditingController symptomsController = TextEditingController();
+  //   List<String> diagnosisSuggestions = [];
+  //   List<String> selectedDiagnoses = [];
+  //   bool isLoadingSuggestions = false;
 
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Enter Diagnosis',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: Colors.teal,
-                ),
-          ),
-          const SizedBox(height: 20),
-          // TextField for entering diagnosis
-          TextField(
-            controller: diagnosisController,
-            decoration: const InputDecoration(
-              labelText: 'Diagnosis',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 20),
-          // Add Diagnosis button
-          ElevatedButton(
-            onPressed: () async {
-              if (diagnosisController.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Diagnosis cannot be empty')),
-                );
-                return;
-              }
-              // Add diagnosis to patient's admission record
-              await _addDiagnosis(diagnosisController.text);
+  //   Future<void> fetchDiagnosisSuggestions(Function setState) async {
+  //     setState(() => isLoadingSuggestions = true);
+  //     try {
+  //       final response = await http
+  //           .get(Uri.parse('${VERCEL_URL}/doctors/getDiagnosis/$patientId'));
+  //       if (response.statusCode == 200) {
+  //         final data = json.decode(response.body) as Map<String, dynamic>;
+  //         setState(() {
+  //           diagnosisSuggestions = List<String>.from(data['diagnosis'] ?? []);
+  //         });
+  //       }
+  //     } catch (e) {
+  //       setState(() {
+  //         diagnosisSuggestions = [];
+  //       });
+  //     } finally {
+  //       setState(() => isLoadingSuggestions = false);
+  //     }
+  //   }
 
-              // Clear TextField
-              diagnosisController.clear();
+  //   Future<void> addDiagnosis(Function setState) async {
+  //     if (symptomsController.text.isNotEmpty) {
+  //       setState(() {
+  //         selectedDiagnoses.add(symptomsController.text.trim());
+  //       });
+  //     }
 
-              // Show success message
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Diagnosis added successfully')),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xffff96a8), // Button color
-              padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 30),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(17), // Rounded corners
+  //     if (selectedDiagnoses.isNotEmpty) {
+  //       final String currentDateTime =
+  //           DateFormat('yyyy-MM-dd hh:mm:ss a').format(DateTime.now());
+  //       final String symptomWithDateTime =
+  //           '${selectedDiagnoses.join(', ')} Date: $currentDateTime';
+  //       await addDoctorDiagnosis(
+  //         admissionId,
+  //         symptomWithDateTime,
+  //         patientId,
+  //       );
+  //       fetchDoctorDiagnosis(patientId, admissionId);
+  //       setState(() {
+  //         selectedDiagnoses.clear();
+  //         symptomsController.clear();
+  //       });
+  //     }
+  //   }
+
+  //   return StatefulBuilder(
+  //     builder: (context, setState) {
+  //       return Padding(
+  //         padding: const EdgeInsets.all(16.0),
+  //         child: Column(
+  //           crossAxisAlignment: CrossAxisAlignment.start,
+  //           children: [
+  //             Wrap(
+  //               spacing: 8.0,
+  //               runSpacing: 8.0,
+  //               children: selectedDiagnoses
+  //                   .map((diagnosis) => Chip(
+  //                         label: Text(diagnosis),
+  //                         backgroundColor: Colors.teal,
+  //                         onDeleted: () {
+  //                           setState(() {
+  //                             selectedDiagnoses.remove(diagnosis);
+  //                           });
+  //                         },
+  //                       ))
+  //                   .toList(),
+  //             ),
+  //             const SizedBox(height: 20),
+  //             Center(
+  //               child: ElevatedButton(
+  //                 onPressed: () => fetchDiagnosisSuggestions(setState),
+  //                 child: const Text('AI Suggestions'),
+  //               ),
+  //             ),
+  //             if (isLoadingSuggestions)
+  //               const Center(child: CircularProgressIndicator()),
+  //             if (!isLoadingSuggestions)
+  //               Column(
+  //                 children: diagnosisSuggestions.map((diagnosis) {
+  //                   return CheckboxListTile(
+  //                     title: Text(diagnosis),
+  //                     value: selectedDiagnoses.contains(diagnosis),
+  //                     onChanged: (bool? value) {
+  //                       setState(() {
+  //                         if (value != null && value) {
+  //                           selectedDiagnoses.add(diagnosis);
+  //                         } else {
+  //                           selectedDiagnoses.remove(diagnosis);
+  //                         }
+  //                       });
+  //                     },
+  //                   );
+  //                 }).toList(),
+  //               ),
+  //             const SizedBox(height: 20),
+  //             TextField(
+  //               controller: symptomsController,
+  //               decoration: const InputDecoration(
+  //                 labelText: 'Enter diagnosis manually',
+  //                 border: OutlineInputBorder(),
+  //               ),
+  //             ),
+  //             const SizedBox(height: 20),
+  //             Center(
+  //               child: ElevatedButton(
+  //                 onPressed: () => addDiagnosis(setState),
+  //                 child: const Text('Add Diagnosis'),
+  //               ),
+  //             ),
+  //           ],
+  //         ),
+  //       );
+  //     },
+  //   );
+  // }
+  Widget buildDiagnosisLayout({
+    required String admissionId,
+    required String patientId,
+    required Future<void> Function(
+            String admissionId, String symptomWithDateTime, String patientId)
+        addDoctorDiagnosis,
+    required void Function(String patientId, String admissionId)
+        fetchDoctorDiagnosis,
+  }) {
+    final TextEditingController symptomsController = TextEditingController();
+    List<String> diagnosisSuggestions = [];
+    List<String> selectedDiagnoses = [];
+    bool isLoadingSuggestions = false;
+    // A flag to ensure we load suggestions only once.
+    bool didLoadSuggestions = false;
+
+    Future<void> fetchDiagnosisSuggestions(Function setState) async {
+      setState(() => isLoadingSuggestions = true);
+      try {
+        final response = await http
+            .get(Uri.parse('${VERCEL_URL}/doctors/getDiagnosis/$patientId'));
+        print(response.body);
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body) as Map<String, dynamic>;
+          setState(() {
+            diagnosisSuggestions = List<String>.from(data['diagnosis'] ?? []);
+          });
+        }
+      } catch (e) {
+        setState(() {
+          diagnosisSuggestions = [];
+        });
+      } finally {
+        setState(() {
+          isLoadingSuggestions = false;
+          didLoadSuggestions = true;
+        });
+      }
+    }
+
+    return StatefulBuilder(
+      builder: (context, setState) {
+        // Trigger fetching suggestions on the first build.
+        if (!didLoadSuggestions) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            fetchDiagnosisSuggestions(setState);
+          });
+        }
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: 8.0,
+                runSpacing: 8.0,
+                children: selectedDiagnoses
+                    .map(
+                      (diagnosis) => Chip(
+                        label: Text(diagnosis),
+                        backgroundColor: Colors.teal,
+                        onDeleted: () {
+                          setState(() {
+                            selectedDiagnoses.remove(diagnosis);
+                          });
+                        },
+                      ),
+                    )
+                    .toList(),
               ),
-            ),
-            child: const Text(
-              'Add Diagnosis',
-              style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black),
-            ),
+              const SizedBox(height: 20),
+              Center(
+                child: ElevatedButton(
+                  onPressed: () => fetchDiagnosisSuggestions(setState),
+                  child: const Text('AI Suggestions'),
+                ),
+              ),
+              if (isLoadingSuggestions)
+                const Center(child: CircularProgressIndicator()),
+              if (!isLoadingSuggestions)
+                Column(
+                  children: diagnosisSuggestions.map((diagnosis) {
+                    return CheckboxListTile(
+                      title: Text(diagnosis),
+                      value: selectedDiagnoses.contains(diagnosis),
+                      onChanged: (bool? value) {
+                        setState(() {
+                          if (value != null && value) {
+                            selectedDiagnoses.add(diagnosis);
+                          } else {
+                            selectedDiagnoses.remove(diagnosis);
+                          }
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: symptomsController,
+                decoration: const InputDecoration(
+                  labelText: 'Enter diagnosis manually',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Center(
+                child: ElevatedButton(
+                  onPressed: () async {
+                    // Add manual diagnosis
+                    if (symptomsController.text.isNotEmpty) {
+                      setState(() {
+                        selectedDiagnoses.add(symptomsController.text.trim());
+                      });
+                    }
+
+                    if (selectedDiagnoses.isNotEmpty) {
+                      final String currentDateTime =
+                          DateFormat('yyyy-MM-dd hh:mm:ss a')
+                              .format(DateTime.now());
+                      final String symptomWithDateTime =
+                          '${selectedDiagnoses.join(', ')} Date: $currentDateTime';
+                      await addDoctorDiagnosis(
+                        admissionId,
+                        symptomWithDateTime,
+                        patientId,
+                      );
+                      fetchDoctorDiagnosis(patientId, admissionId);
+                      setState(() {
+                        selectedDiagnoses.clear();
+                        symptomsController.clear();
+                      });
+                    }
+                  },
+                  child: const Text('Add Diagnosis'),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -1410,7 +1619,13 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                                 _buildSymptomsLayout(
                                     context, ref, patientId, admissionId),
                                 const SizedBox(height: 10),
-                                _buildDiagnosisLayout(),
+                                buildDiagnosisLayout(
+                                    admissionId: admissionId,
+                                    patientId: patientId,
+                                    addDoctorDiagnosis:
+                                        doctor.addDoctorDiagnosis,
+                                    fetchDoctorDiagnosis:
+                                        doctor.fetchDoctorDiagnosis),
                               ],
                             ),
                           ),
