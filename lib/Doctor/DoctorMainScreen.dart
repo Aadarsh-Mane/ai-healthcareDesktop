@@ -5,6 +5,7 @@ import 'package:doctordesktop/Patient/fetchPatient.dart';
 import 'package:doctordesktop/authProvider/auth_provider.dart';
 import 'package:doctordesktop/constants/Assets.dart';
 import 'package:doctordesktop/main.dart';
+import 'package:doctordesktop/screens/login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -92,7 +93,33 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
           children: [
             // Doctor Profile Card with Animation and subtle gradient effect
             doctorProfile == null
-                ? const Center(child: CircularProgressIndicator())
+                ? Center(
+                    child: ElevatedButton(
+                    onPressed: () async {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => LoginScreen()),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          Colors.deepPurpleAccent, // Cyan background color
+                      foregroundColor: Colors.white, // White text color
+                      shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(8), // Rounded corners
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 9), // Padding for better appearance
+                    ),
+                    child: const Text(
+                      "You are not logged in. Please login to continue",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold, // Bold text for emphasis
+                      ),
+                    ),
+                  ))
                 : AnimatedContainer(
                     duration: Duration(milliseconds: 500),
                     padding: const EdgeInsets.all(10.0),

@@ -952,18 +952,40 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
             if (medicineSuggestions.isNotEmpty) _buildSuggestionsList(),
             const SizedBox(height: 20),
             // Dosage Fields
-            _buildTextField(
-              controller: morningDosageController,
-              label: 'Morning Dosage',
+            Row(
+              children: [
+                Expanded(
+                    child: _buildTextField(
+                  controller: morningDosageController,
+                  label: 'Morning Dosage',
+                  keyboardType: TextInputType.number,
+                )),
+                const SizedBox(width: 10),
+                Expanded(
+                    child: _buildTextField(
+                  controller: afternoonDosageController,
+                  label: 'Afternoon Dosage',
+                  keyboardType: TextInputType.number,
+                )),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildTextField(
+                    controller: nightDosageController,
+                    label: 'Night Dosage',
+                    keyboardType: TextInputType.number,
+                  ),
+                )
+              ],
             ),
-            _buildTextField(
-              controller: afternoonDosageController,
-              label: 'Afternoon Dosage',
-            ),
-            _buildTextField(
-              controller: nightDosageController,
-              label: 'Night Dosage',
-            ),
+
+            // _buildTextField(
+            //   controller: afternoonDosageController,
+            //   label: 'Afternoon Dosage',
+            // ),
+            // _buildTextField(
+            //   controller: nightDosageController,
+            //   label: 'Night Dosage',
+            // ),
             _buildTextField(
               controller: commentController,
               label: 'Comment',
@@ -2491,24 +2513,26 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
   }
 
   Widget _buildFollowUpAnd2hrSection(String recordId) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 16),
-        Center(
-          child: Text(
-            '4 hrFollow-Ups',
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 16),
+          Center(
+            child: Text(
+              '4 hrFollow-Ups',
+            ),
           ),
-        ),
-        _buildFollowUpSection(recordId),
-        const SizedBox(height: 16),
-        Center(
-          child: Text(
-            '2-Hour Follow-Ups',
-          ),
-        ), // Space between the two sections
-        _build2hrFollowUpSection(recordId),
-      ],
+          _buildFollowUpSection(recordId),
+          const SizedBox(height: 16),
+          Center(
+            child: Text(
+              '2-Hour Follow-Ups',
+            ),
+          ), // Space between the two sections
+          _build2hrFollowUpSection(recordId),
+        ],
+      ),
     );
   }
 
@@ -3240,6 +3264,8 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
 
 @override
 Widget _buildFollowUpTable(FollowUp followUp) {
+  ScrollController _scrollController = ScrollController();
+
   return Card(
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(15.0),
@@ -3256,81 +3282,84 @@ Widget _buildFollowUpTable(FollowUp followUp) {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columnSpacing: 30, // Increased spacing for desktop readability
-              dataRowHeight: 60,
-              headingRowHeight: 50,
-              border: TableBorder.all(color: Colors.grey.shade300),
-              headingRowColor: MaterialStateProperty.all(Colors.cyan),
-              columns: const [
-                DataColumn(
-                  label: Text(
-                    'Type',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
+          SizedBox(
+            height: 150, // Set a height to ensure visibility
+            child: Scrollbar(
+              controller: _scrollController,
+              thumbVisibility: true, // Makes scrollbar always visible
+              trackVisibility: true,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                controller: _scrollController,
+                child: DataTable(
+                  columnSpacing: 30,
+                  dataRowHeight: 60,
+                  headingRowHeight: 50,
+                  border: TableBorder.all(color: Colors.grey.shade300),
+                  headingRowColor: MaterialStateProperty.all(Colors.cyan),
+                  columns: const [
+                    DataColumn(
+                        label: Text('Type',
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white))),
+                    DataColumn(label: Text('Date')),
+                    DataColumn(label: Text('Temperature')),
+                    DataColumn(label: Text('Pulse')),
+                    DataColumn(label: Text('Respiration Rate')),
+                    DataColumn(label: Text('Blood Pressure')),
+                    DataColumn(label: Text('Oxygen Saturation')),
+                    DataColumn(label: Text('Blood Sugar Level')),
+                    DataColumn(label: Text('Other Vitals')),
+                    DataColumn(label: Text('IV Fluid')),
+                    DataColumn(label: Text('Nasogastric')),
+                    DataColumn(label: Text('RT Feed Oral')),
+                    DataColumn(label: Text('Total Intake')),
+                    DataColumn(label: Text('CVP')),
+                    DataColumn(label: Text('Urine Output')),
+                    DataColumn(label: Text('Stool')),
+                    DataColumn(label: Text('RT Aspirate')),
+                    DataColumn(label: Text('Other Output')),
+                    DataColumn(label: Text('Ventilator Mode')),
+                    DataColumn(label: Text('Set Rate')),
+                    DataColumn(label: Text('FiO2')),
+                    DataColumn(label: Text('PIP')),
+                    DataColumn(label: Text('PEEP/CPAP')),
+                    DataColumn(label: Text('IE Ratio')),
+                    DataColumn(label: Text('Other Ventilator')),
+                  ],
+                  rows: [
+                    DataRow(cells: [
+                      DataCell(Text('4-Hour Follow-Up')),
+                      DataCell(Text(followUp.date)),
+                      DataCell(Text(followUp.fourhrTemperature)),
+                      DataCell(Text(followUp.fourhrpulse)),
+                      DataCell(Text(followUp.respirationRate.toString())),
+                      DataCell(Text(followUp.fourhrbloodPressure)),
+                      DataCell(Text(followUp.fourhroxygenSaturation)),
+                      DataCell(Text(followUp.fourhrbloodSugarLevel)),
+                      DataCell(Text(followUp.fourhrotherVitals)),
+                      DataCell(Text(followUp.fourhrivFluid)),
+                      DataCell(Text(followUp.nasogastric)),
+                      DataCell(Text(followUp.rtFeedOral)),
+                      DataCell(Text(followUp.totalIntake)),
+                      DataCell(Text(followUp.cvp)),
+                      DataCell(Text(followUp.fourhrurine)),
+                      DataCell(Text(followUp.stool)),
+                      DataCell(Text(followUp.rtAspirate)),
+                      DataCell(Text(followUp.otherOutput)),
+                      DataCell(Text(followUp.ventyMode)),
+                      DataCell(Text(followUp.setRate.toString())),
+                      DataCell(Text(followUp.fiO2.toString())),
+                      DataCell(Text(followUp.pip.toString())),
+                      DataCell(Text(followUp.peepCpap)),
+                      DataCell(Text(followUp.ieRatio)),
+                      DataCell(Text(followUp.otherVentilator)),
+                    ]),
+                  ],
                 ),
-                DataColumn(label: Text('Date')),
-                DataColumn(label: Text('Temperature')),
-                DataColumn(label: Text('Pulse')),
-                DataColumn(label: Text('Respiration Rate')),
-                DataColumn(label: Text('Blood Pressure')),
-                DataColumn(label: Text('Oxygen Saturation')),
-                DataColumn(label: Text('Blood Sugar Level')),
-                DataColumn(label: Text('Other Vitals')),
-                DataColumn(label: Text('IV Fluid')),
-                DataColumn(label: Text('Nasogastric')),
-                DataColumn(label: Text('RT Feed Oral')),
-                DataColumn(label: Text('Total Intake')),
-                DataColumn(label: Text('CVP')),
-                DataColumn(label: Text('Urine Output')),
-                DataColumn(label: Text('Stool')),
-                DataColumn(label: Text('RT Aspirate')),
-                DataColumn(label: Text('Other Output')),
-                DataColumn(label: Text('Ventilator Mode')),
-                DataColumn(label: Text('Set Rate')),
-                DataColumn(label: Text('FiO2')),
-                DataColumn(label: Text('PIP')),
-                DataColumn(label: Text('PEEP/CPAP')),
-                DataColumn(label: Text('IE Ratio')),
-                DataColumn(label: Text('Other Ventilator')),
-              ],
-              rows: [
-                DataRow(cells: [
-                  DataCell(Text('4-Hour Follow-Up')),
-                  DataCell(Text(
-                      followUp.date)), // Adding the Date for 2-hour follow-up
-
-                  DataCell(Text(followUp.fourhrTemperature)),
-                  DataCell(Text(followUp.fourhrpulse)),
-                  DataCell(Text(followUp.respirationRate.toString())),
-                  DataCell(Text(followUp.fourhrbloodPressure)),
-                  DataCell(Text(followUp.fourhroxygenSaturation)),
-                  DataCell(Text(followUp.fourhrbloodSugarLevel)),
-                  DataCell(Text(followUp.fourhrotherVitals)),
-                  DataCell(Text(followUp.fourhrivFluid)),
-                  DataCell(Text(followUp.nasogastric)),
-                  DataCell(Text(followUp.rtFeedOral)),
-                  DataCell(Text(followUp.totalIntake)),
-                  DataCell(Text(followUp.cvp)),
-                  DataCell(Text(followUp.fourhrurine)),
-                  DataCell(Text(followUp.stool)),
-                  DataCell(Text(followUp.rtAspirate)),
-                  DataCell(Text(followUp.otherOutput)),
-                  DataCell(Text(followUp.ventyMode)),
-                  DataCell(Text(followUp.setRate.toString())),
-                  DataCell(Text(followUp.fiO2.toString())),
-                  DataCell(Text(followUp.pip.toString())),
-                  DataCell(Text(followUp.peepCpap)),
-                  DataCell(Text(followUp.ieRatio)),
-                  DataCell(Text(followUp.otherVentilator)),
-                ]),
-              ],
+              ),
             ),
           ),
           const SizedBox(height: 8),
@@ -3341,6 +3370,8 @@ Widget _buildFollowUpTable(FollowUp followUp) {
 }
 
 Widget _build2hrFollowUpTable(FollowUp followUp) {
+  ScrollController _scrollController = ScrollController();
+
   return Card(
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(15.0),
@@ -3357,81 +3388,84 @@ Widget _build2hrFollowUpTable(FollowUp followUp) {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columnSpacing: 30, // Increased spacing for desktop readability
-              dataRowHeight: 60,
-              headingRowHeight: 50,
-              border: TableBorder.all(color: Colors.grey.shade300),
-              headingRowColor: MaterialStateProperty.all(Colors.cyan),
-              columns: const [
-                DataColumn(
-                  label: Text(
-                    'Type',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
+          SizedBox(
+            height: 150, // Ensures visibility and proper scrolling
+            child: Scrollbar(
+              controller: _scrollController,
+              thumbVisibility: true,
+              trackVisibility: true,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                controller: _scrollController,
+                child: DataTable(
+                  columnSpacing: 30,
+                  dataRowHeight: 60,
+                  headingRowHeight: 50,
+                  border: TableBorder.all(color: Colors.grey.shade300),
+                  headingRowColor: MaterialStateProperty.all(Colors.cyan),
+                  columns: const [
+                    DataColumn(
+                        label: Text('Type',
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white))),
+                    DataColumn(label: Text('Date')),
+                    DataColumn(label: Text('Temperature')),
+                    DataColumn(label: Text('Pulse')),
+                    DataColumn(label: Text('Respiration Rate')),
+                    DataColumn(label: Text('Blood Pressure')),
+                    DataColumn(label: Text('Oxygen Saturation')),
+                    DataColumn(label: Text('Blood Sugar Level')),
+                    DataColumn(label: Text('Other Vitals')),
+                    DataColumn(label: Text('IV Fluid')),
+                    DataColumn(label: Text('Nasogastric')),
+                    DataColumn(label: Text('RT Feed Oral')),
+                    DataColumn(label: Text('Total Intake')),
+                    DataColumn(label: Text('CVP')),
+                    DataColumn(label: Text('Urine Output')),
+                    DataColumn(label: Text('Stool')),
+                    DataColumn(label: Text('RT Aspirate')),
+                    DataColumn(label: Text('Other Output')),
+                    DataColumn(label: Text('Ventilator Mode')),
+                    DataColumn(label: Text('Set Rate')),
+                    DataColumn(label: Text('FiO2')),
+                    DataColumn(label: Text('PIP')),
+                    DataColumn(label: Text('PEEP/CPAP')),
+                    DataColumn(label: Text('IE Ratio')),
+                    DataColumn(label: Text('Other Ventilator')),
+                  ],
+                  rows: [
+                    DataRow(cells: [
+                      DataCell(Text('2-Hour Follow-Up')),
+                      DataCell(Text(followUp.date)),
+                      DataCell(Text(followUp.temperature.toString())),
+                      DataCell(Text(followUp.pulse.toString())),
+                      DataCell(Text(followUp.respirationRate.toString())),
+                      DataCell(Text(followUp.bloodPressure)),
+                      DataCell(Text(followUp.oxygenSaturation.toString())),
+                      DataCell(Text(followUp.bloodSugarLevel.toString())),
+                      DataCell(Text(followUp.otherVitals)),
+                      DataCell(Text(followUp.ivFluid)),
+                      DataCell(Text(followUp.nasogastric)),
+                      DataCell(Text(followUp.rtFeedOral)),
+                      DataCell(Text(followUp.totalIntake)),
+                      DataCell(Text(followUp.cvp)),
+                      DataCell(Text(followUp.urine)),
+                      DataCell(Text(followUp.stool)),
+                      DataCell(Text(followUp.rtAspirate)),
+                      DataCell(Text(followUp.otherOutput)),
+                      DataCell(Text(followUp.ventyMode)),
+                      DataCell(Text(followUp.setRate.toString())),
+                      DataCell(Text(followUp.fiO2.toString())),
+                      DataCell(Text(followUp.pip.toString())),
+                      DataCell(Text(followUp.peepCpap)),
+                      DataCell(Text(followUp.ieRatio)),
+                      DataCell(Text(followUp.otherVentilator)),
+                    ]),
+                  ],
                 ),
-                DataColumn(label: Text('Date')),
-                DataColumn(label: Text('Temperature')),
-                DataColumn(label: Text('Pulse')),
-                DataColumn(label: Text('Respiration Rate')),
-                DataColumn(label: Text('Blood Pressure')),
-                DataColumn(label: Text('Oxygen Saturation')),
-                DataColumn(label: Text('Blood Sugar Level')),
-                DataColumn(label: Text('Other Vitals')),
-                DataColumn(label: Text('IV Fluid')),
-                DataColumn(label: Text('Nasogastric')),
-                DataColumn(label: Text('RT Feed Oral')),
-                DataColumn(label: Text('Total Intake')),
-                DataColumn(label: Text('CVP')),
-                DataColumn(label: Text('Urine Output')),
-                DataColumn(label: Text('Stool')),
-                DataColumn(label: Text('RT Aspirate')),
-                DataColumn(label: Text('Other Output')),
-                DataColumn(label: Text('Ventilator Mode')),
-                DataColumn(label: Text('Set Rate')),
-                DataColumn(label: Text('FiO2')),
-                DataColumn(label: Text('PIP')),
-                DataColumn(label: Text('PEEP/CPAP')),
-                DataColumn(label: Text('IE Ratio')),
-                DataColumn(label: Text('Other Ventilator')),
-              ],
-              rows: [
-                DataRow(cells: [
-                  DataCell(Text('2-Hour Follow-Up')),
-                  DataCell(Text(
-                      followUp.date)), // Adding the Date for 2-hour follow-up
-
-                  DataCell(Text(followUp.temperature.toString())),
-                  DataCell(Text(followUp.pulse.toString())),
-                  DataCell(Text(followUp.respirationRate.toString())),
-                  DataCell(Text(followUp.bloodPressure)),
-                  DataCell(Text(followUp.oxygenSaturation.toString())),
-                  DataCell(Text(followUp.bloodSugarLevel.toString())),
-                  DataCell(Text(followUp.otherVitals)),
-                  DataCell(Text(followUp.ivFluid)),
-                  DataCell(Text(followUp.nasogastric)),
-                  DataCell(Text(followUp.rtFeedOral)),
-                  DataCell(Text(followUp.totalIntake)),
-                  DataCell(Text(followUp.cvp)),
-                  DataCell(Text(followUp.urine)),
-                  DataCell(Text(followUp.stool)),
-                  DataCell(Text(followUp.rtAspirate)),
-                  DataCell(Text(followUp.otherOutput)),
-                  DataCell(Text(followUp.ventyMode)),
-                  DataCell(Text(followUp.setRate.toString())),
-                  DataCell(Text(followUp.fiO2.toString())),
-                  DataCell(Text(followUp.pip.toString())),
-                  DataCell(Text(followUp.peepCpap)),
-                  DataCell(Text(followUp.ieRatio)),
-                  DataCell(Text(followUp.otherVentilator)),
-                ]),
-              ],
+              ),
             ),
           ),
           const SizedBox(height: 8),
