@@ -150,9 +150,39 @@ class _AssignedPatientsViewState extends ConsumerState<AssignedPatientsView> {
   }
 
   Future<void> _dischargePatient(Patient1 patient, WidgetRef ref) async {
-    // Add logic for discharging the patient
-    await Future.delayed(Duration(seconds: 1)); // Simulate API call
-    print('Patient ${patient.name} discharged');
+    try {
+      final admissionId = patient.admissionRecords.isNotEmpty
+          ? patient.admissionRecords.first.id
+          : '';
+      final authRepository = ref.read(authRepositoryProvider);
+      final result = await authRepository.dischargePatient(
+        patientId: patient.patientId,
+        admissionId: admissionId,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message']),
+          backgroundColor: result['success'] ? Colors.green : Colors.red,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      ref.refresh(assignedPatientsProvider.notifier).fetchAssignedPatients();
+      ref.refresh(assignedPatientsProvider1.notifier).fetchAssignedPatients();
+    } catch (e) {
+      ref.refresh(assignedPatientsProvider.notifier).fetchAssignedPatients();
+      // ref.refresh(assignedPatientsProvider.notifier).fe;
+      ref.refresh(assignedPatientsProvider1.notifier).fetchAssignedPatients();
+
+      print('Error discharging patient: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Discharged patient: $e'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 
   @override
