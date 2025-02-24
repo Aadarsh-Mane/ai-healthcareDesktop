@@ -48,7 +48,7 @@ class _PatientAddScreenState extends State<PatientAddScreen>
 
     try {
       final response = await http.get(
-        Uri.parse('${VERCEL_URL}/reception/info?name=$name'),
+        Uri.parse('${BASE_URL}/reception/info?name=$name'),
       );
       print("Response: ${response.body}");
       if (response.statusCode == 200) {
@@ -86,7 +86,7 @@ class _PatientAddScreenState extends State<PatientAddScreen>
 
     try {
       final response = await http.get(
-        Uri.parse('${VERCEL_URL}/reception/suggestions?name=$query'),
+        Uri.parse('${BASE_URL}/reception/suggestions?name=$query'),
       );
 
       if (response.statusCode == 200) {
@@ -728,7 +728,7 @@ class _PatientAddScreenState extends State<PatientAddScreen>
 
   Future<void> _addPatient(BuildContext context) async {
     try {
-      final uri = Uri.parse('${VERCEL_URL}/reception/addPatient');
+      final uri = Uri.parse('${BASE_URL}/reception/addPatient');
       final request = http.MultipartRequest('POST', uri);
 
       // Adding text fields

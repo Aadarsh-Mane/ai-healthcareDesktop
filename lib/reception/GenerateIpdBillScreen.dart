@@ -27,7 +27,7 @@ class _GenerateOpdBillScreenState extends State<GenerateIpdBillScreen> {
   Future<void> _generateOpdReceipt() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final url = Uri.parse('${VERCEL_URL}/reception/generateOpdReceipt');
+    final url = Uri.parse('${BASE_URL}/reception/generateOpdReceipt');
     final data = {
       "patientId": widget.patientId,
       "billingAmount": int.parse(_biilingAmountController.text),

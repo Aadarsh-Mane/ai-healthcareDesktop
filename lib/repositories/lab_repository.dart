@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class LabReportRepository {
   Future<LabReportResponse> fetchLabPatients() async {
-    final url = Uri.parse("${VERCEL_URL}/labs/getlabPatients");
+    final url = Uri.parse("${BASE_URL}/labs/getlabPatients");
     final response = await http.get(url);
     print(response.body);
     if (response.statusCode == 200) {

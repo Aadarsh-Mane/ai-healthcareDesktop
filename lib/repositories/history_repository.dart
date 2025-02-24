@@ -7,8 +7,7 @@ import 'package:http/http.dart' as http;
 
 class HistoryRepository {
   Future<PatientHistory> fetchPatientHistory(String patientId) async {
-    final url =
-        Uri.parse('${VERCEL_URL}/doctors/getPatientHistory1/$patientId');
+    final url = Uri.parse('${BASE_URL}/doctors/getPatientHistory1/$patientId');
 
     final response = await http.get(
       url,

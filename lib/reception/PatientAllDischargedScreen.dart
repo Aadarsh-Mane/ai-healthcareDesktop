@@ -22,7 +22,7 @@ class DischargedPatientsNotifier
     print('Fetching discharged patients...');
     try {
       final response = await http
-          .get(Uri.parse('${VERCEL_URL}/reception/getAllDischargedPatient'));
+          .get(Uri.parse('${BASE_URL}/reception/getAllDischargedPatient'));
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         final patients =
@@ -262,7 +262,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
     // Replace with your API call
     final response = await http.put(
       Uri.parse(
-          '${VERCEL_URL}/reception/dischargeByReceptionCondition/${widget.patient.patientId}/${widget.patient.lastRecord.admissionId}'),
+          '${BASE_URL}/reception/dischargeByReceptionCondition/${widget.patient.patientId}/${widget.patient.lastRecord.admissionId}'),
     );
     print("heeeloooo ${response.body}");
     if (response.statusCode == 200) {
@@ -453,7 +453,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
   }
 
   Future<void> _fetchDoctorAdvice(BuildContext context, patientId) async {
-    final url = '${VERCEL_URL}/reception/getDoctorAdvice/${patientId}';
+    final url = '${BASE_URL}/reception/getDoctorAdvice/${patientId}';
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
@@ -481,7 +481,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
   Future<void> _fetchDoctorReceipt(BuildContext context, patientId,
       String amount, String billingAmount) async {
     final url =
-        '${VERCEL_URL}/reception/receipt/${patientId}/${amount}/${billingAmount}';
+        '${BASE_URL}/reception/receipt/${patientId}/${amount}/${billingAmount}';
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {

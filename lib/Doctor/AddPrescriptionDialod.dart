@@ -47,7 +47,7 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse('${VERCEL_URL}/search?q=$query'),
+        Uri.parse('${BASE_URL}/search?q=$query'),
       );
 
       if (response.statusCode == 200) {

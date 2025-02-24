@@ -20,7 +20,7 @@ class _DoctorListScreenState extends State<DoctorListScreen> {
 
   Future<void> _fetchDoctors() async {
     final response =
-        await http.get(Uri.parse('${VERCEL_URL}/reception/listDoctors'));
+        await http.get(Uri.parse('${BASE_URL}/reception/listDoctors'));
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       setState(() {

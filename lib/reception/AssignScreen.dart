@@ -31,7 +31,7 @@ class _AssignScreenState extends State<AssignScreen> {
 
   Future<void> _fetchDoctors() async {
     final response =
-        await http.get(Uri.parse('${VERCEL_URL}/reception/listDoctors'));
+        await http.get(Uri.parse('${BASE_URL}/reception/listDoctors'));
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       setState(() {
@@ -57,7 +57,7 @@ class _AssignScreenState extends State<AssignScreen> {
 
   Future<void> _assignDoctor(String doctorId) async {
     final response = await http.post(
-      Uri.parse('${VERCEL_URL}/reception/assign-Doctor'),
+      Uri.parse('${BASE_URL}/reception/assign-Doctor'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'patientId': widget.patientId,

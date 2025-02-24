@@ -21,7 +21,7 @@ class _DischargedPatientsScreenState extends State<DischargedPatientsScreen> {
   // Function to fetch the data from the API
   Future<void> fetchDischargedPatients() async {
     final response =
-        await http.get(Uri.parse('${VERCEL_URL}/doctors/getdischargedPatient'));
+        await http.get(Uri.parse('${BASE_URL}/doctors/getdischargedPatient'));
 
     if (response.statusCode == 200) {
       // Parse the response and update the state
@@ -50,7 +50,7 @@ class _DischargedPatientsScreenState extends State<DischargedPatientsScreen> {
   ) async {
     try {
       final response = await http.post(
-        Uri.parse('${VERCEL_URL}/generateDischargeSummary'),
+        Uri.parse('${BASE_URL}/generateDischargeSummary'),
         body: {
           'patientId': patientId,
           'name': name,

@@ -13,7 +13,7 @@ final auth = AuthRepository();
 class DoctorRepository {
   Future<void> addPrescription(String patientId, String admissionId,
       DoctorPrescription doctorPrescription) async {
-    final url = Uri.parse('${VERCEL_URL}/doctors/addPresciption');
+    final url = Uri.parse('${BASE_URL}/doctors/addPresciption');
     final token = await auth.getToken(); // Fetch your token for authentication
 
     if (token == null) {
@@ -57,7 +57,7 @@ class DoctorRepository {
   }
 
   Future<List<String>> fetchConsultant(String admissionId) async {
-    final url = Uri.parse('${VERCEL_URL}/doctors/getConsultant/$admissionId');
+    final url = Uri.parse('${BASE_URL}/doctors/getConsultant/$admissionId');
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString('auth_token');
     print("the admiison is ${admissionId}");
@@ -83,7 +83,7 @@ class DoctorRepository {
     String? token = prefs.getString('auth_token');
 
     final url = Uri.parse(
-        '${VERCEL_URL}/nurse/followups/$admissionId'); // API endpoint for fetching follow-ups
+        '${BASE_URL}/nurse/followups/$admissionId'); // API endpoint for fetching follow-ups
     try {
       final response = await http.get(
         url,
@@ -107,7 +107,7 @@ class DoctorRepository {
     String? token = prefs.getString('auth_token');
 
     final url = Uri.parse(
-        '${VERCEL_URL}/nurse/2hrfollowups/$admissionId'); // API endpoint for fetching follow-ups
+        '${BASE_URL}/nurse/2hrfollowups/$admissionId'); // API endpoint for fetching follow-ups
     try {
       final response = await http.get(
         url,
@@ -131,7 +131,7 @@ class DoctorRepository {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString('auth_token');
     final url = Uri.parse(
-        '${VERCEL_URL}/doctors/getPrescription/$patientId/$admissionId');
+        '${BASE_URL}/doctors/getPrescription/$patientId/$admissionId');
 
     if (token == null) {
       throw Exception('Token not found');
@@ -165,10 +165,11 @@ class DoctorRepository {
 
   Future<List<String>> fetchSymptomsByDoctor(
       String patientId, String admissionId) async {
-    final url = '${VERCEL_URL}/doctors/fetchSymptoms/$patientId/$admissionId';
+    print("hello from patient " + patientId);
+    final url = '${BASE_URL}/doctors/fetchSymptoms/$patientId/$admissionId';
     try {
       final response = await http.get(Uri.parse(url));
-      print("Fetching ${patientId}");
+      // print("Fetching ${patientId}");
       if (response.statusCode == 200) {
         return List<String>.from(json.decode(response.body)['symptoms'] ?? []);
       } else {
@@ -182,9 +183,31 @@ class DoctorRepository {
   Future<void> deletePrescription(
       String patientId, String admissionId, String prescriptionId) async {
     final url = Uri.parse(
-        '${VERCEL_URL}/doctors/deletePrescription/$patientId/$admissionId/$prescriptionId');
+        '${BASE_URL}/doctors/deletePrescription/$patientId/$admissionId/$prescriptionId');
     final response = await http.delete(url);
 
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete prescription');
+    }
+  }
+
+  Future<void> deleteSymptoms(
+      String patientId, String admissionId, String symptom) async {
+    final url = Uri.parse(
+        '${BASE_URL}/doctors/deleteSymptom/$patientId/$admissionId/$symptom');
+    final response = await http.delete(url);
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete prescription');
+    }
+  }
+
+  Future<void> deleteVitals(
+      String patientId, String admissionId, String vitalsId) async {
+    final url = Uri.parse(
+        '${BASE_URL}/doctors/deleteVitals/$patientId/$admissionId/$vitalsId');
+    final response = await http.delete(url);
+    print(response.body);
     if (response.statusCode != 200) {
       throw Exception('Failed to delete prescription');
     }
@@ -194,7 +217,7 @@ class DoctorRepository {
       String admissionId, String newSymptom, String patientId) async {
     try {
       final response = await http.post(
-        Uri.parse('${VERCEL_URL}/doctors/addSymptoms'),
+        Uri.parse('${BASE_URL}/doctors/addSymptoms'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           "patientId": patientId,
@@ -216,7 +239,7 @@ class DoctorRepository {
 
   Future<void> addVitals(
       String patientId, String admissionId, Vitals vitals) async {
-    final url = Uri.parse('${VERCEL_URL}/doctors/addVitals');
+    final url = Uri.parse('${BASE_URL}/doctors/addVitals');
     final token = await auth.getToken(); // Fetch your token for authentication
 
     if (token == null) {
@@ -250,7 +273,7 @@ class DoctorRepository {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString('auth_token');
     final url =
-        Uri.parse('${VERCEL_URL}/doctors/fetchVitals/$patientId/$admissionId');
+        Uri.parse('${BASE_URL}/doctors/fetchVitals/$patientId/$admissionId');
 
     if (token == null) {
       throw Exception('Token not found');
@@ -286,7 +309,7 @@ class DoctorRepository {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString('auth_token');
     final response = await http.post(
-      Uri.parse('${VERCEL_URL}/doctors/updateCondition'),
+      Uri.parse('${BASE_URL}/doctors/updateCondition'),
       headers: {
         'Authorization': 'Bearer ${token}', // Add authentication token
         'Content-Type': 'application/json',
@@ -310,7 +333,7 @@ class DoctorRepository {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString('auth_token');
     final url = Uri.parse(
-        '${VERCEL_URL}/doctors/doctorConsulting/$patientId/$admissionId');
+        '${BASE_URL}/doctors/doctorConsulting/$patientId/$admissionId');
 
     if (token == null) {
       throw Exception('Token not found');
@@ -344,7 +367,7 @@ class DoctorRepository {
 
   Future<void> addDoctorConsultant(String patientId, String admissionId,
       DoctorConsulting doctorPrescription) async {
-    final url = Uri.parse('${VERCEL_URL}/doctors/addDoctorConsultant');
+    final url = Uri.parse('${BASE_URL}/doctors/addDoctorConsultant');
     final token = await auth.getToken(); // Fetch your token for authentication
 
     if (token == null) {
@@ -390,7 +413,7 @@ class DoctorRepository {
 
   Future<List<String>> fetchDoctorDiagnosis(
       String admissionId, String patientId) async {
-    final url = '${VERCEL_URL}/doctors/fetchDiagnosis/$patientId/$admissionId';
+    final url = '${BASE_URL}/doctors/fetchDiagnosis/$patientId/$admissionId';
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
@@ -407,7 +430,7 @@ class DoctorRepository {
       String admissionId, String newDiagnosis, String patientId) async {
     try {
       final response = await http.post(
-        Uri.parse('${VERCEL_URL}/doctors/addDiagnosis'),
+        Uri.parse('${BASE_URL}/doctors/addDiagnosis'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           "patientId": patientId,
@@ -430,7 +453,7 @@ class DoctorRepository {
   final dischargedPatientsProvider =
       FutureProvider<List<PatientDischarge>>((ref) async {
     final response = await http
-        .get(Uri.parse('${VERCEL_URL}/reception/getAllDischargedPatient'));
+        .get(Uri.parse('${BASE_URL}/reception/getAllDischargedPatient'));
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
       return data.map((json) => PatientDischarge.fromJson(json)).toList();

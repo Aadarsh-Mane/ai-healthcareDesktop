@@ -231,7 +231,8 @@ class Vitals {
   final String bloodPressure;
   final String bloodSugarLevel;
   final String other;
-  // final String recordedAt;
+  final String? recordedAt;
+  final String? id;
 
   Vitals({
     required this.temperature,
@@ -239,7 +240,8 @@ class Vitals {
     required this.bloodPressure,
     required this.bloodSugarLevel,
     required this.other,
-    // required this.recordedAt,
+    this.recordedAt,
+    this.id,
   });
 
   factory Vitals.fromJson(Map<String, dynamic> json) {
@@ -249,7 +251,8 @@ class Vitals {
       bloodPressure: json['bloodPressure'] ?? '',
       bloodSugarLevel: json['bloodSugarLevel'] ?? '',
       other: json['other'] ?? '',
-      // recordedAt: json['recordedAt'] ?? '',
+      recordedAt: json['recordedAt'] ?? '',
+      id: json['_id'] ?? '',
     );
   }
 }

@@ -23,7 +23,7 @@ class BillNotifier extends StateNotifier<AsyncValue<Map<String, dynamic>>> {
     state = const AsyncValue.loading();
     try {
       final response = await http.post(
-        Uri.parse('${VERCEL_URL}/reception/bill'),
+        Uri.parse('${BASE_URL}/reception/bill'),
         body: json.encode(billData),
         headers: {'Content-Type': 'application/json'},
       );

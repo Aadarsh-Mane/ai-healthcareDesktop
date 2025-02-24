@@ -3,6 +3,7 @@ import 'package:doctordesktop/Admin/ReceptionAuthDialog.dart';
 import 'package:doctordesktop/Lab/LabAuthDialog.dart';
 import 'package:doctordesktop/Lab/LabScreen.dart';
 import 'package:doctordesktop/Working.dart';
+import 'package:doctordesktop/constants/AppTheme.dart';
 import 'package:doctordesktop/constants/Assets.dart';
 import 'package:doctordesktop/model/getPatientHistory.dart';
 import 'package:doctordesktop/reception/PatientDischarge.dart';
@@ -34,10 +35,11 @@ class MyApp extends StatelessWidget {
       builder: (context, child) {
         return MaterialApp(
           title: 'Flutter Windows App',
-          theme: ThemeData(
-            primarySwatch: Colors.blue,
-            textTheme: GoogleFonts.poppinsTextTheme(),
-          ),
+          theme: AppTheme.lightTheme,
+          // theme: ThemeData(
+          //   primarySwatch: Colors.blue,
+          //   textTheme: GoogleFonts.poppinsTextTheme(),
+          // ),
           home: HomeScreen(),
         );
       },

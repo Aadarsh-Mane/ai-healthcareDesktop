@@ -65,7 +65,7 @@ class FourButtonScreen extends StatelessWidget {
   }
 
   Future<void> _fetchDoctorAdvice(BuildContext context, patientId) async {
-    final url = '${VERCEL_URL}/reception/doctorSheet/${patientId}';
+    final url = '${BASE_URL}/reception/doctorSheet/${patientId}';
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
