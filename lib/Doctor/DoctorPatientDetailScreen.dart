@@ -151,6 +151,39 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     }
   }
 
+  List<DoctorPrescription> _prescriptions = [];
+
+  Future<void> _fetchPrescriptions() async {
+    try {
+      final prescriptions = await doctor.fetchPrescriptions(
+        widget.patient.patientId,
+        widget.patient.admissionRecords.first.id,
+      );
+      setState(() {
+        _prescriptions = prescriptions;
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching prescriptions: $e')),
+      );
+    }
+  }
+
+  Future<void> _deletePrescription(String id) async {
+    try {
+      await doctor.deletePrescription(widget.patient.patientId,
+          widget.patient.admissionRecords.first.id, id);
+      await _fetchPrescriptions();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Prescription deleted successfully')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error deleting prescription: $e')),
+      );
+    }
+  }
+
   Future<void> _handleAssignLab(
       BuildContext context, Patient1 patient, WidgetRef ref) async {
     final authRepository = ref.read(authRepositoryProvider);
@@ -914,6 +947,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
         nightDosageController.clear();
         commentController.clear();
       });
+      _fetchPrescriptions();
     } catch (e) {
       print('Error adding prescription: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -952,130 +986,347 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
   }
 
   Widget _buildPrescriptionLayout() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Prescription Details',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Colors.teal,
-                  ),
-            ),
-            const SizedBox(height: 20),
-            // Display selected medicines as chips
-            Wrap(
-              spacing: 10.0,
-              runSpacing: 10.0,
-              children: selectedMedicines
-                  .split(', ')
-                  .map((medicine) => Chip(
-                        label: Text(medicine,
-                            style: const TextStyle(color: Colors.white)),
-                        backgroundColor: Colors.teal,
-                        onDeleted: () {
-                          setState(() {
-                            selectedMedicines = selectedMedicines
-                                .split(', ')
-                                .where((e) => e != medicine)
-                                .join(', ');
-                          });
-                        },
-                      ))
-                  .toList(),
-            ),
-            const SizedBox(height: 20),
-            // Medicine Name field with suggestion fetching
-            _buildTextField1(
-              controller: medicineNameController,
-              label: 'Medicine Name',
-              onChanged: _fetchMedicineSuggestions,
-              onSubmitted: (value) {
-                if (value.trim().isNotEmpty) {
-                  setState(() {
-                    // Ensure no duplicates
-                    List<String> medicines = selectedMedicines
-                        .split(', ')
-                        .where((e) => e.isNotEmpty)
-                        .toList();
-                    if (!medicines.contains(value.trim())) {
-                      medicines.add(value.trim());
-                      selectedMedicines = medicines.join(', ');
-                    }
-                    medicineNameController.clear();
-                  });
-                }
-              },
-            ),
+    return SizedBox(
+      height: 500,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Prescription Details',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: Colors.teal,
+                    ),
+              ),
+              const SizedBox(height: 20),
+              // Display selected medicines as chips
+              Wrap(
+                spacing: 10.0,
+                runSpacing: 10.0,
+                children: selectedMedicines
+                    .split(', ')
+                    .map((medicine) => Chip(
+                          label: Text(medicine,
+                              style: const TextStyle(color: Colors.white)),
+                          backgroundColor: Colors.teal,
+                          onDeleted: () {
+                            setState(() {
+                              selectedMedicines = selectedMedicines
+                                  .split(', ')
+                                  .where((e) => e != medicine)
+                                  .join(', ');
+                            });
+                          },
+                        ))
+                    .toList(),
+              ),
+              const SizedBox(height: 20),
+              // Medicine Name field with suggestion fetching
+              _buildTextField1(
+                controller: medicineNameController,
+                label: 'Medicine Name',
+                onChanged: _fetchMedicineSuggestions,
+                onSubmitted: (value) {
+                  if (value.trim().isNotEmpty) {
+                    setState(() {
+                      // Ensure no duplicates
+                      List<String> medicines = selectedMedicines
+                          .split(', ')
+                          .where((e) => e.isNotEmpty)
+                          .toList();
+                      if (!medicines.contains(value.trim())) {
+                        medicines.add(value.trim());
+                        selectedMedicines = medicines.join(', ');
+                      }
+                      medicineNameController.clear();
+                    });
+                  }
+                },
+              ),
 
-            if (isLoadingSuggestions) const LinearProgressIndicator(),
-            if (medicineSuggestions.isNotEmpty) _buildSuggestionsList(),
-            const SizedBox(height: 20),
-            // Dosage Fields
-            Row(
-              children: [
-                Expanded(
-                    child: _buildTextField(
-                  controller: morningDosageController,
-                  label: 'Morning Dosage',
-                  keyboardType: TextInputType.number,
-                )),
-                const SizedBox(width: 10),
-                Expanded(
-                    child: _buildTextField(
-                  controller: afternoonDosageController,
-                  label: 'Afternoon Dosage',
-                  keyboardType: TextInputType.number,
-                )),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildTextField(
+              if (isLoadingSuggestions) const LinearProgressIndicator(),
+              if (medicineSuggestions.isNotEmpty) _buildSuggestionsList(),
+              const SizedBox(height: 19),
+              // Dosage Fields
+              Row(
+                children: [
+                  _buildDosageField(
+                    controller: morningDosageController,
+                    label: 'Morning Dosage',
+                  ),
+                  const SizedBox(width: 10),
+                  _buildDosageField(
+                    controller: afternoonDosageController,
+                    label: 'Afternoon Dosage',
+                  ),
+                  const SizedBox(width: 10),
+                  _buildDosageField(
                     controller: nightDosageController,
                     label: 'Night Dosage',
-                    keyboardType: TextInputType.number,
                   ),
-                )
-              ],
-            ),
+                  SizedBox(
+                    width: 10,
+                  ),
+                  Expanded(
+                    child: _buildTextField1(
+                      controller: commentController,
+                      label: 'Comment',
+                    ),
+                  ),
+                ],
+              ),
 
-            // _buildTextField(
-            //   controller: afternoonDosageController,
-            //   label: 'Afternoon Dosage',
-            // ),
-            // _buildTextField(
-            //   controller: nightDosageController,
-            //   label: 'Night Dosage',
-            // ),
-            _buildTextField(
-              controller: commentController,
-              label: 'Comment',
-            ),
-            const SizedBox(height: 20),
-            // Submit Button
-            ElevatedButton(
-              onPressed: _addPrescription,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xffff96a8),
-                padding:
-                    const EdgeInsets.symmetric(vertical: 18, horizontal: 30),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(17),
+              // _buildTextField(
+              //   controller: afternoonDosageController,
+              //   label: 'Afternoon Dosage',
+              // ),
+              // _buildTextField(
+              //   controller: nightDosageController,
+              //   label: 'Night Dosage',
+              // ),
+
+              const SizedBox(height: 20),
+              // Submit Button
+              ElevatedButton(
+                onPressed: _addPrescription,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xffff96a8),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 18, horizontal: 30),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(17),
+                  ),
+                  // minimumSize: const Size(double.infinity, 50),
                 ),
-                // minimumSize: const Size(double.infinity, 50),
+                child: const Text(
+                  'Add Prescription',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
               ),
-              child: const Text(
-                'Add Prescription',
+              Text(
+                'Current Prescriptions',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black,
+                  color: Colors.teal[700],
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 10),
+              _prescriptions.isEmpty
+                  ? const Padding(
+                      padding: EdgeInsets.all(8.0),
+                      child: Text('No prescriptions added yet'),
+                    )
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _prescriptions.length,
+                      itemBuilder: (context, index) {
+                        final prescription = _prescriptions[index];
+                        return Card(
+                          color: Colors.white,
+                          margin: const EdgeInsets.only(bottom: 12),
+                          elevation: 20,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    CircleAvatar(
+                                      child: Image.asset(
+                                        'assets/images/prescrip.png',
+                                        width: 40,
+                                        height: 40,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Text(
+                                        prescription.medicine.name,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.teal,
+                                        ),
+                                      ),
+                                    ),
+                                    _buildDosageDisplay(
+                                        'M', prescription.medicine.morning),
+                                    const SizedBox(width: 10),
+                                    _buildDosageDisplay(
+                                        'A', prescription.medicine.afternoon),
+                                    const SizedBox(width: 10),
+                                    _buildDosageDisplay(
+                                        'N', prescription.medicine.night),
+                                    const SizedBox(width: 16),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline,
+                                          color: Colors.red),
+                                      onPressed: () => _deletePrescription(
+                                          prescription.medicine.id!),
+                                    ),
+                                  ],
+                                ),
+                                if (prescription.medicine.comment.isNotEmpty)
+                                  Padding(
+                                    padding:
+                                        const EdgeInsets.only(top: 8, left: 56),
+                                    child: Text(
+                                      'Note: ${prescription.medicine.comment}',
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+
+                        // return Card(
+                        //   margin: const EdgeInsets.only(bottom: 12),
+                        //   elevation: 2,
+                        //   shape: RoundedRectangleBorder(
+                        //     borderRadius: BorderRadius.circular(10),
+                        //   ),
+                        //   child: ListTile(
+                        //     contentPadding: const EdgeInsets.symmetric(
+                        //       horizontal: 16,
+                        //       vertical: 8,
+                        //     ),
+                        //     title: Text(
+                        //       prescription.medicine.name,
+                        //       style: const TextStyle(
+                        //         fontWeight: FontWeight.w500,
+                        //         fontSize: 16,
+                        //       ),
+                        //     ),
+                        //     subtitle: Column(
+                        //       crossAxisAlignment: CrossAxisAlignment.start,
+                        //       children: [
+                        //         const SizedBox(height: 6),
+                        //         _buildDosageRow(
+                        //             'Morning', prescription.medicine.morning),
+                        //         _buildDosageRow('Afternoon',
+                        //             prescription.medicine.afternoon),
+                        //         _buildDosageRow(
+                        //             'Night', prescription.medicine.night),
+                        //         if (prescription.medicine.comment.isNotEmpty)
+                        //           Padding(
+                        //             padding: const EdgeInsets.only(top: 6),
+                        //             child: Text(
+                        //               'Note: ${prescription.medicine.comment}',
+                        //               style: TextStyle(
+                        //                 color: Colors.grey[600],
+                        //                 fontStyle: FontStyle.italic,
+                        //               ),
+                        //             ),
+                        //           ),
+                        //       ],
+                        //     ),
+                        //     trailing: IconButton(
+                        //       icon: const Icon(Icons.delete_outline,
+                        //           color: Colors.red),
+                        //       onPressed: () => _deletePrescription(
+                        //           prescription.medicine.id!),
+                        //     ),
+                        //   ),
+                        // );
+                      },
+                    ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildDosageField({
+    required TextEditingController controller,
+    required String label,
+  }) {
+    return Container(
+      width: 60, // Compact size for small numbers
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20), // Circular touch
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.shade300,
+            offset: const Offset(-2, -2),
+            blurRadius: 4,
+          ),
+          BoxShadow(
+            color: Colors.grey.shade500,
+            offset: const Offset(2, 2),
+            blurRadius: 4,
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: controller,
+        keyboardType: TextInputType.number,
+        textAlign: TextAlign.center, // Center align for single digits
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        decoration: InputDecoration(
+          hintText: label.substring(0, 1), // "M", "A", "N"
+          border: InputBorder.none,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDosageDisplay(String time, String dosage) {
+    return Container(
+      width: 60,
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.shade300,
+            offset: const Offset(-2, -2),
+            blurRadius: 4,
+          ),
+          BoxShadow(
+            color: Colors.grey.shade500,
+            offset: const Offset(2, 2),
+            blurRadius: 4,
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            time,
+            style: TextStyle(
+              color: Colors.teal.shade700,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            dosage,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }

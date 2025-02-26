@@ -4,6 +4,7 @@ import 'package:doctordesktop/LogoutScreen.dart';
 import 'package:doctordesktop/Patient/fetchPatient.dart';
 import 'package:doctordesktop/authProvider/auth_provider.dart';
 import 'package:doctordesktop/constants/Assets.dart';
+import 'package:doctordesktop/core/utils/DoctorCard.dart';
 import 'package:doctordesktop/main.dart';
 import 'package:doctordesktop/screens/login_screen.dart';
 import 'package:flutter/material.dart';
@@ -39,6 +40,28 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
     });
   }
 
+  final List<Map<String, dynamic>> doctorCards = [
+    {
+      'title': 'Assigned Patients',
+      'imagePath': 'assets/images/assigned.png',
+      'screen': AssignedPatientsScreen(),
+    },
+    {
+      'title': 'Assigned Labs',
+      'imagePath': 'assets/images/labs1.png',
+      'screen': AssignedLabsScreen(),
+    },
+    {
+      'title': 'Patients',
+      'imagePath': 'assets/images/ask.png',
+      'screen': PatientListScreen(),
+    },
+    {
+      'title': 'Logout',
+      'imagePath': 'assets/images/logout.png',
+      'screen': LogoutScreen(),
+    },
+  ];
   @override
   Widget build(BuildContext context) {
     final doctorProfile = ref.watch(doctorProfileProvider);
@@ -50,16 +73,6 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
         toolbarHeight: 90,
         leading: Padding(
           padding: const EdgeInsets.only(left: 16.0),
-          // child: IconButton(
-          //   icon: Icon(Icons.home),
-          //   onPressed: () {
-          //     Navigator.push(
-          //       context,
-          //       MaterialPageRoute(builder: (context) => HomeScreen()),
-          //     );
-          //     print("Settings button pressed");
-          //   },
-          // ),
         ),
         title: Padding(
           padding: const EdgeInsets.only(left: 16.0),
@@ -87,182 +100,172 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
         ),
       ),
       backgroundColor: Colors.grey[50],
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(15.0),
-        child: Column(
-          children: [
-            // Doctor Profile Card with Animation and subtle gradient effect
-            doctorProfile == null
-                ? Center(
-                    child: ElevatedButton(
-                    onPressed: () async {
+      body: Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/bb1.png'),
+            opacity: 0.3,
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(15.0),
+          child: Column(
+            children: [
+              // Doctor Profile Card with Animation and subtle gradient effect
+              doctorProfile == null
+                  ? Center(
+                      child: ElevatedButton(
+                      onPressed: () async {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => LoginScreen()),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                            Colors.deepPurpleAccent, // Cyan background color
+                        foregroundColor: Colors.white, // White text color
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(8), // Rounded corners
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 9), // Padding for better appearance
+                      ),
+                      child: const Text(
+                        "You are not logged in. Please login to continue",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold, // Bold text for emphasis
+                        ),
+                      ),
+                    ))
+                  : AnimatedContainer(
+                      duration: Duration(milliseconds: 500),
+                      padding: const EdgeInsets.all(10.0),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Color(0xFF005F9E),
+                            Color(0xFF00B8D4),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 10,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 60,
+                            backgroundImage:
+                                AssetImage('assets/images/doctor14.png'),
+                          ),
+                          const SizedBox(width: 20),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Welcome, Dr. ${doctorProfile.doctorName}",
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                "Email: ${doctorProfile.email}",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.white70,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+              const SizedBox(height: 10),
+
+              // Navigation Buttons with improved hover effect and spacing
+              GridView.builder(
+                shrinkWrap: true,
+                physics: NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 20,
+                  mainAxisSpacing: 20,
+                  childAspectRatio: 2.5,
+                ),
+                itemCount: doctorCards.length,
+                itemBuilder: (context, index) {
+                  final card = doctorCards[index];
+                  return DoctorCard(
+                    title: card['title'],
+                    imagePath: card['imagePath'],
+                    onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => LoginScreen()),
+                        MaterialPageRoute(
+                          builder: (context) => card['screen'],
+                        ),
                       );
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          Colors.deepPurpleAccent, // Cyan background color
-                      foregroundColor: Colors.white, // White text color
-                      shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(8), // Rounded corners
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 9), // Padding for better appearance
-                    ),
-                    child: const Text(
-                      "You are not logged in. Please login to continue",
+                  );
+                },
+              ),
+
+              const SizedBox(height: 20),
+
+              // Animated Footer with fade-in effect
+              AnimatedContainer(
+                duration: Duration(milliseconds: 500),
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                decoration: BoxDecoration(
+                  color: Colors.blue[900],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  children: [
+                    const Text(
+                      "Powered by 20s Developers",
                       style: TextStyle(
-                        fontWeight: FontWeight.bold, // Bold text for emphasis
+                        fontSize: 16,
+                        color: Colors.white70,
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
-                  ))
-                : AnimatedContainer(
-                    duration: Duration(milliseconds: 500),
-                    padding: const EdgeInsets.all(10.0),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.blue[200]!, Colors.blue[600]!],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 10,
-                          offset: Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Row(
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        CircleAvatar(
-                          radius: 60,
-                          backgroundImage:
-                              AssetImage('assets/images/doctor14.png'),
-                        ),
-                        const SizedBox(width: 20),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Welcome, Dr. ${doctorProfile.doctorName}",
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              "Email: ${doctorProfile.email}",
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: Colors.white70,
-                              ),
-                            ),
-                          ],
+                        const Icon(Icons.developer_mode, color: Colors.white70),
+                        const SizedBox(width: 8),
+                        Text(
+                          "Saideep Hospital",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.lightBlueAccent[100],
+                          ),
                         ),
                       ],
                     ),
-                  ),
-            const SizedBox(height: 10),
-
-            // Navigation Buttons with improved hover effect and spacing
-            GridView.count(
-              shrinkWrap: true,
-              crossAxisCount: 2,
-              crossAxisSpacing: 30,
-              mainAxisSpacing: 30,
-              childAspectRatio: 3.5, // Adjusted button size
-              children: [
-                _buildNavButton("Assigned Patients", Icons.people, () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => AssignedPatientsScreen()),
-                  );
-                }),
-                _buildNavButton("Assigned Labs", Icons.local_hospital, () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => AssignedLabsScreen()),
-                  );
-                }),
-
-                _buildNavButton("Home", Icons.home, () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => HomeScreen()),
-                  );
-                }),
-                _buildNavButton("Patiens", Icons.exit_to_app, () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => PatientListScreen()),
-                  );
-                }),
-                _buildNavButton("Logout", Icons.exit_to_app, () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => LogoutScreen()),
-                  );
-                }),
-                // _buildNavButton("Go Back Home", Icons.home, () {
-                //   Navigator.push(
-                //     context,
-                //     MaterialPageRoute(builder: (context) => HomeScreen()),
-                //   );
-                // }),
-              ],
-            ),
-
-            const SizedBox(height: 20),
-
-            // Animated Footer with fade-in effect
-            AnimatedContainer(
-              duration: Duration(milliseconds: 500),
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              decoration: BoxDecoration(
-                color: Colors.blue[900],
-                borderRadius: BorderRadius.circular(12),
+                  ],
+                ),
               ),
-              child: Column(
-                children: [
-                  const Text(
-                    "Powered by 20s Developers",
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.white70,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.developer_mode, color: Colors.white70),
-                      const SizedBox(width: 8),
-                      Text(
-                        "Saideep Hospital",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.lightBlueAccent[100],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

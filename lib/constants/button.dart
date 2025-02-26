@@ -16,28 +16,24 @@ class NeumorphicButton1 extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 60,
-        width: 160,
-        padding: padding,
+        width: 60, // Compact size for small numbers
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
         decoration: BoxDecoration(
-          color: const Color(0xFFE0E5EC),
-          borderRadius: BorderRadius.circular(15),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20), // Circular touch
           boxShadow: [
-            // Outer shadow
-            const BoxShadow(
-              color: Colors.white,
-              offset: Offset(-5, -5),
-              blurRadius: 15,
+            BoxShadow(
+              color: Colors.grey.shade300,
+              offset: const Offset(-2, -2),
+              blurRadius: 4,
             ),
-            // Inner shadow
-            const BoxShadow(
-              color: Color(0xFFB3B9C5),
-              offset: Offset(5, 5),
-              blurRadius: 15,
+            BoxShadow(
+              color: Colors.grey.shade500,
+              offset: const Offset(2, 2),
+              blurRadius: 4,
             ),
           ],
         ),
-        alignment: Alignment.center,
         child: child,
       ),
     );
