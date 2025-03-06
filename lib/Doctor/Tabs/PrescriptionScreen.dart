@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 
 final prescriptionsProvider =
     StateNotifierProvider<PrescriptionsNotifier, List<DoctorPrescription>>(
@@ -53,8 +54,6 @@ class DoctorPrescriptionsScreen extends ConsumerStatefulWidget {
 
 class _DoctorPrescriptionsScreenState
     extends ConsumerState<DoctorPrescriptionsScreen> {
-  bool _isLoading = false;
-
   @override
   void initState() {
     super.initState();
@@ -66,97 +65,183 @@ class _DoctorPrescriptionsScreenState
   @override
   Widget build(BuildContext context) {
     final prescriptionsList = ref.watch(prescriptionsProvider);
+    final gradientColors = [const Color(0xFF005F9E), const Color(0xFF00B8D4)];
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset(
-              'assets/images/bb1.png',
-              fit: BoxFit.cover,
-              opacity: AlwaysStoppedAnimation(0.3),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    gradientColors[0].withOpacity(0.15),
+                    gradientColors[1].withOpacity(0.15)
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Image.asset(
+                'assets/images/bb1.png',
+                fit: BoxFit.cover,
+                opacity: const AlwaysStoppedAnimation(0.2),
+              ),
             ),
           ),
-          // ElevatedButton(
-          //   onPressed: () async {
-          //     setState(() => _isLoading = true);
-          //     await ref
-          //         .read(prescriptionsProvider.notifier)
-          //         .fetchPrescriptions(widget.patientId, widget.admissionId);
-          //     setState(() => _isLoading = false);
-          //   },
-          //   child: _isLoading
-          //       ? const CustomLoadingAnimation()
-          //       : const Text('Generate Prescription'),
-          // ),
-          const SizedBox(height: 16),
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(20.0),
             child: prescriptionsList.isEmpty
-                ? const Center(child: Text('No prescriptions found.'))
-                : ListView.builder(
-                    itemCount: prescriptionsList.length,
-                    itemBuilder: (context, index) {
-                      final prescription = prescriptionsList[index];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(
-                            vertical: 8.0, horizontal: 10),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(20),
-                            bottomRight: Radius.circular(20),
+                ? const Center(child: CustomLoadingAnimation())
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 20),
+                        child: Text(
+                          'Patient Prescriptions',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            foreground: Paint()
+                              ..shader = LinearGradient(
+                                colors: gradientColors,
+                              ).createShader(
+                                  const Rect.fromLTWH(0, 0, 200, 20)),
                           ),
                         ),
-                        elevation: 6,
-                        color: Colors.white.withOpacity(0.9),
-                        shadowColor: Colors.black26,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 12.0, horizontal: 16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Medicines: ' +
-                                        (prescription.medicine.name!),
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.teal,
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: Icon(FontAwesomeIcons.trash,
-                                        color: Color(0xff1565C0)),
-                                    onPressed: () => ref
-                                        .read(prescriptionsProvider.notifier)
-                                        .deletePrescription(
-                                            widget.patientId,
-                                            widget.admissionId,
-                                            prescription.medicine.id!),
+                      ),
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: prescriptionsList.length,
+                          itemBuilder: (context, index) {
+                            final prescription = prescriptionsList[index];
+                            return Container(
+                              margin: const EdgeInsets.symmetric(
+                                  vertical: 8, horizontal: 4),
+                              decoration: BoxDecoration(
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(20),
+                                  bottomRight: Radius.circular(20),
+                                ),
+                                gradient: LinearGradient(
+                                  colors: [Colors.white, Colors.grey.shade50],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: gradientColors[0].withOpacity(0.1),
+                                    blurRadius: 8,
+                                    offset: const Offset(2, 4),
                                   ),
                                 ],
                               ),
-                              _buildVitalsRow(Icons.sunny, 'Morning',
-                                  "${prescription.medicine.morning}"),
-                              _buildVitalsRow(Icons.wb_twilight, 'Afternoon',
-                                  prescription.medicine.night.toString()),
-                              _buildVitalsRow(FontAwesomeIcons.moon, 'Night',
-                                  prescription.medicine.night.toString()),
-                              _buildVitalsRow(Icons.comment, 'Comment',
-                                  prescription.medicine.comment.toString()),
-                              // _buildVitalsRow(FontAwesomeIcons.calendar, 'Date',
-                              //     prescription.medicine.date.toString()),
-                            ],
-                          ),
+                              child: Stack(
+                                children: [
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: const BorderRadius.only(
+                                        topLeft: Radius.circular(20),
+                                        bottomRight: Radius.circular(20),
+                                      ),
+                                      border: Border.all(
+                                        width: 2,
+                                        color:
+                                            gradientColors[1].withOpacity(0.3),
+                                      ),
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              'Prescribed On: ${prescription.medicine.date != 'N/A'}',
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
+                                                color: gradientColors[0],
+                                              ),
+                                            ),
+                                            IconButton(
+                                              icon: Container(
+                                                decoration: BoxDecoration(
+                                                  gradient: LinearGradient(
+                                                      colors: gradientColors),
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                                padding:
+                                                    const EdgeInsets.all(4),
+                                                child: const Icon(
+                                                  FontAwesomeIcons.trash,
+                                                  color: Colors.white,
+                                                  size: 18,
+                                                ),
+                                              ),
+                                              onPressed: () => ref
+                                                  .read(prescriptionsProvider
+                                                      .notifier)
+                                                  .deletePrescription(
+                                                      widget.patientId,
+                                                      widget.admissionId,
+                                                      prescription
+                                                          .medicine.id!),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        _buildPrescriptionRow(
+                                          FontAwesomeIcons.pills,
+                                          'Medicine',
+                                          prescription.medicine.name ?? 'N/A',
+                                          gradientColors[0],
+                                        ),
+                                        _buildPrescriptionRow(
+                                          Icons.sunny,
+                                          'Morning Dose',
+                                          prescription.medicine.morning ??
+                                              'N/A',
+                                          gradientColors[1],
+                                        ),
+                                        _buildPrescriptionRow(
+                                          Icons.wb_twilight,
+                                          'Afternoon Dose',
+                                          prescription.medicine.afternoon ??
+                                              'N/A',
+                                          gradientColors[0],
+                                        ),
+                                        _buildPrescriptionRow(
+                                          FontAwesomeIcons.moon,
+                                          'Night Dose',
+                                          prescription.medicine.night ?? 'N/A',
+                                          gradientColors[1],
+                                        ),
+                                        _buildPrescriptionRow(
+                                          Icons.comment,
+                                          'Comments',
+                                          prescription.medicine.comment ??
+                                              'No comments',
+                                          gradientColors[0],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
                         ),
-                      );
-                    },
+                      ),
+                    ],
                   ),
           ),
         ],
@@ -164,29 +249,46 @@ class _DoctorPrescriptionsScreenState
     );
   }
 
-  Widget _buildVitalsRow(IconData icon, String label, String value) {
+  Widget _buildPrescriptionRow(
+      IconData icon, String label, String value, Color color) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          Icon(icon, color: Colors.blueGrey, size: 18),
-          const SizedBox(width: 8),
-          Text('$label: ',
-              style: TextStyle(
-                fontWeight: GoogleFonts.italiana().fontWeight,
-                fontSize: 14,
-                fontFamily: 'Poppins',
-              )),
-          Expanded(
-            child: Text(value,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.bold,
-                )),
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 18, color: color),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            '$label: ',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade700,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Poppins',
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade800,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
     );
+  }
+
+  String formatToIST(String utcDate) {
+    DateTime utcDateTime = DateTime.parse(utcDate).toUtc();
+    DateTime istDateTime = utcDateTime.add(Duration(hours: 5, minutes: 30));
+    return DateFormat('dd MMM yyyy, hh:mm a').format(istDateTime);
   }
 }

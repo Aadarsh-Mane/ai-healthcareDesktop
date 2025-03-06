@@ -1,84 +1,69 @@
-import 'package:doctordesktop/Doctor/AddSymptomsScreen.dart';
+import 'package:doctordesktop/Doctor/AddDiagnosisScreen.dart';
 import 'package:doctordesktop/Doctor/Animate.dart';
-import 'package:doctordesktop/constants/colors.dart';
-import 'package:doctordesktop/repositories/doctor_repository.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:shimmer/shimmer.dart';
-
-import 'package:doctordesktop/constants/colors.dart';
 import 'package:doctordesktop/repositories/doctor_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:shimmer/shimmer.dart';
 
-final symptomsProvider =
-    StateNotifierProvider<SymptomsNotifier, List<String>>((ref) {
-  return SymptomsNotifier();
+final doctor = DoctorRepository();
+final diagnosisProvider =
+    StateNotifierProvider<DiagnosisNotifier, List<String>>((ref) {
+  return DiagnosisNotifier();
 });
 
-class SymptomsNotifier extends StateNotifier<List<String>> {
-  SymptomsNotifier() : super([]);
+class DiagnosisNotifier extends StateNotifier<List<String>> {
+  DiagnosisNotifier() : super([]);
 
-  final doctor = DoctorRepository();
-
-  Future<void> fetchSymptoms(String patientId, String admissionId) async {
-    final symptoms = await doctor.fetchSymptomsByDoctor(patientId, admissionId);
-    state = symptoms;
+  Future<void> fetchDiagnosis(String patientId, String admissionId) async {
+    final diagnosis = await doctor.fetchDoctorDiagnosis(admissionId, patientId);
+    state = diagnosis;
   }
 
-  Future<void> deleteSymptoms(
-      String patientId, String admissionId, String symptom) async {
+  Future<void> deleteDiagnosis(
+      String patientId, String admissionId, String diagnosis) async {
     try {
-      await doctor.deleteSymptoms(patientId, admissionId, symptom);
-
-      // Remove the deleted symptom from the state
-      state = state.where((s) => s != symptom).toList();
-
-      print("Symptom deleted successfully");
+      await doctor.deleteDiagnosis(patientId, admissionId, diagnosis);
+      state = state.where((d) => d != diagnosis).toList();
     } catch (e) {
-      print("Error deleting symptom: $e");
+      print("Error deleting diagnosis: $e");
     }
   }
 }
 
-class SymptomsScreen extends ConsumerStatefulWidget {
+class DiagnosisScreen extends ConsumerStatefulWidget {
   final String patientId;
   final String admissionId;
 
-  const SymptomsScreen({
+  const DiagnosisScreen({
     required this.patientId,
     required this.admissionId,
     Key? key,
   }) : super(key: key);
 
   @override
-  _SymptomsScreenState createState() => _SymptomsScreenState();
+  _DiagnosisScreenState createState() => _DiagnosisScreenState();
 }
 
-class _SymptomsScreenState extends ConsumerState<SymptomsScreen> {
+class _DiagnosisScreenState extends ConsumerState<DiagnosisScreen> {
   final gradientColors = [const Color(0xFF005F9E), const Color(0xFF00B8D4)];
 
   @override
   void initState() {
     super.initState();
     ref
-        .read(symptomsProvider.notifier)
-        .fetchSymptoms(widget.patientId, widget.admissionId);
+        .read(diagnosisProvider.notifier)
+        .fetchDiagnosis(widget.patientId, widget.admissionId);
   }
 
   @override
   Widget build(BuildContext context) {
-    final symptomsList = ref.watch(symptomsProvider);
+    final diagnosisList = ref.watch(diagnosisProvider);
     final mediaQuery = MediaQuery.of(context).size;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          // Updated background with gradient overlay
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -101,8 +86,8 @@ class _SymptomsScreenState extends ConsumerState<SymptomsScreen> {
           Center(
             child: SizedBox(
               width: mediaQuery.width * 0.7,
-              child: SymptomsContent(
-                symptomsList: symptomsList,
+              child: DiagnosisContent(
+                diagnosisList: diagnosisList,
                 patientId: widget.patientId,
                 admissionId: widget.admissionId,
                 gradientColors: gradientColors,
@@ -115,14 +100,14 @@ class _SymptomsScreenState extends ConsumerState<SymptomsScreen> {
   }
 }
 
-class SymptomsContent extends ConsumerWidget {
-  final List<String> symptomsList;
+class DiagnosisContent extends ConsumerWidget {
+  final List<String> diagnosisList;
   final String patientId;
   final String admissionId;
   final List<Color> gradientColors;
 
-  const SymptomsContent({
-    required this.symptomsList,
+  const DiagnosisContent({
+    required this.diagnosisList,
     required this.patientId,
     required this.admissionId,
     required this.gradientColors,
@@ -133,17 +118,16 @@ class SymptomsContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
-      child: symptomsList.isEmpty
+      child: diagnosisList.isEmpty
           ? const Center(child: CustomLoadingAnimation())
           : Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Updated header with gradient
                 Padding(
                   padding: const EdgeInsets.only(bottom: 20),
                   child: Text(
-                    'Symptoms by Doctor',
+                    'Diagnosis by Doctor',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -182,7 +166,7 @@ class SymptomsContent extends ConsumerWidget {
                       child: Column(
                         children: [
                           SizedBox(
-                            height: symptomsList.length > 6 ? 300 : null,
+                            height: diagnosisList.length > 6 ? 300 : null,
                             child: SingleChildScrollView(
                               child: Center(
                                 child: DataTable(
@@ -195,8 +179,8 @@ class SymptomsContent extends ConsumerWidget {
                                       gradientColors[0],
                                     ),
                                     _buildDataColumn(
-                                      'Symptom',
-                                      FontAwesomeIcons.notesMedical,
+                                      'Diagnosis',
+                                      FontAwesomeIcons.clipboardCheck,
                                       gradientColors[1],
                                     ),
                                     _buildDataColumn(
@@ -210,21 +194,21 @@ class SymptomsContent extends ConsumerWidget {
                                       gradientColors[1],
                                     ),
                                   ],
-                                  rows: symptomsList
+                                  rows: diagnosisList
                                       .asMap()
-                                      .map((index, symptom) {
-                                        final parts = symptom.split(' - ');
-                                        final symptomText = parts.length > 1
+                                      .map((index, diagnosis) {
+                                        final parts = diagnosis.split(' - ');
+                                        final diagnosisText = parts.length > 1
                                             ? parts[0]
-                                            : symptom;
+                                            : diagnosis;
                                         final dateText =
                                             parts.length > 1 ? parts[1] : '';
                                         return MapEntry(
                                           index,
                                           DataRow(cells: [
                                             DataCell(Text('${index + 1}')),
-                                            DataCell(
-                                                _buildSymptomCell(symptomText)),
+                                            DataCell(_buildDiagnosisCell(
+                                                diagnosisText)),
                                             DataCell(_buildDateCell(dateText)),
                                             DataCell(
                                               IconButton(
@@ -244,10 +228,10 @@ class SymptomsContent extends ConsumerWidget {
                                                       size: 18),
                                                 ),
                                                 onPressed: () => ref
-                                                    .read(symptomsProvider
+                                                    .read(diagnosisProvider
                                                         .notifier)
-                                                    .deleteSymptoms(patientId,
-                                                        admissionId, symptom),
+                                                    .deleteDiagnosis(patientId,
+                                                        admissionId, diagnosis),
                                               ),
                                             )
                                           ]),
@@ -264,7 +248,6 @@ class SymptomsContent extends ConsumerWidget {
                     ),
                   ),
                 ),
-                // Updated button with gradient
                 Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(colors: gradientColors),
@@ -278,10 +261,12 @@ class SymptomsContent extends ConsumerWidget {
                     ],
                   ),
                   child: ElevatedButton.icon(
-                    onPressed: () =>
-                        _openAddSymptomsScreen(context, patientId, admissionId),
+                    onPressed: () => {
+                      openAddDiagnosisScreen(
+                          ref, context, patientId, admissionId),
+                    },
                     icon: const Icon(Icons.add, color: Colors.white),
-                    label: const Text('Add Symptom',
+                    label: const Text('Add Diagnosis',
                         style: TextStyle(
                             color: Colors.white, fontFamily: 'Poppins')),
                     style: ElevatedButton.styleFrom(
@@ -295,6 +280,27 @@ class SymptomsContent extends ConsumerWidget {
               ],
             ),
     );
+  }
+
+  void openAddDiagnosisScreen(
+      ref, BuildContext context, patientId, String admissionId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddDiagnosisDoctorScreen(
+          patientId: patientId,
+          admissionId: admissionId,
+          addDoctorDiagnosis: doctor.addDoctorDiagnosis,
+          fetchDoctorDiagnosis: doctor.fetchDoctorDiagnosis,
+        ),
+      ),
+    ).then((value) {
+      if (value != null && value) {
+        ref
+            .read(diagnosisProvider.notifier)
+            .fetchDiagnosis(patientId, admissionId); // Refresh state
+      }
+    });
   }
 
   DataColumn _buildDataColumn(String label, IconData icon, Color color) {
@@ -324,10 +330,10 @@ class SymptomsContent extends ConsumerWidget {
     );
   }
 
-  Widget _buildSymptomCell(String text) {
+  Widget _buildDiagnosisCell(String text) {
     return Row(
       children: [
-        Icon(FontAwesomeIcons.disease, color: gradientColors[0], size: 16),
+        Icon(FontAwesomeIcons.stethoscope, color: gradientColors[0], size: 16),
         const SizedBox(width: 6),
         Text(text),
       ],
@@ -343,37 +349,4 @@ class SymptomsContent extends ConsumerWidget {
       ],
     );
   }
-
-  // ... keep existing _openAddSymptomsScreen and _buildShimmerEffect methods
-}
-
-Widget _buildShimmerEffect() {
-  return Shimmer.fromColors(
-    baseColor: Colors.grey[300]!,
-    highlightColor: Colors.grey[100]!,
-    child: Column(
-      children: List.generate(
-        3,
-        (index) => Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8.0),
-          child: Container(
-            height: 20,
-            width: double.infinity,
-            color: Colors.grey[300],
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
-void _openAddSymptomsScreen(
-    BuildContext context, String patientId, String admissionId) {
-  // Implement navigation to add symptoms screen
-  // Example:
-  Navigator.push(
-      context,
-      MaterialPageRoute(
-          builder: (context) => AddSymptomScreen(
-              patientId: patientId, admissionId: admissionId)));
 }

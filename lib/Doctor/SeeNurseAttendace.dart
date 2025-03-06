@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:table_calendar/table_calendar.dart';
 
 final nursesProvider = FutureProvider<List<String>>((ref) async {
-  final response = await http.get(Uri.parse('${BASE_URL}/doctors/allNurses'));
+  final response = await http.get(Uri.parse('${KVM_URL}/doctors/allNurses'));
   if (response.statusCode == 200) {
     final List data = json.decode(response.body);
     final filteredNurses = data
@@ -24,7 +24,7 @@ final nursesProvider = FutureProvider<List<String>>((ref) async {
 final attendanceProvider =
     FutureProvider.family<List<Attendance>, String>((ref, name) async {
   final response =
-      await http.get(Uri.parse('${BASE_URL}/doctors/allAttendees/?name=$name'));
+      await http.get(Uri.parse('${KVM_URL}/doctors/allAttendees/?name=$name'));
   if (response.statusCode == 200) {
     final List data = json.decode(response.body);
     return data.map((json) => Attendance.fromJson(json)).toList();

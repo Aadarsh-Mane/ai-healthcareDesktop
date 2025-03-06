@@ -47,142 +47,170 @@ class _AssignedPatientsScreenState
 
     return Scaffold(
       backgroundColor: Color(0xFFeff7f8),
-      body: assignedPatients.when(
-        data: (patients) => ListView.builder(
-          itemCount: patients.length,
-          itemBuilder: (context, index) {
-            final patient = patients[index];
-            final admissionStatus = patient.admissionRecords.isNotEmpty
-                ? patient.admissionRecords.first.status
-                : 'Pending';
-
-            Color statusColor =
-                admissionStatus == 'admitted' ? Colors.green : Colors.red;
-
-            return Card(
-              color: Colors.white,
-              elevation: 20.0,
-              margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
-                side: const BorderSide(
-                  color: Colors.white,
-                  width: 2.0,
-                ),
-              ),
-              child: ListTile(
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                leading: CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Colors.cyan,
-                  child: Text(
-                    patient.name[0].toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
-                  ),
-                ),
-                title: Text(
-                  patient.name,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.cyan,
-                  ),
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Age: ${patient.age}, Gender: ${patient.gender}',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.cyan,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      'Status: $admissionStatus',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: statusColor,
-                      ),
-                    ),
-                  ],
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ElevatedButton(
-                      onPressed: () async {
-                        await _handleAssignLab(context, patient, ref);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.cyan, // Cyan background color
-                        foregroundColor: Colors.white, // White text color
-                        shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(8), // Rounded corners
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8), // Padding for better appearance
-                      ),
-                      child: const Text(
-                        "Assign to Lab",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold, // Bold text for emphasis
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 10),
-                    ElevatedButton(
-                      onPressed: () async {
-                        final admissionId = patient.admissionRecords.first.id;
-                        _showConditionDialog(context, admissionId, patient);
-
-                        // bool? shouldDischarge =
-                        //     await _showDischargeConfirmationDialog(context);
-                        // if (shouldDischarge == true) {
-                        //   await _dischargePatient(patient, ref);
-                        //   ref
-                        //       .read(assignedPatientsProvider.notifier)
-                        //       .removePatient(patient);
-                        // }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text("Discharge"),
-                    ),
-                  ],
-                ),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          PatientDetailScreen4(patient: patient),
-                    ),
-                  );
-                },
-              ),
-            );
-          },
+      body: Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/bb1.png'),
+            opacity: 0.3,
+            fit: BoxFit.cover,
+          ),
         ),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stackTrace) => Center(
-          child: Text(
-            'Error: $error',
-            style: const TextStyle(color: Colors.red),
+        child: assignedPatients.when(
+          data: (patients) => ListView.builder(
+            itemCount: patients.length,
+            itemBuilder: (context, index) {
+              final patient = patients[index];
+              final admissionStatus = patient.admissionRecords.isNotEmpty
+                  ? patient.admissionRecords.first.status
+                  : 'Pending';
+
+              Color statusColor =
+                  admissionStatus == 'admitted' ? Colors.green : Colors.red;
+
+              return Card(
+                color: Colors.white,
+                elevation: 20.0,
+                margin:
+                    const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                  side: const BorderSide(
+                    color: Colors.white,
+                    width: 2.0,
+                  ),
+                ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [
+                        Color(0xFF005F9E),
+                        Color(0xFF00B8D4),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 12),
+                    leading: CircleAvatar(
+                      radius: 30,
+                      backgroundColor: Colors.cyan,
+                      child: Text(
+                        patient.name[0].toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                    title: Text(
+                      patient.name,
+                      style: const TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 24,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Age: ${patient.age}, Gender: ${patient.gender}',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.white,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          'Status: $admissionStatus',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: statusColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () async {
+                            await _handleAssignLab(context, patient, ref);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                Colors.cyan, // Cyan background color
+                            foregroundColor: Colors.white, // White text color
+                            shape: RoundedRectangleBorder(
+                              borderRadius:
+                                  BorderRadius.circular(8), // Rounded corners
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8), // Padding for better appearance
+                          ),
+                          child: const Text(
+                            "Assign to Lab",
+                            style: TextStyle(
+                              fontWeight:
+                                  FontWeight.bold, // Bold text for emphasis
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 10),
+                        ElevatedButton(
+                          onPressed: () async {
+                            final admissionId =
+                                patient.admissionRecords.first.id;
+                            _showConditionDialog(context, admissionId, patient);
+
+                            // bool? shouldDischarge =
+                            //     await _showDischargeConfirmationDialog(context);
+                            // if (shouldDischarge == true) {
+                            //   await _dischargePatient(patient, ref);
+                            //   ref
+                            //       .read(assignedPatientsProvider.notifier)
+                            //       .removePatient(patient);
+                            // }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text("Discharge"),
+                        ),
+                      ],
+                    ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              PatientDetailScreen4(patient: patient),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              );
+            },
+          ),
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stackTrace) => Center(
+            child: Text(
+              'Error: $error',
+              style: const TextStyle(color: Colors.red),
+            ),
           ),
         ),
       ),

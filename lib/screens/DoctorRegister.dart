@@ -42,7 +42,7 @@ class _DoctorRegisterScreenState extends State<DoctorRegisterScreen> {
   }
 
   Future<void> submitData() async {
-    final url = '${BASE_URL}/reception/addDoctor';
+    final url = '${KVM_URL}/reception/addDoctor';
     if (doctorImage == null) {
       ToastMessage().showToast(
           context, 'Please select an image', '', ToastificationType.error);

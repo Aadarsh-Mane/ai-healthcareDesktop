@@ -10,6 +10,8 @@ import 'package:doctordesktop/reception/GenerateOpdBill.dart';
 import 'package:doctordesktop/repositories/doctor_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 
 class DischargedPatientsNotifier
@@ -22,7 +24,8 @@ class DischargedPatientsNotifier
     print('Fetching discharged patients...');
     try {
       final response = await http
-          .get(Uri.parse('${BASE_URL}/reception/getAllDischargedPatient'));
+          .get(Uri.parse('${KVM_URL}/reception/getAllDischargedPatient'));
+      print(response.body);
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         final patients =
@@ -32,6 +35,8 @@ class DischargedPatientsNotifier
         throw Exception('Failed to load discharged patients');
       }
     } catch (e) {
+      print('Error fetching discharged patients: $e');
+
       // state = AsyncValue.error(e);
     }
   }
@@ -39,8 +44,8 @@ class DischargedPatientsNotifier
   // Manual refresh method
   Future<void> manualRefresh() async {
     print('Manual refresh');
-    state = const AsyncValue.loading(); // Set state to loading while fetching
-    await fetchDischargedPatients();
+    state = const AsyncValue.loading(); // Set state to loading
+    await fetchDischargedPatients(); // Fetch new data
   }
 }
 
@@ -60,59 +65,101 @@ class DischargedPatientsScreen1 extends ConsumerStatefulWidget {
 class _DischargedPatientsScreen1State
     extends ConsumerState<DischargedPatientsScreen1> {
   @override
+  @override
   void initState() {
     super.initState();
-    // Initial data fetch or any setup logic
-    ref.read(dischargedPatientsProvider.notifier).fetchDischargedPatients();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    ref.read(dischargedPatientsProvider.notifier).fetchDischargedPatients();
+    ref.refresh(dischargedPatientsProvider.notifier).fetchDischargedPatients();
+    // Listen for route changes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ModalRoute.of(context)!.addScopedWillPopCallback(() async {
+        await ref.refresh(dischargedPatientsProvider.notifier).manualRefresh();
+        return true;
+      });
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final dischargedPatientsAsync = ref.watch(dischargedPatientsProvider);
+    int total = dischargedPatientsAsync.when(
+      data: (data) => data.length,
+      loading: () => 0,
+      error: (error, stack) => 0,
+    );
 
-    return Padding(
-      padding: const EdgeInsets.all(18.0),
-      child: Scaffold(
-        backgroundColor: Color(0xFFeff7f8),
-        appBar: AppBar(
-          title: const Text('Discharged Patients'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: () {
-                // Trigger the manual refresh
-                ref.invalidate(dischargedPatientsProvider);
-              },
+    return Scaffold(
+      bottomNavigationBar: BottomAppBar(
+        child: Container(
+          height: 50,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Color(0xFF005F9E),
+                Color(0xFF00B8D4),
+              ], // Purple to Blue gradient
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-          ],
+          ),
+          child: Center(
+            child: Text(
+              'Total Discharged Patients: ${total}',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
         ),
-        body: dischargedPatientsAsync.when(
-          data: (patients) {
-            if (patients.isEmpty) {
-              return const Center(
-                child: Text('No discharged patients found.'),
-              );
-            }
-            return ListView.builder(
-              itemCount: patients.length,
-              itemBuilder: (context, index) {
-                final patient = patients[index];
-                return Card(
-                  color: Colors.white,
-                  margin:
-                      const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-                  elevation: 10,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  shadowColor: Colors.black45,
-                  child: InkWell(
+      ),
+      backgroundColor: Color(0xFFeff7f8),
+      appBar: AppBar(
+        title: const Text('Discharged Patients'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              // Trigger the manual refresh
+              ref.invalidate(dischargedPatientsProvider);
+            },
+          ),
+        ],
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Color(0xFF005F9E),
+                Color(0xFF00B8D4),
+              ], // Purple to Blue gradient
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+      ),
+      body: dischargedPatientsAsync.when(
+        data: (patients) {
+          if (patients.isEmpty) {
+            return const Center(
+              child: Text('No discharged patients found.'),
+            );
+          }
+          return ListView.builder(
+            itemCount: patients.length,
+            itemBuilder: (context, index) {
+              final patient = patients[index];
+              return Card(
+                color: Colors.blueAccent,
+                margin:
+                    const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+                elevation: 10,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                shadowColor: Colors.black45,
+                child: InkWell(
                     onTap: () async {
                       final shouldRefresh = await Navigator.push(
                         context,
@@ -121,71 +168,125 @@ class _DischargedPatientsScreen1State
                               PatientDetailsScreen(patient: patient),
                         ),
                       );
-                      if (shouldRefresh == true) {
+                      print("shouldRefresh $shouldRefresh");
+                      if (shouldRefresh == null) {
                         ref
                             .read(dischargedPatientsProvider.notifier)
-                            .fetchDischargedPatients();
+                            .manualRefresh();
                       }
                     },
                     child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 20),
-                      title: Text(
-                        'Name ${patient.name}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 20,
-                          color: Colors.deepPurple[700],
-                          letterSpacing: 1.2,
+                      hoverColor: Colors.blue[100],
+                      contentPadding: const EdgeInsets.all(20),
+                      tileColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(16),
+                          bottomRight: Radius.circular(16),
                         ),
                       ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Gender: ${patient.gender}',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.black87,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'Contact: ${patient.contact}',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.black87,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'Discharge Date: ${patient.lastRecord.dischargeDate}',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.black87,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
+                      leading: CircleAvatar(
+                        backgroundColor:
+                            Colors.transparent, // Removes the background color
+                        backgroundImage: AssetImage('assets/images/p2.png'),
+                        radius: 30,
                       ),
-                      isThreeLine: true,
-                      trailing: Icon(
-                        Icons.arrow_forward_ios,
-                        color: Colors.deepPurple[700],
-                        size: 24,
+                      title: Text(
+                        'Name : ${patient.name}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 22,
+                          color: Color(0xFF2A79B4),
+                        ),
                       ),
-                    ),
-                  ),
-                );
-              },
-            );
-          },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stackTrace) => Center(
-            child: Text('Error: ${error.toString()}'),
-          ),
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.male, size: 18, color: Colors.cyan),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Gender: ${patient.gender}',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      color: Colors.black),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Icon(Icons.phone,
+                                    size: 18, color: Colors.black54),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Contact: ${patient.contact}',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Icon(FontAwesomeIcons.calendarWeek,
+                                    size: 20, color: Colors.deepPurple[700]),
+                                SizedBox(width: 8),
+                                RichText(
+                                  text: TextSpan(
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.black87,
+                                    ),
+                                    children: [
+                                      TextSpan(
+                                        text: 'Discharged: ',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                      TextSpan(
+                                        text:
+                                            '${patient.lastRecord.dischargeDate.split(' ')[0]} ',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 17,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                      TextSpan(
+                                        text:
+                                            ' ${patient.lastRecord.dischargeDate.split(' ')[1]} ${patient.lastRecord.dischargeDate.split(' ')[2]}',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 17,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            )
+                          ],
+                        ),
+                      ),
+                    )),
+              );
+            },
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stackTrace) => Center(
+          child: Text('Error: ${error.toString()}'),
         ),
       ),
     );
@@ -262,7 +363,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
     // Replace with your API call
     final response = await http.put(
       Uri.parse(
-          '${BASE_URL}/reception/dischargeByReceptionCondition/${widget.patient.patientId}/${widget.patient.lastRecord.admissionId}'),
+          '${KVM_URL}/reception/dischargeByReceptionCondition/${widget.patient.patientId}/${widget.patient.lastRecord.admissionId}'),
     );
     print("heeeloooo ${response.body}");
     if (response.statusCode == 200) {
@@ -274,177 +375,148 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
   }
 
   @override
+  final Color _primaryColor = const Color(0xFF2A79B4);
+  final Color _accentColor = const Color(0xFF00C2CB);
+  final Color _backgroundColor = const Color(0xFFF8F9FA);
+
+  @override
+  @override
   Widget build(BuildContext context) {
     final record = widget.patient.lastRecord;
     return Scaffold(
-      appBar: AppBar(
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () {
-              Navigator.pop(
-                  context, true); // Indicate that data should be refreshed
-            },
-          )
-        ],
-        title: Text(widget.patient.name),
-      ),
+      backgroundColor: _backgroundColor,
+      appBar: _buildAppBar(context),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: ListView(
+        child: Column(
           children: [
-            Text('Patient ID: ${widget.patient.patientId}',
-                style: const TextStyle(fontSize: 16)),
-            Text('Gender: ${widget.patient.gender}',
-                style: const TextStyle(fontSize: 16)),
-            Text('Contact: ${widget.patient.contact}',
-                style: const TextStyle(fontSize: 16)),
-            const Divider(),
-            // Expandable Section for Admission Details
-            ExpansionTile(
-              title: const Text('Admission Details',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              children: [
-                Text('Admission ID: ${record.admissionId}',
-                    style: const TextStyle(fontSize: 16)),
-                Text('Admission Date: ${record.admissionDate}',
-                    style: const TextStyle(fontSize: 16)),
-                Text('Discharge Date: ${record.dischargeDate}',
-                    style: const TextStyle(fontSize: 16)),
-                Text('Reason for Admission: ${record.reasonForAdmission}',
-                    style: const TextStyle(fontSize: 16)),
-                Text('Condition at Discharge: ${record.conditionAtDischarge}',
-                    style: const TextStyle(fontSize: 16)),
-                Text('Symptoms: ${record.symptoms}',
-                    style: const TextStyle(fontSize: 16)),
-                Text('Initial Diagnosis: ${record.initialDiagnosis}',
-                    style: const TextStyle(fontSize: 16)),
-              ],
-            ),
-            const Divider(),
-            Text('Doctor: ${record.doctor.name}',
-                style: const TextStyle(fontSize: 16)),
-            Text('Weight: ${record.weight} kg',
-                style: const TextStyle(fontSize: 16)),
-            Text(
-                'Previous Remaining Amount: \$${record.previousRemainingAmount}',
-                style: const TextStyle(fontSize: 16)),
-            Text('Amount to be Paid: \$${record.amountToBePayed}',
-                style: const TextStyle(fontSize: 16)),
-            Text(
-                'Discharge By Reception: ${_isDischargedByReception ? "Yes" : "No"}',
-                style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 10),
-            SwitchListTile(
-              title: Text('Discharge by Reception'),
-              value: _isDischargedByReception,
-              onChanged: _toggleDischargeByReception,
-            ),
-            const SizedBox(height: 10),
-            // Buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => GenerateBillScreen(
-                              patientId: widget.patient.patientId),
+            _buildPatientHeader(),
+            const SizedBox(height: 20),
+            Expanded(
+              child: Column(
+                children: [
+                  // Top Row - Patient Info and Admission Details
+                  Expanded(
+                    flex: 2,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Left Pane - Patient Information
+                        Expanded(
+                          flex: 1,
+                          child: _buildInfoCard(
+                            'Patient Information',
+                            Icons.person_outline,
+                            [
+                              _buildInfoRow(
+                                  'Patient ID', widget.patient.patientId),
+                              _buildInfoRow('Gender', widget.patient.gender),
+                              _buildInfoRow('Contact', widget.patient.contact),
+                              // _buildInfoRow(
+                              //     'Date of Birth', widget.patient.dob),
+                            ],
+                          ),
                         ),
-                      );
-                    },
-                    child: const Text('Generate Bill'),
+                        const SizedBox(width: 16),
+
+                        // Right Pane - Admission Details
+                        Expanded(
+                          flex: 1,
+                          child: Card(
+                            elevation: 4,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(Icons.medical_services,
+                                          color: _primaryColor),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        'Admission Details',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w600,
+                                          color: _primaryColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Expanded(
+                                    child: SingleChildScrollView(
+                                      child: Column(
+                                        children: [
+                                          _buildInfoRow('Admission ID',
+                                              record.admissionId),
+                                          _buildInfoRow('Admission Date',
+                                              record.admissionDate),
+                                          _buildInfoRow('Discharge Date',
+                                              record.dischargeDate),
+                                          _buildInfoRow('Reason',
+                                              record.reasonForAdmission),
+                                          _buildInfoRow('Condition',
+                                              record.conditionAtDischarge),
+                                          _buildInfoRow(
+                                              'Symptoms', record.symptoms),
+                                          _buildInfoRow('Diagnosis',
+                                              record.initialDiagnosis),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      _showSnackBar(context, "Generating Prescription...");
-                    },
-                    child: const Text('Generate Prescription'),
+                  const SizedBox(height: 16),
+
+                  // Bottom Row - Medical and Actions
+                  Expanded(
+                    flex: 3,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Left Pane - Medical Overview
+                        Expanded(
+                          flex: 1,
+                          child: _buildMedicalInfoCard(record),
+                        ),
+                        const SizedBox(width: 16),
+
+                        // Right Pane - Discharge and Actions
+                        Expanded(
+                          flex: 1,
+                          child: Column(
+                            children: [
+                              // Discharge Section
+                              Expanded(
+                                flex: 3,
+                                child: _buildDischargeSection(),
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Action Buttons
+                              Expanded(
+                                flex: 3,
+                                child: _buildActionButtons(record),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 30),
-            // Additional buttons as per your original layout...
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Expanded(
-                //   child: ElevatedButton(
-                //     onPressed: () {
-                //       // _showSnackBar(context, "Fetching Receipt...");
-                //       _fetchDoctorReceipt(
-                //           context,
-                //           widget.patient.patientId,
-                //           _amountPaidController.text,
-                //           _billingAmountController.text);
-                //     },
-                //     child: const Text('Fetch Receipt'),
-                //   ),
-                // ),
-                const SizedBox(width: 20),
-                // Expanded(
-                //   child: ElevatedButton(
-                //     onPressed: () {
-                //       // _showSnackBar(context, "Fetching Doctor Sheet...");
-                //       Navigator.push(
-                //         context,
-                //         MaterialPageRoute(
-                //           builder: (context) => FourButtonScreen(
-                //               patientId: widget.patient.patientId,
-                //               admissionId: record.admissionId),
-                //         ),
-                //       );
-                //     },
-                //     child: const Text('Export Summary'),
-                //   ),
-                // ),
-              ],
-            ),
-            SizedBox(height: 30),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      // _showSnackBar(context, "Fetching Receipt...");
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => GenerateIpdBillScreen(
-                                  patientId: widget.patient.patientId,
-                                  remainingAmount:
-                                      record.previousRemainingAmount.toString(),
-                                )),
-                      );
-                    },
-                    child: const Text('Generate IPD Receipt'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      // _showSnackBar(context, "Fetching Doctor Sheet...");
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => GenerateOpdBillScreen(
-                                  patientId: widget.patient.patientId,
-                                )),
-                      );
-                    },
-                    child: const Text('OPD Bill'),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
@@ -452,58 +524,395 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
     );
   }
 
-  Future<void> _fetchDoctorAdvice(BuildContext context, patientId) async {
-    final url = '${BASE_URL}/reception/getDoctorAdvice/${patientId}';
-    try {
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final fileLink = data['fileLink'];
-        if (fileLink != null) {
-          Methods().downloadFile(fileLink, 'doctor_advice.pdf', context);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('No file link found in the response')),
-          );
-        }
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to fetch doctor advice')),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
-    }
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+    return AppBar(
+      elevation: 0,
+      backgroundColor: _primaryColor,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+        onPressed: () => Navigator.pop(context, true),
+      ),
+      title: Text(
+        widget.patient.name,
+        style: GoogleFonts.poppins(
+          fontSize: 22,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+        ),
+      ),
+      centerTitle: true,
+      actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: 16.0),
+          child: CircleAvatar(
+            backgroundColor: Colors.white24,
+            child: Icon(Icons.person, color: Colors.white),
+          ),
+        ),
+      ],
+    );
   }
 
-  Future<void> _fetchDoctorReceipt(BuildContext context, patientId,
-      String amount, String billingAmount) async {
-    final url =
-        '${BASE_URL}/reception/receipt/${patientId}/${amount}/${billingAmount}';
-    try {
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final fileLink = data['fileLink'];
-        print('fileLink: ' + fileLink);
-        if (fileLink != null) {
-          Methods().downloadFile(fileLink, 'doctor_receipt.pdf', context);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('No file link found in the response')),
-          );
-        }
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to fetch doctor receipt')),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
-    }
+  Widget _buildPatientHeader() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+            colors: [_primaryColor, _accentColor],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          )
+        ],
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 30,
+            backgroundColor: Colors.white24,
+            child: Icon(Icons.person, size: 40, color: Colors.white),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.patient.name,
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Patient ID: ${widget.patient.patientId}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.9),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoCard(String title, IconData icon, List<Widget> children) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: _primaryColor, size: 24),
+                const SizedBox(width: 8),
+                Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: _primaryColor,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(
+              label,
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(
+              value,
+              style: GoogleFonts.poppins(
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdmissionDetails(record) {
+    return ExpansionTile(
+      tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+      collapsedBackgroundColor: Colors.white,
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      collapsedShape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      childrenPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      title: Row(
+        children: [
+          Icon(Icons.medical_services, color: _primaryColor),
+          const SizedBox(width: 12),
+          Text(
+            'Admission Details',
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: _primaryColor,
+            ),
+          ),
+        ],
+      ),
+      children: [
+        _buildInfoRow('Admission ID', record.admissionId),
+        _buildInfoRow('Admission Date', record.admissionDate),
+        _buildInfoRow('Discharge Date', record.dischargeDate),
+        _buildInfoRow('Reason', record.reasonForAdmission),
+        _buildInfoRow('Condition', record.conditionAtDischarge),
+        _buildInfoRow('Symptoms', record.symptoms),
+        _buildInfoRow('Diagnosis', record.initialDiagnosis),
+      ],
+    );
+  }
+
+  Widget _buildMedicalInfoCard(record) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Icon(Icons.monitor_heart, color: _primaryColor),
+                const SizedBox(width: 12),
+                Text(
+                  'Medical Overview',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: _primaryColor,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildMedicalStat(
+                'Weight', '${record.weight} kg', Icons.line_weight),
+            _buildMedicalStat('Previous Balance',
+                '\$${record.previousRemainingAmount}', Icons.attach_money),
+            _buildMedicalStat(
+                'Amount Due', '\$${record.amountToBePayed}', Icons.payment),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMedicalStat(String label, String value, IconData icon) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _accentColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: _accentColor, size: 24),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              Text(
+                value,
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: _primaryColor,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDischargeSection() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Icon(Icons.exit_to_app, color: _primaryColor),
+                const SizedBox(width: 12),
+                Text(
+                  'Discharge Control',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: _primaryColor,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                'Mark as Discharged',
+                style: GoogleFonts.poppins(fontSize: 15),
+              ),
+              subtitle: Text(
+                'Confirm patient discharge status',
+                style: GoogleFonts.poppins(fontSize: 13),
+              ),
+              activeColor: _accentColor,
+              activeTrackColor: _accentColor.withOpacity(0.2),
+              value: _isDischargedByReception,
+              onChanged: _toggleDischargeByReception,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButtons(record) {
+    return // ... Rest of the code remains the same until the action buttons section
+
+// Updated Action Buttons Section
+        Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _buildActionButton(
+                'Generate Bill',
+                Icons.receipt_long,
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        GenerateBillScreen(patientId: widget.patient.patientId),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _buildActionButton(
+                  'Generate Report',
+                  Icons.assignment,
+                  () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => GenerateOpdBillScreen(
+                                  patientId: widget.patient.patientId,
+                                )),
+                      )),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildActionButton(
+                  'Generate Summary',
+                  Icons.summarize,
+                  () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => GenerateIpdBillScreen(
+                                  patientId: widget.patient.patientId,
+                                  remainingAmount:
+                                      record.previousRemainingAmount.toString(),
+                                )),
+                      )),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _buildActionButton(
+                'View History',
+                Icons.history,
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        GenerateBillScreen(patientId: widget.patient.patientId),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+
+// ... Rest of the code remains the sa
+  }
+
+  Widget _buildActionButton(String text, IconData icon, VoidCallback onTap) {
+    return ElevatedButton.icon(
+      icon: Icon(icon, size: 20),
+      label:
+          Text(text, style: GoogleFonts.poppins(fontWeight: FontWeight.w500)),
+      onPressed: onTap,
+      style: ElevatedButton.styleFrom(
+        foregroundColor: Colors.white,
+        backgroundColor: _primaryColor,
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        elevation: 3,
+        shadowColor: Colors.black12,
+      ),
+    );
   }
 }

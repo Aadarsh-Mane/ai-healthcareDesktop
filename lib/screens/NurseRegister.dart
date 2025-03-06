@@ -28,7 +28,7 @@ class _NurseRegisterScreenState extends State<NurseRegisterScreen> {
 
   Future<void> submitData() async {
     final url =
-        '${BASE_URL}/reception/addNurse'; // Replace with your backend URL
+        '${KVM_URL}/reception/addNurse'; // Replace with your backend URL
     try {
       final response = await http.post(
         Uri.parse(url),

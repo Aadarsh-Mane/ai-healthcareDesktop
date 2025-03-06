@@ -59,7 +59,7 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
     {
       'title': 'Logout',
       'imagePath': 'assets/images/logout.png',
-      'screen': LogoutScreen(),
+      'screen': HomeScreen(),
     },
   ];
   @override
@@ -252,7 +252,7 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
                         const Icon(Icons.developer_mode, color: Colors.white70),
                         const SizedBox(width: 8),
                         Text(
-                          "Saideep Hospital",
+                          "${AppStrings.hospitalName}",
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,

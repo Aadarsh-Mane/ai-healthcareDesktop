@@ -32,7 +32,7 @@ class _AssignDoctorScreenState extends State<AssignDoctorScreen> {
 
   Future<void> _fetchPatients() async {
     final response =
-        await http.get(Uri.parse('${BASE_URL}/reception/listPatients'));
+        await http.get(Uri.parse('${KVM_URL}/reception/listPatients'));
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       setState(() {
@@ -51,7 +51,7 @@ class _AssignDoctorScreenState extends State<AssignDoctorScreen> {
 
   Future<void> _fetchDoctors() async {
     final response =
-        await http.get(Uri.parse('${BASE_URL}/reception/listDoctors'));
+        await http.get(Uri.parse('${KVM_URL}/reception/listDoctors'));
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       setState(() {
@@ -72,7 +72,7 @@ class _AssignDoctorScreenState extends State<AssignDoctorScreen> {
         _selectedDoctorId != null &&
         _selectedAdmissionId != null) {
       final response = await http.post(
-        Uri.parse('${BASE_URL}/reception/assign-Doctor'),
+        Uri.parse('${KVM_URL}/reception/assign-Doctor'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'patientId': _selectedPatientId,

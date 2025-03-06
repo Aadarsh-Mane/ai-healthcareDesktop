@@ -17,7 +17,7 @@ class _PatientAssignmentScreenState extends State<PatientAssignmentScreen> {
   // Fetch the list of available doctors
   Future<void> _fetchDoctors() async {
     final response =
-        await http.get(Uri.parse('${BASE_URL}/reception/listDoctors'));
+        await http.get(Uri.parse('${KVM_URL}/reception/listDoctors'));
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -37,7 +37,7 @@ class _PatientAssignmentScreenState extends State<PatientAssignmentScreen> {
     if (selectedDoctor != null) {
       final response = await http.get(
         Uri.parse(
-            '${BASE_URL}/reception/getPatientAssignedToDoctor/$selectedDoctor'),
+            '${KVM_URL}/reception/getPatientAssignedToDoctor/$selectedDoctor'),
       );
 
       if (response.statusCode == 200) {

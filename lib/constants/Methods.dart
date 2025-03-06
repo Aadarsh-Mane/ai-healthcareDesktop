@@ -14,6 +14,22 @@ class Methods {
     }
   }
 
+  void openEmailInBrowser(String email) {
+    final url = 'https://mail.google.com/mail/?view=cm&fs=1&to=$email';
+
+    try {
+      if (Platform.isMacOS) {
+        Process.run('open', [url]);
+      } else if (Platform.isLinux) {
+        Process.run('xdg-open', [url]);
+      } else if (Platform.isWindows) {
+        Process.run('start', [url], runInShell: true);
+      }
+    } catch (e) {
+      print('Error opening email in browser: $e');
+    }
+  }
+
   String getGoogleDriveDirectLink(String imageUrl) {
     final regex = RegExp(r'd/([a-zA-Z0-9_-]+)/');
     final match = regex.firstMatch(imageUrl);

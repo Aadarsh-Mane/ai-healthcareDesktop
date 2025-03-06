@@ -59,6 +59,7 @@ dependencies:
   like_button: ^2.0.5
   glassmorphism: ^3.0.0
   fl_chart: ^0.70.2
+  lottie: ^3.3.1
 
 dev_dependencies:
   flutter_test:

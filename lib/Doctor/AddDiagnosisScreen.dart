@@ -46,7 +46,7 @@ class _AddDiagnosisDoctorScreenState extends State<AddDiagnosisDoctorScreen> {
 
     try {
       final response = await http.get(
-          Uri.parse('${BASE_URL}/doctors/getDiagnosis/${widget.patientId}'));
+          Uri.parse('${KVM_URL}/doctors/getDiagnosis/${widget.patientId}'));
       print(response.body);
       if (response.statusCode == 200) {
         final data = json.decode(response.body) as Map<String, dynamic>;

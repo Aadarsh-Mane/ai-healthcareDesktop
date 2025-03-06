@@ -69,7 +69,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
 
   Future<void> _addConsultant(
       String patientId, String admissionId, String consultant) async {
-    final url = Uri.parse('${BASE_URL}/doctors/addConsultant');
+    final url = Uri.parse('${KVM_URL}/doctors/addConsultant');
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString('auth_token');
 
@@ -1361,7 +1361,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
   Future<void> _fetchDoctorAdvice(
       BuildContext context, patientId, admissionId) async {
     final url =
-        '${BASE_URL}/reception/getDoctorAdvice/${patientId}/${admissionId}';
+        '${KVM_URL}/reception/getDoctorAdvice/${patientId}/${admissionId}';
     try {
       final response = await http.get(Uri.parse(url));
       print("body res ${response.body}");

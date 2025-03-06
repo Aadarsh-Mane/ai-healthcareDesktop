@@ -4,8 +4,7 @@ import 'package:doctordesktop/constants/Url.dart';
 
 Future<void> sendData(
     String email, String password, String usertype, String doctorName) async {
-  final url =
-      '${BASE_URL}/reception/addDoctor'; // Replace with your backend URL
+  final url = '${KVM_URL}/reception/addDoctor'; // Replace with your backend URL
 
   try {
     final response = await http.post(

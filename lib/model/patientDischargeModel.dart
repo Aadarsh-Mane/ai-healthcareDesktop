@@ -69,17 +69,20 @@ class LastRecord {
       admissionDate: json['admissionDate'] ?? '',
       dischargeDate: json['dischargeDate'] ?? '',
       reasonForAdmission: json['reasonForAdmission'] ?? '',
-      amountToBePayed: json['amountToBePayed'] ?? 0,
+      // Convert double to int
+      amountToBePayed: (json['amountToBePayed'] as num?)?.toInt() ?? 0,
       dischargedByReception: json['dischargedByReception'] ?? false,
       conditionAtDischarge: json['conditionAtDischarge'] ?? '',
-      previousRemainingAmount: json['previousRemainingAmount'] ?? 0,
+      // Convert double to int
+      previousRemainingAmount:
+          (json['previousRemainingAmount'] as num?)?.toInt() ?? 0,
       symptoms: json['symptoms'] ?? '',
       initialDiagnosis: json['initialDiagnosis'] ?? '',
-      doctor: Doctor.fromJson(json['doctor']),
-      weight: json['weight'] ?? 0,
+      doctor: Doctor.fromJson(json['doctor'] ?? {}),
+      // Convert double to int (if needed)
+      weight: (json['weight'] as num?)?.toInt() ?? 0,
     );
   }
-
   Map<String, dynamic> toJson() {
     return {
       'admissionId': admissionId,

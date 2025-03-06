@@ -7,6 +7,7 @@ import 'package:doctordesktop/Doctor/Animate.dart';
 import 'package:doctordesktop/Doctor/DoctorAdmittedPatientScreen.dart';
 import 'package:doctordesktop/Doctor/DoctorConsultantScreen.dart';
 import 'package:doctordesktop/Doctor/PatientHistoryDetailScreen.dart';
+import 'package:doctordesktop/Doctor/Tabs/DiagnosisScreen.dart';
 import 'package:doctordesktop/Doctor/Tabs/PatientCheck.dart';
 import 'package:doctordesktop/Doctor/Tabs/PatientProfileScreen.dart';
 import 'package:doctordesktop/Doctor/Tabs/PrescriptionScreen.dart';
@@ -39,6 +40,37 @@ final assignedPatientsProvider =
     return notifier;
   },
 );
+const _sectionGradient = LinearGradient(
+  colors: [Color(0xFF005F9E), Color(0xFF00B8D4)],
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+);
+const _primaryGradient = LinearGradient(
+  colors: [Color(0xFF005F9E), Color(0xFF00B8D4)],
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+);
+
+const _textFieldGradient = LinearGradient(
+  colors: [Color(0xFF005F9E), Color(0xFF00B8D4)],
+  stops: [0, 0.5],
+  begin: Alignment.centerLeft,
+  end: Alignment.centerRight,
+);
+BoxDecoration _boxDecoration() {
+  return BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(12),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black12,
+        blurRadius: 6,
+        offset: Offset(2, 2),
+      ),
+    ],
+    border: Border.all(color: Colors.grey.shade100),
+  );
+}
 
 class PatientDetailScreen4 extends StatefulWidget {
   final Patient1 patient;
@@ -77,6 +109,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
   @override
   void initState() {
     super.initState();
+    _fetchPrescriptions();
     // initializeTts();
     // _flutterTts = FlutterTts();
 
@@ -614,7 +647,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
             actions: <Type, Action<Intent>>{
               AddDiagnosisIntent: CallbackAction<AddDiagnosisIntent>(
                 onInvoke: (intent) {
-                  _openAddDiagnosisScreen(widget.patient.patientId,
+                  openAddDiagnosisScreen(widget.patient.patientId,
                       widget.patient.admissionRecords.first.id);
                   return null;
                 },
@@ -822,9 +855,11 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                               admissionId:
                                   widget.patient.admissionRecords.first.id),
                           _buildDoctorConsultingSection(),
-                          _buildDoctorDiagnosiSection(
-                              widget.patient.admissionRecords.first.id,
-                              widget.patient.patientId),
+                          DiagnosisScreen(
+                              patientId:
+                                  widget.patient.patientId, // Add this line
+                              admissionId:
+                                  widget.patient.admissionRecords.first.id),
                         ],
                       ),
                     ),
@@ -839,7 +874,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                       label: const Text('Add Diagnosis'),
                       heroTag: 'fab1',
                       onPressed: () {
-                        _openAddDiagnosisScreen(widget.patient.patientId,
+                        openAddDiagnosisScreen(widget.patient.patientId,
                             widget.patient.admissionRecords.first.id);
                       },
                     ),
@@ -883,32 +918,32 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
       TextEditingController();
   final TextEditingController nightDosageController = TextEditingController();
   final TextEditingController commentController = TextEditingController();
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    TextInputType? keyboardType,
-    Function(String)? onChanged,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
-      child: TextField(
-        controller: controller,
-        keyboardType: keyboardType,
-        decoration: InputDecoration(
-          labelText: label,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Colors.teal),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Colors.teal, width: 2),
-          ),
-        ),
-        onChanged: onChanged,
-      ),
-    );
-  }
+  // Widget _buildTextField({
+  //   required TextEditingController controller,
+  //   required String label,
+  //   TextInputType? keyboardType,
+  //   Function(String)? onChanged,
+  // }) {
+  //   return Padding(
+  //     padding: const EdgeInsets.only(bottom: 16.0),
+  //     child: TextField(
+  //       controller: controller,
+  //       keyboardType: keyboardType,
+  //       decoration: InputDecoration(
+  //         labelText: label,
+  //         border: OutlineInputBorder(
+  //           borderRadius: BorderRadius.circular(8),
+  //           borderSide: const BorderSide(color: Colors.teal),
+  //         ),
+  //         focusedBorder: OutlineInputBorder(
+  //           borderRadius: BorderRadius.circular(8),
+  //           borderSide: const BorderSide(color: Colors.teal, width: 2),
+  //         ),
+  //       ),
+  //       onChanged: onChanged,
+  //     ),
+  //   );
+  // }
 
   Future<void> _addPrescription() async {
     final morningDosage = morningDosageController.text.isEmpty
@@ -961,7 +996,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     required String label,
     TextInputType? keyboardType,
     Function(String)? onChanged,
-    Function(String)? onSubmitted, // ✅ Added onSubmitted parameter
+    Function(String)? onSubmitted,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
@@ -970,17 +1005,46 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
         keyboardType: keyboardType,
         decoration: InputDecoration(
           labelText: label,
-          border: OutlineInputBorder(
+          labelStyle: TextStyle(color: Color(0xFF005F9E)),
+          enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Colors.teal),
+            borderSide: BorderSide(color: Color(0xFF00B8D4)),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Colors.teal, width: 2),
+            borderSide: BorderSide(color: Color(0xFF005F9E), width: 2),
           ),
+          suffixIcon: controller.text.isEmpty
+              ? null
+              : IconButton(
+                  icon: Icon(Icons.clear, color: Color(0xFF005F9E)),
+                  onPressed: () {
+                    controller.clear();
+                    _fetchMedicineSuggestions(''); // Add this line
+                  },
+                ),
         ),
-        onChanged: onChanged,
-        onSubmitted: onSubmitted, // ✅ Passed to TextField
+        onChanged: (value) {
+          _fetchMedicineSuggestions(value);
+          onChanged?.call(value);
+        },
+        onSubmitted: (value) {
+          if (value.trim().isNotEmpty) {
+            setState(() {
+              List<String> medicines = selectedMedicines
+                  .split(', ')
+                  .where((e) => e.isNotEmpty)
+                  .toList();
+              if (!medicines.contains(value.trim())) {
+                medicines.add(value.trim());
+                selectedMedicines = medicines.join(', ');
+              }
+              medicineNameController.clear();
+              medicineSuggestions = []; // Clear suggestions
+            });
+          }
+          onSubmitted?.call(value);
+        },
       ),
     );
   }
@@ -1070,45 +1134,33 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                     width: 10,
                   ),
                   Expanded(
-                    child: _buildTextField1(
+                    child: TextField(
+                      decoration: InputDecoration(
+                        labelText: 'Comment',
+                        labelStyle: TextStyle(color: Color(0xFF005F9E)),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Color(0xFF00B8D4)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide:
+                              BorderSide(color: Color(0xFF005F9E), width: 2),
+                        ),
+                      ),
                       controller: commentController,
-                      label: 'Comment',
                     ),
                   ),
                 ],
               ),
 
-              // _buildTextField(
-              //   controller: afternoonDosageController,
-              //   label: 'Afternoon Dosage',
-              // ),
-              // _buildTextField(
-              //   controller: nightDosageController,
-              //   label: 'Night Dosage',
-              // ),
-
               const SizedBox(height: 20),
-              // Submit Button
-              ElevatedButton(
+              _buildGradientButton(
+                icon: Icons.add,
                 onPressed: _addPrescription,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xffff96a8),
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 18, horizontal: 30),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(17),
-                  ),
-                  // minimumSize: const Size(double.infinity, 50),
-                ),
-                child: const Text(
-                  'Add Prescription',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
+                text: 'Add Prescription',
               ),
+
               Text(
                 'Current Prescriptions',
                 style: TextStyle(
@@ -1194,58 +1246,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                             ),
                           ),
                         );
-
-                        // return Card(
-                        //   margin: const EdgeInsets.only(bottom: 12),
-                        //   elevation: 2,
-                        //   shape: RoundedRectangleBorder(
-                        //     borderRadius: BorderRadius.circular(10),
-                        //   ),
-                        //   child: ListTile(
-                        //     contentPadding: const EdgeInsets.symmetric(
-                        //       horizontal: 16,
-                        //       vertical: 8,
-                        //     ),
-                        //     title: Text(
-                        //       prescription.medicine.name,
-                        //       style: const TextStyle(
-                        //         fontWeight: FontWeight.w500,
-                        //         fontSize: 16,
-                        //       ),
-                        //     ),
-                        //     subtitle: Column(
-                        //       crossAxisAlignment: CrossAxisAlignment.start,
-                        //       children: [
-                        //         const SizedBox(height: 6),
-                        //         _buildDosageRow(
-                        //             'Morning', prescription.medicine.morning),
-                        //         _buildDosageRow('Afternoon',
-                        //             prescription.medicine.afternoon),
-                        //         _buildDosageRow(
-                        //             'Night', prescription.medicine.night),
-                        //         if (prescription.medicine.comment.isNotEmpty)
-                        //           Padding(
-                        //             padding: const EdgeInsets.only(top: 6),
-                        //             child: Text(
-                        //               'Note: ${prescription.medicine.comment}',
-                        //               style: TextStyle(
-                        //                 color: Colors.grey[600],
-                        //                 fontStyle: FontStyle.italic,
-                        //               ),
-                        //             ),
-                        //           ),
-                        //       ],
-                        //     ),
-                        //     trailing: IconButton(
-                        //       icon: const Icon(Icons.delete_outline,
-                        //           color: Colors.red),
-                        //       onPressed: () => _deletePrescription(
-                        //           prescription.medicine.id!),
-                        //     ),
-                        //   ),
-                        // );
-                      },
-                    ),
+                      }),
             ],
           ),
         ),
@@ -1261,8 +1262,12 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
       width: 60, // Compact size for small numbers
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20), // Circular touch
+        gradient: const LinearGradient(
+          colors: [Color(0xFF004E92), Color(0xFF00A6FB)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.shade300,
@@ -1279,10 +1284,15 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
       child: TextField(
         controller: controller,
         keyboardType: TextInputType.number,
-        textAlign: TextAlign.center, // Center align for single digits
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: Colors.white, // Ensure text contrasts with gradient
+        ),
         decoration: InputDecoration(
-          hintText: label.substring(0, 1), // "M", "A", "N"
+          hintText: label.substring(0, 1),
+          hintStyle: const TextStyle(color: Colors.white70),
           border: InputBorder.none,
         ),
       ),
@@ -1364,135 +1374,10 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     }
   }
 
-  // Widget buildDiagnosisLayout({
-  //   required String admissionId,
-  //   required String patientId,
-  //   required Future<void> Function(
-  //           String admissionId, String symptomWithDateTime, String patientId)
-  //       addDoctorDiagnosis,
-  //   required void Function(String patientId, String admissionId)
-  //       fetchDoctorDiagnosis,
-  // }) {
-  //   final TextEditingController symptomsController = TextEditingController();
-  //   List<String> diagnosisSuggestions = [];
-  //   List<String> selectedDiagnoses = [];
-  //   bool isLoadingSuggestions = false;
+  final diagnosisSuggestionsProvider = StateProvider<List<String>>((ref) => []);
+  final selectedDiagnosesProvider = StateProvider<List<String>>((ref) => []);
+  final isLoadingProvider = StateProvider<bool>((ref) => false);
 
-  //   Future<void> fetchDiagnosisSuggestions(Function setState) async {
-  //     setState(() => isLoadingSuggestions = true);
-  //     try {
-  //       final response = await http
-  //           .get(Uri.parse('${VERCEL_URL}/doctors/getDiagnosis/$patientId'));
-  //       if (response.statusCode == 200) {
-  //         final data = json.decode(response.body) as Map<String, dynamic>;
-  //         setState(() {
-  //           diagnosisSuggestions = List<String>.from(data['diagnosis'] ?? []);
-  //         });
-  //       }
-  //     } catch (e) {
-  //       setState(() {
-  //         diagnosisSuggestions = [];
-  //       });
-  //     } finally {
-  //       setState(() => isLoadingSuggestions = false);
-  //     }
-  //   }
-
-  //   Future<void> addDiagnosis(Function setState) async {
-  //     if (symptomsController.text.isNotEmpty) {
-  //       setState(() {
-  //         selectedDiagnoses.add(symptomsController.text.trim());
-  //       });
-  //     }
-
-  //     if (selectedDiagnoses.isNotEmpty) {
-  //       final String currentDateTime =
-  //           DateFormat('yyyy-MM-dd hh:mm:ss a').format(DateTime.now());
-  //       final String symptomWithDateTime =
-  //           '${selectedDiagnoses.join(', ')} Date: $currentDateTime';
-  //       await addDoctorDiagnosis(
-  //         admissionId,
-  //         symptomWithDateTime,
-  //         patientId,
-  //       );
-  //       fetchDoctorDiagnosis(patientId, admissionId);
-  //       setState(() {
-  //         selectedDiagnoses.clear();
-  //         symptomsController.clear();
-  //       });
-  //     }
-  //   }
-
-  //   return StatefulBuilder(
-  //     builder: (context, setState) {
-  //       return Padding(
-  //         padding: const EdgeInsets.all(16.0),
-  //         child: Column(
-  //           crossAxisAlignment: CrossAxisAlignment.start,
-  //           children: [
-  //             Wrap(
-  //               spacing: 8.0,
-  //               runSpacing: 8.0,
-  //               children: selectedDiagnoses
-  //                   .map((diagnosis) => Chip(
-  //                         label: Text(diagnosis),
-  //                         backgroundColor: Colors.teal,
-  //                         onDeleted: () {
-  //                           setState(() {
-  //                             selectedDiagnoses.remove(diagnosis);
-  //                           });
-  //                         },
-  //                       ))
-  //                   .toList(),
-  //             ),
-  //             const SizedBox(height: 20),
-  //             Center(
-  //               child: ElevatedButton(
-  //                 onPressed: () => fetchDiagnosisSuggestions(setState),
-  //                 child: const Text('AI Suggestions'),
-  //               ),
-  //             ),
-  //             if (isLoadingSuggestions)
-  //               const Center(child: CircularProgressIndicator()),
-  //             if (!isLoadingSuggestions)
-  //               Column(
-  //                 children: diagnosisSuggestions.map((diagnosis) {
-  //                   return CheckboxListTile(
-  //                     title: Text(diagnosis),
-  //                     value: selectedDiagnoses.contains(diagnosis),
-  //                     onChanged: (bool? value) {
-  //                       setState(() {
-  //                         if (value != null && value) {
-  //                           selectedDiagnoses.add(diagnosis);
-  //                         } else {
-  //                           selectedDiagnoses.remove(diagnosis);
-  //                         }
-  //                       });
-  //                     },
-  //                   );
-  //                 }).toList(),
-  //               ),
-  //             const SizedBox(height: 20),
-  //             TextField(
-  //               controller: symptomsController,
-  //               decoration: const InputDecoration(
-  //                 labelText: 'Enter diagnosis manually',
-  //                 border: OutlineInputBorder(),
-  //               ),
-  //             ),
-  //             const SizedBox(height: 20),
-  //             Center(
-  //               child: ElevatedButton(
-  //                 onPressed: () => addDiagnosis(setState),
-  //                 child: const Text('Add Diagnosis'),
-  //               ),
-  //             ),
-  //           ],
-  //         ),
-  //       );
-  //     },
-  //   );
-  // }
   Widget buildDiagnosisLayout({
     required String admissionId,
     required String patientId,
@@ -1503,44 +1388,30 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
         fetchDoctorDiagnosis,
   }) {
     final TextEditingController symptomsController = TextEditingController();
-    List<String> diagnosisSuggestions = [];
-    List<String> selectedDiagnoses = [];
-    bool isLoadingSuggestions = false;
-    // A flag to ensure we load suggestions only once.
-    bool didLoadSuggestions = false;
 
-    Future<void> fetchDiagnosisSuggestions(Function setState) async {
-      setState(() => isLoadingSuggestions = true);
+    Future<void> fetchDiagnosisSuggestions(WidgetRef ref) async {
+      ref.read(isLoadingProvider.notifier).state = true;
       try {
         final response = await http
-            .get(Uri.parse('${VERCEL_URL}/doctors/getDiagnosis/$patientId'));
-        print(response.body);
+            .get(Uri.parse('$KVM_URL/doctors/getDiagnosis/$patientId'));
         if (response.statusCode == 200) {
           final data = json.decode(response.body) as Map<String, dynamic>;
-          setState(() {
-            diagnosisSuggestions = List<String>.from(data['diagnosis'] ?? []);
-          });
+          ref.read(diagnosisSuggestionsProvider.notifier).state =
+              List<String>.from(data['diagnosis'] ?? []);
         }
       } catch (e) {
-        setState(() {
-          diagnosisSuggestions = [];
-        });
+        ref.read(diagnosisSuggestionsProvider.notifier).state = [];
       } finally {
-        setState(() {
-          isLoadingSuggestions = false;
-          didLoadSuggestions = true;
-        });
+        ref.read(isLoadingProvider.notifier).state = false;
       }
     }
 
-    return StatefulBuilder(
-      builder: (context, setState) {
-        // Trigger fetching suggestions on the first build.
-        if (!didLoadSuggestions) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            fetchDiagnosisSuggestions(setState);
-          });
-        }
+    return Consumer(
+      builder: (context, ref, _) {
+        final diagnosisSuggestions = ref.watch(diagnosisSuggestionsProvider);
+        final selectedDiagnoses = ref.watch(selectedDiagnosesProvider);
+        final isLoading = ref.watch(isLoadingProvider);
+
         return Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
@@ -1549,43 +1420,41 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
               Wrap(
                 spacing: 8.0,
                 runSpacing: 8.0,
-                children: selectedDiagnoses
-                    .map(
-                      (diagnosis) => Chip(
-                        label: Text(diagnosis),
-                        backgroundColor: Colors.teal,
-                        onDeleted: () {
-                          setState(() {
-                            selectedDiagnoses.remove(diagnosis);
-                          });
-                        },
-                      ),
-                    )
-                    .toList(),
+                children: selectedDiagnoses.map((diagnosis) {
+                  return Chip(
+                    label: Text(diagnosis),
+                    backgroundColor: Colors.teal,
+                    onDeleted: () {
+                      ref.read(selectedDiagnosesProvider.notifier).state =
+                          List.from(selectedDiagnoses)..remove(diagnosis);
+                    },
+                  );
+                }).toList(),
               ),
               const SizedBox(height: 20),
               Center(
                 child: ElevatedButton(
-                  onPressed: () => fetchDiagnosisSuggestions(setState),
+                  onPressed: () => fetchDiagnosisSuggestions(ref),
                   child: const Text('AI Suggestions'),
                 ),
               ),
-              if (isLoadingSuggestions)
-                const Center(child: CircularProgressIndicator()),
-              if (!isLoadingSuggestions)
+              if (isLoading)
+                const Center(child: CircularProgressIndicator())
+              else
                 Column(
                   children: diagnosisSuggestions.map((diagnosis) {
                     return CheckboxListTile(
                       title: Text(diagnosis),
                       value: selectedDiagnoses.contains(diagnosis),
                       onChanged: (bool? value) {
-                        setState(() {
-                          if (value != null && value) {
-                            selectedDiagnoses.add(diagnosis);
-                          } else {
-                            selectedDiagnoses.remove(diagnosis);
-                          }
-                        });
+                        final updatedList = List.from(selectedDiagnoses);
+                        if (value == true) {
+                          updatedList.add(diagnosis);
+                        } else {
+                          updatedList.remove(diagnosis);
+                        }
+                        ref.read(selectedDiagnosesProvider.notifier).state =
+                            updatedList.cast<String>();
                       },
                     );
                   }).toList(),
@@ -1602,30 +1471,29 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
               Center(
                 child: ElevatedButton(
                   onPressed: () async {
-                    // Add manual diagnosis
-                    if (symptomsController.text.isNotEmpty) {
-                      setState(() {
-                        selectedDiagnoses.add(symptomsController.text.trim());
-                      });
-                    }
+                    final currentDateTime = DateFormat('yyyy-MM-dd hh:mm:ss a')
+                        .format(DateTime.now());
 
-                    if (selectedDiagnoses.isNotEmpty) {
-                      final String currentDateTime =
-                          DateFormat('yyyy-MM-dd hh:mm:ss a')
-                              .format(DateTime.now());
-                      final String symptomWithDateTime =
-                          '${selectedDiagnoses.join(', ')} Date: $currentDateTime';
-                      await addDoctorDiagnosis(
-                        admissionId,
-                        symptomWithDateTime,
-                        patientId,
-                      );
-                      fetchDoctorDiagnosis(patientId, admissionId);
-                      setState(() {
-                        selectedDiagnoses.clear();
-                        symptomsController.clear();
-                      });
-                    }
+                    // Get manually entered diagnosis
+                    final manualDiagnosis = symptomsController.text.trim();
+
+                    // Combine selected and manual diagnoses
+                    final combinedDiagnoses = [
+                          ...selectedDiagnoses,
+                          if (manualDiagnosis.isNotEmpty) manualDiagnosis,
+                        ].join(', ') +
+                        ' Date: $currentDateTime';
+
+                    // Send to backend
+                    await addDoctorDiagnosis(
+                        admissionId, combinedDiagnoses, patientId);
+
+                    // Refresh diagnoses
+                    fetchDoctorDiagnosis(patientId, admissionId);
+
+                    // Clear selections and text field
+                    ref.read(selectedDiagnosesProvider.notifier).state = [];
+                    symptomsController.clear();
                   },
                   child: const Text('Add Diagnosis'),
                 ),
@@ -1642,9 +1510,11 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
   bool isLoadingSuggestions = false;
 
   Future<void> _fetchMedicineSuggestions(String query) async {
+    // Clear immediately when query is empty
     if (query.isEmpty) {
       setState(() {
         medicineSuggestions = [];
+        isLoadingSuggestions = false;
       });
       return;
     }
@@ -1655,16 +1525,24 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
 
     try {
       final response = await http.get(
-        Uri.parse('${VERCEL_URL}/search?q=$query'),
+        Uri.parse('${KVM_URL}/search?q=$query'),
       );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body) as Map<String, dynamic>;
+        final suggestions = List<String>.from(data['suggestions'] ?? []);
+
         setState(() {
-          medicineSuggestions = List<String>.from(data['suggestions'] ?? []);
+          medicineSuggestions = suggestions;
+          // Only add the query as suggestion if there are no results
+          if (medicineSuggestions.isEmpty && query.isNotEmpty) {
+            medicineSuggestions = [query];
+          }
         });
       } else {
-        throw Exception('Failed to fetch suggestions');
+        setState(() {
+          medicineSuggestions = [];
+        });
       }
     } catch (e) {
       print('Error fetching suggestions: $e');
@@ -1674,14 +1552,6 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     } finally {
       setState(() {
         isLoadingSuggestions = false;
-      });
-    }
-
-    if (medicineSuggestions.isEmpty && query.isNotEmpty) {
-      setState(() {
-        if (!medicineSuggestions.contains(query)) {
-          medicineSuggestions = [query];
-        }
       });
     }
   }
@@ -1698,14 +1568,18 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
             title: Text(suggestion),
             onTap: () {
               setState(() {
-                // Add the selected medicine to the list
-                if (selectedMedicines.isEmpty) {
-                  selectedMedicines = suggestion;
-                } else {
-                  selectedMedicines += ', ' + suggestion;
+                List<String> medicines = selectedMedicines
+                    .split(', ')
+                    .where((e) => e.isNotEmpty)
+                    .toList();
+
+                if (!medicines.contains(suggestion)) {
+                  medicines.add(suggestion);
+                  selectedMedicines = medicines.join(', ');
                 }
-                // medicineNameController.clear(); // Clear the input field
-                medicineSuggestions = []; // Clear suggestions list
+
+                medicineNameController.clear();
+                medicineSuggestions = [];
               });
             },
           );
@@ -1751,17 +1625,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
               ],
             ),
             const SizedBox(height: 12),
-            // Wrap(
-            //   spacing: 12,
-            //   runSpacing: 12,
-            //   children: [
-            //     _buildCompactTextField(
-            //         controller: bloodSugarLevelController,
-            //         label: 'Blood Sugar Level'),
-            //     _buildCompactTextField(
-            //         controller: otherController, label: 'Others'),
-            //   ],
-            // ),
+
             const SizedBox(height: 20),
 
             // Action Buttons
@@ -1867,71 +1731,68 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
       );
     }
   }
+// Add this at the top of your file
 
   Widget _buildFourSquareLayout(BuildContext context, WidgetRef ref,
       String patientId, String admissionId) {
     return Container(
-      color: AppColors.bgColor, // Light grey background
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFFF5F7FA), Color(0xFFE6E9F0)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
       child: SingleChildScrollView(
-        physics:
-            const AlwaysScrollableScrollPhysics(), // Ensures scrolling anywhere
+        physics: const AlwaysScrollableScrollPhysics(),
         child: Padding(
-          padding: const EdgeInsets.all(
-              12.0), // Increased padding for better spacing
+          padding: const EdgeInsets.all(16.0),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              minHeight: MediaQuery.of(context)
-                  .size
-                  .height, // Ensures it fills the screen
+              minHeight: MediaQuery.of(context).size.height,
             ),
             child: Column(
               children: [
                 Row(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start, // Aligns content properly
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Left Column
                     Expanded(
                       child: Column(
                         children: [
-                          // Top-Left Square (Overview Section)
-                          Container(
-                            decoration: _boxDecoration(),
-                            padding: const EdgeInsets.all(10),
-                            child: _buildOverviewSection(context, ref),
+                          _buildSectionContainer(
+                            context,
+                            _buildOverviewSection1(context, ref),
+                            title: 'Patient Overview',
                           ),
-                          const SizedBox(
-                              height: 12), // Better spacing than Divider
-                          // Bottom-Left Square (Vitals Input)
-                          Container(
-                            decoration: _boxDecoration(),
-                            padding: const EdgeInsets.all(10),
-                            child: _buildVitalsLayout(),
+                          const SizedBox(height: 16),
+                          _buildSectionContainer(
+                            context,
+                            _buildVitalsLayout(),
+                            title: 'Vitals Monitoring',
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 12), // Adjusted for better alignment
+                    const SizedBox(width: 16),
                     // Right Column
                     Expanded(
                       child: Column(
                         children: [
-                          // Top-Right Square (Prescription Layout)
-                          Container(
-                            decoration: _boxDecoration(),
-                            padding: const EdgeInsets.all(10),
-                            child: _buildPrescriptionLayout(),
+                          _buildSectionContainer(
+                            context,
+                            _buildPrescriptionLayout(),
+                            title: 'Prescription Management',
                           ),
-                          const SizedBox(height: 12),
-                          // Bottom-Right Square (Diagnosis Layout)
-                          Container(
-                            decoration: _boxDecoration(),
-                            padding: const EdgeInsets.all(10),
-                            child: Column(
+                          const SizedBox(height: 16),
+                          _buildSectionContainer(
+                            context,
+                            Column(
                               children: [
                                 _buildSymptomsLayout(
                                     context, ref, patientId, admissionId),
-                                const SizedBox(height: 10),
+                                const SizedBox(height: 12),
+                                Divider(),
                                 buildDiagnosisLayout(
                                     admissionId: admissionId,
                                     patientId: patientId,
@@ -1941,6 +1802,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                                         doctor.fetchDoctorDiagnosis),
                               ],
                             ),
+                            title: 'Diagnosis & Symptoms',
                           ),
                         ],
                       ),
@@ -1955,20 +1817,95 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     );
   }
 
-// BoxDecoration for better UI consistency
-  BoxDecoration _boxDecoration() {
-    return BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black12,
-          blurRadius: 6,
-          spreadRadius: 2,
-        ),
-      ],
+  Widget _buildSectionContainer(BuildContext context, Widget child,
+      {required String title}) {
+    return Container(
+      decoration: _boxDecoration(),
+      child: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            decoration: BoxDecoration(
+              gradient: _sectionGradient,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+            ),
+            child: Text(
+              title,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: child,
+          ),
+        ],
+      ),
     );
   }
+
+// Updated button styling in _buildOverviewSection
+
+  Widget _buildGradientButton({
+    required IconData icon,
+    required String text,
+    required VoidCallback onPressed,
+    bool isLoading = false,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: _sectionGradient,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 4,
+            offset: Offset(1, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: isLoading ? null : onPressed,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (!isLoading) Icon(icon, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  child: isLoading
+                      ? const SizedBox(
+                          width: 60,
+                          height: 20,
+                          child: CustomLoadingAnimation(),
+                        )
+                      : Text(
+                          text,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+// BoxDecoration for better UI consistency
 
   Widget _buildSymptomsLayout(BuildContext context, WidgetRef ref,
       String patientId, String admissionId) {
@@ -2156,7 +2093,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     });
   }
 
-  void _openAddDiagnosisScreen(String patientId, String admissionId) {
+  void openAddDiagnosisScreen(String patientId, String admissionId) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -2196,147 +2133,78 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     });
   }
 
-  Widget _buildOverviewSection(BuildContext context, WidgetRef ref) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Container(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Patient Info Section
-            _buildPatientInfoCard(ref),
-            const SizedBox(height: 20),
+  Widget _buildOverviewSection1(BuildContext context, WidgetRef ref) {
+    return SizedBox(
+      height: 340,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.only(left: 2.0),
+        child: Container(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Patient Info Section
+              _buildPatientInfoCard(ref),
+              const SizedBox(height: 20),
+              Wrap(
+                runAlignment: WrapAlignment.spaceEvenly,
+                spacing: 4.0, // Horizontal spacing between items
+                runSpacing: 4.0, // Vertical spacing between rows
 
-            // Admission Records Header
-            // Row(
-            //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            //   children: [
-            //     const Text(
-            //       'Admission Records',
-            //       style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            //     ),
-            //     IconButton(
-            //       onPressed: () {
-            //         // Add functionality for adding a record
-            //       },
-            //       icon: const Icon(Icons.add_circle_outline, color: Colors.teal),
-            //       tooltip: 'Add New Record',
-            //     ),
-            //   ],
-            // ),
-            Wrap(
-              runAlignment: WrapAlignment.spaceEvenly,
-              spacing: 16.0, // Horizontal spacing between items
-              runSpacing: 8.0, // Vertical spacing between rows
-
-              // mainAxisAlignment: MainAxisAlignment.,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).push(MaterialPageRoute(
-                      builder: (context) => PatientHistoryDetailScreen(
-                        patientId: widget.patient.patientId,
-                      ),
-                    ));
-                  },
-                  icon: const Icon(Icons.details),
-                  label: const Text('View Patient Details'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.teal,
-                    foregroundColor: Colors.white,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                // mainAxisAlignment: MainAxisAlignment.,
+                children: [
+                  _buildGradientButton(
+                    icon: Icons.details,
+                    text: 'View Details',
+                    onPressed: () {
+                      Navigator.of(context).push(MaterialPageRoute(
+                        builder: (context) => PatientHistoryDetailScreen(
+                          patientId: widget.patient.patientId,
+                        ),
+                      ));
+                    },
                   ),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    setState(() {
-                      _isLoading = true; // Start loading animation
-                    });
-
-                    // Perform the fetch operation
-                    await _fetchDoctorAdvice(context, widget.patient.patientId,
-                        widget.patient.admissionRecords.first.id);
-
-                    setState(() {
-                      _isLoading = false; // Stop loading animation
-                    });
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        Colors.deepOrangeAccent, // Cyan background color
-                    foregroundColor: Colors.white, // White text color
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8), // Rounded corners
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8), // Padding for better appearance
+                  _buildGradientButton(
+                    icon: Icons.medication,
+                    text: 'Generate Prescription',
+                    onPressed: () async {
+                      setState(() => _isLoading = true);
+                      await _fetchDoctorAdvice(
+                          context,
+                          widget.patient.patientId,
+                          widget.patient.admissionRecords.first.id);
+                      setState(() => _isLoading = false);
+                    },
+                    isLoading: _isLoading,
                   ),
-                  child: _isLoading
-                      ? const CustomLoadingAnimation() // Show loading animation
-                      : const Text(
-                          'Generate Prescription'), // Show button text when not loading
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    await _admitPatient(widget.patient, ref, context);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        Colors.deepPurpleAccent, // Cyan background color
-                    foregroundColor: Colors.white, // White text color
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8), // Rounded corners
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 9), // Padding for better appearance
+                  _buildGradientButton(
+                    icon: Icons.local_hospital,
+                    text: 'Admit Patient',
+                    onPressed: () async =>
+                        await _admitPatient(widget.patient, ref, context),
                   ),
-                  child: const Text(
-                    "Admit Patient",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold, // Bold text for emphasis
-                    ),
+                  _buildGradientButton(
+                    icon: Icons.science,
+                    text: 'Assign to Lab',
+                    onPressed: () async =>
+                        await _handleAssignLab(context, widget.patient, ref),
                   ),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    await _handleAssignLab(context, widget.patient, ref);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.cyan, // Cyan background color
-                    foregroundColor: Colors.white, // White text color
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8), // Rounded corners
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8), // Padding for better appearance
-                  ),
-                  child: const Text(
-                    "Assign to Lab",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold, // Bold text for emphasis
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            // Admission Records List
-            if (widget.patient.admissionRecords.isNotEmpty)
-              ...widget.patient.admissionRecords.map((record) {
-                return _buildAdmissionRecordCard(record);
-              }).toList()
-            else
-              const Center(
-                child: Text(
-                  'No admission records found.',
-                  style: TextStyle(fontSize: 16, fontStyle: FontStyle.italic),
-                ),
+                ],
               ),
-          ],
+
+              // Admission Records List
+              if (widget.patient.admissionRecords.isNotEmpty)
+                ...widget.patient.admissionRecords.map((record) {
+                  return _buildAdmissionRecordCard(record);
+                }).toList()
+              else
+                const Center(
+                  child: Text(
+                    'No admission records found.',
+                    style: TextStyle(fontSize: 16, fontStyle: FontStyle.italic),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -2345,7 +2213,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
   Future<void> _fetchDoctorAdvice(
       BuildContext context, patientId, admissionId) async {
     final url =
-        '${VERCEL_URL}/reception/getDoctorAdvice/${patientId}/${admissionId}';
+        '${KVM_URL}/reception/getDoctorAdvice/${patientId}/${admissionId}';
     try {
       final response = await http.get(Uri.parse(url));
       print("body res ${response.body}");
@@ -2388,98 +2256,73 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
 
   Widget _buildPatientInfoCard(WidgetRef ref) {
     return Card(
+      margin: EdgeInsets.zero, //
+      color: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(15.0),
       ),
       elevation: 18,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              _createFallingPageRoute(ModeView()),
-            );
-          },
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header: Patient Info Title
-              Text(
-                'Patient Information',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.teal,
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              // Use Wrap to handle multiple lines for patient details
-              Wrap(
-                spacing: 16.0, // Horizontal spacing between items
-                runSpacing: 8.0, // Vertical spacing between rows
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Colors.white, Color.fromARGB(255, 255, 255, 255)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                _createFallingPageRoute(ModeView()),
+              );
+            },
+            child: Container(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Row 1
-                  _buildPatientDetail('Patient ID', widget.patient.patientId),
-                  _buildPatientDetail('Name', widget.patient.name),
-                  _buildPatientDetail('Age', widget.patient.age.toString()),
+                  // Header: Patient Info Title
+                  Text(
+                    'Patient Information',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
 
-                  // Row 2
-                  _buildPatientDetail('Contact', widget.patient.contact),
-                  _buildPatientDetail('Gender', widget.patient.gender),
-                  _buildPatientDetail(
-                      'Previous Amt', widget.patient.pendingAmount.toString()),
+                  // Use Wrap to handle multiple lines for patient details
+                  Wrap(
+                    spacing: 16.0, // Horizontal spacing between items
+                    runSpacing: 8.0, // Vertical spacing between rows
+                    children: [
+                      // Row 1
+                      _buildPatientDetail(
+                          'Patient ID', widget.patient.patientId),
+                      _buildPatientDetail('Name', widget.patient.name),
+                      _buildPatientDetail('Age', widget.patient.age.toString()),
 
-                  // Row 3
-                  _buildPatientDetail('Address', widget.patient.address),
+                      // Row 2
+                      _buildPatientDetail('Contact', widget.patient.contact),
+                      _buildPatientDetail('Gender', widget.patient.gender),
+                      _buildPatientDetail('Previous Amt',
+                          widget.patient.pendingAmount.toString()),
+
+                      // Row 3
+                      _buildPatientDetail('Address', widget.patient.address),
+                    ],
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  const SizedBox(height: 12),
                 ],
               ),
-
-              const SizedBox(height: 16),
-
-              // Action Buttons
-              // Row(
-              //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              //   children: [
-              //     _buildActionButton(
-              //         'Generate Prescription', Colors.deepOrangeAccent, () {
-              //       // Handle Generate Prescription action
-              //       print('Generate Prescription tapped');
-              //     }),
-              //     _buildActionButton('Admit Patient', Colors.deepPurpleAccent,
-              //         () {
-              //       // Handle Admit Patient action
-              //       print('Admit Patient tapped');
-              //     }),
-              //     _buildActionButton('Assign to Lab', Colors.cyan, () {
-              //       // Handle Assign to Lab action
-              //       print('Assign to Lab tapped');
-              //     }),
-              //   ],
-              // ),
-
-              const SizedBox(height: 12),
-
-              // View Patient Details Button
-              // ElevatedButton.icon(
-              //   onPressed: () {
-              //     Navigator.of(context).push(MaterialPageRoute(
-              //       builder: (context) => PatientHistoryDetailScreen(
-              //         patientId: widget.patient.patientId,
-              //       ),
-              //     ));
-              //   },
-              //   icon: const Icon(Icons.details),
-              //   label: const Text('View Patient Details'),
-              //   style: ElevatedButton.styleFrom(
-              //     backgroundColor: Colors.teal,
-              //     foregroundColor: Colors.white,
-              //     padding:
-              //         const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              //   ),
-              // ),
-            ],
+            ),
           ),
         ),
       ),
@@ -2494,77 +2337,26 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
         children: [
           Text(
             '$label:',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+              color: Color(0xFF2A79B4),
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             value,
-            style: TextStyle(fontSize: 13),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+              color: Colors.black,
+            ),
             softWrap: true, // Allows text to wrap if it's too long
           ),
         ],
       ),
     );
   }
-
-  Widget _buildActionButton(String label, Color color, VoidCallback onPressed) {
-    return ElevatedButton(
-      onPressed: onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(fontWeight: FontWeight.bold),
-      ),
-    );
-  }
-
-  // Widget _buildPatientDetail(String label, String value) {
-  //   return Container(
-  //     width: 100, // Controls the width of the container
-  //     child: Column(
-  //       crossAxisAlignment: CrossAxisAlignment.start,
-  //       children: [
-  //         Text(
-  //           '$label:',
-  //           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-  //         ),
-  //         const SizedBox(height: 4),
-  //         Text(
-  //           value,
-  //           style: TextStyle(fontSize: 12),
-  //           overflow: TextOverflow.ellipsis, // Handles text overflow
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
-
-  // Widget _buildActionButton(String label, Color color) {
-  //   return ElevatedButton(
-  //     onPressed: () async {
-  //       // Handle action
-  //     },
-  //     style: ElevatedButton.styleFrom(
-  //       backgroundColor: color,
-  //       foregroundColor: Colors.white,
-  //       shape: RoundedRectangleBorder(
-  //         borderRadius: BorderRadius.circular(8),
-  //       ),
-  //       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-  //     ),
-  //     child: Text(
-  //       label,
-  //       style: TextStyle(fontWeight: FontWeight.bold),
-  //     ),
-  //   );
-  // }
 
   Widget _buildInfoRow(IconData icon, String label, String value) {
     return Padding(
@@ -2669,307 +2461,6 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     );
   }
 
-  // Widget _buildSymptomsByDoctorSection(String patientId, String admissionId) {
-  //   return Padding(
-  //     padding: const EdgeInsets.all(8.0),
-  //     child: FutureBuilder<List<String>>(
-  //       future: doctor.fetchSymptomsByDoctor(patientId, admissionId),
-  //       builder: (context, snapshot) {
-  //         if (snapshot.connectionState == ConnectionState.waiting) {
-  //           return const Center(child: CircularProgressIndicator());
-  //         } else if (snapshot.hasError) {
-  //           return Text(
-  //             'Error: ${snapshot.error}',
-  //             style: const TextStyle(color: Colors.red),
-  //           );
-  //         } else if (snapshot.hasData) {
-  //           final symptoms = snapshot.data!;
-  //           print("got the symbol: $admissionId");
-  //           return Column(
-  //             crossAxisAlignment: CrossAxisAlignment.start,
-  //             children: [
-  //               const Text(
-  //                 'Symptoms by Doctor:',
-  //                 style: TextStyle(
-  //                     fontSize: 20,
-  //                     fontWeight: FontWeight.bold,
-  //                     color: Colors.teal),
-  //               ),
-  //               const SizedBox(height: 12),
-  //               if (symptoms.isEmpty)
-  //                 const Text(
-  //                   'No symptoms added by the doctor.',
-  //                   style: TextStyle(
-  //                       fontStyle: FontStyle.italic, color: Colors.grey),
-  //                 )
-  //               else
-  //                 // Enhanced DataTable with improved styling
-  //                 Container(
-  //                   padding: const EdgeInsets.all(16),
-  //                   decoration: BoxDecoration(
-  //                     color: Colors.white,
-  //                     borderRadius: BorderRadius.circular(12),
-  //                     boxShadow: [
-  //                       BoxShadow(
-  //                         color: Colors.grey.shade400,
-  //                         blurRadius: 10,
-  //                         spreadRadius: 3,
-  //                       ),
-  //                     ],
-  //                   ),
-  //                   child: DataTable(
-  //                     columnSpacing: 24,
-  //                     horizontalMargin: 16,
-  //                     columns: const [
-  //                       DataColumn(
-  //                           label: Text(
-  //                         'No.',
-  //                         style: TextStyle(
-  //                           fontWeight: FontWeight.bold,
-  //                           color: Colors.teal,
-  //                           fontSize: 16,
-  //                         ),
-  //                       )),
-  //                       DataColumn(
-  //                           label: Text(
-  //                         'Symptom',
-  //                         style: TextStyle(
-  //                           fontWeight: FontWeight.bold,
-  //                           color: Colors.teal,
-  //                           fontSize: 16,
-  //                         ),
-  //                       )),
-  //                     ],
-  //                     rows: symptoms
-  //                         .asMap()
-  //                         .map((index, symptom) {
-  //                           return MapEntry(
-  //                             index,
-  //                             DataRow(cells: [
-  //                               DataCell(
-  //                                 Text(
-  //                                   '${index + 1}',
-  //                                   style: TextStyle(
-  //                                     fontWeight: FontWeight.w600,
-  //                                     fontSize: 16,
-  //                                     color: Colors.black87,
-  //                                   ),
-  //                                 ),
-  //                               ),
-  //                               DataCell(
-  //                                 Text(
-  //                                   symptom,
-  //                                   style: TextStyle(
-  //                                     fontSize: 16,
-  //                                     color: Colors.black87,
-  //                                   ),
-  //                                 ),
-  //                               ),
-  //                             ]),
-  //                           );
-  //                         })
-  //                         .values
-  //                         .toList(),
-  //                   ),
-  //                 ),
-  //               const SizedBox(height: 20),
-  //               ElevatedButton.icon(
-  //                 onPressed: () =>
-  //                     _openAddSymptomsScreen(patientId, admissionId),
-  //                 icon: const Icon(Icons.add, color: Colors.white),
-  //                 label: const Text('Add Symptom',
-  //                     style: TextStyle(color: Colors.white)),
-  //                 style: ElevatedButton.styleFrom(
-  //                   backgroundColor: Colors.teal,
-  //                   padding: const EdgeInsets.symmetric(
-  //                       horizontal: 20, vertical: 12),
-  //                   shape: RoundedRectangleBorder(
-  //                     borderRadius: BorderRadius.circular(8),
-  //                   ),
-  //                   elevation: 5,
-  //                 ),
-  //               ),
-  //             ],
-  //           );
-  //         } else {
-  //           return const Text('No data available');
-  //         }
-  //       },
-  //     ),
-  //   );
-  // }
-
-  Widget _buildDoctorDiagnosiSection(String admissionId, String patientId) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: FutureBuilder<List<String>>(
-        future: doctor.fetchDoctorDiagnosis(admissionId, patientId),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Text(
-              'Error: ${snapshot.error}',
-              style: const TextStyle(color: Colors.red),
-            );
-          } else if (snapshot.hasData) {
-            final symptoms = snapshot.data!;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Diagnosis by Doctor:',
-                  style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.teal),
-                ),
-                const SizedBox(height: 12),
-                if (symptoms.isEmpty)
-                  const Text(
-                    'No diagnosis added by the doctor.',
-                    style: TextStyle(
-                        fontStyle: FontStyle.italic, color: Colors.grey),
-                  )
-                else
-                  // Enhanced DataTable with improved styling
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.shade400,
-                          blurRadius: 10,
-                          spreadRadius: 3,
-                        ),
-                      ],
-                    ),
-                    child: DataTable(
-                      columnSpacing: 24,
-                      horizontalMargin: 16,
-                      columns: const [
-                        DataColumn(
-                            label: Text(
-                          'No.',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.teal,
-                            fontSize: 16,
-                          ),
-                        )),
-                        DataColumn(
-                            label: Text(
-                          'Diagnosis',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.teal,
-                            fontSize: 16,
-                          ),
-                        )),
-                      ],
-                      rows: symptoms
-                          .asMap()
-                          .map((index, symptom) {
-                            return MapEntry(
-                              index,
-                              DataRow(cells: [
-                                DataCell(
-                                  Text(
-                                    '${index + 1}',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 16,
-                                      color: Colors.black87,
-                                    ),
-                                  ),
-                                ),
-                                DataCell(
-                                  Text(
-                                    symptom,
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.black87,
-                                    ),
-                                  ),
-                                ),
-                              ]),
-                            );
-                          })
-                          .values
-                          .toList(),
-                    ),
-                  ),
-                const SizedBox(height: 20),
-                ElevatedButton.icon(
-                  onPressed: () =>
-                      _openAddDiagnosisScreen(patientId, admissionId),
-                  icon: const Icon(Icons.add, color: Colors.white),
-                  label: const Text('Add Diagnosis',
-                      style: TextStyle(color: Colors.white)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.teal,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    elevation: 5,
-                  ),
-                ),
-              ],
-            );
-          } else {
-            return const Text('No data available');
-          }
-        },
-      ),
-    );
-  }
-
-// Widget _buildVitalsSection(String patientId, String admissionId) {
-//   return FutureBuilder<Vitals>(
-//     future: fetchVitals(patientId, admissionId),
-//     builder: (context, snapshot) {
-//       if (snapshot.connectionState == ConnectionState.waiting) {
-//         // Show loading indicator while fetching data
-//         return CircularProgressIndicator();
-//       } else if (snapshot.hasError) {
-//         // Show error message if something went wrong
-//         return Text('Error: ${snapshot.error}');
-//       } else if (!snapshot.hasData) {
-//         // Show a message if no data is available
-//         return Text('No vitals data available');
-//       } else {
-//         // Successfully fetched data, display it
-//         Vitals vitals = snapshot.data!;
-//         return Card(
-//           margin: const EdgeInsets.symmetric(vertical: 8.0),
-//           shape: RoundedRectangleBorder(
-//             borderRadius: BorderRadius.circular(15.0),
-//           ),
-//           elevation: 6,
-//           child: Padding(
-//             padding: const EdgeInsets.all(12.0),
-//             child: Column(
-//               crossAxisAlignment: CrossAxisAlignment.start,
-//               children: [
-//                 Text('Temperature: ${vitals.temperature}°C',
-//                     style: const TextStyle(fontSize: 16)),
-//                 Text('Pulse: ${vitals.pulse} bpm',
-//                     style: const TextStyle(fontSize: 16)),
-//                 Text('Other: ${vitals.other}',
-//                     style: const TextStyle(fontSize: 16)),
-//               ],
-//             ),
-//           ),
-//         );
-//       }
-//     },
-//   );
-// }
-
   Widget _buildLatestFollowUpSection(String recordId) {
     return FutureBuilder<List<FollowUp>>(
       future: doctor.fetchFollowUps(recordId),
@@ -3027,41 +2518,6 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                 ),
               ),
             ),
-            // const Text(
-            //   'Follow-Ups:',
-            //   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            // ),
-            // const SizedBox(height: 8),
-            // ...followUps.map((followUp) {
-            //   return Padding(
-            //     padding: const EdgeInsets.symmetric(vertical: 4.0),
-            //     child: Align(
-            //       alignment: Alignment.center, // Center the dropdown
-            //       child: Container(
-            //         width: 400, // Adjust width for desktop
-            //         decoration: BoxDecoration(
-            //           borderRadius: BorderRadius.circular(8),
-            //           border: Border.all(color: Colors.grey.shade400),
-            //           color: Colors.white,
-            //         ),
-            //         child: ExpansionTile(
-            //           title: Text('Date: ${followUp.date}',
-            //               style: const TextStyle(fontSize: 14)),
-            //           subtitle: Text(
-            //               'Time: ${followUp.date.split(',').last.trim()}',
-            //               style: const TextStyle(
-            //                   fontSize: 12, color: Colors.grey)),
-            //           children: [
-            //             Padding(
-            //               padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            //               child: _buildFollowUpTable(followUp),
-            //             ),
-            //           ],
-            //         ),
-            //       ),
-            //     ),
-            //   );
-            // }).toList(),
           ],
         );
       },
@@ -3230,346 +2686,6 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     );
   }
 
-  Widget _buildConsultantSection() {
-    return FutureBuilder<List<String>>(
-      future: _prescriptionsFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 16.0),
-              child: CircularProgressIndicator(),
-            ),
-          );
-        }
-        if (snapshot.hasError) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Text(
-              'Error loading prescriptions: ${snapshot.error}',
-              style: const TextStyle(
-                color: Colors.red,
-                fontSize: 14,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          );
-        }
-
-        final prescriptions = snapshot.data ?? [];
-        if (prescriptions.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Text(
-              'No prescriptions available.',
-              style: const TextStyle(
-                fontSize: 14,
-                fontStyle: FontStyle.italic,
-                color: Colors.grey,
-              ),
-            ),
-          );
-        }
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: prescriptions.map((prescription) {
-            return Card(
-              margin: const EdgeInsets.symmetric(vertical: 6.0),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10.0),
-              ),
-              elevation: 2,
-              child: ListTile(
-                leading: Icon(
-                  Icons.medical_services_outlined,
-                  color: Colors.teal[600],
-                  size: 28,
-                ),
-                title: Text(
-                  'Consultant: $prescription',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        );
-      },
-    );
-  }
-
-  Widget _buildDoctorPrescriptionsSection() {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          SizedBox(height: 16),
-          // Elevated Button to generate prescription
-          ElevatedButton(
-            onPressed: () async {
-              setState(() {
-                _isLoading = true; // Start loading animation
-              });
-
-              // Perform the fetch operation
-              await _fetchDoctorAdvice(
-                context,
-                widget.patient.patientId,
-                widget.patient.admissionRecords.first.id,
-              );
-
-              setState(() {
-                _isLoading = false; // Stop loading animation
-              });
-            },
-            child: _isLoading
-                ? const CustomLoadingAnimation() // Show loading animation
-                : const Text(
-                    'Generate Prescription'), // Show button text when not loading
-          ),
-          SizedBox(height: 16),
-
-          // FutureBuilder for prescriptions
-          FutureBuilder<List<DoctorPrescription>>(
-            future: doctor.fetchPrescriptions(
-              widget.patient.patientId,
-              widget.patient.admissionRecords.first.id,
-            ),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              if (snapshot.hasError) {
-                return Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text(
-                    'Error: ${snapshot.error}',
-                    style: const TextStyle(color: Colors.red, fontSize: 14),
-                  ),
-                );
-              }
-
-              if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Text(
-                    'No prescriptions found.',
-                    style: TextStyle(color: Colors.grey, fontSize: 14),
-                  ),
-                );
-              }
-
-              // Prescriptions are available
-              final prescriptions = snapshot.data!;
-
-              return ListView.builder(
-                shrinkWrap: true, // Ensures it doesn't cause layout issues
-                physics:
-                    const NeverScrollableScrollPhysics(), // Avoid nested scroll
-                itemCount: prescriptions.length,
-                itemBuilder: (context, index) {
-                  final prescription = prescriptions[index];
-
-                  return Card(
-                    margin: const EdgeInsets.symmetric(vertical: 8.0),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10.0),
-                    ),
-                    elevation: 3,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Medicine: ${prescription.medicine.name}',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text('Morning: ${prescription.medicine.morning}'),
-                          Text('Afternoon: ${prescription.medicine.afternoon}'),
-                          Text('Night: ${prescription.medicine.night}'),
-                          if (prescription.medicine.comment.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8.0),
-                              child: Text(
-                                'Comment: ${prescription.medicine.comment}',
-                                style: const TextStyle(
-                                    fontStyle: FontStyle.italic),
-                              ),
-                            ),
-                          Text('Date: ${prescription.medicine.date}'),
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'ID: ${prescription.medicine.id}', // Adjusted to show the prescription ID
-                                style: const TextStyle(color: Colors.grey),
-                              ),
-                              IconButton(
-                                icon:
-                                    const Icon(Icons.delete, color: Colors.red),
-                                onPressed: () async {
-                                  // Confirm deletion
-                                  final shouldDelete = await showDialog<bool>(
-                                    context: context,
-                                    builder: (BuildContext context) {
-                                      return AlertDialog(
-                                        title:
-                                            const Text('Delete Prescription'),
-                                        content: const Text(
-                                            'Are you sure you want to delete this prescription?'),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () =>
-                                                Navigator.of(context)
-                                                    .pop(false),
-                                            child: const Text('Cancel'),
-                                          ),
-                                          TextButton(
-                                            onPressed: () =>
-                                                Navigator.of(context).pop(true),
-                                            child: const Text('Delete'),
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  );
-
-                                  if (shouldDelete ?? false) {
-                                    try {
-                                      // Call the backend to delete the prescription
-                                      await doctor.deletePrescription(
-                                        widget.patient.patientId,
-                                        widget
-                                            .patient.admissionRecords.first.id,
-                                        prescription.medicine.id ?? '',
-                                      );
-
-                                      // Fetch prescriptions again to refresh UI
-                                      setState(() {
-                                        doctor.fetchPrescriptions(
-                                          widget.patient.patientId,
-                                          widget.patient.admissionRecords.first
-                                              .id,
-                                        );
-                                      });
-                                    } catch (error) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                              'Failed to delete prescription: $error'),
-                                        ),
-                                      );
-                                    }
-                                  }
-                                },
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Widget _buildDoctorPrescriptionsSection() {
-  //   return FutureBuilder<List<DoctorPrescription>>(
-  //     future: doctor.fetchPrescriptions(
-  //       widget.patient.patientId,
-  //       widget.patient.admissionRecords.first.id,
-  //     ),
-  //     builder: (context, snapshot) {
-  //       if (snapshot.connectionState == ConnectionState.waiting) {
-  //         return const Center(child: CircularProgressIndicator());
-  //       }
-
-  //       if (snapshot.hasError) {
-  //         return Padding(
-  //           padding: const EdgeInsets.all(16.0),
-  //           child: Text(
-  //             'Error: ${snapshot.error}',
-  //             style: const TextStyle(color: Colors.red, fontSize: 14),
-  //           ),
-  //         );
-  //       }
-
-  //       if (!snapshot.hasData || snapshot.data!.isEmpty) {
-  //         return const Padding(
-  //           padding: EdgeInsets.all(16.0),
-  //           child: Text(
-  //             'No prescriptions found.',
-  //             style: TextStyle(color: Colors.grey, fontSize: 14),
-  //           ),
-  //         );
-  //       }
-
-  //       // Prescriptions are available
-  //       final prescriptions = snapshot.data!;
-
-  //       return ListView.builder(
-  //         shrinkWrap: true, // Ensures it doesn't cause layout issues
-  //         physics: const NeverScrollableScrollPhysics(), // Avoid nested scroll
-  //         itemCount: prescriptions.length,
-  //         itemBuilder: (context, index) {
-  //           final prescription = prescriptions[index];
-  //           return Card(
-  //             margin: const EdgeInsets.symmetric(vertical: 8.0),
-  //             shape: RoundedRectangleBorder(
-  //               borderRadius: BorderRadius.circular(10.0),
-  //             ),
-  //             elevation: 3,
-  //             child: Padding(
-  //               padding: const EdgeInsets.all(16.0),
-  //               child: Column(
-  //                 crossAxisAlignment: CrossAxisAlignment.start,
-  //                 children: [
-  //                   Text(
-  //                     'Medicine: ${prescription.medicine.name}',
-  //                     style: const TextStyle(
-  //                       fontSize: 18,
-  //                       fontWeight: FontWeight.bold,
-  //                     ),
-  //                   ),
-  //                   const SizedBox(height: 8),
-  //                   Text('Morning: ${prescription.medicine.morning}'),
-  //                   Text('Afternoon: ${prescription.medicine.afternoon}'),
-  //                   Text('Night: ${prescription.medicine.night}'),
-  //                   if (prescription.medicine.comment.isNotEmpty)
-  //                     Padding(
-  //                       padding: const EdgeInsets.only(top: 8.0),
-  //                       child: Text(
-  //                         'Comment: ${prescription.medicine.comment}',
-  //                         style: const TextStyle(fontStyle: FontStyle.italic),
-  //                       ),
-  //                     ),
-  //                   Text('Date ${prescription.medicine.date}'),
-  //                   Text('iD ${prescription.medicine.id}')
-  //                 ],
-  //               ),
-  //             ),
-  //           );
-  //         },
-  //       );
-  //     },
-  //   );
-  // }
-
   Widget _buildDoctorConsultingSection() {
     return FutureBuilder<List<DoctorConsulting>>(
       future: doctor.fetchDoctorConsultant(
@@ -3731,89 +2847,6 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildDetailText(String title, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: Row(
-        children: [
-          Icon(
-            Icons.info_outline,
-            color: Colors.teal,
-            size: 20.0,
-          ),
-          SizedBox(width: 8.0),
-          Text(
-            '$title: ',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.teal,
-              fontSize: 16,
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value.isNotEmpty ? value : 'N/A',
-              style: TextStyle(fontSize: 16, color: Colors.black87),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 2,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildVitalsSection(String patientId, String admissionId) {
-    return FutureBuilder<List<Vitals>>(
-      future: doctor.fetchVitals(patientId, admissionId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return _buildShimmerEffect(); // Use shimmer effect during loading
-
-          // return Center(child: CircularProgressIndicator());
-        } else if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return Center(child: Text('No vitals data available'));
-        } else {
-          List<Vitals> vitalsList = snapshot.data!;
-          return ListView.builder(
-            shrinkWrap: true,
-            itemCount: vitalsList.length,
-            itemBuilder: (context, index) {
-              Vitals vitals = vitalsList[index];
-              return Card(
-                margin: const EdgeInsets.symmetric(vertical: 8.0),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15.0),
-                ),
-                elevation: 6,
-                child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Temperature: ${vitals.temperature}°C',
-                          style: TextStyle(fontSize: 16)),
-                      Text('Pulse: ${vitals.pulse} bpm',
-                          style: TextStyle(fontSize: 16)),
-                      Text('BP: ${vitals.bloodPressure} ',
-                          style: TextStyle(fontSize: 16)),
-                      Text('BSL: ${vitals.bloodSugarLevel} ',
-                          style: TextStyle(fontSize: 16)),
-                      Text('Other: ${vitals.other}',
-                          style: TextStyle(fontSize: 16)),
-                    ],
-                  ),
-                ),
-              );
-            },
-          );
-        }
-      },
     );
   }
 }
@@ -4028,29 +3061,6 @@ Widget _build2hrFollowUpTable(FollowUp followUp) {
         ],
       ),
     ),
-  );
-}
-
-DataRow _buildTableRow(String label, String value) {
-  return DataRow(
-    cells: [
-      DataCell(
-        Text(
-          label,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-        ),
-      ),
-      DataCell(
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          child: Text(
-            value,
-            key: ValueKey(value),
-            style: const TextStyle(fontSize: 14),
-          ),
-        ),
-      ),
-    ],
   );
 }
 

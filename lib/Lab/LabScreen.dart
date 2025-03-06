@@ -299,7 +299,7 @@ class _AddLabReportScreenState extends State<AddLabReportScreen> {
 
     var request = http.MultipartRequest(
       'POST',
-      Uri.parse('${BASE_URL}/labs/upload-lab-report'), // Your backend URL
+      Uri.parse('${KVM_URL}/labs/upload-lab-report'), // Your backend URL
     );
 
     // Add fields

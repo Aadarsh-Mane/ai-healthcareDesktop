@@ -440,114 +440,174 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
   @override
   Widget build(BuildContext context) {
     final vitalsList = ref.watch(vitalsProvider);
+    final gradientColors = [const Color(0xFF005F9E), const Color(0xFF00B8D4)];
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
+          // Background with gradient overlay
           Positioned.fill(
-            child: Image.asset(
-              'assets/images/bb1.png',
-              fit: BoxFit.cover,
-              opacity: AlwaysStoppedAnimation(0.3),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    gradientColors[0].withOpacity(0.15),
+                    gradientColors[1].withOpacity(0.15)
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Image.asset(
+                'assets/images/bb1.png',
+                fit: BoxFit.cover,
+                opacity: const AlwaysStoppedAnimation(0.2),
+              ),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(20.0),
             child: vitalsList.isEmpty
-                ? Center(child: CustomLoadingAnimation())
+                ? const Center(
+                    child: Text(
+                    'No vitals available for this patient.',
+                    style: TextStyle(fontSize: 18),
+                  ))
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Extracting temperature values for the graph
-                      // if (vitalsList.isNotEmpty)
-                      //   Padding(
-                      //     padding: const EdgeInsets.only(bottom: 16.0),
-                      //     child: LineChartGraphWidget(
-                      //       dataPoints: vitalsList
-                      //           .map((v) => v.temperature?.toDouble() ?? 0.0)
-                      //           .toList(),
-                      //     ),
-                      //   ),
-                      if (vitalsList.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 16.0),
-                          child: LineChartGraphWidget(
-                            dataPoints: vitalsList
-                                .map((v) => v.temperature != null
-                                    ? double.tryParse(v.temperature!) ?? 0.0
-                                    : 0.0)
-                                .toList(),
+                      // Header with gradient
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 20),
+                        child: Text(
+                          'Patient Vitals History',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            foreground: Paint()
+                              ..shader = LinearGradient(
+                                colors: gradientColors,
+                              ).createShader(
+                                  const Rect.fromLTWH(0, 0, 200, 20)),
                           ),
                         ),
-
-                      // Displaying the list of vitals
+                      ),
+                      // Vitals List
                       Expanded(
                         child: ListView.builder(
                           itemCount: vitalsList.length,
                           itemBuilder: (context, index) {
                             final vitals = vitalsList[index];
-
-                            return Card(
+                            return Container(
                               margin: const EdgeInsets.symmetric(
-                                  vertical: 8.0, horizontal: 10),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.only(
+                                  vertical: 8, horizontal: 4),
+                              decoration: BoxDecoration(
+                                borderRadius: const BorderRadius.only(
                                   topLeft: Radius.circular(20),
                                   bottomRight: Radius.circular(20),
                                 ),
+                                gradient: LinearGradient(
+                                  colors: [Colors.white, Colors.grey.shade50],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: gradientColors[0].withOpacity(0.1),
+                                    blurRadius: 8,
+                                    offset: const Offset(2, 4),
+                                  ),
+                                ],
                               ),
-                              elevation: 6,
-                              color: Colors.white.withOpacity(0.9),
-                              shadowColor: Colors.black26,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 12.0, horizontal: 16.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
+                              child: Stack(
+                                children: [
+                                  // Gradient Border
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: const BorderRadius.only(
+                                        topLeft: Radius.circular(20),
+                                        bottomRight: Radius.circular(20),
+                                      ),
+                                      border: Border.all(
+                                        width: 2,
+                                        color:
+                                            gradientColors[1].withOpacity(0.3),
+                                      ),
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        Text(
-                                          'Recorded On: ' +
-                                              (vitals.recordedAt != null
-                                                  ? formatToIST(
-                                                      vitals.recordedAt!)
-                                                  : 'N/A'),
-                                          style: TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.teal,
-                                          ),
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              'Recorded On: ${vitals.recordedAt != null ? formatToIST(vitals.recordedAt!) : 'N/A'}',
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
+                                                color: gradientColors[0],
+                                              ),
+                                            ),
+                                            IconButton(
+                                              icon: Container(
+                                                decoration: BoxDecoration(
+                                                  gradient: LinearGradient(
+                                                      colors: gradientColors),
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                                padding:
+                                                    const EdgeInsets.all(4),
+                                                child: const Icon(
+                                                  FontAwesomeIcons.trash,
+                                                  color: Colors.white,
+                                                  size: 18,
+                                                ),
+                                              ),
+                                              onPressed: () => ref
+                                                  .read(vitalsProvider.notifier)
+                                                  .deleteVital(
+                                                      widget.patientId,
+                                                      widget.admissionId,
+                                                      vitals.id!),
+                                            ),
+                                          ],
                                         ),
-                                        IconButton(
-                                          icon: Icon(FontAwesomeIcons.trash,
-                                              color: Color(0xff1565C0)),
-                                          onPressed: () => ref
-                                              .read(vitalsProvider.notifier)
-                                              .deleteVital(
-                                                  widget.patientId,
-                                                  widget.admissionId,
-                                                  vitals.id!),
+                                        const SizedBox(height: 12),
+                                        _buildVitalsRow(
+                                          FontAwesomeIcons.thermometerHalf,
+                                          'Temperature',
+                                          "${vitals.temperature}°C",
+                                          gradientColors[0],
+                                        ),
+                                        _buildVitalsRow(
+                                          FontAwesomeIcons.heart,
+                                          'Pulse',
+                                          "${vitals.pulse} bpm",
+                                          gradientColors[1],
+                                        ),
+                                        _buildVitalsRow(
+                                          FontAwesomeIcons.tint,
+                                          'BP',
+                                          vitals.bloodPressure,
+                                          gradientColors[0],
+                                        ),
+                                        _buildVitalsRow(
+                                          FontAwesomeIcons.prescription,
+                                          'BSL',
+                                          vitals.bloodSugarLevel,
+                                          gradientColors[1],
                                         ),
                                       ],
                                     ),
-                                    _buildVitalsRow(
-                                        FontAwesomeIcons.thermometerHalf,
-                                        'Temperature',
-                                        "\${vitals.temperature}°C"),
-                                    _buildVitalsRow(FontAwesomeIcons.heart,
-                                        'Pulse', "\${vitals.pulse} bpm"),
-                                    _buildVitalsRow(FontAwesomeIcons.tint, 'BP',
-                                        vitals.bloodPressure),
-                                    _buildVitalsRow(
-                                        FontAwesomeIcons.prescription,
-                                        'BSL',
-                                        vitals.bloodSugarLevel),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
                             );
                           },
@@ -561,13 +621,50 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
     );
   }
 
+  Widget _buildVitalsRow(
+      IconData icon, String label, String value, Color color) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 18, color: color),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            '$label: ',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade700,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Poppins',
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade800,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   String formatToIST(String utcDate) {
     DateTime utcDateTime = DateTime.parse(utcDate).toUtc();
     DateTime istDateTime = utcDateTime.add(Duration(hours: 5, minutes: 30));
     return DateFormat('dd MMM yyyy, hh:mm a').format(istDateTime);
   }
 
-  Widget _buildVitalsRow(IconData icon, String label, String value) {
+  Widget _buildVitalsRow1(IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
