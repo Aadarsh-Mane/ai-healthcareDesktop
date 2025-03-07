@@ -46,6 +46,12 @@ jobs:
           name: windows-build
           path: windows_build.zip
 
+      - name: Create Tag
+        run: |
+          # Create a tag using the current date or a custom format (e.g., v1.0.0)
+          git tag "v$(date +'%Y%m%d%H%M%S')"
+          git push origin --tags
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
