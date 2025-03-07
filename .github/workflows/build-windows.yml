@@ -45,3 +45,10 @@ jobs:
         with:
           name: windows-build
           path: windows_build.zip
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: windows_build.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
