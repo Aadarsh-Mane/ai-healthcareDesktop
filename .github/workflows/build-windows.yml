@@ -28,7 +28,9 @@ jobs:
 
       - name: Zip build folder
         run: |
-          Compress-Archive -Path build/windows/runner/Release/* -DestinationPath windows_build.zip
+          $source = "build/windows/runner/Release"
+          $destination = "windows_build.zip"
+          Compress-Archive -Path "$source\*" -DestinationPath $destination
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
