@@ -26,9 +26,17 @@ jobs:
       - name: Build Windows exe
         run: flutter build windows
 
+      - name: Verify build output
+        run: |
+          $releaseFolder = "build/windows/x64/runner/Release"
+          if (-Not (Test-Path $releaseFolder)) {
+            Write-Error "Release folder not found at $releaseFolder"
+            exit 1
+          }
+
       - name: Zip build folder
         run: |
-          $source = "build/windows/runner/Release"
+          $source = "build/windows/x64/runner/Release"
           $destination = "windows_build.zip"
           Compress-Archive -Path "$source\*" -DestinationPath $destination
 
