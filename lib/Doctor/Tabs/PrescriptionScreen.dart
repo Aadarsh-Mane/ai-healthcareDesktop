@@ -164,7 +164,7 @@ class _DoctorPrescriptionsScreenState
                                               MainAxisAlignment.spaceBetween,
                                           children: [
                                             Text(
-                                              'Prescribed On: ${prescription.medicine.date != 'N/A'}',
+                                              'Prescribed On: ${prescription.medicine.date}',
                                               style: TextStyle(
                                                 fontSize: 16,
                                                 fontWeight: FontWeight.w600,

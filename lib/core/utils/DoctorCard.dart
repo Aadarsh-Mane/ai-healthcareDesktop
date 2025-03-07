@@ -12,7 +12,7 @@ class DoctorCard extends StatelessWidget {
     required this.title,
     required this.imagePath,
     required this.onTap,
-    this.specialty = 'General Practitioner',
+    this.specialty = '',
     this.rating = 4.5,
   });
 

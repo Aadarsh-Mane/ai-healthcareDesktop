@@ -57,10 +57,20 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
       'screen': PatientListScreen(),
     },
     {
-      'title': 'Logout',
-      'imagePath': 'assets/images/logout.png',
+      'title': 'Home',
+      'imagePath': 'assets/images/lists.png',
       'screen': HomeScreen(),
     },
+    {
+      'title': 'Logout',
+      'imagePath': 'assets/images/logout.png',
+      'screen': LogoutScreen(),
+    },
+    // {
+    //   'title': 'Home',
+    //   'imagePath': 'assets/images/logout.png',
+    //   'screen': HomeScreen(),
+    // },
   ];
   @override
   Widget build(BuildContext context) {
