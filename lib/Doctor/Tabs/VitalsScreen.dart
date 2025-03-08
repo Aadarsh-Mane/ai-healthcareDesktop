@@ -378,10 +378,10 @@ final vitalsProvider =
   return VitalsNotifier();
 });
 
+final doctor = DoctorRepository();
+
 class VitalsNotifier extends StateNotifier<List<Vitals>> {
   VitalsNotifier() : super([]);
-
-  final doctor = DoctorRepository();
 
   Future<void> fetchVitals(String patientId, String admissionId) async {
     final vitals = await doctor.fetchVitals(patientId, admissionId);
@@ -469,10 +469,18 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
           Padding(
             padding: const EdgeInsets.all(20.0),
             child: vitalsList.isEmpty
-                ? const Center(
+                ? Center(
+                    child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(0xFF2A79B4),
+                      elevation: 0,
+                    ),
+                    onPressed: () => openAddVitalsDialog(
+                        widget.patientId, widget.admissionId),
                     child: Text(
-                    'No vitals available for this patient.',
-                    style: TextStyle(fontSize: 18),
+                      'No vitals available Click to add',
+                      style: TextStyle(fontSize: 18, color: Colors.white),
+                    ),
                   ))
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -662,6 +670,95 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
     DateTime utcDateTime = DateTime.parse(utcDate).toUtc();
     DateTime istDateTime = utcDateTime.add(Duration(hours: 5, minutes: 30));
     return DateFormat('dd MMM yyyy, hh:mm a').format(istDateTime);
+  }
+
+  void openAddVitalsDialog(String patientId, String admissionId) {
+    final temperature = TextEditingController();
+    final pulse = TextEditingController();
+    final bloodPressure = TextEditingController();
+    final bloodSugarLevel = TextEditingController();
+    final other = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Add Vitals'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: temperature,
+                decoration: const InputDecoration(labelText: 'Temperature '),
+              ),
+              TextField(
+                controller: pulse,
+                decoration: const InputDecoration(labelText: 'Pulse'),
+                keyboardType: TextInputType.number,
+              ),
+              TextField(
+                controller: bloodPressure,
+                decoration: const InputDecoration(labelText: 'Blood Pressure'),
+                keyboardType: TextInputType.number,
+              ),
+              TextField(
+                controller: bloodSugarLevel,
+                decoration: const InputDecoration(labelText: 'Sugar Level'),
+                keyboardType: TextInputType.number,
+              ),
+              TextField(
+                controller: other,
+                decoration: const InputDecoration(labelText: 'Others'),
+                keyboardType: TextInputType.number,
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                final String currentDateTime =
+                    DateFormat('yyyy-MM-dd hh:mm:ss a').format(DateTime.now());
+
+                // Append the current date and time to the 'other' field, placing it on a new line
+                final String otherWithDateTime =
+                    '${other.text}\nDate: $currentDateTime';
+                final vitals = Vitals(
+                  temperature: temperature.text,
+                  pulse: pulse.text,
+                  bloodPressure: bloodPressure.text,
+                  bloodSugarLevel: bloodSugarLevel.text,
+                  other: otherWithDateTime,
+                );
+
+                try {
+                  // print("vital are ${vitals.}");
+                  await doctor.addVitals(patientId, admissionId, vitals);
+
+                  // Refresh the data after adding the prescription
+                  await ref
+                      .read(vitalsProvider.notifier)
+                      .fetchVitals(patientId, admissionId);
+
+                  Navigator.of(context).pop(); // Close the dialog
+                } catch (e) {
+                  print('Error adding prescription: $e');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e')),
+                  );
+                }
+              },
+              child: const Text('Add Vitals'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Widget _buildVitalsRow1(IconData icon, String label, String value) {

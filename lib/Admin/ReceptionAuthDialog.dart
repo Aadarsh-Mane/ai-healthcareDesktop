@@ -120,7 +120,7 @@ class DesktopButtonScreen extends StatelessWidget {
       backgroundColor: Color(0xFFE6FCFF),
       appBar: AppBar(
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
             Navigator.pop(context);
           },
@@ -129,7 +129,7 @@ class DesktopButtonScreen extends StatelessWidget {
           'Reception Panel',
           style: TextStyle(color: Colors.cyan),
         ),
-        backgroundColor: Colors.black,
+        backgroundColor: Color(0xFF2A79B4),
         elevation: 2,
       ),
       body: Container(

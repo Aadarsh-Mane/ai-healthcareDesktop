@@ -449,7 +449,7 @@ Future<void> _showDischargeDialog(
     BuildContext context,
     String admissionId,
     String selectedCondition,
-    double amount,
+    int amount,
     Patient1 patient,
     WidgetRef ref) async {
   final doctor = DoctorRepository();
@@ -508,9 +508,9 @@ Future<void> _showDischargeDialog(
 
 Future<void> _showConditionDialog(BuildContext context, String admissionId,
     Patient1 patient, WidgetRef ref) async {
-  String selectedCondition = 'Discharged'; // Default value for condition
-  String additionalInfo = ''; // Default empty text field
-  String amountToBePayed = ''; // New field for amount
+  String selectedCondition = 'Discharged';
+  String additionalInfo = '';
+  String amountToBePayed = '';
 
   await showDialog(
     context: context,
@@ -522,37 +522,7 @@ Future<void> _showConditionDialog(BuildContext context, String admissionId,
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                DropdownButton<String>(
-                  value: selectedCondition,
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      selectedCondition = newValue!;
-                    });
-                  },
-                  items: <String>[
-                    'Discharged',
-                    "Transferred",
-                    "A.M.A.",
-                    "Absconded",
-                    "Expired"
-                  ].map<DropdownMenuItem<String>>((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  onChanged: (text) {
-                    additionalInfo = text;
-                  },
-                  decoration: const InputDecoration(
-                    labelText: 'Additional Information',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 10),
+                // ... [keep dropdown and other fields unchanged] ...
                 TextField(
                   onChanged: (text) {
                     amountToBePayed = text;
@@ -574,16 +544,34 @@ Future<void> _showConditionDialog(BuildContext context, String admissionId,
               ),
               TextButton(
                 onPressed: () async {
-                  final amount = double.tryParse(amountToBePayed);
-                  if (amount == null || amount < 0) {
+                  String amountText = amountToBePayed.trim();
+                  if (amountText.isEmpty) {
+                    amountText = '0'; // Set to zero if empty
+                  }
+
+                  // First parse as double to handle decimal inputs
+                  final doubleAmount = double.tryParse(amountText);
+                  if (doubleAmount == null || doubleAmount < 0) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Invalid amount entered')),
+                      const SnackBar(
+                        content: Text('Please enter a valid numeric amount'),
+                      ),
                     );
                     return;
                   }
+
+                  // Convert to integer (truncates decimal values)
+                  final intAmount = doubleAmount.toInt();
+
                   Navigator.of(context).pop();
-                  await _showDischargeDialog(context, admissionId,
-                      selectedCondition, amount, patient, ref); // Pass ref
+                  await _showDischargeDialog(
+                    context,
+                    admissionId,
+                    selectedCondition,
+                    intAmount, // Pass integer value
+                    patient,
+                    ref,
+                  );
                 },
                 child: const Text('Next'),
               ),

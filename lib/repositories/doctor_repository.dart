@@ -316,7 +316,7 @@ class DoctorRepository {
   Future<Map<String, dynamic>> updateConditionAtDischarge(
       {required String admissionId,
       required String conditionAtDischarge,
-      required double amountToBePayed}) async {
+      required int amountToBePayed}) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString('auth_token');
     final response = await http.post(

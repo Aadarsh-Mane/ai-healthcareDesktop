@@ -134,7 +134,21 @@ class SymptomsContent extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: symptomsList.isEmpty
-          ? const Center(child: CustomLoadingAnimation())
+          // ? const Center(child: CustomLoadingAnimation())
+          ? Center(
+              child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF2A79B4),
+                elevation: 0,
+              ),
+              onPressed: () => {
+                _openAddSymptomsScreen(ref, context, patientId, admissionId)
+              },
+              child: Text(
+                'No symptoms available Click to add',
+                style: TextStyle(fontSize: 18, color: Colors.white),
+              ),
+            ))
           : Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
@@ -278,8 +292,8 @@ class SymptomsContent extends ConsumerWidget {
                     ],
                   ),
                   child: ElevatedButton.icon(
-                    onPressed: () =>
-                        _openAddSymptomsScreen(context, patientId, admissionId),
+                    onPressed: () => _openAddSymptomsScreen(
+                        ref, context, patientId, admissionId),
                     icon: const Icon(Icons.add, color: Colors.white),
                     label: const Text('Add Symptom',
                         style: TextStyle(
@@ -368,12 +382,17 @@ Widget _buildShimmerEffect() {
 }
 
 void _openAddSymptomsScreen(
-    BuildContext context, String patientId, String admissionId) {
+    ref, BuildContext context, String patientId, String admissionId) {
   // Implement navigation to add symptoms screen
   // Example:
   Navigator.push(
       context,
       MaterialPageRoute(
           builder: (context) => AddSymptomScreen(
-              patientId: patientId, admissionId: admissionId)));
+              patientId: patientId, admissionId: admissionId))).then((value) {
+    if (value != null && value) {
+      // Refresh data after returning from the screen
+      ref.read(symptomsProvider.notifier).fetchSymptoms(patientId, admissionId);
+    }
+  });
 }

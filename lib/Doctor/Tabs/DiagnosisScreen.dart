@@ -194,15 +194,18 @@ class DiagnosisContent extends ConsumerWidget {
                                       gradientColors[1],
                                     ),
                                   ],
+                                  // In your DataTable rows construction
                                   rows: diagnosisList
                                       .asMap()
                                       .map((index, diagnosis) {
-                                        final parts = diagnosis.split(' - ');
-                                        final diagnosisText = parts.length > 1
-                                            ? parts[0]
-                                            : diagnosis;
-                                        final dateText =
-                                            parts.length > 1 ? parts[1] : '';
+                                        // Updated splitting logic for date extraction
+                                        final dateSplit =
+                                            diagnosis.split(RegExp(r' Date: '));
+                                        final diagnosisText = dateSplit[0];
+                                        final dateText = dateSplit.length > 1
+                                            ? dateSplit[1]
+                                            : '';
+
                                         return MapEntry(
                                           index,
                                           DataRow(cells: [
@@ -330,12 +333,47 @@ class DiagnosisContent extends ConsumerWidget {
     );
   }
 
+  // Widget _buildDiagnosisCell(String text) {
+  //   return Row(
+  //     children: [
+  //       Icon(FontAwesomeIcons.stethoscope, color: gradientColors[0], size: 16),
+  //       const SizedBox(width: 6),
+  //       Text(text),
+  //     ],
+  //   );
+  // }
   Widget _buildDiagnosisCell(String text) {
+    final scrollController = ScrollController(); // <-- Add controller
+
     return Row(
       children: [
         Icon(FontAwesomeIcons.stethoscope, color: gradientColors[0], size: 16),
         const SizedBox(width: 6),
-        Text(text),
+        Container(
+          constraints: BoxConstraints(maxWidth: 300),
+          child: Scrollbar(
+            controller: scrollController,
+            thumbVisibility: true, // Always show scrollbar for desktop
+            trackVisibility: true,
+            thickness: 0.6,
+            radius: Radius.circular(4),
+            scrollbarOrientation: ScrollbarOrientation.bottom,
+            child: SingleChildScrollView(
+              controller: scrollController,
+              physics:
+                  const AlwaysScrollableScrollPhysics(), // <-- Important for mouse
+              scrollDirection: Axis.horizontal,
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click, // <-- Show click cursor
+                child: SelectableText(
+                  // <-- Make text selectable
+                  text,
+                  style: TextStyle(fontSize: 14),
+                ),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
