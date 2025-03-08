@@ -23,17 +23,18 @@ class BillNotifier extends StateNotifier<AsyncValue<Map<String, dynamic>>> {
     state = const AsyncValue.loading();
     try {
       final response = await http.post(
-        Uri.parse('${KVM_URL}/reception/bill'),
+        Uri.parse('${BASE_URL}/reception/bill'),
         body: json.encode(billData),
         headers: {'Content-Type': 'application/json'},
       );
-
+      print("this is the response ${response.body}");
       if (response.statusCode == 200) {
         state = AsyncValue.data(json.decode(response.body));
       } else {
         throw Exception('Failed to generate bill');
       }
     } catch (e) {
+      print("now u $e");
       // state = AsyncValue.error(e.toString('',''));
     }
   }
@@ -435,6 +436,7 @@ class _GenerateBillScreenState extends ConsumerState<GenerateBillScreen> {
 
 Widget _buildBillResponse(Map<String, dynamic> response, BuildContext context) {
   final billDetails = response['billDetails'] ?? {};
+  print(billDetails);
   final fileLink = response['fileLink'] ?? '';
   print("this os it $fileLink");
   if (billDetails.isEmpty) {

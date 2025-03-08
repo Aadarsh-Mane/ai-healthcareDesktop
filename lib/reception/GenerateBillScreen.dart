@@ -27,13 +27,14 @@ class BillNotifier extends StateNotifier<AsyncValue<Map<String, dynamic>>> {
         body: json.encode(billData),
         headers: {'Content-Type': 'application/json'},
       );
-
+      print(response.body);
       if (response.statusCode == 200) {
         state = AsyncValue.data(json.decode(response.body));
       } else {
         throw Exception('Failed to generate bill');
       }
     } catch (e) {
+      print('Error: $e');
       // state = AsyncValue.error(e.toString('',''));
     }
   }

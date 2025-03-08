@@ -345,13 +345,13 @@ class AdmissionRecord {
 
   factory AdmissionRecord.fromJson(Map<String, dynamic> json) {
     return AdmissionRecord(
-      id: json['_id'],
-      admissionDate: json['admissionDate'],
-      reasonForAdmission: json['reasonForAdmission'],
-      symptoms: json['symptoms'],
-      status: json['status'] ?? '' as String,
-      initialDiagnosis: json['initialDiagnosis'],
+      id: json['_id'] ?? '',
+      admissionDate: json['admissionDate'] ?? '',
+      reasonForAdmission: json['reasonForAdmission'] ?? '', // Add default
+      symptoms: json['symptoms'] ?? '', // Add default
+      status: json['status'] ?? '',
       doctorConsultant: List<String>.from(json['doctorConsultant'] ?? []),
+      initialDiagnosis: json['initialDiagnosis'] ?? '', // Add default
       reports: json['reports'] ?? [],
       followUps: (json['followUps'] as List<dynamic>)
           .map((e) => FollowUp.fromJson(e))
@@ -401,14 +401,14 @@ class Patient1 {
   factory Patient1.fromJson(Map<String, dynamic> json) {
     return Patient1(
       id: json['_id']?.toString() ?? '',
-      patientId: json['patientId']?.toString() ?? '',
-      name: json['name']?.toString() ?? '',
+      patientId: json['patientId']?.toString() ?? 'N/A',
+      name: json['name']?.toString() ?? 'N/A',
       age: json['age'] is int
           ? json['age']
           : int.tryParse(json['age'].toString()) ?? 0,
-      gender: json['gender']?.toString() ?? '',
-      contact: json['contact']?.toString() ?? '',
-      address: json['address']?.toString() ?? '',
+      gender: json['gender']?.toString() ?? 'N/A',
+      contact: json['contact']?.toString() ?? 'N/A',
+      address: json['address']?.toString() ?? 'N/A',
       imageUrl: json['imageUrl']?.toString() ?? '',
       pendingAmount: json['pendingAmount'] is int
           ? json['pendingAmount']

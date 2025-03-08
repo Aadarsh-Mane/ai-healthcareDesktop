@@ -219,8 +219,10 @@ class AuthRepository {
           'Authorization': 'Bearer $token',
         },
       );
+      print('Patient JSON: $json');
+
       // print(response.body); // Inspect the API response
-      // print('Full response body: ${response.body}');
+      print('Full response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body)['patients'] as List<dynamic>;
