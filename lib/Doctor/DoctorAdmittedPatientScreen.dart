@@ -241,6 +241,37 @@ class _AssignedPatientsScreenState
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  DropdownButton<String>(
+                    value: selectedCondition,
+                    onChanged: (String? newValue) {
+                      setState(() {
+                        selectedCondition = newValue!;
+                      });
+                    },
+                    items: <String>[
+                      'Discharged',
+                      "Transferred",
+                      "A.M.A.",
+                      "Absconded",
+                      "Expired"
+                    ].map<DropdownMenuItem<String>>((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      );
+                    }).toList(),
+                  ),
+                  TextField(
+                    onChanged: (text) {
+                      additionalInfo = text;
+                    },
+                    decoration: const InputDecoration(
+                      labelText: 'Additional Information',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
                   // ... [keep dropdown and other fields unchanged] ...
                   TextField(
                     onChanged: (text) {

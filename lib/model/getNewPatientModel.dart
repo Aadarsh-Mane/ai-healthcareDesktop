@@ -400,16 +400,20 @@ class Patient1 {
 
   factory Patient1.fromJson(Map<String, dynamic> json) {
     return Patient1(
-      id: json['_id'],
-      patientId: json['patientId'],
-      name: json['name'],
-      age: json['age'],
-      gender: json['gender'],
-      contact: json['contact'],
-      address: json['address'],
-      imageUrl: json['imageUrl'] ?? '',
-      pendingAmount: json['pendingAmount'] as int?,
-      admissionRecords: (json['admissionRecords'] as List<dynamic>)
+      id: json['_id']?.toString() ?? '',
+      patientId: json['patientId']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      age: json['age'] is int
+          ? json['age']
+          : int.tryParse(json['age'].toString()) ?? 0,
+      gender: json['gender']?.toString() ?? '',
+      contact: json['contact']?.toString() ?? '',
+      address: json['address']?.toString() ?? '',
+      imageUrl: json['imageUrl']?.toString() ?? '',
+      pendingAmount: json['pendingAmount'] is int
+          ? json['pendingAmount']
+          : int.tryParse(json['pendingAmount'] ?? 0),
+      admissionRecords: (json['admissionRecords'] as List<dynamic>? ?? [])
           .map((e) => AdmissionRecord.fromJson(e))
           .toList(),
     );
