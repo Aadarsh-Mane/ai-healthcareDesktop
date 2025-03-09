@@ -386,7 +386,7 @@ class _AssignedPatientsViewState extends ConsumerState<AssignedPatientsView> {
                                     context, admissionId, patient, ref);
                               },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Color(0xFF00E5FF),
+                                backgroundColor: Colors.red,
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
@@ -405,7 +405,7 @@ class _AssignedPatientsViewState extends ConsumerState<AssignedPatientsView> {
                                 await _admitPatient(patient, ref, context);
                               },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.lightGreenAccent,
+                                backgroundColor: Colors.white,
                                 foregroundColor: Colors.black,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),

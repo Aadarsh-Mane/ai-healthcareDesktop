@@ -846,7 +846,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
             const SizedBox(width: 8),
             Expanded(
               child: _buildActionButton(
-                  'Generate Report',
+                  'Generate OPD Bill',
                   Icons.assignment,
                   () => Navigator.push(
                         context,
@@ -863,7 +863,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
           children: [
             Expanded(
               child: _buildActionButton(
-                  'Generate Summary',
+                  'Generate IPD Receipt',
                   Icons.summarize,
                   () => Navigator.push(
                         context,
@@ -878,7 +878,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
             const SizedBox(width: 8),
             Expanded(
               child: _buildActionButton(
-                'View History',
+                '',
                 Icons.history,
                 () => Navigator.push(
                   context,

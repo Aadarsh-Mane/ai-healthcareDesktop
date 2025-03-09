@@ -31,18 +31,24 @@ class _GenerateOpdBillScreenState extends State<GenerateOpdBillScreen> {
 
   // Function to send data to the backend
   Future<void> _generateOpdBill() async {
-    // if (!_formKey.currentState!.validate()) return;
-
     final url = Uri.parse('${KVM_URL}/reception/generateOpdBill');
     final data = {
       "patientId": widget.patientId,
       "labCharges": {
-        "amount": int.parse(_labAmountController.text),
-        "date": _labDateController.text
+        "amount": _labAmountController.text.isNotEmpty
+            ? int.parse(_labAmountController.text)
+            : 0,
+        "date": _labDateController.text.isNotEmpty
+            ? _labDateController.text
+            : "N/A",
       },
       "otherCharges": {
-        "amount": int.parse(_otherAmountController.text),
-        "date": _otherDateController.text
+        "amount": _otherAmountController.text.isNotEmpty
+            ? int.parse(_otherAmountController.text)
+            : 0,
+        "date": _otherDateController.text.isNotEmpty
+            ? _otherDateController.text
+            : "N/A",
       }
     };
 
@@ -56,10 +62,8 @@ class _GenerateOpdBillScreenState extends State<GenerateOpdBillScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final fileLink = data['fileLink'];
-        print("working ${fileLink}");
         if (fileLink != null) {
           Methods().openPdf(fileLink);
-          // Methods().downloadFile(fileLink, 'doctor_advice.pdf', context);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('No file link found in the response')),
@@ -86,8 +90,12 @@ class _GenerateOpdBillScreenState extends State<GenerateOpdBillScreen> {
     final url = Uri.parse('${KVM_URL}/reception/generateOpdReceipt');
     final data = {
       "patientId": widget.patientId,
-      "billingAmount": int.parse(_biilingAmountController.text),
-      "amountPaid": int.parse(_amountPaidController.text),
+      "billingAmount": _biilingAmountController.text.isNotEmpty
+          ? int.parse(_biilingAmountController.text)
+          : 0,
+      "amountPaid": _amountPaidController.text.isNotEmpty
+          ? int.parse(_amountPaidController.text)
+          : 0,
     };
 
     try {
@@ -100,21 +108,19 @@ class _GenerateOpdBillScreenState extends State<GenerateOpdBillScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final fileLink = data['fileLink'];
-        print("working ${fileLink}");
         if (fileLink != null) {
           Methods().openPdf(fileLink);
-          // Methods().downloadFile(fileLink, 'doctor_advice.pdf', context);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('No file link found in the response')),
           );
         }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Bill generated successfully!')),
+          SnackBar(content: Text('Receipt generated successfully!')),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to generate bill.')),
+          SnackBar(content: Text('Failed to generate receipt.')),
         );
       }
     } catch (e) {
@@ -144,17 +150,10 @@ class _GenerateOpdBillScreenState extends State<GenerateOpdBillScreen> {
                 decoration: InputDecoration(labelText: 'Lab Charges Amount'),
                 keyboardType: TextInputType.number,
                 validator: (value) {
-                  if (value != null &&
-                      value.isNotEmpty &&
-                      double.tryParse(value) == null) {
-                    return 'Please enter a valid number for Lab Charges Amount';
-                  }
-                  // if (value == null || value.isEmpty) {
-                  //   return 'Please enter Lab Charges Amount';
-                  // }
                   return null;
                 },
               ),
+              SizedBox(height: 20),
               TextFormField(
                 controller: _labDateController,
                 decoration: InputDecoration(labelText: 'Lab Charges Date'),
@@ -176,7 +175,7 @@ class _GenerateOpdBillScreenState extends State<GenerateOpdBillScreen> {
                   return null;
                 },
               ),
-
+              SizedBox(height: 20),
               TextFormField(
                 controller: _otherDateController,
                 decoration: InputDecoration(labelText: 'Other Charges Date'),
@@ -201,41 +200,13 @@ class _GenerateOpdBillScreenState extends State<GenerateOpdBillScreen> {
                   return null;
                 },
               ),
-
-              // TextFormField(
-              //   controller: _labDateController,
-              //   decoration: InputDecoration(labelText: 'Lab Charges Date'),
-              //   keyboardType: TextInputType.datetime,
-              //   validator: (value) {
-              //     if (value == null || value.isEmpty) {
-              //       return 'Please enter Lab Charges Date';
-              //     }
-              //     return null;
-              //   },
-              // ),
+              SizedBox(height: 20),
               TextFormField(
                 controller: _otherAmountController,
                 decoration: InputDecoration(labelText: 'Other Charges Amount'),
                 keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter Other Charges Amount';
-                  }
-                  return null;
-                },
               ),
-              // TextFormField(
-              //   controller: _otherDateController,
-              //   decoration: InputDecoration(labelText: 'Other Charges Date'),
-              //   keyboardType: TextInputType.datetime,
-              //   validator: (value) {
-              //     if (value == null || value.isEmpty) {
-              //       return 'Please enter Other Charges Date';
-              //     }
-              //     return null;
-              //   },
-              // ),
-              SizedBox(height: 20),
+              SizedBox(height: 40),
               ElevatedButton(
                 onPressed: () async {
                   setState(() {
@@ -254,6 +225,7 @@ class _GenerateOpdBillScreenState extends State<GenerateOpdBillScreen> {
                     : const Text(
                         'Generate OPD Bill'), // Show button text when not loading
               ),
+              SizedBox(height: 50),
               TextFormField(
                 controller: _biilingAmountController,
                 decoration: InputDecoration(labelText: 'Billing Amount'),
@@ -265,9 +237,12 @@ class _GenerateOpdBillScreenState extends State<GenerateOpdBillScreen> {
                   return null;
                 },
               ),
+              SizedBox(height: 20),
               TextFormField(
                 controller: _amountPaidController,
-                decoration: InputDecoration(labelText: ' Amount Paid'),
+                decoration: InputDecoration(
+                  labelText: ' Amount Paid',
+                ),
                 keyboardType: TextInputType.datetime,
                 validator: (value) {
                   if (value == null || value.isEmpty) {

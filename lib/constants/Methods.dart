@@ -6,11 +6,15 @@ import 'package:http/http.dart' as http;
 
 class Methods {
   void openPdf(String pdfUrl) {
-    if (Platform.isMacOS || Platform.isLinux) {
-      Process.run('xdg-open', [pdfUrl]); // Linux
-      Process.run('open', [pdfUrl]); // macOS
-    } else if (Platform.isWindows) {
-      Process.run('start', [pdfUrl], runInShell: true); // Windows
+    try {
+      if (Platform.isMacOS || Platform.isLinux) {
+        // Process.run('xdg-open', [pdfUrl]); // Linux
+        Process.run('open', [pdfUrl]); // macOS
+      } else if (Platform.isWindows) {
+        Process.run('start', [pdfUrl], runInShell: true); // Windows
+      }
+    } catch (e) {
+      print('Error opening PDF: $e');
     }
   }
 
