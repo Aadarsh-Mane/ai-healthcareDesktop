@@ -1,6 +1,8 @@
+import 'package:doctordesktop/authProvider/auth_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class DoctorCard extends StatelessWidget {
+class DoctorCard extends ConsumerWidget {
   final String title;
   final String imagePath;
   final VoidCallback onTap;
@@ -17,9 +19,16 @@ class DoctorCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authController = ref.read(authControllerProvider.notifier);
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        if (title == "Logout") {
+          _showLogoutConfirmationDialog(context, authController);
+        } else {
+          onTap();
+        }
+      },
       child: Card(
         elevation: 10,
         shape: RoundedRectangleBorder(
@@ -150,6 +159,32 @@ class DoctorCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  void _showLogoutConfirmationDialog(
+      BuildContext context, AuthController authController) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Logout Confirmation"),
+          content: const Text("Are you sure you want to logout?"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context), // Cancel button
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () async {
+                await authController.logout();
+                Navigator.pop(context); // Close dialog
+              },
+              child: const Text("Logout"),
+            ),
+          ],
+        );
+      },
     );
   }
 }

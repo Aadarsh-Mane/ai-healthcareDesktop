@@ -228,8 +228,8 @@ class _PatientAddScreenState extends State<PatientAddScreen>
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(text: "IPD"),
             Tab(text: "OPD"),
+            Tab(text: "IPD"),
           ],
         ),
       ),
@@ -237,8 +237,8 @@ class _PatientAddScreenState extends State<PatientAddScreen>
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildIPDForm(),
           _buildOPDForm(),
+          _buildIPDForm(),
         ],
       ),
     );

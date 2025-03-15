@@ -1771,6 +1771,24 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                             _buildVitalsLayout(),
                             title: 'Vitals Monitoring',
                           ),
+                          SizedBox(
+                            height: 16,
+                          ),
+                          Column(
+                            children: [
+                              _buildSectionContainer(
+                                context,
+                                buildDiagnosisLayout(
+                                    admissionId: admissionId,
+                                    patientId: patientId,
+                                    addDoctorDiagnosis:
+                                        doctor.addDoctorDiagnosis,
+                                    fetchDoctorDiagnosis:
+                                        doctor.fetchDoctorDiagnosis),
+                                title: 'Diagnosis',
+                              )
+                            ],
+                          ),
                         ],
                       ),
                     ),
@@ -1793,16 +1811,16 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                                     context, ref, patientId, admissionId),
                                 const SizedBox(height: 12),
                                 Divider(),
-                                buildDiagnosisLayout(
-                                    admissionId: admissionId,
-                                    patientId: patientId,
-                                    addDoctorDiagnosis:
-                                        doctor.addDoctorDiagnosis,
-                                    fetchDoctorDiagnosis:
-                                        doctor.fetchDoctorDiagnosis),
+                                // buildDiagnosisLayout(
+                                //     admissionId: admissionId,
+                                //     patientId: patientId,
+                                //     addDoctorDiagnosis:
+                                //         doctor.addDoctorDiagnosis,
+                                //     fetchDoctorDiagnosis:
+                                //         doctor.fetchDoctorDiagnosis),
                               ],
                             ),
-                            title: 'Diagnosis & Symptoms',
+                            title: 'Symptoms',
                           ),
                         ],
                       ),

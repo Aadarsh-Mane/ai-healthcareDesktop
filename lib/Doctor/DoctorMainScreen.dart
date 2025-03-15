@@ -202,6 +202,7 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
                               ),
                             ],
                           ),
+                          SizedBox(width: 20),
                         ],
                       ),
                     ),
