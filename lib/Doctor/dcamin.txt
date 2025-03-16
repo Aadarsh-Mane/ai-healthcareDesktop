@@ -1,0 +1,738 @@
+import 'dart:io';
+import 'dart:async';
+import 'dart:convert';
+import 'package:doctordesktop/screens/login_screen.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:network_info_plus/network_info_plus.dart';
+
+// Import your existing desktop screens
+import 'package:doctordesktop/Doctor/AssignedLabScreen.dart';
+import 'package:doctordesktop/Doctor/AssignedPatientScreen.dart';
+import 'package:doctordesktop/LogoutScreen.dart';
+import 'package:doctordesktop/Patient/fetchPatient.dart';
+import 'package:doctordesktop/constants/Assets.dart';
+import 'package:doctordesktop/core/utils/DoctorCard.dart';
+import 'package:doctordesktop/main.dart';
+import 'package:doctordesktop/authProvider/auth_provider.dart';
+
+// Model for doctor profile
+class DoctorProfile {
+  final String doctorName;
+  final String email;
+
+  DoctorProfile({required this.doctorName, required this.email});
+}
+
+// Provider to manage doctor profile
+class DoctorProfileNotifier extends StateNotifier<DoctorProfile?> {
+  DoctorProfileNotifier() : super(null);
+
+  Future<void> getDoctorProfile() async {
+    // Implement your API call or data fetching logic here
+    // For now, we'll return a sample profile
+    state =
+        DoctorProfile(doctorName: "John Doe", email: "johndoe@hospital.com");
+  }
+}
+
+// Define the doctorProfileProvider
+final doctorProfileProvider =
+    StateNotifierProvider<DoctorProfileNotifier, DoctorProfile?>((ref) {
+  return DoctorProfileNotifier();
+});
+
+// Provider to track the currently selected menu item
+final selectedMenuItemProvider = StateProvider<int>((ref) => 0);
+
+// Provider to track connection status
+final connectionStatusProvider =
+    StateProvider<String>((ref) => 'Server not started');
+
+// Provider to track connected clients
+final connectedClientsProvider = StateProvider<int>((ref) => 0);
+
+// Define AppStrings if not already defined
+class AppStrings {
+  static const String hospitalName = "Metro General";
+}
+
+class DoctorMainScreen extends StatefulWidget {
+  @override
+  _DoctorMainScreenState createState() => _DoctorMainScreenState();
+}
+
+class _DoctorMainScreenState extends State<DoctorMainScreen> {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: DoctorHomeScreen(),
+    );
+  }
+}
+
+class DoctorHomeScreen extends ConsumerStatefulWidget {
+  @override
+  _DoctorHomeScreenState createState() => _DoctorHomeScreenState();
+}
+
+class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
+  // WebSocket server
+  HttpServer? _server;
+  List<WebSocket> _clients = [];
+  String _serverIP = 'Unknown';
+  bool _serverRunning = false;
+
+  // Motion threshold
+  final double _motionThreshold = 5.0;
+  Timer? _selectionTimer;
+
+  // Selection highlight animation controller
+  bool _isSelectAnimating = false;
+
+  final List<Map<String, dynamic>> doctorCards = [
+    {
+      'title': 'Assigned Patients',
+      'imagePath': 'assets/images/assigned.png',
+      'screen': AssignedPatientsScreen(),
+    },
+    {
+      'title': 'Assigned Labs',
+      'imagePath': 'assets/images/labs1.png',
+      'screen': AssignedLabsScreen(),
+    },
+    {
+      'title': 'Patients',
+      'imagePath': 'assets/images/ask.png',
+      'screen': PatientListScreen(),
+    },
+    {
+      'title': 'Home',
+      'imagePath': 'assets/images/home.png',
+      'screen': DoctorHomeScreen(),
+    }
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      ref.read(doctorProfileProvider.notifier).getDoctorProfile();
+      _getLocalIpAddress();
+      _startWebSocketServer();
+    });
+  }
+
+  @override
+  void dispose() {
+    _stopWebSocketServer();
+    _selectionTimer?.cancel();
+    super.dispose();
+  }
+
+  // Get the local IP address of the desktop
+  Future<void> _getLocalIpAddress() async {
+    try {
+      final info = NetworkInfo();
+      final ip = await info.getWifiIP();
+      if (ip != null) {
+        setState(() {
+          _serverIP = ip;
+        });
+        ref.read(connectionStatusProvider.notifier).state =
+            'Ready on: $_serverIP:8080';
+      }
+    } catch (e) {
+      print('Error getting IP address: $e');
+      ref.read(connectionStatusProvider.notifier).state =
+          'Could not get local IP';
+    }
+  }
+
+  // Start WebSocket server
+  Future<void> _startWebSocketServer() async {
+    try {
+      _server = await HttpServer.bind(InternetAddress.anyIPv4, 8080);
+      setState(() {
+        _serverRunning = true;
+      });
+      ref.read(connectionStatusProvider.notifier).state =
+          'Server running on: $_serverIP:8080';
+
+      _server!.transform(WebSocketTransformer()).listen((WebSocket webSocket) {
+        _handleClientConnection(webSocket);
+      });
+    } catch (e) {
+      print('Error starting WebSocket server: $e');
+      ref.read(connectionStatusProvider.notifier).state =
+          'Failed to start server: $e';
+    }
+  }
+
+  // Stop WebSocket server
+  void _stopWebSocketServer() {
+    _clients.forEach((client) => client.close());
+    _clients.clear();
+    _server?.close();
+    setState(() {
+      _serverRunning = false;
+    });
+    ref.read(connectionStatusProvider.notifier).state = 'Server stopped';
+    ref.read(connectedClientsProvider.notifier).state = 0;
+  }
+
+  // Handle new client connection
+  void _handleClientConnection(WebSocket webSocket) {
+    _clients.add(webSocket);
+    ref.read(connectedClientsProvider.notifier).state = _clients.length;
+
+    // Send connection confirmation
+    webSocket.add(jsonEncode({
+      'type': 'connection_status',
+      'connected': true,
+    }));
+
+    // Send current selected index
+    webSocket.add(jsonEncode({
+      'type': 'selection_update',
+      'selected_index': ref.read(selectedMenuItemProvider),
+    }));
+
+    // Listen for messages from client
+    webSocket.listen(
+      (message) {
+        try {
+          final data = jsonDecode(message);
+
+          if (data['type'] == 'motion_data') {
+            _handleMotionData(data);
+          } else if (data['type'] == 'action') {
+            _handleAction(data['action']);
+          }
+        } catch (e) {
+          print('Error parsing message: $e');
+        }
+      },
+      onDone: () {
+        _clients.remove(webSocket);
+        ref.read(connectedClientsProvider.notifier).state = _clients.length;
+      },
+      onError: (error) {
+        print('WebSocket error: $error');
+        _clients.remove(webSocket);
+        ref.read(connectedClientsProvider.notifier).state = _clients.length;
+      },
+    );
+  }
+
+  // Handle motion data received from mobile device
+  void _handleMotionData(Map<String, dynamic> data) {
+    try {
+      final double x = data['x'].toDouble();
+      final double y = data['y'].toDouble();
+      final double z = data['z'].toDouble();
+
+      // Get current selected index
+      int currentIndex = ref.read(selectedMenuItemProvider);
+
+      // Process LEFT/RIGHT tilting (Y axis)
+      if (y < -_motionThreshold && currentIndex > 0) {
+        // Tilting left (negative Y)
+        ref.read(selectedMenuItemProvider.notifier).state = currentIndex - 1;
+        _broadcastSelectedIndex();
+      } else if (y > _motionThreshold &&
+          currentIndex < doctorCards.length - 1) {
+        // Tilting right (positive Y)
+        ref.read(selectedMenuItemProvider.notifier).state = currentIndex + 1;
+        _broadcastSelectedIndex();
+      }
+
+      // Process FORWARD tilting (X axis)
+      if (x > _motionThreshold) {
+        _selectCurrentOption();
+      }
+    } catch (e) {
+      print('Error handling motion data: $e');
+    }
+  }
+
+  // Handle manual action commands
+  void _handleAction(String action) {
+    int currentIndex = ref.read(selectedMenuItemProvider);
+
+    if (action == 'previous' && currentIndex > 0) {
+      ref.read(selectedMenuItemProvider.notifier).state = currentIndex - 1;
+      _broadcastSelectedIndex();
+    } else if (action == 'next' && currentIndex < doctorCards.length - 1) {
+      ref.read(selectedMenuItemProvider.notifier).state = currentIndex + 1;
+      _broadcastSelectedIndex();
+    } else if (action == 'select') {
+      _selectCurrentOption();
+    }
+  }
+
+  // Broadcast current selected index to all clients
+  void _broadcastSelectedIndex() {
+    final message = jsonEncode({
+      'type': 'selection_update',
+      'selected_index': ref.read(selectedMenuItemProvider),
+    });
+
+    for (var client in _clients) {
+      client.add(message);
+    }
+  }
+
+  // Select and navigate to the currently focused option
+  void _selectCurrentOption() {
+    if (_isSelectAnimating) return;
+
+    setState(() {
+      _isSelectAnimating = true;
+    });
+
+    // Visual feedback for selection
+    if (_selectionTimer != null && _selectionTimer!.isActive) {
+      _selectionTimer!.cancel();
+    }
+
+    _selectionTimer = Timer(Duration(milliseconds: 800), () {
+      setState(() {
+        _isSelectAnimating = false;
+      });
+
+      // Navigate to the selected screen
+      int currentIndex = ref.read(selectedMenuItemProvider);
+      if (currentIndex >= 0 && currentIndex < doctorCards.length) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) => doctorCards[currentIndex]['screen']),
+        );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final doctorProfile = ref.watch(doctorProfileProvider);
+    final selectedIndex = ref.watch(selectedMenuItemProvider);
+    final connectionStatus = ref.watch(connectionStatusProvider);
+    final connectedClients = ref.watch(connectedClientsProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.blue[900],
+        elevation: 10,
+        toolbarHeight: 90,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 16.0),
+        ),
+        title: Padding(
+          padding: const EdgeInsets.only(left: 16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "${AppStrings.hospitalName} Doctor Portal",
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "Your dedication saves lives, and your compassion inspires hope.",
+                style: TextStyle(
+                  fontSize: 18,
+                  color: Colors.white70,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          // Server status indicator
+          Container(
+            padding: EdgeInsets.all(8),
+            margin: EdgeInsets.only(right: 16),
+            decoration: BoxDecoration(
+              color: _serverRunning ? Colors.green[700] : Colors.red[700],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  _serverRunning ? Icons.wifi : Icons.wifi_off,
+                  color: Colors.white,
+                  size: 16,
+                ),
+                SizedBox(width: 4),
+                Text(
+                  'Clients: $connectedClients',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      backgroundColor: Colors.grey[50],
+      body: Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/bb1.png'),
+            opacity: 0.3,
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: Column(
+          children: [
+            // Connection information panel
+            Container(
+              margin: EdgeInsets.all(16),
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _serverRunning ? Icons.phone_android : Icons.phonelink_off,
+                    color: _serverRunning ? Colors.blue[700] : Colors.red,
+                    size: 36,
+                  ),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Mobile Control Status',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(connectionStatus),
+                        SizedBox(height: 8),
+                        Text(
+                          connectedClients > 0
+                              ? 'Mobile device connected! Controlling desktop remotely.'
+                              : 'No mobile devices connected. Connect by entering this IP in the mobile app.',
+                          style: TextStyle(
+                            fontStyle: FontStyle.italic,
+                            color: connectedClients > 0
+                                ? Colors.green[700]
+                                : Colors.grey[700],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Server toggle button
+                  ElevatedButton(
+                    onPressed: _serverRunning
+                        ? _stopWebSocketServer
+                        : _startWebSocketServer,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          _serverRunning ? Colors.red : Colors.green,
+                      foregroundColor: Colors.white,
+                    ),
+                    child:
+                        Text(_serverRunning ? 'Stop Server' : 'Start Server'),
+                  ),
+                ],
+              ),
+            ),
+
+            // Doctor Profile Card
+            if (doctorProfile == null)
+              Center(
+                child: ElevatedButton(
+                  onPressed: () async {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => LoginScreen()),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurpleAccent,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                  ),
+                  child: const Text(
+                    "You are not logged in. Please login to continue",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              )
+            else
+              AnimatedContainer(
+                duration: Duration(milliseconds: 500),
+                margin: EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.all(10.0),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Color(0xFF005F9E),
+                      Color(0xFF00B8D4),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 10,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 60,
+                      backgroundImage: AssetImage('assets/images/doctor14.png'),
+                    ),
+                    const SizedBox(width: 20),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Welcome, Dr. ${doctorProfile.doctorName}",
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          "Email: ${doctorProfile.email}",
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(width: 20),
+                  ],
+                ),
+              ),
+
+            SizedBox(height: 20),
+
+            // Navigation Cards with motion-based focus
+            Expanded(
+              child: GridView.builder(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                shrinkWrap: true,
+                physics: NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 20,
+                  mainAxisSpacing: 20,
+                  childAspectRatio: 2.5,
+                ),
+                itemCount: doctorCards.length,
+                itemBuilder: (context, index) {
+                  final card = doctorCards[index];
+                  final bool isSelected = selectedIndex == index;
+                  final bool isPulsing = isSelected && _isSelectAnimating;
+
+                  return AnimatedContainer(
+                    duration: Duration(milliseconds: 300),
+                    transform: isPulsing
+                        ? Matrix4.identity().scaled(1.05)
+                        : Matrix4.identity(),
+                    decoration: BoxDecoration(
+                      color: isSelected ? Colors.blue[700] : Colors.white,
+                      borderRadius: BorderRadius.circular(15),
+                      boxShadow: [
+                        BoxShadow(
+                          color: isSelected
+                              ? Colors.blue.withOpacity(0.6)
+                              : Colors.black12,
+                          blurRadius: isSelected ? 12 : 6,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                      border: Border.all(
+                        color:
+                            isSelected ? Colors.blue[300]! : Colors.transparent,
+                        width: 2,
+                      ),
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(15),
+                        onTap: () {
+                          ref.read(selectedMenuItemProvider.notifier).state =
+                              index;
+                          _broadcastSelectedIndex();
+                          _selectCurrentOption();
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Row(
+                            children: [
+                              Image.asset(
+                                card['imagePath'],
+                                width: 40,
+                                height: 40,
+                                color: isSelected
+                                    ? Colors.white
+                                    : Colors.blue[700],
+                              ),
+                              SizedBox(width: 16),
+                              Expanded(
+                                child: Text(
+                                  card['title'],
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : Colors.blue[700],
+                                  ),
+                                ),
+                              ),
+                              Icon(
+                                Icons.arrow_forward_ios,
+                                size: 16,
+                                color: isSelected
+                                    ? Colors.white70
+                                    : Colors.blue[300],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            // Mobile control instructions
+            Container(
+              margin: EdgeInsets.all(16),
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Mobile Control Instructions:',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: RichText(
+                          text: TextSpan(
+                            style: TextStyle(color: Colors.black87),
+                            children: [
+                              TextSpan(
+                                text: '• Tilt left/right: ',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              TextSpan(text: 'Navigate between options'),
+                              TextSpan(
+                                text: '\n• Tilt forward: ',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              TextSpan(text: 'Select current option'),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: RichText(
+                          text: TextSpan(
+                            style: TextStyle(color: Colors.black87),
+                            children: [
+                              TextSpan(
+                                text: '• Tap arrow buttons: ',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              TextSpan(text: 'Manual navigation'),
+                              TextSpan(
+                                text: '\n• Tap select button: ',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              TextSpan(text: 'Manual selection'),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: Container(
+        padding: EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.blue[900],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 8,
+              offset: Offset(0, -2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            TextButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LogoutScreen()),
+                );
+              },
+              icon: Icon(Icons.logout, color: Colors.white),
+              label: Text(
+                'Logout',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+            SizedBox(width: 20),
+            Text(
+              '© ${DateTime.now().year} ${AppStrings.hospitalName}',
+              style: TextStyle(color: Colors.white70),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

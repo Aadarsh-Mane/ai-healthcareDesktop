@@ -5,6 +5,7 @@ import 'package:doctordesktop/reception/PatientAllDischargedScreen.dart';
 import 'package:doctordesktop/reception/PatientDischarge.dart';
 import 'package:doctordesktop/reception/PatientRegister.dart';
 import 'package:doctordesktop/screens/DoctorRegister.dart';
+import 'package:doctordesktop/screens/ListPatienAssignToDoctor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -198,28 +199,28 @@ class DesktopButtonScreen extends StatelessWidget {
                 const SizedBox(height: 30),
                 Row(
                   children: [
-                    ElevatedButton(
-                      onPressed: () {
-                        // Handle button 3 press
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => DoctorListScreen()),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Color(0XFF7CDCE8), // Background color
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 100, vertical: 30),
-                        textStyle: TextStyle(fontSize: 20),
-                        shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(8), // Rectangular shape
-                        ),
-                      ),
-                      child: const Text('Doctors'),
-                    ),
-                    const SizedBox(width: 30),
+                    // ElevatedButton(
+                    //   onPressed: () {
+                    //     // Handle button 3 press
+                    //     Navigator.push(
+                    //       context,
+                    //       MaterialPageRoute(
+                    //           builder: (context) => DoctorListScreen()),
+                    //     );
+                    //   },
+                    //   style: ElevatedButton.styleFrom(
+                    //     backgroundColor: Color(0XFF7CDCE8), // Background color
+                    //     padding:
+                    //         EdgeInsets.symmetric(horizontal: 100, vertical: 30),
+                    //     textStyle: TextStyle(fontSize: 20),
+                    //     shape: RoundedRectangleBorder(
+                    //       borderRadius:
+                    //           BorderRadius.circular(8), // Rectangular shape
+                    //     ),
+                    //   ),
+                    //   child: const Text('Doctors'),
+                    // ),
+                    const SizedBox(width: 20),
                     ElevatedButton(
                       onPressed: () {
                         Navigator.push(
@@ -240,6 +241,28 @@ class DesktopButtonScreen extends StatelessWidget {
                         ),
                       ),
                       child: const Text('Patients'),
+                    ),
+                    SizedBox(width: 30),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => PatientAssignmentScreen()),
+                        );
+                        // Handle button 4 press
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0XFF7CDCE8), // Background color
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 50, vertical: 30),
+                        textStyle: TextStyle(fontSize: 20),
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(8), // Rectangular shape
+                        ),
+                      ),
+                      child: const Text('Patient Assign'),
                     ),
                   ],
                 ),
