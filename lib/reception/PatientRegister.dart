@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:doctordesktop/constants/Assets.dart';
 import 'package:doctordesktop/constants/ToastMessage.dart';
 import 'package:doctordesktop/constants/Url.dart';
 import 'package:doctordesktop/reception/AssignScreen.dart';
@@ -255,7 +256,7 @@ class _PatientAddScreenState extends State<PatientAddScreen>
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Center(
-                  child: Image.asset("assets/images/logo2.png", height: 100),
+                  child: Image.asset("${AppImages.logo}", height: 100),
                 ),
                 Text(
                   "IPD Patient Registration",
@@ -606,7 +607,7 @@ class _PatientAddScreenState extends State<PatientAddScreen>
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Center(
-                  child: Image.asset("assets/images/logo2.png", height: 100),
+                  child: Image.asset("${AppImages.logo}", height: 100),
                 ),
                 Text(
                   "OPD Patient Registration",
