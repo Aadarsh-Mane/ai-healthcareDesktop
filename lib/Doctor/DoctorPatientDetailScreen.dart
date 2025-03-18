@@ -1081,7 +1081,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Prescription Details',
+                'Prescription Detail',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       color: Colors.teal,
                     ),
