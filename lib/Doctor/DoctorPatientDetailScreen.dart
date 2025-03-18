@@ -1073,7 +1073,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
 
   Widget _buildPrescriptionLayout() {
     return SizedBox(
-      height: 500,
+      height: 600,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: SingleChildScrollView(
@@ -1803,20 +1803,6 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                             children: [
                               _buildSectionContainer(
                                 context,
-                                buildDiagnosisLayout(
-                                    admissionId: admissionId,
-                                    patientId: patientId,
-                                    addDoctorDiagnosis:
-                                        doctor.addDoctorDiagnosis,
-                                    fetchDoctorDiagnosis:
-                                        doctor.fetchDoctorDiagnosis),
-                                title: 'Diagnosis',
-                              ),
-                              SizedBox(
-                                height: 16,
-                              ),
-                              _buildSectionContainer(
-                                context,
                                 Column(
                                   children: [
                                     _buildSymptomsLayout(
@@ -1833,7 +1819,21 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                                   ],
                                 ),
                                 title: 'Symptoms',
-                              )
+                              ),
+                              _buildSectionContainer(
+                                context,
+                                buildDiagnosisLayout(
+                                    admissionId: admissionId,
+                                    patientId: patientId,
+                                    addDoctorDiagnosis:
+                                        doctor.addDoctorDiagnosis,
+                                    fetchDoctorDiagnosis:
+                                        doctor.fetchDoctorDiagnosis),
+                                title: 'Diagnosis',
+                              ),
+                              SizedBox(
+                                height: 16,
+                              ),
                             ],
                           ),
                         ],
