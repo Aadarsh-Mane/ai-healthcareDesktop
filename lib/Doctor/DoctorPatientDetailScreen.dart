@@ -946,6 +946,13 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
   // }
 
   Future<void> _addPrescription() async {
+    if (selectedMedicines.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please add at least one medicine')),
+      );
+      return;
+    }
+
     final morningDosage = morningDosageController.text.isEmpty
         ? '0'
         : morningDosageController.text;
@@ -954,25 +961,40 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
         : afternoonDosageController.text;
     final nightDosage =
         nightDosageController.text.isEmpty ? '0' : nightDosageController.text;
-    final medicine = Medicine(
-      name: selectedMedicines,
-      morning: morningDosage,
-      afternoon: afternoonDosage,
-      night: nightDosage,
-      comment: commentController.text,
-    );
+    final comment = commentController.text;
 
-    final doctorPrescription = DoctorPrescription(medicine: medicine);
+    // Split the medicines into a list
+    List<String> medicinesList =
+        selectedMedicines.split(', ').where((med) => med.isNotEmpty).toList();
 
     try {
-      await doctor.addPrescription(
-        widget.patient.patientId,
-        widget.patient.admissionRecords.first.id,
-        doctorPrescription,
-      );
+      // Create a counter for successful additions
+      int successCount = 0;
+
+      // Add each medicine individually
+      for (String medicineName in medicinesList) {
+        final medicine = Medicine(
+          name: medicineName.trim(), // Ensure no extra spaces
+          morning: morningDosage,
+          afternoon: afternoonDosage,
+          night: nightDosage,
+          comment: comment,
+        );
+
+        final doctorPrescription = DoctorPrescription(medicine: medicine);
+
+        await doctor.addPrescription(
+          widget.patient.patientId,
+          widget.patient.admissionRecords.first.id,
+          doctorPrescription,
+        );
+
+        successCount++;
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Prescription added successfully')),
+        SnackBar(
+            content: Text('$successCount prescriptions added successfully')),
       );
 
       setState(() {
@@ -1633,19 +1655,6 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 ElevatedButton(
-                  onPressed: _clearVitalsFields,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xffff96a8),
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 14, horizontal: 24),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text('Clear',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton(
                   onPressed: _addVitals,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Color(0xffff96a8),
@@ -1658,6 +1667,22 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                       style: TextStyle(
                           fontWeight: FontWeight.bold, color: Colors.black)),
                 ),
+                SizedBox(
+                  width: 12,
+                ),
+                ElevatedButton(
+                  onPressed: _clearVitalsFields,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xffff96a8),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 14, horizontal: 24),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Clear',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(width: 12),
               ],
             ),
           ],
@@ -1786,6 +1811,28 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                                     fetchDoctorDiagnosis:
                                         doctor.fetchDoctorDiagnosis),
                                 title: 'Diagnosis',
+                              ),
+                              SizedBox(
+                                height: 16,
+                              ),
+                              _buildSectionContainer(
+                                context,
+                                Column(
+                                  children: [
+                                    _buildSymptomsLayout(
+                                        context, ref, patientId, admissionId),
+                                    const SizedBox(height: 12),
+                                    Divider(),
+                                    // buildDiagnosisLayout(
+                                    //     admissionId: admissionId,
+                                    //     patientId: patientId,
+                                    //     addDoctorDiagnosis:
+                                    //         doctor.addDoctorDiagnosis,
+                                    //     fetchDoctorDiagnosis:
+                                    //         doctor.fetchDoctorDiagnosis),
+                                  ],
+                                ),
+                                title: 'Symptoms',
                               )
                             ],
                           ),
@@ -1803,25 +1850,25 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                             title: 'Prescription Management',
                           ),
                           const SizedBox(height: 16),
-                          _buildSectionContainer(
-                            context,
-                            Column(
-                              children: [
-                                _buildSymptomsLayout(
-                                    context, ref, patientId, admissionId),
-                                const SizedBox(height: 12),
-                                Divider(),
-                                // buildDiagnosisLayout(
-                                //     admissionId: admissionId,
-                                //     patientId: patientId,
-                                //     addDoctorDiagnosis:
-                                //         doctor.addDoctorDiagnosis,
-                                //     fetchDoctorDiagnosis:
-                                //         doctor.fetchDoctorDiagnosis),
-                              ],
-                            ),
-                            title: 'Symptoms',
-                          ),
+                          // _buildSectionContainer(
+                          //   context,
+                          //   Column(
+                          //     children: [
+                          //       _buildSymptomsLayout(
+                          //           context, ref, patientId, admissionId),
+                          //       const SizedBox(height: 12),
+                          //       Divider(),
+                          //       // buildDiagnosisLayout(
+                          //       //     admissionId: admissionId,
+                          //       //     patientId: patientId,
+                          //       //     addDoctorDiagnosis:
+                          //       //         doctor.addDoctorDiagnosis,
+                          //       //     fetchDoctorDiagnosis:
+                          //       //         doctor.fetchDoctorDiagnosis),
+                          //     ],
+                          //   ),
+                          //   title: 'Symptoms',
+                          // ),
                         ],
                       ),
                     ),
@@ -2233,6 +2280,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     final url =
         '${KVM_URL}/reception/getDoctorAdvice/${patientId}/${admissionId}';
     try {
+      print("john cenw");
       final response = await http.get(Uri.parse(url));
       print("body res ${response.body}");
       final data = jsonDecode(response.body);
