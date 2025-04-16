@@ -7,6 +7,7 @@ import 'package:doctordesktop/Admin/BedManagement.dart';
 import 'package:doctordesktop/Admin/ReceptionAuthDialog.dart';
 import 'package:doctordesktop/Check.dart';
 import 'package:doctordesktop/Doctor/AddMedicine.dart';
+import 'package:doctordesktop/External/DashBoard.dart';
 import 'package:doctordesktop/Lab/LabAuthDialog.dart';
 import 'package:doctordesktop/Lab/LabScreen.dart';
 import 'package:doctordesktop/Working.dart';
@@ -170,16 +171,16 @@ class _HomeScreenState extends State<HomeScreen>
               );
             },
           ),
-          // ListTile(
-          //   leading: Icon(Icons.person_add_alt_1),
-          //   title: Text('Register Patient'),
-          //   onTap: () {
-          //     Navigator.push(
-          //       context,
-          //       MaterialPageRoute(builder: (context) => Desktop3DScreen()),
-          //     );
-          //   },
-          // ),
+          ListTile(
+            leading: Icon(Icons.person_add_alt_1),
+            title: Text('External Dashboard'),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => DoctorDashboard()),
+              );
+            },
+          ),
           ListTile(
             leading: Icon(Icons.list),
             title: Text('Patient List'),
