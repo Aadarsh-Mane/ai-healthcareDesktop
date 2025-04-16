@@ -1,3 +1,4 @@
+import 'package:doctordesktop/Doctor/AdmitNoteDialog.dart';
 import 'package:doctordesktop/Doctor/DoctorAdmittedPatientScreen.dart';
 import 'package:doctordesktop/Doctor/DoctorPatientDetailScreen.dart';
 import 'package:doctordesktop/StateProvider.dart';
@@ -605,12 +606,28 @@ Future<void> _admitPatient(
       throw Exception('No admission records found for this patient.');
     }
 
-    final admissionId = patient.admissionRecords.first
-        .id; // Adjust logic if not using the first record
+    final admissionId = patient.admissionRecords.first.id;
+
+    // Show our new admission dialog and get the admit note
+    final admitNote = await showDialog<String>(
+      context: context,
+      builder: (context) => AdmitPatientDialog(
+        patientName: patient.name,
+        onAdmit: (String location) {
+          // Handle the admit action here if needed
+          // For now, we just return the location
+          Navigator.of(context).pop(location);
+        },
+      ),
+    );
+
+    // If dialog was dismissed without selecting, return early
+    if (admitNote == null) return;
 
     final authRepository = ref.read(authRepositoryProvider);
     final result = await authRepository.admitPatient1(
       admissionId: admissionId,
+      admitNote: admitNote, // Pass the admit note to the repository function
     );
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -620,7 +637,6 @@ Future<void> _admitPatient(
             (result['success'] as bool? ?? false) ? Colors.green : Colors.red,
       ),
     );
-    ;
 
     ref.refresh(assignedPatientsProvider.notifier).fetchAssignedPatients();
   } catch (e) {

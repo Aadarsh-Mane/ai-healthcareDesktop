@@ -1,20 +1,28 @@
 import 'dart:ffi';
+import 'dart:ui';
 
 import 'package:doctordesktop/Doctor/AddDiagnosisScreen.dart';
+import 'package:doctordesktop/Doctor/AddMedicine.dart';
 import 'package:doctordesktop/Doctor/AddPrescriptionDialod.dart';
 import 'package:doctordesktop/Doctor/AddSymptomsScreen.dart';
+import 'package:doctordesktop/Doctor/AdmitNoteDialog.dart';
 import 'package:doctordesktop/Doctor/Animate.dart';
 import 'package:doctordesktop/Doctor/DoctorAdmittedPatientScreen.dart';
 import 'package:doctordesktop/Doctor/DoctorConsultantScreen.dart';
+import 'package:doctordesktop/Doctor/DoctorMainScreen.dart';
 import 'package:doctordesktop/Doctor/PatientHistoryDetailScreen.dart';
 import 'package:doctordesktop/Doctor/Tabs/DiagnosisScreen.dart';
 import 'package:doctordesktop/Doctor/Tabs/PatientCheck.dart';
 import 'package:doctordesktop/Doctor/Tabs/PatientProfileScreen.dart';
 import 'package:doctordesktop/Doctor/Tabs/PrescriptionScreen.dart';
 import 'package:doctordesktop/Doctor/Tabs/SymtomsScreen.dart';
+import 'package:doctordesktop/Doctor/Tabs/TreatMent.dart';
 import 'package:doctordesktop/Doctor/Tabs/VitalsScreen.dart';
+import 'package:doctordesktop/Doctor/da.dart';
+import 'package:doctordesktop/Doctor/doctornote.dart';
 import 'package:doctordesktop/StateProvider.dart';
 import 'package:doctordesktop/authProvider/auth_provider.dart';
+import 'package:doctordesktop/constants/HospitalTheme.dart';
 import 'package:doctordesktop/constants/Methods.dart';
 import 'package:doctordesktop/constants/colors.dart';
 import 'package:doctordesktop/repositories/doctor_repository.dart';
@@ -85,7 +93,9 @@ class PatientDetailScreen4 extends StatefulWidget {
 class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     with SingleTickerProviderStateMixin {
   bool _isLoading = false; // Track loading state
-
+  bool _isNotesExpanded = false;
+  bool _showFloatingNotes = false;
+  final GlobalKey _notesButtonKey = GlobalKey();
   late TabController _tabController;
   int _currentTabIndex = 0; // Track the current tab index
   final doctor = DoctorRepository();
@@ -110,6 +120,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
   void initState() {
     super.initState();
     _fetchPrescriptions();
+    _fetchMedicines();
     // initializeTts();
     // _flutterTts = FlutterTts();
 
@@ -117,7 +128,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     _refreshConsultations();
     _prescriptionsFuture =
         doctor.fetchConsultant(widget.patient.admissionRecords.first.id);
-    _tabController = TabController(length: 7, vsync: this);
+    _tabController = TabController(length: 8, vsync: this);
     _tabController.addListener(() {
       if (_tabController.indexIsChanging || !_tabController.indexIsChanging) {
         setState(() {
@@ -271,12 +282,26 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
         throw Exception('No admission records found for this patient.');
       }
 
-      final admissionId = patient.admissionRecords.first
-          .id; // Adjust logic if not using the first record
+      final admissionId = patient.admissionRecords.first.id;
+
+      // Show our new admission dialog and get the admit note
+      final admitNote = await showDialog<String>(
+        context: context,
+        builder: (context) => AdmitPatientDialog(
+          patientName: patient.name,
+          onAdmit: (String location) {
+            Navigator.of(context).pop(location);
+          },
+        ),
+      );
+
+      // If dialog was dismissed without selecting, return early
+      if (admitNote == null) return;
 
       final authRepository = ref.read(authRepositoryProvider);
       final result = await authRepository.admitPatient1(
         admissionId: admissionId,
+        admitNote: admitNote, // Pass the admit note to the repository function
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -286,7 +311,6 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
               (result['success'] as bool? ?? false) ? Colors.green : Colors.red,
         ),
       );
-      ;
 
       ref.refresh(assignedPatientsProvider.notifier).fetchAssignedPatients();
     } catch (e) {
@@ -604,7 +628,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
   //               }
   //             },
   //             child: Text('Submit'),
-  //           ),
+  //           ),class ViewHomeIntent extends Intent {}
   //         ],
   //       );
   //     },
@@ -617,298 +641,769 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     return Consumer(
       builder: (context, ref, child) {
         return Shortcuts(
-          shortcuts: <LogicalKeySet, Intent>{
-            LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyD):
-                AddDiagnosisIntent(),
-            LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyC):
-                AddDoctorConsultingIntent(),
-            LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyP):
-                AddPrescriptionIntent(),
-            LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyV):
-                AddVitalsIntent(),
-            LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyS):
-                AddSymtomsIntent(),
-            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyO):
-                ViewOverviewIntent(),
-            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyV):
-                ViewVitalsIntent(),
-            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyS):
-                ViewSymptomsIntent(),
-            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyF):
-                ViewFollowUpsIntent(),
-            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyP):
-                ViewPrescriptionIntent(),
-            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyC):
-                ViewConsultationIntent(),
-            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyD):
-                ViewDiagnosisIntent(),
-          },
-          child: Actions(
-            actions: <Type, Action<Intent>>{
-              AddDiagnosisIntent: CallbackAction<AddDiagnosisIntent>(
-                onInvoke: (intent) {
-                  openAddDiagnosisScreen(widget.patient.patientId,
-                      widget.patient.admissionRecords.first.id);
-                  return null;
-                },
-              ),
-              AddDoctorConsultingIntent:
-                  CallbackAction<AddDoctorConsultingIntent>(
-                onInvoke: (intent) {
-                  _openAddDoctorConsultingScreen(widget.patient.patientId,
-                      widget.patient.admissionRecords.first.id);
-                  return null;
-                },
-              ),
-              AddPrescriptionIntent: CallbackAction<AddPrescriptionIntent>(
-                onInvoke: (intent) {
-                  _openAddPrescriptionScreen(widget.patient.patientId,
-                      widget.patient.admissionRecords.first.id);
-                  return null;
-                },
-              ),
-              AddVitalsIntent: CallbackAction<AddVitalsIntent>(
-                onInvoke: (intent) {
-                  _openAddVitalsDialog(widget.patient.patientId,
-                      widget.patient.admissionRecords.first.id);
-                  return null;
-                },
-              ),
-              AddSymtomsIntent: CallbackAction<AddSymtomsIntent>(
-                onInvoke: (intent) {
-                  _openAddSymptomsScreen(widget.patient.patientId,
-                      widget.patient.admissionRecords.first.id);
-                  return null;
-                },
-              ),
-              ViewOverviewIntent: CallbackAction<ViewOverviewIntent>(
-                onInvoke: (intent) {
-                  setState(() {
-                    _selectedTabIndex = 0;
-                    _tabController.animateTo(0);
-                  });
-                  return null;
-                },
-              ),
-              ViewVitalsIntent: CallbackAction<ViewVitalsIntent>(
-                onInvoke: (intent) {
-                  setState(() {
-                    _selectedTabIndex = 1;
-                    _tabController.animateTo(1);
-                  });
-                  return null;
-                },
-              ),
-              ViewSymptomsIntent: CallbackAction<ViewSymptomsIntent>(
-                onInvoke: (intent) {
-                  setState(() {
-                    _selectedTabIndex = 2;
-                    _tabController.animateTo(2);
-                  });
-                  return null;
-                },
-              ),
-              ViewFollowUpsIntent: CallbackAction<ViewFollowUpsIntent>(
-                onInvoke: (intent) {
-                  setState(() {
-                    _selectedTabIndex = 3;
-                    _tabController.animateTo(3);
-                  });
-                  return null;
-                },
-              ),
-              ViewPrescriptionIntent: CallbackAction<ViewPrescriptionIntent>(
-                onInvoke: (intent) {
-                  setState(() {
-                    _selectedTabIndex = 4;
-                    _tabController.animateTo(4);
-                  });
-                  return null;
-                },
-              ),
-              ViewConsultationIntent: CallbackAction<ViewConsultationIntent>(
-                onInvoke: (intent) {
-                  setState(() {
-                    _selectedTabIndex = 5;
-                    _tabController.animateTo(5);
-                  });
-                  return null;
-                },
-              ),
-              ViewDiagnosisIntent: CallbackAction<ViewDiagnosisIntent>(
-                onInvoke: (intent) {
-                  setState(() {
-                    _selectedTabIndex = 6;
-                    _tabController.animateTo(6);
-                  });
-                  return null;
-                },
-              ),
+            shortcuts: <LogicalKeySet, Intent>{
+              LogicalKeySet(
+                      LogicalKeyboardKey.control, LogicalKeyboardKey.keyD):
+                  AddDiagnosisIntent(),
+              LogicalKeySet(
+                      LogicalKeyboardKey.control, LogicalKeyboardKey.keyC):
+                  AddDoctorConsultingIntent(),
+              LogicalKeySet(
+                      LogicalKeyboardKey.control, LogicalKeyboardKey.keyP):
+                  AddPrescriptionIntent(),
+              LogicalKeySet(
+                      LogicalKeyboardKey.control, LogicalKeyboardKey.keyV):
+                  AddVitalsIntent(),
+              LogicalKeySet(
+                      LogicalKeyboardKey.control, LogicalKeyboardKey.keyS):
+                  AddSymtomsIntent(),
+              LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyO):
+                  ViewOverviewIntent(),
+              LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyV):
+                  ViewVitalsIntent(),
+              LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyS):
+                  ViewSymptomsIntent(),
+              LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyF):
+                  ViewFollowUpsIntent(),
+              LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyP):
+                  ViewPrescriptionIntent(),
+              LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyC):
+                  ViewConsultationIntent(),
+              LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyD):
+                  ViewDiagnosisIntent(),
+              LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyT):
+                  ViewTreatMentIntent(),
+              LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyH):
+                  ViewHomeIntent(),
             },
-            child: Focus(
-              autofocus: true,
-              child: Scaffold(
-                appBar: AppBar(
-                  title: Text('${widget.patient.name} Details'),
-                  backgroundColor: Colors.teal,
-                  elevation: 5,
+            child: Actions(
+              actions: <Type, Action<Intent>>{
+                AddDiagnosisIntent: CallbackAction<AddDiagnosisIntent>(
+                  onInvoke: (intent) {
+                    openAddDiagnosisScreen(widget.patient.patientId,
+                        widget.patient.admissionRecords.first.id);
+                    return null;
+                  },
                 ),
-                body: Row(
-                  children: [
-                    // Sidebar
-                    NavigationRail(
-                      backgroundColor: AppColors.bgColor,
-                      selectedIndex: _selectedTabIndex,
-                      onDestinationSelected: (index) {
-                        setState(() {
-                          _selectedTabIndex = index;
-                          _tabController.animateTo(index);
-                        });
-                      },
-                      labelType: NavigationRailLabelType.all,
-                      destinations: [
-                        NavigationRailDestination(
-                          icon: Image.asset(
-                            'assets/images/okk.png', // Path to your image asset
-                            width: 24, // Adjust size as needed
-                            height: 24,
-                          ),
-                          label: Text('Overview'),
+                AddDoctorConsultingIntent:
+                    CallbackAction<AddDoctorConsultingIntent>(
+                  onInvoke: (intent) {
+                    _openAddDoctorConsultingScreen(widget.patient.patientId,
+                        widget.patient.admissionRecords.first.id);
+                    return null;
+                  },
+                ),
+                AddPrescriptionIntent: CallbackAction<AddPrescriptionIntent>(
+                  onInvoke: (intent) {
+                    _openAddPrescriptionScreen(widget.patient.patientId,
+                        widget.patient.admissionRecords.first.id);
+                    return null;
+                  },
+                ),
+                AddVitalsIntent: CallbackAction<AddVitalsIntent>(
+                  onInvoke: (intent) {
+                    _openAddVitalsDialog(widget.patient.patientId,
+                        widget.patient.admissionRecords.first.id);
+                    return null;
+                  },
+                ),
+                AddSymtomsIntent: CallbackAction<AddSymtomsIntent>(
+                  onInvoke: (intent) {
+                    _openAddSymptomsScreen(widget.patient.patientId,
+                        widget.patient.admissionRecords.first.id);
+                    return null;
+                  },
+                ),
+                ViewOverviewIntent: CallbackAction<ViewOverviewIntent>(
+                  onInvoke: (intent) {
+                    setState(() {
+                      _selectedTabIndex = 0;
+                      _tabController.animateTo(0);
+                    });
+                    return null;
+                  },
+                ),
+                ViewVitalsIntent: CallbackAction<ViewVitalsIntent>(
+                  onInvoke: (intent) {
+                    setState(() {
+                      _selectedTabIndex = 1;
+                      _tabController.animateTo(1);
+                    });
+                    return null;
+                  },
+                ),
+                ViewSymptomsIntent: CallbackAction<ViewSymptomsIntent>(
+                  onInvoke: (intent) {
+                    setState(() {
+                      _selectedTabIndex = 2;
+                      _tabController.animateTo(2);
+                    });
+                    return null;
+                  },
+                ),
+                ViewFollowUpsIntent: CallbackAction<ViewFollowUpsIntent>(
+                  onInvoke: (intent) {
+                    setState(() {
+                      _selectedTabIndex = 3;
+                      _tabController.animateTo(3);
+                    });
+                    return null;
+                  },
+                ),
+                ViewPrescriptionIntent: CallbackAction<ViewPrescriptionIntent>(
+                  onInvoke: (intent) {
+                    setState(() {
+                      _selectedTabIndex = 4;
+                      _tabController.animateTo(4);
+                    });
+                    return null;
+                  },
+                ),
+                ViewConsultationIntent: CallbackAction<ViewConsultationIntent>(
+                  onInvoke: (intent) {
+                    setState(() {
+                      _selectedTabIndex = 5;
+                      _tabController.animateTo(5);
+                    });
+                    return null;
+                  },
+                ),
+                ViewDiagnosisIntent: CallbackAction<ViewDiagnosisIntent>(
+                  onInvoke: (intent) {
+                    setState(() {
+                      _selectedTabIndex = 6;
+                      _tabController.animateTo(6);
+                    });
+                    return null;
+                  },
+                ),
+                ViewTreatMentIntent: CallbackAction<ViewTreatMentIntent>(
+                  onInvoke: (intent) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => TreatmentDashboard(
+                          patientId: widget.patient.patientId,
+                          admissionId: widget.patient.admissionRecords.first.id,
                         ),
-                        NavigationRailDestination(
-                          icon: Image.asset(
-                            'assets/images/vitals.png', // Path to your image asset
-                            width: 24, // Adjust size as needed
-                            height: 24,
-                          ),
-                          label: Text('Vitals'),
+                      ),
+                    );
+                    return null;
+                  },
+                ),
+                ViewHomeIntent: CallbackAction<ViewHomeIntent>(
+                  onInvoke: (intent) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DoctorHomeScreen(),
+                      ),
+                    );
+                    return null;
+                  },
+                ),
+              },
+              child: Focus(
+                autofocus: true,
+                child: Scaffold(
+                  body: Row(
+                    children: [
+                      // Modern Sidebar
+
+                      // Main Content Area
+                      Container(
+                        width: 300,
+                        decoration: BoxDecoration(
+                          color: Color(0xFF1E2843), // Deep navy background
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.3),
+                              blurRadius: 15,
+                              offset: Offset(3, 0),
+                            )
+                          ],
                         ),
-                        NavigationRailDestination(
-                          icon: Image.asset(
-                            'assets/images/symptoms.png', // Path to your image asset
-                            width: 24, // Adjust size as needed
-                            height: 24,
-                          ),
-                          label: Text('Symptoms'),
+                        child: Column(
+                          children: [
+                            // Enhanced Header
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                  vertical: 30, horizontal: 20),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Color(0xFF2C3E50),
+                                    Color(0xFF34495E),
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.white.withOpacity(0.3),
+                                        width: 3,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black26,
+                                          blurRadius: 10,
+                                        )
+                                      ],
+                                    ),
+                                    child: CircleAvatar(
+                                      radius: 40,
+                                      backgroundColor:
+                                          Colors.white.withOpacity(0.1),
+                                      child: Image.asset(
+                                          'assets/images/icon1.png'),
+                                      // child: Icon(
+                                      //   Icons.person,
+                                      //   color: Colors.white,
+                                      //   size: 45,
+                                      // ),
+                                    ),
+                                  ),
+                                  SizedBox(width: 15),
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        widget.patient.name,
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                      SizedBox(height: 5),
+                                      Text(
+                                        'Patient ID: ${widget.patient.patientId}',
+                                        style: TextStyle(
+                                          color: Colors.white54,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // Navigation Items with Improved Design
+                            Expanded(
+                              child: ListView(
+                                padding: EdgeInsets.symmetric(vertical: 20),
+                                children: [
+                                  _buildNavItem(
+                                    index: 0,
+                                    icon: Icons.dashboard,
+                                    label: 'Overview',
+                                  ),
+                                  _buildNavItem(
+                                    index: 1,
+                                    icon: Icons.monitor_heart,
+                                    label: 'Vitals',
+                                  ),
+                                  _buildNavItem(
+                                    index: 2,
+                                    icon: Icons.medical_information,
+                                    label: 'Symptoms',
+                                  ),
+                                  _buildNavItem(
+                                    index: 3,
+                                    icon: Icons.calendar_today,
+                                    label: 'Follow Ups',
+                                  ),
+                                  _buildNavItem(
+                                    index: 4,
+                                    icon: Icons.medication,
+                                    label: 'Prescription',
+                                  ),
+                                  _buildNavItem(
+                                    index: 5,
+                                    icon: Icons.medical_services,
+                                    label: 'Consultation',
+                                  ),
+                                  _buildNavItem(
+                                    index: 6,
+                                    icon: Icons.local_hospital,
+                                    label: 'Diagnosis',
+                                  ),
+                                  _buildNavItem(
+                                    index: 7,
+                                    icon: Icons.healing,
+                                    label: 'Treatment',
+                                  ),
+                                  _buildNavItem(
+                                    index: 8, // Different index than Treatment
+                                    icon: Icons.home,
+                                    label: 'Home',
+                                    onCustomTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              DoctorHomeScreen(),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                        NavigationRailDestination(
-                          icon: Image.asset(
-                            'assets/images/chemotherapy.png', // Path to your image asset
-                            width: 24, // Adjust size as needed
-                            height: 24,
+                      ),
+
+                      // Main Content Area
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(20),
+                              bottomLeft: Radius.circular(20),
+                            ),
                           ),
-                          label: Text('Follow Ups'),
-                        ),
-                        NavigationRailDestination(
-                          icon: Image.asset(
-                            'assets/images/medical-folder.png', // Path to your image asset
-                            width: 24, // Adjust size as needed
-                            height: 24,
+                          child: Column(
+                            children: [
+                              // Top App Bar with Modern Design
+                              Container(
+                                height: 70,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.grey.withOpacity(0.2),
+                                      blurRadius: 15,
+                                      spreadRadius: 2,
+                                      offset: Offset(0, 4),
+                                    )
+                                  ],
+                                  borderRadius: BorderRadius.circular(
+                                      12), // Soft rounded corners
+                                ),
+                                child: Row(
+                                  children: [
+                                    // Patient Name with Subtle Gradient
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 25),
+                                      child: Row(
+                                        children: [
+                                          // Optional Patient Avatar
+                                          CircleAvatar(
+                                            radius: 20,
+                                            backgroundColor: Color(0xFF1E2843)
+                                                .withOpacity(0.1),
+                                            child: Text(
+                                              widget.patient.name
+                                                  .substring(0, 1)
+                                                  .toUpperCase(),
+                                              style: TextStyle(
+                                                color: Color(0xFF1E2843),
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                          SizedBox(width: 15),
+                                          Text(
+                                            '${widget.patient.name} - Patient Details',
+                                            style: TextStyle(
+                                              fontSize: 22,
+                                              fontWeight: FontWeight.w600,
+                                              color: Color(0xFF1E2843),
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Spacer(),
+
+                                    // Advanced Action Buttons with Hover Effects
+                                    Row(
+                                      children: [
+                                        // Notification Button with Badge
+                                        Stack(
+                                          children: [
+                                            IconButton(
+                                              icon: Icon(
+                                                Icons.notifications_outlined,
+                                                color: Colors.grey.shade700,
+                                              ),
+                                              onPressed: () {
+                                                // Notification handling
+                                              },
+                                              // Hover effect
+                                              hoverColor: Color(0xFF1E2843)
+                                                  .withOpacity(0.1),
+                                            ),
+                                            // Notification Badge
+                                            Positioned(
+                                              right: 5,
+                                              top: 5,
+                                              child: Container(
+                                                padding: EdgeInsets.all(4),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.red,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: Text(
+                                                  '3', // Number of notifications
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+
+                                        SizedBox(width: 10),
+
+                                        // Settings Button with Tooltip
+                                        Tooltip(
+                                          message: 'Open Settings',
+                                          child: IconButton(
+                                            icon: Icon(
+                                              Icons.settings_outlined,
+                                              color: Colors.grey.shade700,
+                                            ),
+                                            onPressed: () {
+                                              // Settings handling
+                                            },
+                                            // Hover effect
+                                            hoverColor: Color(0xFF1E2843)
+                                                .withOpacity(0.1),
+                                          ),
+                                        ),
+
+                                        SizedBox(width: 20),
+
+                                        // User Profile Section
+                                        Row(
+                                          children: [
+                                            CircleAvatar(
+                                              radius: 18,
+                                              backgroundImage: NetworkImage(
+                                                'https://t4.ftcdn.net/jpg/06/44/40/73/360_F_644407316_3aGuf15OnNGTbCRxRB7rWa7lIkfLqE4L.jpg', // Replace with actual user avatar
+                                              ),
+                                            ),
+                                            SizedBox(width: 10),
+                                            Column(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'Dr. John Doe', // Current user name
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Color(0xFF1E2843),
+                                                  ),
+                                                ),
+                                                Text(
+                                                  'Physician', // User role
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.grey.shade600,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            SizedBox(width: 10),
+                                            // Dropdown for user actions
+                                            PopupMenuButton<String>(
+                                              icon: Icon(
+                                                Icons.keyboard_arrow_down,
+                                                color: Colors.grey.shade700,
+                                              ),
+                                              itemBuilder:
+                                                  (BuildContext context) => [
+                                                PopupMenuItem(
+                                                  value: 'profile',
+                                                  child: Text('Profile'),
+                                                ),
+                                                PopupMenuItem(
+                                                  value: 'logout',
+                                                  child: Text('Logout'),
+                                                ),
+                                              ],
+                                              onSelected: (String value) {
+                                                // Handle user actions
+                                                switch (value) {
+                                                  case 'profile':
+                                                    // Navigate to profile
+                                                    break;
+                                                  case 'logout':
+                                                    // Logout logic
+                                                    break;
+                                                }
+                                              },
+                                            ),
+                                          ],
+                                        ),
+
+                                        SizedBox(width: 20),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              // Main Content (TabBarView)
+                              Expanded(
+                                child: TabBarView(
+                                  controller: _tabController,
+                                  children: [
+                                    // Existing screen implementations remain the same
+                                    _buildFourSquareLayout(
+                                        context,
+                                        ref,
+                                        widget.patient.patientId,
+                                        widget
+                                            .patient.admissionRecords.first.id),
+                                    VitalsScreen(
+                                        patientId: widget.patient.patientId,
+                                        admissionId: widget
+                                            .patient.admissionRecords.first.id),
+                                    SymptomsScreen(
+                                        patientId: widget.patient.patientId,
+                                        admissionId: widget
+                                            .patient.admissionRecords.first.id),
+                                    _buildFollowUpAnd2hrSection(widget
+                                        .patient.admissionRecords.first.id),
+                                    DoctorPrescriptionsScreen(
+                                        patientId: widget.patient.patientId,
+                                        admissionId: widget
+                                            .patient.admissionRecords.first.id),
+                                    _buildDoctorConsultingSection(),
+                                    DiagnosisScreen(
+                                        patientId: widget.patient.patientId,
+                                        admissionId: widget
+                                            .patient.admissionRecords.first.id),
+                                    TreatmentDashboard(
+                                        patientId: widget.patient.patientId,
+                                        admissionId: widget
+                                            .patient.admissionRecords.first.id)
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                          label: Text('Prescription'),
                         ),
-                        NavigationRailDestination(
-                          icon: Image.asset(
-                            'assets/images/coo.png', // Path to your image asset
-                            width: 24, // Adjust size as needed
-                            height: 24,
-                          ),
-                          label: Text('Consultation'),
-                        ),
-                        NavigationRailDestination(
-                          icon: Image.asset(
-                            'assets/images/diagnostic.png', // Path to your image asset
-                            width: 24, // Adjust size as needed
-                            height: 24,
-                          ),
-                          label: const Text('Diagnosis'),
-                        ),
+                      ),
+                    ],
+                  ),
+                  floatingActionButtonLocation: ExpandableFab.location,
+                  floatingActionButton: ExpandableFab(
+                    distance: 100.0,
+                    type: ExpandableFabType.up,
+                    children: [
+                      FloatingActionButton.extended(
+                        label: const Text('Add Diagnosis'),
+                        heroTag: 'fab1',
+                        onPressed: () {
+                          openAddDiagnosisScreen(widget.patient.patientId,
+                              widget.patient.admissionRecords.first.id);
+                        },
+                      ),
+                      FloatingActionButton.extended(
+                        label: const Text('Add Doctor Consulting'),
+                        heroTag: 'fab2',
+                        onPressed: () {
+                          _openAddDoctorConsultingScreen(
+                              widget.patient.patientId,
+                              widget.patient.admissionRecords.first.id);
+                        },
+                      ),
+                      FloatingActionButton.extended(
+                        label: const Text('Add Prescription'),
+                        heroTag: 'fab3',
+                        onPressed: () {
+                          _openAddPrescriptionScreen(widget.patient.patientId,
+                              widget.patient.admissionRecords.first.id);
+                        },
+                      ),
+                      FloatingActionButton.extended(
+                        label: const Text('Add Vitals'),
+                        heroTag: 'fab4',
+                        onPressed: () {
+                          _openAddVitalsDialog(widget.patient.patientId,
+                              widget.patient.admissionRecords.first.id);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ));
+      },
+    );
+  }
+
+  Widget _buildNavItem({
+    required int index,
+    required IconData icon,
+    required String label,
+    VoidCallback? onCustomTap,
+  }) {
+    bool isSelected = _selectedTabIndex == index;
+
+    return AnimatedContainer(
+      duration: Duration(milliseconds: 400),
+      curve: Curves.easeInOutQuint,
+      margin: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        gradient: isSelected
+            ? LinearGradient(
+                colors: [
+                  Colors.white,
+                  Colors.white,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              )
+            : null,
+        color: isSelected ? Colors.white.withOpacity(0.2) : Colors.transparent,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(
+          color:
+              isSelected ? Colors.white.withOpacity(0.3) : Colors.transparent,
+          width: 1.5,
+        ),
+        boxShadow: isSelected
+            ? [
+                BoxShadow(
+                  color: Colors.white.withOpacity(0.1),
+                  spreadRadius: 1,
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
+                )
+              ]
+            : [],
+      ),
+      child: Stack(
+        children: [
+          // Main Content
+          ListTile(
+            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+
+            // Leading Icon with Animated Container
+            leading: AnimatedContainer(
+              duration: Duration(milliseconds: 300),
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? Colors.white.withOpacity(0.1)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                icon,
+                color: isSelected ? Colors.white : Colors.white70,
+                size: 24,
+              ),
+            ),
+
+            // Title with Animated Positioning
+            title: AnimatedDefaultTextStyle(
+              duration: Duration(milliseconds: 300),
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.white70,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                fontSize: isSelected ? 16 : 15,
+                letterSpacing: isSelected ? 0.7 : 0.5,
+              ),
+              child: Text(label),
+            ),
+
+            // Trailing Indicator
+            trailing: isSelected
+                ? Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.white.withOpacity(0.5),
+                          spreadRadius: 2,
+                          blurRadius: 5,
+                        )
                       ],
                     ),
+                  )
+                : null,
 
-                    // Main Content (Tabs Section)
-                    Expanded(
-                      child: TabBarView(
-                        controller: _tabController,
-                        children: [
-                          // _buildOverviewSection(context, ref),
-                          _buildFourSquareLayout(
-                              context,
-                              ref,
-                              widget.patient.patientId,
-                              widget.patient.admissionRecords.first.id),
-                          // ModeView(modeName: "Hello",),
-                          VitalsScreen(
-                              patientId: widget.patient.patientId,
-                              admissionId:
-                                  widget.patient.admissionRecords.first.id),
-                          SymptomsScreen(
-                              patientId: widget.patient.patientId,
-                              admissionId:
-                                  widget.patient.admissionRecords.first.id),
+            // Tap Action
+            onTap: () {
+              if (onCustomTap != null) {
+                onCustomTap();
+              } else {
+                setState(() {
+                  // Slide out other items
+                  _selectedTabIndex = index;
+                  _tabController.animateTo(index);
+                });
+              }
+            },
+          ),
 
-                          _buildFollowUpAnd2hrSection(
-                              widget.patient.admissionRecords.first.id),
-                          // _buildDoctorPrescriptionsSection(),
-                          DoctorPrescriptionsScreen(
-                              patientId: widget.patient.patientId,
-                              admissionId:
-                                  widget.patient.admissionRecords.first.id),
-                          _buildDoctorConsultingSection(),
-                          DiagnosisScreen(
-                              patientId:
-                                  widget.patient.patientId, // Add this line
-                              admissionId:
-                                  widget.patient.admissionRecords.first.id),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                floatingActionButtonLocation: ExpandableFab.location,
-                floatingActionButton: ExpandableFab(
-                  distance: 100.0,
-                  type: ExpandableFabType.up,
-                  children: [
-                    FloatingActionButton.extended(
-                      label: const Text('Add Diagnosis'),
-                      heroTag: 'fab1',
-                      onPressed: () {
-                        openAddDiagnosisScreen(widget.patient.patientId,
-                            widget.patient.admissionRecords.first.id);
-                      },
-                    ),
-                    FloatingActionButton.extended(
-                      label: const Text('Add Doctor Consulting'),
-                      heroTag: 'fab2',
-                      onPressed: () {
-                        _openAddDoctorConsultingScreen(widget.patient.patientId,
-                            widget.patient.admissionRecords.first.id);
-                      },
-                    ),
-                    FloatingActionButton.extended(
-                      label: const Text('Add Prescription'),
-                      heroTag: 'fab3',
-                      onPressed: () {
-                        _openAddPrescriptionScreen(widget.patient.patientId,
-                            widget.patient.admissionRecords.first.id);
-                      },
-                    ),
-                    FloatingActionButton.extended(
-                      label: const Text('Add Vitals'),
-                      heroTag: 'fab4',
-                      onPressed: () {
-                        _openAddVitalsDialog(widget.patient.patientId,
-                            widget.patient.admissionRecords.first.id);
-                      },
-                    ),
-                  ],
+          // Footer-like Interaction Layer
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: AnimatedContainer(
+              duration: Duration(milliseconds: 300),
+              height: isSelected ? 5 : 0,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.7),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(15),
+                  bottomRight: Radius.circular(15),
                 ),
               ),
             ),
           ),
-        );
-      },
+
+          // Hover and Interaction Effect
+          Positioned.fill(
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(15),
+                splashColor: Colors.white.withOpacity(0.2),
+                highlightColor: Colors.white.withOpacity(0.1),
+                onTap: () {
+                  if (onCustomTap != null) {
+                    onCustomTap();
+                  } else {
+                    setState(() {
+                      _selectedTabIndex = index;
+                      _tabController.animateTo(index);
+                    });
+                  }
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -944,6 +1439,867 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
   //     ),
   //   );
   // }
+  void _showMedicineSelectionDialog() {
+    // Keep a local copy of the selected medicines for the dialog
+    String localSelectedMedicines = ''; // Start with empty selection in dialog
+    String searchQuery = '';
+    List<Medicine> filteredMedicines = List.from(_medicines);
+    bool isSearching = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          // Filter medicines based on search query
+          if (searchQuery.isNotEmpty) {
+            filteredMedicines = _medicines
+                .where((med) =>
+                    med.name.toLowerCase().contains(searchQuery.toLowerCase()))
+                .toList();
+            isSearching = true;
+          } else {
+            filteredMedicines = List.from(_medicines);
+            isSearching = false;
+          }
+
+          // Get selected medicines count
+          final selectedCount = localSelectedMedicines
+              .split(', ')
+              .where((e) => e.isNotEmpty)
+              .length;
+
+          return Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: HospitalTheme.radiusMedium,
+            ),
+            elevation: 8,
+            insetPadding: EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.85,
+              height: MediaQuery.of(context).size.height * 0.75,
+              decoration: BoxDecoration(
+                color: HospitalTheme.cardBackground,
+                borderRadius: HospitalTheme.radiusMedium,
+                boxShadow: HospitalTheme.shadow,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header with gradient background
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [
+                          HospitalTheme.primaryDark,
+                          HospitalTheme.primary
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(12),
+                        topRight: Radius.circular(12),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.medication,
+                            color: HospitalTheme.textOnPrimary, size: 24),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Medicine Database',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: HospitalTheme.textOnPrimary,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.close,
+                              color: HospitalTheme.textOnPrimary),
+                          onPressed: () => Navigator.of(context).pop(),
+                          tooltip: 'Close',
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Search and Add Medicine row
+                          Row(
+                            children: [
+                              // Search field with clear button
+                              Expanded(
+                                child: TextField(
+                                  decoration: InputDecoration(
+                                    labelText: 'Search Medicines',
+                                    hintText: 'Enter medicine name',
+                                    prefixIcon: Icon(Icons.search,
+                                        color: HospitalTheme.primary),
+                                    suffixIcon: searchQuery.isNotEmpty
+                                        ? IconButton(
+                                            icon: Icon(Icons.clear,
+                                                color: HospitalTheme.primary),
+                                            onPressed: () {
+                                              setDialogState(() {
+                                                searchQuery = '';
+                                              });
+                                            },
+                                          )
+                                        : null,
+                                    border: OutlineInputBorder(
+                                      borderRadius: HospitalTheme.radiusSmall,
+                                      borderSide: BorderSide(
+                                          color: HospitalTheme.border),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: HospitalTheme.radiusSmall,
+                                      borderSide: BorderSide(
+                                          color: HospitalTheme.border),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: HospitalTheme.radiusSmall,
+                                      borderSide: BorderSide(
+                                          color: HospitalTheme.primary,
+                                          width: 2),
+                                    ),
+                                    filled: true,
+                                    fillColor: Colors.white,
+                                  ),
+                                  onChanged: (value) {
+                                    setDialogState(() {
+                                      searchQuery = value;
+                                    });
+                                  },
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              // Button to manage medicines
+                              ElevatedButton.icon(
+                                icon: Icon(Icons.add_box_outlined),
+                                label: Text("Add New"),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: HospitalTheme.pharmacy,
+                                  foregroundColor: HospitalTheme.textOnPrimary,
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 15),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: HospitalTheme.radiusSmall,
+                                  ),
+                                ),
+                                onPressed: () async {
+                                  // Navigate to medicine management screen
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          MedicineManagementScreen(),
+                                    ),
+                                  );
+
+                                  // Close the current dialog
+                                  Navigator.of(context).pop();
+
+                                  // Refresh medicines and reopen the dialog with fresh data
+                                  await _fetchMedicines();
+
+                                  // Small delay to ensure data is refreshed
+                                  await Future.delayed(
+                                      Duration(milliseconds: 300));
+
+                                  // Reopen the dialog with fresh data
+                                  _showMedicineSelectionDialog();
+                                },
+                              ),
+                            ],
+                          ),
+
+                          // Selection summary with badges and stats
+                          Container(
+                            margin: EdgeInsets.symmetric(vertical: 16),
+                            padding: EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color:
+                                  HospitalTheme.surfaceLight.withOpacity(0.7),
+                              borderRadius: HospitalTheme.radiusSmall,
+                              border: Border.all(color: HospitalTheme.border),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        HospitalTheme.buildStatusBadge(
+                                          '$selectedCount selected',
+                                          color: selectedCount > 0
+                                              ? HospitalTheme.medical
+                                              : HospitalTheme.borderDark,
+                                          outline: false,
+                                        ),
+                                        SizedBox(width: 8),
+                                        if (isSearching)
+                                          HospitalTheme.buildStatusBadge(
+                                            '${filteredMedicines.length} Results',
+                                            color: HospitalTheme.info,
+                                            outline: true,
+                                          ),
+                                      ],
+                                    ),
+                                    if (selectedCount > 0)
+                                      TextButton.icon(
+                                        icon: Icon(Icons.clear_all,
+                                            size: 18,
+                                            color: HospitalTheme.warning),
+                                        label: Text('Clear All',
+                                            style: TextStyle(
+                                                color: HospitalTheme.warning)),
+                                        onPressed: () {
+                                          setDialogState(() {
+                                            localSelectedMedicines = '';
+                                          });
+                                          // No need to update parent state
+                                        },
+                                      ),
+                                  ],
+                                ),
+
+                                // Selected medicines display as chips (only inside dialog)
+                                if (localSelectedMedicines.isNotEmpty) ...[
+                                  Divider(height: 16),
+                                  Text(
+                                    'Recently Added Medicines:',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: HospitalTheme.textMedium,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: localSelectedMedicines
+                                        .split(', ')
+                                        .where((e) => e.isNotEmpty)
+                                        .map((med) => Chip(
+                                              label: Text(
+                                                med,
+                                                style: TextStyle(
+                                                  color: HospitalTheme
+                                                      .textOnPrimary,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                              backgroundColor:
+                                                  HospitalTheme.medical,
+                                              deleteIconColor:
+                                                  HospitalTheme.textOnPrimary,
+                                              onDeleted: () {
+                                                final currentMedicines =
+                                                    localSelectedMedicines
+                                                        .split(', ')
+                                                        .where(
+                                                            (e) => e.isNotEmpty)
+                                                        .toList();
+                                                currentMedicines.remove(med);
+
+                                                setDialogState(() {
+                                                  localSelectedMedicines =
+                                                      currentMedicines
+                                                          .join(', ');
+                                                });
+                                                // No need to update parent state
+                                              },
+                                            ))
+                                        .toList(),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+
+                          // Medicines list
+                          Expanded(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: HospitalTheme.radiusSmall,
+                                border: Border.all(color: HospitalTheme.border),
+                              ),
+                              child: _isLoading
+                                  ? Center(
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          CircularProgressIndicator(
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                    HospitalTheme.primary),
+                                          ),
+                                          SizedBox(height: 12),
+                                          Text(
+                                            'Loading medicines...',
+                                            style: TextStyle(
+                                              color: HospitalTheme.textMedium,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    )
+                                  : filteredMedicines.isEmpty
+                                      ? Center(
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.medication_outlined,
+                                                size: 48,
+                                                color: HospitalTheme.textLight,
+                                              ),
+                                              SizedBox(height: 16),
+                                              Text(
+                                                searchQuery.isEmpty
+                                                    ? 'No medicines available in database'
+                                                    : 'No medicines matching "$searchQuery"',
+                                                textAlign: TextAlign.center,
+                                                style: TextStyle(
+                                                  color:
+                                                      HospitalTheme.textMedium,
+                                                  fontSize: 16,
+                                                ),
+                                              ),
+                                              if (searchQuery.isNotEmpty) ...[
+                                                SizedBox(height: 20),
+                                                ElevatedButton.icon(
+                                                  icon: Icon(Icons.add),
+                                                  label: Text(
+                                                      'Add "$searchQuery" to Prescription'),
+                                                  style:
+                                                      ElevatedButton.styleFrom(
+                                                    backgroundColor:
+                                                        HospitalTheme.success,
+                                                    foregroundColor:
+                                                        Colors.white,
+                                                    padding:
+                                                        EdgeInsets.symmetric(
+                                                            horizontal: 20,
+                                                            vertical: 12),
+                                                  ),
+                                                  onPressed: () async {
+                                                    // Create a new medicine with default values
+                                                    final medicine = Medicine(
+                                                      name: searchQuery.trim(),
+                                                      morning: "1",
+                                                      afternoon: "1",
+                                                      night: "1",
+                                                      comment: "",
+                                                    );
+
+                                                    final doctorPrescription =
+                                                        DoctorPrescription(
+                                                            medicine: medicine);
+
+                                                    try {
+                                                      await doctor
+                                                          .addPrescription(
+                                                        widget
+                                                            .patient.patientId,
+                                                        widget
+                                                            .patient
+                                                            .admissionRecords
+                                                            .first
+                                                            .id,
+                                                        doctorPrescription,
+                                                      );
+
+                                                      ScaffoldMessenger.of(
+                                                              context)
+                                                          .showSnackBar(
+                                                        SnackBar(
+                                                          content: Text(
+                                                              '$searchQuery added to prescription'),
+                                                          duration: Duration(
+                                                              seconds: 1),
+                                                        ),
+                                                      );
+
+                                                      _fetchPrescriptions();
+
+                                                      // Update dialog state only
+                                                      final currentMedicines =
+                                                          localSelectedMedicines
+                                                              .split(', ')
+                                                              .where((e) =>
+                                                                  e.isNotEmpty)
+                                                              .toList();
+
+                                                      if (!currentMedicines
+                                                          .contains(
+                                                              searchQuery)) {
+                                                        currentMedicines
+                                                            .add(searchQuery);
+                                                      }
+
+                                                      setDialogState(() {
+                                                        localSelectedMedicines =
+                                                            currentMedicines
+                                                                .join(', ');
+                                                      });
+                                                      // No need to update parent state
+                                                    } catch (e) {
+                                                      print(
+                                                          'Error adding prescription: $e');
+                                                      ScaffoldMessenger.of(
+                                                              context)
+                                                          .showSnackBar(
+                                                        SnackBar(
+                                                            content: Text(
+                                                                'Error: $e')),
+                                                      );
+                                                    }
+                                                  },
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        )
+                                      : ListView.separated(
+                                          itemCount: filteredMedicines.length,
+                                          separatorBuilder: (context, index) =>
+                                              Divider(
+                                                  height: 1,
+                                                  thickness: 1,
+                                                  color: HospitalTheme.border
+                                                      .withOpacity(0.5)),
+                                          itemBuilder: (context, index) {
+                                            final medicine =
+                                                filteredMedicines[index];
+                                            final isSelected =
+                                                localSelectedMedicines
+                                                    .split(', ')
+                                                    .where((e) => e.isNotEmpty)
+                                                    .contains(medicine.name);
+
+                                            return InkWell(
+                                              onTap: () async {
+                                                final currentMedicines =
+                                                    localSelectedMedicines
+                                                        .split(', ')
+                                                        .where(
+                                                            (e) => e.isNotEmpty)
+                                                        .toList();
+
+                                                // Toggle selection on tap
+                                                if (currentMedicines
+                                                    .contains(medicine.name)) {
+                                                  currentMedicines
+                                                      .remove(medicine.name);
+
+                                                  setDialogState(() {
+                                                    localSelectedMedicines =
+                                                        currentMedicines
+                                                            .join(', ');
+                                                  });
+                                                } else {
+                                                  // Immediately add this medicine to the prescription database
+                                                  try {
+                                                    // Create prescription using the medicine's own values
+                                                    final prescription =
+                                                        Medicine(
+                                                      name: medicine.name,
+                                                      morning: medicine.morning,
+                                                      afternoon:
+                                                          medicine.afternoon,
+                                                      night: medicine.night,
+                                                      comment:
+                                                          medicine.comment ??
+                                                              '',
+                                                    );
+
+                                                    final doctorPrescription =
+                                                        DoctorPrescription(
+                                                            medicine:
+                                                                prescription);
+
+                                                    // Add directly to database
+                                                    await doctor
+                                                        .addPrescription(
+                                                      widget.patient.patientId,
+                                                      widget
+                                                          .patient
+                                                          .admissionRecords
+                                                          .first
+                                                          .id,
+                                                      doctorPrescription,
+                                                    );
+
+                                                    // Show success message
+                                                    ScaffoldMessenger.of(
+                                                            context)
+                                                        .showSnackBar(
+                                                      SnackBar(
+                                                        content: Text(
+                                                            '${medicine.name} added to prescription'),
+                                                        duration: Duration(
+                                                            seconds: 1),
+                                                      ),
+                                                    );
+
+                                                    // Update dialog state only
+                                                    currentMedicines
+                                                        .add(medicine.name);
+                                                    setDialogState(() {
+                                                      localSelectedMedicines =
+                                                          currentMedicines
+                                                              .join(', ');
+                                                    });
+
+                                                    // Refresh prescriptions list
+                                                    _fetchPrescriptions();
+                                                  } catch (e) {
+                                                    print(
+                                                        'Error adding prescription: $e');
+                                                    ScaffoldMessenger.of(
+                                                            context)
+                                                        .showSnackBar(
+                                                      SnackBar(
+                                                          content: Text(
+                                                              'Error: $e')),
+                                                    );
+                                                  }
+                                                }
+                                              },
+                                              child: Container(
+                                                color: isSelected
+                                                    ? HospitalTheme.surfaceLight
+                                                    : Colors.transparent,
+                                                child: Padding(
+                                                  padding: const EdgeInsets
+                                                      .symmetric(vertical: 2.0),
+                                                  child: ListTile(
+                                                    contentPadding:
+                                                        EdgeInsets.symmetric(
+                                                            horizontal: 16,
+                                                            vertical: 8),
+                                                    leading: Container(
+                                                      width: 40,
+                                                      height: 40,
+                                                      decoration: BoxDecoration(
+                                                        shape: BoxShape.circle,
+                                                        color: isSelected
+                                                            ? HospitalTheme
+                                                                .medical
+                                                            : HospitalTheme
+                                                                .surfaceLight,
+                                                      ),
+                                                      child: Center(
+                                                        child: Icon(
+                                                          Icons.medication,
+                                                          color: isSelected
+                                                              ? HospitalTheme
+                                                                  .textOnPrimary
+                                                              : HospitalTheme
+                                                                  .medical,
+                                                          size: 18,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    title: Text(
+                                                      medicine.name,
+                                                      style: TextStyle(
+                                                        fontWeight: isSelected
+                                                            ? FontWeight.bold
+                                                            : FontWeight.normal,
+                                                        color: isSelected
+                                                            ? HospitalTheme
+                                                                .primary
+                                                            : HospitalTheme
+                                                                .textDark,
+                                                      ),
+                                                    ),
+                                                    subtitle:
+                                                        medicine.comment !=
+                                                                    null &&
+                                                                medicine.comment
+                                                                    .isNotEmpty
+                                                            ? RichText(
+                                                                text: TextSpan(
+                                                                  style:
+                                                                      TextStyle(
+                                                                    color: HospitalTheme
+                                                                        .textMedium,
+                                                                    fontSize:
+                                                                        12,
+                                                                  ),
+                                                                  children: [
+                                                                    TextSpan(
+                                                                      text:
+                                                                          'Dosage: ',
+                                                                      style:
+                                                                          TextStyle(
+                                                                        fontWeight:
+                                                                            FontWeight.bold,
+                                                                        color: HospitalTheme
+                                                                            .primary
+                                                                            .withOpacity(0.7),
+                                                                      ),
+                                                                    ),
+                                                                    TextSpan(
+                                                                      text:
+                                                                          '${medicine.morning}-${medicine.afternoon}-${medicine.night}',
+                                                                    ),
+                                                                    TextSpan(
+                                                                      text:
+                                                                          ' • ',
+                                                                    ),
+                                                                    TextSpan(
+                                                                      text: medicine
+                                                                          .comment,
+                                                                      style:
+                                                                          TextStyle(
+                                                                        fontStyle:
+                                                                            FontStyle.italic,
+                                                                      ),
+                                                                    ),
+                                                                  ],
+                                                                ),
+                                                              )
+                                                            : RichText(
+                                                                text: TextSpan(
+                                                                  style:
+                                                                      TextStyle(
+                                                                    color: HospitalTheme
+                                                                        .textMedium,
+                                                                    fontSize:
+                                                                        12,
+                                                                  ),
+                                                                  children: [
+                                                                    TextSpan(
+                                                                      text:
+                                                                          'Dosage: ',
+                                                                      style:
+                                                                          TextStyle(
+                                                                        fontWeight:
+                                                                            FontWeight.bold,
+                                                                        color: HospitalTheme
+                                                                            .primary
+                                                                            .withOpacity(0.7),
+                                                                      ),
+                                                                    ),
+                                                                    TextSpan(
+                                                                      text:
+                                                                          '${medicine.morning}-${medicine.afternoon}-${medicine.night}',
+                                                                    ),
+                                                                  ],
+                                                                ),
+                                                              ),
+                                                    trailing: Transform.scale(
+                                                      scale: 1.1,
+                                                      child: Checkbox(
+                                                        activeColor:
+                                                            HospitalTheme
+                                                                .primary,
+                                                        checkColor:
+                                                            HospitalTheme
+                                                                .textOnPrimary,
+                                                        shape:
+                                                            RoundedRectangleBorder(
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(4),
+                                                        ),
+                                                        value: isSelected,
+                                                        onChanged: (bool?
+                                                            selected) async {
+                                                          final currentMedicines =
+                                                              localSelectedMedicines
+                                                                  .split(', ')
+                                                                  .where((e) =>
+                                                                      e.isNotEmpty)
+                                                                  .toList();
+
+                                                          if (selected ==
+                                                                  true &&
+                                                              !currentMedicines
+                                                                  .contains(
+                                                                      medicine
+                                                                          .name)) {
+                                                            // Immediately add this medicine to the prescription database
+                                                            try {
+                                                              // Create prescription using the medicine's own values
+                                                              final prescription =
+                                                                  Medicine(
+                                                                name: medicine
+                                                                    .name,
+                                                                morning: medicine
+                                                                    .morning,
+                                                                afternoon: medicine
+                                                                    .afternoon,
+                                                                night: medicine
+                                                                    .night,
+                                                                comment: medicine
+                                                                        .comment ??
+                                                                    '',
+                                                              );
+
+                                                              final doctorPrescription =
+                                                                  DoctorPrescription(
+                                                                      medicine:
+                                                                          prescription);
+
+                                                              // Add directly to database
+                                                              await doctor
+                                                                  .addPrescription(
+                                                                widget.patient
+                                                                    .patientId,
+                                                                widget
+                                                                    .patient
+                                                                    .admissionRecords
+                                                                    .first
+                                                                    .id,
+                                                                doctorPrescription,
+                                                              );
+
+                                                              // Show success message
+                                                              ScaffoldMessenger
+                                                                      .of(context)
+                                                                  .showSnackBar(
+                                                                SnackBar(
+                                                                  content: Text(
+                                                                      '${medicine.name} added to prescription'),
+                                                                  duration:
+                                                                      Duration(
+                                                                          seconds:
+                                                                              1),
+                                                                ),
+                                                              );
+
+                                                              // Update dialog state only
+                                                              currentMedicines
+                                                                  .add(medicine
+                                                                      .name);
+                                                              setDialogState(
+                                                                  () {
+                                                                localSelectedMedicines =
+                                                                    currentMedicines
+                                                                        .join(
+                                                                            ', ');
+                                                              });
+
+                                                              // Refresh prescriptions list
+                                                              _fetchPrescriptions();
+                                                            } catch (e) {
+                                                              print(
+                                                                  'Error adding prescription: $e');
+                                                              ScaffoldMessenger
+                                                                      .of(context)
+                                                                  .showSnackBar(
+                                                                SnackBar(
+                                                                    content: Text(
+                                                                        'Error: $e')),
+                                                              );
+                                                            }
+                                                          } else if (selected ==
+                                                              false) {
+                                                            currentMedicines
+                                                                .remove(medicine
+                                                                    .name);
+
+                                                            // Update dialog state only
+                                                            setDialogState(() {
+                                                              localSelectedMedicines =
+                                                                  currentMedicines
+                                                                      .join(
+                                                                          ', ');
+                                                            });
+                                                          }
+                                                        },
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                            ),
+                          ),
+
+                          // Action buttons - Done and Cancel
+                          Padding(
+                            padding: const EdgeInsets.only(top: 20.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                TextButton.icon(
+                                  icon: Icon(Icons.cancel_outlined),
+                                  label: Text('Cancel'),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: HospitalTheme.textMedium,
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 12),
+                                  ),
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                  },
+                                ),
+                                SizedBox(width: 12),
+                                HospitalTheme.buildGradientButton(
+                                  label: 'Done',
+                                  onPressed: () {
+                                    // Just close the dialog - prescriptions are already added
+                                    Navigator.of(context).pop();
+                                  },
+                                  icon: Icons.check,
+                                  startColor: HospitalTheme.primary,
+                                  endColor: HospitalTheme.accent,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+// Helper method for displaying dosage pills in the selection dialog
+  Widget _buildDosagePill(String label, String value) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: Color(0xFF1E2843).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        '$label:$value',
+        style: TextStyle(
+          fontSize: 12,
+          color: Color(0xFF1E2843),
+        ),
+      ),
+    );
+  }
 
   Future<void> _addPrescription() async {
     if (selectedMedicines.isEmpty) {
@@ -1071,294 +2427,577 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     );
   }
 
-  Widget _buildPrescriptionLayout() {
-    return SizedBox(
-      height: 600,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Prescription Detail',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: Colors.teal,
-                    ),
-              ),
-              const SizedBox(height: 20),
-              // Display selected medicines as chips
-              Wrap(
-                spacing: 10.0,
-                runSpacing: 10.0,
-                children: selectedMedicines
-                    .split(', ')
-                    .map((medicine) => Chip(
-                          label: Text(medicine,
-                              style: const TextStyle(color: Colors.white)),
-                          backgroundColor: Colors.teal,
-                          onDeleted: () {
-                            setState(() {
-                              selectedMedicines = selectedMedicines
-                                  .split(', ')
-                                  .where((e) => e != medicine)
-                                  .join(', ');
-                            });
-                          },
-                        ))
-                    .toList(),
-              ),
-              const SizedBox(height: 20),
-              // Medicine Name field with suggestion fetching
-              _buildTextField1(
-                controller: medicineNameController,
-                label: 'Medicine Name',
-                onChanged: _fetchMedicineSuggestions,
-                onSubmitted: (value) {
-                  if (value.trim().isNotEmpty) {
-                    setState(() {
-                      // Ensure no duplicates
-                      List<String> medicines = selectedMedicines
-                          .split(', ')
-                          .where((e) => e.isNotEmpty)
-                          .toList();
-                      if (!medicines.contains(value.trim())) {
-                        medicines.add(value.trim());
-                        selectedMedicines = medicines.join(', ');
-                      }
-                      medicineNameController.clear();
-                    });
-                  }
-                },
-              ),
+  Future<String?> _getToken() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString('auth_token');
+  }
 
-              if (isLoadingSuggestions) const LinearProgressIndicator(),
-              if (medicineSuggestions.isNotEmpty) _buildSuggestionsList(),
-              const SizedBox(height: 19),
-              // Dosage Fields
-              Row(
+// Add this method to fetch medicines from API
+  Future<void> _fetchMedicines() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    try {
+      final token = await _getToken();
+      if (token == null) {
+        setState(() {
+          _errorMessage = 'Authentication token not found';
+          _isLoading = false;
+        });
+        return;
+      }
+      final response = await http.get(
+        Uri.parse('${KVM_URL}/doctors/getDoctorMedicines'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+      if (response.statusCode == 200) {
+        final List<dynamic> medicinesJson = json.decode(response.body);
+        setState(() {
+          _medicines.clear();
+          _medicines.addAll(
+            medicinesJson.map((json) => Medicine.fromJson(json)).toList(),
+          );
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _errorMessage = 'Failed to load medicines: ${response.body}';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Error: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  List<Medicine> _medicines = [];
+  String? _errorMessage;
+  Widget _buildPrescriptionLayout() {
+    return Padding(
+      padding: const EdgeInsets.all(12.0),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Quick Access Medicine Database Banner - Match Overview Style
+            Container(
+              width: double.infinity,
+              margin: EdgeInsets.only(bottom: 16),
+              padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
                 children: [
-                  _buildDosageField(
-                    controller: morningDosageController,
-                    label: 'Morning Dosage',
-                  ),
-                  const SizedBox(width: 10),
-                  _buildDosageField(
-                    controller: afternoonDosageController,
-                    label: 'Afternoon Dosage',
-                  ),
-                  const SizedBox(width: 10),
-                  _buildDosageField(
-                    controller: nightDosageController,
-                    label: 'Night Dosage',
-                  ),
-                  SizedBox(
-                    width: 10,
-                  ),
+                  Icon(Icons.medication_outlined,
+                      color: Colors.black, size: 24),
+                  SizedBox(width: 12),
                   Expanded(
-                    child: TextField(
-                      decoration: InputDecoration(
-                        labelText: 'Comment',
-                        labelStyle: TextStyle(color: Color(0xFF005F9E)),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: Color(0xFF00B8D4)),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide:
-                              BorderSide(color: Color(0xFF005F9E), width: 2),
-                        ),
+                    child: Text(
+                      'Quick Access to Your Medicine Database',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
                       ),
-                      controller: commentController,
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      _showMedicineSelectionDialog();
+                    },
+                    child: Text('Open Database'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal,
+                      foregroundColor: Color(0xFF1E2843),
+                      elevation: 0,
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      textStyle:
+                          TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
                     ),
                   ),
                 ],
               ),
+            ),
 
-              const SizedBox(height: 20),
-              _buildGradientButton(
-                icon: Icons.add,
-                onPressed: _addPrescription,
-                text: 'Add Prescription',
+            Text(
+              'Prescription Detail',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1E2843),
               ),
+            ),
+            SizedBox(height: 16),
 
-              Text(
-                'Current Prescriptions',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.teal[700],
+            // Selected Medicines Section
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Selected Medicines',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1E2843),
+                    ),
+                  ),
+                  SizedBox(height: 10),
+
+                  // Selected medicines as chips
+                  selectedMedicines.isEmpty
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8.0),
+                            child: Text(
+                              'No medicines selected yet',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        )
+                      : Wrap(
+                          spacing: 8.0,
+                          runSpacing: 8.0,
+                          children: selectedMedicines
+                              .split(', ')
+                              .where((medicine) => medicine.isNotEmpty)
+                              .map((medicine) => Chip(
+                                    label: Text(
+                                      medicine,
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    backgroundColor: Color(0xFF1E2843),
+                                    deleteIconColor: Colors.white,
+                                    materialTapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                    visualDensity: VisualDensity.compact,
+                                    labelPadding:
+                                        EdgeInsets.symmetric(horizontal: 4),
+                                    padding:
+                                        EdgeInsets.symmetric(horizontal: 4),
+                                    onDeleted: () {
+                                      setState(() {
+                                        selectedMedicines = selectedMedicines
+                                            .split(', ')
+                                            .where((e) => e != medicine)
+                                            .join(', ');
+                                      });
+                                    },
+                                  ))
+                              .toList(),
+                        ),
+
+                  SizedBox(height: 12),
+
+                  // Medicine Name search field
+                  TextField(
+                    controller: medicineNameController,
+                    decoration: InputDecoration(
+                      labelText: 'Medicine Name',
+                      labelStyle:
+                          TextStyle(color: Color(0xFF1E2843), fontSize: 12),
+                      prefixIcon: Icon(Icons.search,
+                          size: 18, color: Color(0xFF1E2843)),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: Colors.grey.shade400),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide:
+                            BorderSide(color: Color(0xFF1E2843), width: 1.5),
+                      ),
+                      contentPadding:
+                          EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                      isDense: true,
+                    ),
+                    onChanged: _fetchMedicineSuggestions,
+                    onSubmitted: (value) {
+                      if (value.trim().isNotEmpty) {
+                        setState(() {
+                          List<String> medicines = selectedMedicines
+                              .split(', ')
+                              .where((e) => e.isNotEmpty)
+                              .toList();
+                          if (!medicines.contains(value.trim())) {
+                            medicines.add(value.trim());
+                            selectedMedicines = medicines.join(', ');
+                          }
+                          medicineNameController.clear();
+                        });
+                      }
+                    },
+                  ),
+
+                  // Loading indicator & suggestions
+                  if (isLoadingSuggestions)
+                    LinearProgressIndicator(
+                      backgroundColor: Colors.grey.shade200,
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(Color(0xFF1E2843)),
+                    ),
+
+                  if (medicineSuggestions.isNotEmpty)
+                    Container(
+                      constraints: BoxConstraints(maxHeight: 120),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: medicineSuggestions.length,
+                        itemBuilder: (context, index) {
+                          return ListTile(
+                            dense: true,
+                            title: Text(
+                              medicineSuggestions[index],
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            onTap: () {
+                              setState(() {
+                                List<String> medicines = selectedMedicines
+                                    .split(', ')
+                                    .where((e) => e.isNotEmpty)
+                                    .toList();
+                                if (!medicines
+                                    .contains(medicineSuggestions[index])) {
+                                  medicines.add(medicineSuggestions[index]);
+                                  selectedMedicines = medicines.join(', ');
+                                }
+                                medicineNameController.clear();
+                                medicineSuggestions = [];
+                              });
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            ),
+
+            SizedBox(height: 16),
+
+            // Dosage Information
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Dosage Information',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1E2843),
+                    ),
+                  ),
+                  SizedBox(height: 12),
+
+                  // Dosage Fields in compact row
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildCompactDosageField(
+                          controller: morningDosageController,
+                          label: "M",
+                          tooltip: "Morning",
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: _buildCompactDosageField(
+                          controller: afternoonDosageController,
+                          label: "A",
+                          tooltip: "Afternoon",
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: _buildCompactDosageField(
+                          controller: nightDosageController,
+                          label: "N",
+                          tooltip: "Night",
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  SizedBox(height: 12),
+
+                  // Comment field
+                  TextField(
+                    controller: commentController,
+                    decoration: InputDecoration(
+                      labelText: 'Comment',
+                      labelStyle:
+                          TextStyle(color: Color(0xFF1E2843), fontSize: 12),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: Colors.grey.shade400),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide:
+                            BorderSide(color: Color(0xFF1E2843), width: 1.5),
+                      ),
+                      contentPadding:
+                          EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                      isDense: true,
+                    ),
+                    maxLines: 2,
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+
+            SizedBox(height: 16),
+
+            // Add button centered
+            Center(
+              child: ElevatedButton.icon(
+                onPressed: _addPrescription,
+                icon: Icon(Icons.add_circle_outline),
+                label: Text('Add Prescription'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xFF1E2843),
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
               ),
-              const SizedBox(height: 10),
-              _prescriptions.isEmpty
-                  ? const Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: Text('No prescriptions added yet'),
-                    )
-                  : ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _prescriptions.length,
-                      itemBuilder: (context, index) {
-                        final prescription = _prescriptions[index];
-                        return Card(
-                          color: Colors.white,
-                          margin: const EdgeInsets.only(bottom: 12),
-                          elevation: 20,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
-                          ),
+            ),
+
+            SizedBox(height: 16),
+
+            // Current Prescriptions
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Current Prescriptions',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1E2843),
+                    ),
+                  ),
+
+                  SizedBox(height: 12),
+
+                  // Prescriptions list
+                  _prescriptions.isEmpty
+                      ? Center(
                           child: Padding(
-                            padding: const EdgeInsets.all(16.0),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Row(
+                                Icon(
+                                  Icons.medication_outlined,
+                                  size: 32,
+                                  color: Colors.grey.shade400,
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  'No prescriptions added yet',
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          physics: NeverScrollableScrollPhysics(),
+                          itemCount: _prescriptions.length,
+                          itemBuilder: (context, index) {
+                            final prescription = _prescriptions[index];
+                            return Card(
+                              margin: EdgeInsets.only(bottom: 8),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                side: BorderSide(color: Colors.grey.shade300),
+                              ),
+                              child: ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 4),
+                                leading: CircleAvatar(
+                                  radius: 16,
+                                  backgroundColor:
+                                      Color(0xFF1E2843).withOpacity(0.1),
+                                  child: Icon(
+                                    Icons.medication,
+                                    size: 16,
+                                    color: Color(0xFF1E2843),
+                                  ),
+                                ),
+                                title: Text(
+                                  prescription.medicine.name,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    color: Color(0xFF1E2843),
+                                  ),
+                                ),
+                                subtitle:
+                                    prescription.medicine.comment.isNotEmpty
+                                        ? Text(
+                                            prescription.medicine.comment,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.grey.shade600,
+                                            ),
+                                          )
+                                        : null,
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    CircleAvatar(
-                                      child: Image.asset(
-                                        'assets/images/prescrip.png',
-                                        width: 40,
-                                        height: 40,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: Text(
-                                        prescription.medicine.name,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.teal,
-                                        ),
-                                      ),
-                                    ),
-                                    _buildDosageDisplay(
+                                    _buildCompactDosagePill(
                                         'M', prescription.medicine.morning),
-                                    const SizedBox(width: 10),
-                                    _buildDosageDisplay(
+                                    SizedBox(width: 4),
+                                    _buildCompactDosagePill(
                                         'A', prescription.medicine.afternoon),
-                                    const SizedBox(width: 10),
-                                    _buildDosageDisplay(
+                                    SizedBox(width: 4),
+                                    _buildCompactDosagePill(
                                         'N', prescription.medicine.night),
-                                    const SizedBox(width: 16),
                                     IconButton(
-                                      icon: const Icon(Icons.delete_outline,
-                                          color: Colors.red),
+                                      icon: Icon(Icons.delete_outline,
+                                          size: 18, color: Colors.red),
+                                      padding: EdgeInsets.zero,
+                                      constraints: BoxConstraints(),
+                                      visualDensity: VisualDensity.compact,
                                       onPressed: () => _deletePrescription(
                                           prescription.medicine.id!),
                                     ),
                                   ],
                                 ),
-                                if (prescription.medicine.comment.isNotEmpty)
-                                  Padding(
-                                    padding:
-                                        const EdgeInsets.only(top: 8, left: 56),
-                                    child: Text(
-                                      'Note: ${prescription.medicine.comment}',
-                                      style: TextStyle(
-                                        color: Colors.grey[600],
-                                        fontStyle: FontStyle.italic,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }),
-            ],
-          ),
+                              ),
+                            );
+                          },
+                        ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildDosageField({
+// Compact dosage field for smaller UI
+  Widget _buildCompactDosageField({
     required TextEditingController controller,
     required String label,
+    required String tooltip,
   }) {
-    return Container(
-      width: 60, // Compact size for small numbers
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF004E92), Color(0xFF00A6FB)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return Tooltip(
+      message: tooltip,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade400),
         ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.shade300,
-            offset: const Offset(-2, -2),
-            blurRadius: 4,
-          ),
-          BoxShadow(
-            color: Colors.grey.shade500,
-            offset: const Offset(2, 2),
-            blurRadius: 4,
-          ),
-        ],
-      ),
-      child: TextField(
-        controller: controller,
-        keyboardType: TextInputType.number,
-        textAlign: TextAlign.center,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-          color: Colors.white, // Ensure text contrasts with gradient
-        ),
-        decoration: InputDecoration(
-          hintText: label.substring(0, 1),
-          hintStyle: const TextStyle(color: Colors.white70),
-          border: InputBorder.none,
+        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+                color: Color(0xFF1E2843),
+              ),
+            ),
+            SizedBox(height: 4),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
+              decoration: InputDecoration(
+                contentPadding: EdgeInsets.symmetric(vertical: 4),
+                border: InputBorder.none,
+                isDense: true,
+                hintText: '0',
+                hintStyle: TextStyle(
+                  color: Colors.grey.shade400,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildDosageDisplay(String time, String dosage) {
+// Compact dosage pill for prescription list
+  Widget _buildCompactDosagePill(String label, String value) {
     return Container(
-      width: 60,
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.shade300,
-            offset: const Offset(-2, -2),
-            blurRadius: 4,
-          ),
-          BoxShadow(
-            color: Colors.grey.shade500,
-            offset: const Offset(2, 2),
-            blurRadius: 4,
-          ),
-        ],
+        color: Color(0xFF1E2843).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(4),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            time,
-            style: TextStyle(
-              color: Colors.teal.shade700,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          Text(
-            dosage,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
+      child: Text(
+        '$label:$value',
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w500,
+          color: Color(0xFF1E2843),
+        ),
       ),
     );
   }
@@ -1399,7 +3038,6 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
   final diagnosisSuggestionsProvider = StateProvider<List<String>>((ref) => []);
   final selectedDiagnosesProvider = StateProvider<List<String>>((ref) => []);
   final isLoadingProvider = StateProvider<bool>((ref) => false);
-
   Widget buildDiagnosisLayout({
     required String admissionId,
     required String patientId,
@@ -1415,7 +3053,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
       ref.read(isLoadingProvider.notifier).state = true;
       try {
         final response = await http
-            .get(Uri.parse('$KVM_URL/doctors/getDiagnosis/$patientId'));
+            .get(Uri.parse('${KVM_URL}/doctors/getDiagnosis/$patientId'));
         if (response.statusCode == 200) {
           final data = json.decode(response.body) as Map<String, dynamic>;
           ref.read(diagnosisSuggestionsProvider.notifier).state =
@@ -1434,94 +3072,273 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
         final selectedDiagnoses = ref.watch(selectedDiagnosesProvider);
         final isLoading = ref.watch(isLoadingProvider);
 
-        return Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Wrap(
-                spacing: 8.0,
-                runSpacing: 8.0,
-                children: selectedDiagnoses.map((diagnosis) {
-                  return Chip(
-                    label: Text(diagnosis),
-                    backgroundColor: Colors.teal,
-                    onDeleted: () {
-                      ref.read(selectedDiagnosesProvider.notifier).state =
-                          List.from(selectedDiagnoses)..remove(diagnosis);
-                    },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 20),
-              Center(
-                child: ElevatedButton(
-                  onPressed: () => fetchDiagnosisSuggestions(ref),
-                  child: const Text('AI Suggestions'),
+        // Create function for adding diagnosis
+        void addDiagnosis() async {
+          final currentDateTime =
+              DateFormat('yyyy-MM-dd hh:mm:ss a').format(DateTime.now());
+
+          // Get manually entered diagnosis
+          final manualDiagnosis = symptomsController.text.trim();
+
+          // Check if we have anything to add
+          if (selectedDiagnoses.isEmpty && manualDiagnosis.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                  content: Text(
+                      'Please enter a diagnosis or select from suggestions')),
+            );
+            return;
+          }
+
+          // Combine selected and manual diagnoses
+          final combinedDiagnoses = [
+                ...selectedDiagnoses,
+                if (manualDiagnosis.isNotEmpty) manualDiagnosis,
+              ].join(', ') +
+              ' Date: $currentDateTime';
+
+          // Send to backend
+          await addDoctorDiagnosis(admissionId, combinedDiagnoses, patientId);
+
+          // Refresh diagnoses
+          fetchDoctorDiagnosis(patientId, admissionId);
+
+          // Clear selections and text field
+          ref.read(selectedDiagnosesProvider.notifier).state = [];
+          symptomsController.clear();
+
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Diagnosis added successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+
+        // Main content in stack with floating button
+        return Stack(
+          children: [
+            // Scrollable content
+            SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Title and header section with space for the floating button
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Diagnosis Management',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF005F9E),
+                            ),
+                          ),
+                        ),
+                        // Space for the floating button
+                        SizedBox(width: 170),
+                      ],
+                    ),
+                    SizedBox(height: 16),
+
+                    // Selected diagnoses chips
+                    if (selectedDiagnoses.isNotEmpty) ...[
+                      Text(
+                        'Selected Diagnoses:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Container(
+                        padding: EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Wrap(
+                          spacing: 8.0,
+                          runSpacing: 8.0,
+                          children: selectedDiagnoses.map((diagnosis) {
+                            return Chip(
+                              label: Text(diagnosis),
+                              backgroundColor: Color(0xFF005F9E),
+                              labelStyle: TextStyle(color: Colors.white),
+                              deleteIconColor: Colors.white70,
+                              onDeleted: () {
+                                ref
+                                    .read(selectedDiagnosesProvider.notifier)
+                                    .state = List.from(selectedDiagnoses)
+                                  ..remove(diagnosis);
+                              },
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ],
+
+                    SizedBox(height: 16),
+
+                    // Manual diagnosis input
+                    Text(
+                      'Enter Manual Diagnosis:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    TextField(
+                      controller: symptomsController,
+                      decoration: InputDecoration(
+                        labelText: 'Enter diagnosis manually',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide:
+                              BorderSide(color: Color(0xFF005F9E), width: 2),
+                        ),
+                      ),
+                      maxLines: 2,
+                    ),
+
+                    SizedBox(height: 16),
+
+                    // AI Suggestions button
+                    Row(
+                      children: [
+                        Text(
+                          'AI Diagnosis Suggestions:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
+                        ),
+                        Spacer(),
+                        ElevatedButton.icon(
+                          onPressed: () => fetchDiagnosisSuggestions(ref),
+                          icon: Icon(Icons.psychology),
+                          label: Text('Load Suggestions'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Color(0xFF005F9E),
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    SizedBox(height: 8),
+
+                    // AI Suggestions loading or content
+                    if (isLoading)
+                      Center(
+                        child: Column(
+                          children: [
+                            SizedBox(height: 16),
+                            CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                  Color(0xFF005F9E)),
+                            ),
+                            SizedBox(height: 8),
+                            Text('Loading suggestions...'),
+                          ],
+                        ),
+                      )
+                    else if (diagnosisSuggestions.isNotEmpty)
+                      // Container with fixed height to avoid overflow
+                      Container(
+                        height: 250, // Fixed height for suggestions list
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: ListView.separated(
+                          padding: EdgeInsets.all(8),
+                          itemCount: diagnosisSuggestions.length,
+                          separatorBuilder: (context, index) =>
+                              Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final diagnosis = diagnosisSuggestions[index];
+                            return CheckboxListTile(
+                              title: Text(diagnosis),
+                              value: selectedDiagnoses.contains(diagnosis),
+                              dense: true,
+                              controlAffinity: ListTileControlAffinity.leading,
+                              activeColor: Color(0xFF005F9E),
+                              onChanged: (bool? value) {
+                                final updatedList =
+                                    List.from(selectedDiagnoses);
+                                if (value == true) {
+                                  updatedList.add(diagnosis);
+                                } else {
+                                  updatedList.remove(diagnosis);
+                                }
+                                ref
+                                    .read(selectedDiagnosesProvider.notifier)
+                                    .state = updatedList.cast<String>();
+                              },
+                            );
+                          },
+                        ),
+                      )
+                    else
+                      Container(
+                        width: double.infinity,
+                        padding: EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'No suggestions available. Click "Load Suggestions" to get AI-powered diagnosis recommendations.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey.shade700),
+                        ),
+                      ),
+                  ],
                 ),
               ),
-              if (isLoading)
-                const Center(child: CircularProgressIndicator())
-              else
-                Column(
-                  children: diagnosisSuggestions.map((diagnosis) {
-                    return CheckboxListTile(
-                      title: Text(diagnosis),
-                      value: selectedDiagnoses.contains(diagnosis),
-                      onChanged: (bool? value) {
-                        final updatedList = List.from(selectedDiagnoses);
-                        if (value == true) {
-                          updatedList.add(diagnosis);
-                        } else {
-                          updatedList.remove(diagnosis);
-                        }
-                        ref.read(selectedDiagnosesProvider.notifier).state =
-                            updatedList.cast<String>();
-                      },
-                    );
-                  }).toList(),
+            ),
+
+            // Floating Action Button in top right corner
+            Positioned(
+              right: 20,
+              top: 10,
+              child: Container(
+                height: 48,
+                decoration: BoxDecoration(
+                  boxShadow: [
+                    BoxShadow(
+                      color: Color(0xFF00B8D4).withOpacity(0.4),
+                      blurRadius: 10,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
+                  borderRadius: BorderRadius.circular(24),
                 ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: symptomsController,
-                decoration: const InputDecoration(
-                  labelText: 'Enter diagnosis manually',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Center(
-                child: ElevatedButton(
-                  onPressed: () async {
-                    final currentDateTime = DateFormat('yyyy-MM-dd hh:mm:ss a')
-                        .format(DateTime.now());
-
-                    // Get manually entered diagnosis
-                    final manualDiagnosis = symptomsController.text.trim();
-
-                    // Combine selected and manual diagnoses
-                    final combinedDiagnoses = [
-                          ...selectedDiagnoses,
-                          if (manualDiagnosis.isNotEmpty) manualDiagnosis,
-                        ].join(', ') +
-                        ' Date: $currentDateTime';
-
-                    // Send to backend
-                    await addDoctorDiagnosis(
-                        admissionId, combinedDiagnoses, patientId);
-
-                    // Refresh diagnoses
-                    fetchDoctorDiagnosis(patientId, admissionId);
-
-                    // Clear selections and text field
-                    ref.read(selectedDiagnosesProvider.notifier).state = [];
-                    symptomsController.clear();
-                  },
-                  child: const Text('Add Diagnosis'),
+                child: FloatingActionButton.extended(
+                  onPressed: addDiagnosis,
+                  label: Text('ADD DIAGNOSIS'),
+                  icon: Icon(Icons.add_circle_outline),
+                  backgroundColor: Color(0xFF00B8D4),
+                  foregroundColor: Colors.white,
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         );
       },
     );
@@ -1756,120 +3573,682 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
       );
     }
   }
-// Add this at the top of your file
 
+// Add this to the imports at the top of the file if not already there
+
+// Modify the _buildFourSquareLayout method to include an interactive notes feature
   Widget _buildFourSquareLayout(BuildContext context, WidgetRef ref,
       String patientId, String admissionId) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFFF5F7FA), Color(0xFFE6E9F0)],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-      ),
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: MediaQuery.of(context).size.height,
-            ),
-            child: Column(
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Left Column
-                    Expanded(
-                      child: Column(
-                        children: [
-                          _buildSectionContainer(
-                            context,
-                            _buildOverviewSection1(context, ref),
-                            title: 'Patient Overview',
-                          ),
-                          const SizedBox(height: 16),
-                          _buildSectionContainer(
-                            context,
-                            _buildVitalsLayout(),
-                            title: 'Vitals Monitoring',
-                          ),
-                          SizedBox(
-                            height: 16,
-                          ),
-                          Column(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Stack(
+          children: [
+            // Main content remains the same
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFFF5F7FA), Color(0xFFE6E9F0)],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+              child: CustomScrollView(
+                slivers: [
+                  SliverPadding(
+                    padding: const EdgeInsets.all(16.0),
+                    sliver: SliverGrid(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: constraints.maxWidth > 1200
+                            ? 4
+                            : constraints.maxWidth > 800
+                                ? 2
+                                : 1,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                        childAspectRatio: 1.2,
+                      ),
+                      delegate: SliverChildListDelegate([
+                        // Original sections
+                        _buildStyledSectionContainer(
+                          context,
+                          child: _buildOverviewSection1(context, ref),
+                          title: 'Patient Overview',
+                          icon: Icons.person_outline,
+                        ),
+                        _buildStyledSectionContainer(
+                          context,
+                          child: _buildPrescriptionLayout(),
+                          title: 'Prescription Management',
+                          icon: Icons.precision_manufacturing,
+                        ),
+                        _buildStyledSectionContainer(
+                          context,
+                          child: _buildVitalsLayout(),
+                          title: 'Vitals Monitoring',
+                          icon: Icons.monitor_heart_outlined,
+                        ),
+                        _buildStyledSectionContainer(
+                          context,
+                          child: Column(
                             children: [
-                              _buildSectionContainer(
-                                context,
-                                Column(
+                              _buildSymptomsLayout(
+                                  context, ref, patientId, admissionId),
+                              const SizedBox(height: 12),
+                              const Divider(),
+                            ],
+                          ),
+                          title: 'Symptoms',
+                          icon: Icons.medical_services_outlined,
+                        ),
+                        _buildStyledSectionContainer(
+                          context,
+                          child: buildDiagnosisLayout(
+                            admissionId: admissionId,
+                            patientId: patientId,
+                            addDoctorDiagnosis: doctor.addDoctorDiagnosis,
+                            fetchDoctorDiagnosis: doctor.fetchDoctorDiagnosis,
+                          ),
+                          title: 'Diagnosis',
+                          icon: Icons.description_outlined,
+                        ),
+                      ]),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Interactive Doctor Notes Button
+            Positioned(
+              right: 20,
+              top: 20,
+              child: Container(
+                key: _notesButtonKey,
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      _showFloatingNotes = !_showFloatingNotes;
+                    });
+                  },
+                  child: AnimatedContainer(
+                    duration: Duration(milliseconds: 300),
+                    width: _showFloatingNotes ? 150 : 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF1E2843), Color(0xFF2C3E50)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(25),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 10,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.note_alt_outlined,
+                          color: Colors.white,
+                        ),
+                        if (_showFloatingNotes)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 8.0),
+                            child: Text(
+                              "Doctor Notes",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // Floating Doctor Notes Panel
+            AnimatedPositioned(
+              duration: Duration(milliseconds: 400),
+              curve: Curves.easeOutQuad,
+              right: _showFloatingNotes ? 30 : -350,
+              top: 80,
+              child: AnimatedOpacity(
+                duration: Duration(milliseconds: 300),
+                opacity: _showFloatingNotes ? 1.0 : 0.0,
+                child: GestureDetector(
+                  onHorizontalDragEnd: (details) {
+                    if (details.primaryVelocity! > 0) {
+                      // Swiped right
+                      setState(() {
+                        _showFloatingNotes = false;
+                      });
+                    }
+                  },
+                  child: Container(
+                    width: 320,
+                    height: MediaQuery.of(context).size.height * 0.7,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 20,
+                          spreadRadius: 5,
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.95),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Colors.grey.shade200,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              // Doctor Notes Header
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                    vertical: 16, horizontal: 20),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Color(0xFF1E2843),
+                                      Color(0xFF2C3E50),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: Radius.circular(20),
+                                    topRight: Radius.circular(20),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
-                                    _buildSymptomsLayout(
-                                        context, ref, patientId, admissionId),
-                                    const SizedBox(height: 12),
-                                    Divider(),
-                                    // buildDiagnosisLayout(
-                                    //     admissionId: admissionId,
-                                    //     patientId: patientId,
-                                    //     addDoctorDiagnosis:
-                                    //         doctor.addDoctorDiagnosis,
-                                    //     fetchDoctorDiagnosis:
-                                    //         doctor.fetchDoctorDiagnosis),
+                                    Expanded(
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.note_alt_outlined,
+                                            color: Colors.white,
+                                          ),
+                                          SizedBox(width: 12),
+                                          Text(
+                                            " Notes",
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 18,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Row(
+                                      children: [
+                                        IconButton(
+                                          icon: Icon(
+                                            Icons.minimize,
+                                            color: Colors.white,
+                                          ),
+                                          onPressed: () {
+                                            setState(() {
+                                              _isNotesExpanded = false;
+                                            });
+                                          },
+                                        ),
+                                        IconButton(
+                                          icon: Icon(
+                                            _isNotesExpanded
+                                                ? Icons.fullscreen_exit
+                                                : Icons.fullscreen,
+                                            color: Colors.white,
+                                          ),
+                                          onPressed: () {
+                                            setState(() {
+                                              _isNotesExpanded =
+                                                  !_isNotesExpanded;
+                                            });
+                                          },
+                                        ),
+                                        IconButton(
+                                          icon: Icon(
+                                            Icons.close,
+                                            color: Colors.white,
+                                          ),
+                                          onPressed: () {
+                                            setState(() {
+                                              _showFloatingNotes = false;
+                                            });
+                                          },
+                                        ),
+                                      ],
+                                    ),
                                   ],
                                 ),
-                                title: 'Symptoms',
                               ),
-                              _buildSectionContainer(
-                                context,
-                                buildDiagnosisLayout(
-                                    admissionId: admissionId,
-                                    patientId: patientId,
-                                    addDoctorDiagnosis:
-                                        doctor.addDoctorDiagnosis,
-                                    fetchDoctorDiagnosis:
-                                        doctor.fetchDoctorDiagnosis),
-                                title: 'Diagnosis',
-                              ),
-                              SizedBox(
-                                height: 16,
+
+                              // Doctor Notes Content
+                              Expanded(
+                                child: _buildDoctorNotes(
+                                  context,
+                                  patientId,
+                                  admissionId,
+                                ),
                               ),
                             ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // Expanded Doctor Notes Panel
+            if (_isNotesExpanded && _showFloatingNotes)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black54,
+                  child: Center(
+                    child: Container(
+                      width: MediaQuery.of(context).size.width * 0.85,
+                      height: MediaQuery.of(context).size.height * 0.85,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 20,
+                            spreadRadius: 5,
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          // Expanded Notes Header
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                                vertical: 16, horizontal: 20),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Color(0xFF1E2843),
+                                  Color(0xFF2C3E50),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(20),
+                                topRight: Radius.circular(20),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.note_alt_outlined,
+                                      color: Colors.white,
+                                    ),
+                                    SizedBox(width: 12),
+                                    Text(
+                                      "Doctor Notes - Full View",
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Row(
+                                  children: [
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.fullscreen_exit,
+                                        color: Colors.white,
+                                      ),
+                                      onPressed: () {
+                                        setState(() {
+                                          _isNotesExpanded = false;
+                                        });
+                                      },
+                                    ),
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.close,
+                                        color: Colors.white,
+                                      ),
+                                      onPressed: () {
+                                        setState(() {
+                                          _showFloatingNotes = false;
+                                          _isNotesExpanded = false;
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Expanded Notes Content
+                          Expanded(
+                            child: _buildDoctorNotes(
+                              context,
+                              patientId,
+                              admissionId,
+                            ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    // Right Column
-                    Expanded(
-                      child: Column(
-                        children: [
-                          _buildSectionContainer(
-                            context,
-                            _buildPrescriptionLayout(),
-                            title: 'Prescription Management',
-                          ),
-                          const SizedBox(height: 16),
-                          // _buildSectionContainer(
-                          //   context,
-                          //   Column(
-                          //     children: [
-                          //       _buildSymptomsLayout(
-                          //           context, ref, patientId, admissionId),
-                          //       const SizedBox(height: 12),
-                          //       Divider(),
-                          //       // buildDiagnosisLayout(
-                          //       //     admissionId: admissionId,
-                          //       //     patientId: patientId,
-                          //       //     addDoctorDiagnosis:
-                          //       //         doctor.addDoctorDiagnosis,
-                          //       //     fetchDoctorDiagnosis:
-                          //       //         doctor.fetchDoctorDiagnosis),
-                          //     ],
-                          //   ),
-                          //   title: 'Symptoms',
-                          // ),
-                        ],
+                  ),
+                ),
+              ),
+
+            // Quick Add Note Floating Action Button
+            Positioned(
+              right: 30,
+              bottom: 100,
+              child: AnimatedOpacity(
+                duration: Duration(milliseconds: 300),
+                opacity: _showFloatingNotes ? 1.0 : 0.0,
+                child: FloatingActionButton(
+                  backgroundColor: Color(0xFF005F9E),
+                  child: Icon(Icons.add, color: Colors.white),
+                  onPressed: () {
+                    _showAddNoteDialog(context, patientId, admissionId);
+                  },
+                  tooltip: 'Quick Add Note',
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+// Optional: Update the _buildDoctorNotes method to be better suited for the floating panel
+  Widget _buildDoctorNotes(
+      BuildContext context, String patientId, String admissionId) {
+    return FutureBuilder(
+      key: _futureBuilderKey,
+      future: _fetchDoctorNotes(patientId, admissionId),
+      builder: (context, AsyncSnapshot<List<dynamic>> snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: 50,
+                  height: 50,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(Color(0xFF005F9E)),
+                  ),
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Loading notes...',
+                  style: TextStyle(
+                    color: Color(0xFF005F9E),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          );
+        } else if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, color: Colors.red, size: 48),
+                SizedBox(height: 16),
+                Text(
+                  'Error: ${snapshot.error}',
+                  style: TextStyle(color: Colors.red),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _futureBuilderKey = UniqueKey();
+                    });
+                  },
+                  icon: Icon(Icons.refresh),
+                  label: Text('Retry'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFF005F9E),
+                  ),
+                ),
+              ],
+            ),
+          );
+        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.note_alt_outlined,
+                  size: 64,
+                  color: Colors.grey.shade400,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'No notes available',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Add your first note to keep track of important observations',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: () =>
+                      _showAddNoteDialog(context, patientId, admissionId),
+                  icon: Icon(Icons.add),
+                  label: Text('Add Note'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFF005F9E),
+                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // Display notes in a more visually appealing way
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Notes count and last updated
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '${snapshot.data!.length} Notes',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E2843),
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () =>
+                          _showAddNoteDialog(context, patientId, admissionId),
+                      icon: Icon(Icons.add, size: 18),
+                      label: Text('Add'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0xFF005F9E),
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Notes list
+              Expanded(
+                child: ListView.builder(
+                  itemCount: snapshot.data!.length,
+                  itemBuilder: (context, index) {
+                    final note = snapshot.data![index];
+                    return _buildEnhancedNoteItem(
+                      date: note['date'],
+                      note: note['text'],
+                      doctor: note['doctorName'],
+                      noteId: note['_id'],
+                      onDelete: () => _showDeleteConfirmation(
+                          context, patientId, admissionId, note['_id']),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+// Enhanced note item with better visual design
+  Widget _buildEnhancedNoteItem({
+    required String date,
+    required String note,
+    required String doctor,
+    required String noteId,
+    required Function onDelete,
+  }) {
+    return Container(
+      margin: EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
+        ],
+        border: Border.all(
+          color: Colors.grey.shade200,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with date and doctor name
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
+              ),
+              border: Border(
+                bottom: BorderSide(
+                  color: Colors.grey.shade200,
+                  width: 1,
+                ),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.event_note,
+                      size: 16,
+                      color: Color(0xFF005F9E),
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      date,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.person,
+                      size: 16,
+                      color: Color(0xFF005F9E),
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      doctor,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: Color(0xFF005F9E),
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    InkWell(
+                      onTap: () => onDelete(),
+                      borderRadius: BorderRadius.circular(4),
+                      child: Padding(
+                        padding: EdgeInsets.all(4),
+                        child: Icon(
+                          Icons.delete_outline,
+                          size: 18,
+                          color: Colors.red.shade400,
+                        ),
                       ),
                     ),
                   ],
@@ -1877,10 +4256,765 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
               ],
             ),
           ),
+
+          // Note content
+          Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              note,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade800,
+                height: 1.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+// Optional: Enhanced add note dialog
+  void _showAddNoteDialog(
+      BuildContext context, String patientId, String admissionId) {
+    final textController = TextEditingController();
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            contentPadding: EdgeInsets.zero,
+            content: Container(
+              width: 500,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Dialog header
+                  Container(
+                    padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF005F9E), Color(0xFF00B8D4)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        topRight: Radius.circular(16),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.note_add,
+                          color: Colors.white,
+                        ),
+                        SizedBox(width: 12),
+                        Text(
+                          'Add Doctor Note',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Dialog content
+                  Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Note Content',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: Color(0xFF1E2843),
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Colors.grey.shade300,
+                            ),
+                          ),
+                          child: TextField(
+                            controller: textController,
+                            decoration: InputDecoration(
+                              hintText: 'Enter your note here',
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.all(16),
+                            ),
+                            maxLines: 5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Dialog actions
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: isSubmitting
+                              ? null
+                              : () => Navigator.pop(context),
+                          child: Text(
+                            'Cancel',
+                            style: TextStyle(
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: isSubmitting
+                              ? null
+                              : () async {
+                                  if (textController.text.isNotEmpty) {
+                                    setState(() {
+                                      isSubmitting = true;
+                                    });
+
+                                    // Get current date in the required format
+                                    final now = DateTime.now();
+                                    final formattedDate =
+                                        "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}";
+
+                                    // Close dialog first
+                                    Navigator.pop(context);
+
+                                    // Add the note
+                                    await _addDoctorNote(patientId, admissionId,
+                                        textController.text, formattedDate);
+
+                                    // Refresh the UI by updating state and forcing the FutureBuilder to rebuild
+                                    setState(() {
+                                      _futureBuilderKey = UniqueKey();
+                                    });
+                                  }
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Color(0xFF005F9E),
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: isSubmitting
+                              ? SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white),
+                                  ),
+                                )
+                              : Text('Save Note'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+// Optional: Enhanced delete confirmation dialog
+  void _showDeleteConfirmation(BuildContext context, String patientId,
+      String admissionId, String noteId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        contentPadding: EdgeInsets.zero,
+        content: Container(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Dialog header
+              Container(
+                padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.red.shade400, Colors.red.shade700],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    topRight: Radius.circular(16),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.white,
+                    ),
+                    SizedBox(width: 12),
+                    Text(
+                      'Delete Note',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Dialog content
+              Padding(
+                padding: EdgeInsets.all(20),
+                child: Text(
+                  'Are you sure you want to delete this note? This action cannot be undone.',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+              ),
+
+              // Dialog actions
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: () async {
+                        // Close the dialog first
+                        Navigator.pop(context);
+                        // Then delete the note
+                        await _deleteNote(patientId, admissionId, noteId);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red.shade600,
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text('Delete'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
+
+// New method for styled section container
+  Widget _buildStyledSectionContainer(
+    BuildContext context, {
+    required Widget child,
+    required String title,
+    required IconData icon,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.shade200,
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+        border: Border.all(
+          color: Colors.grey.shade100,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: Colors.blue.shade700, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.blue.shade800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, thickness: 0.5),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: child,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+//   Widget _buildFourSquareLayout(BuildContext context, WidgetRef ref,
+//       String patientId, String admissionId) {
+//     return Container(
+//       decoration: BoxDecoration(
+//         gradient: LinearGradient(
+//           colors: [Color(0xFFF5F7FA), Color(0xFFE6E9F0)],
+//           begin: Alignment.topCenter,
+//           end: Alignment.bottomCenter,
+//         ),
+//       ),
+//       child: SingleChildScrollView(
+//         physics: const AlwaysScrollableScrollPhysics(),
+//         child: Padding(
+//           padding: const EdgeInsets.all(16.0),
+//           child: ConstrainedBox(
+//             constraints: BoxConstraints(
+//               minHeight: MediaQuery.of(context).size.height,
+//             ),
+//             child: Column(
+//               children: [
+//                 IntrinsicHeight(
+//                   // This ensures all children have the same height
+//                   child: Row(
+//                     crossAxisAlignment: CrossAxisAlignment.start,
+//                     children: [
+//                       // Left Column
+//                       Expanded(
+//                         child: Column(
+//                           children: [
+//                             _buildSectionContainer(
+//                               context,
+//                               _buildOverviewSection1(context, ref),
+//                               title: 'Patient Overview',
+//                             ),
+//                             const SizedBox(height: 16),
+//                             _buildSectionContainer(
+//                               context,
+//                               _buildVitalsLayout(),
+//                               title: 'Vitals Monitoring',
+//                             ),
+//                             SizedBox(
+//                               height: 16,
+//                             ),
+//                             Column(
+//                               children: [
+//                                 _buildSectionContainer(
+//                                   context,
+//                                   Column(
+//                                     children: [
+//                                       _buildSymptomsLayout(
+//                                           context, ref, patientId, admissionId),
+//                                       const SizedBox(height: 12),
+//                                       Divider(),
+//                                     ],
+//                                   ),
+//                                   title: 'Symptoms',
+//                                 ),
+//                                 _buildSectionContainer(
+//                                   context,
+//                                   buildDiagnosisLayout(
+//                                       admissionId: admissionId,
+//                                       patientId: patientId,
+//                                       addDoctorDiagnosis:
+//                                           doctor.addDoctorDiagnosis,
+//                                       fetchDoctorDiagnosis:
+//                                           doctor.fetchDoctorDiagnosis),
+//                                   title: 'Diagnosis',
+//                                 ),
+//                                 SizedBox(
+//                                   height: 16,
+//                                 ),
+//                               ],
+//                             ),
+//                           ],
+//                         ),
+//                       ),
+
+//                       // Middle drawer that pops out horizontally
+//                       HorizontalCenterDrawer(
+//                           closedWidth: 50,
+//                           openWidth: 300,
+//                           child:
+// // Inside your parent widget
+//                               _buildDoctorNotes(
+//                                   context, patientId, admissionId)),
+
+//                       // Right Column
+//                       Expanded(
+//                         child: Column(
+//                           children: [
+//                             _buildSectionContainer(
+//                               context,
+//                               _buildPrescriptionLayout(),
+//                               title: 'Prescription Management',
+//                             ),
+//                             const SizedBox(height: 16),
+//                           ],
+//                         ),
+//                       ),
+//                     ],
+//                   ),
+//                 ),
+//               ],
+//             ),
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+
+  // Doctor notes widget
+  // Build doctor notes section
+  // Widget _buildDoctorNotes(
+  //     BuildContext context, String patientId, String admissionId) {
+  //   // Create a state variable to hold the notes
+  //   return FutureBuilder(
+  //     key:
+  //         _futureBuilderKey, // Make sure to add this line if not already present
+  //     future: _fetchDoctorNotes(patientId, admissionId),
+  //     builder: (context, AsyncSnapshot<List<dynamic>> snapshot) {
+  //       if (snapshot.connectionState == ConnectionState.waiting) {
+  //         return Center(child: CircularProgressIndicator());
+  //       } else if (snapshot.hasError) {
+  //         return Text('Error: ${snapshot.error}');
+  //       } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+  //         return Column(
+  //           crossAxisAlignment: CrossAxisAlignment.start,
+  //           children: [
+  //             Text(
+  //               'Doctor Notes',
+  //               style: TextStyle(
+  //                 fontSize: 16,
+  //                 fontWeight: FontWeight.bold,
+  //               ),
+  //             ),
+  //             SizedBox(height: 12),
+  //             Text('No notes available'),
+  //             SizedBox(height: 12),
+  //             _buildGradientButton(
+  //               icon: Icons.add,
+  //               text: 'Add Note',
+  //               onPressed: () =>
+  //                   _showAddNoteDialog(context, patientId, admissionId),
+  //             ),
+  //           ],
+  //         );
+  //       }
+
+  //       // If we have data, display the notes
+  //       return Column(
+  //         crossAxisAlignment: CrossAxisAlignment.start,
+  //         children: [
+  //           Text(
+  //             'Doctor Notes',
+  //             style: TextStyle(
+  //               fontSize: 16,
+  //               fontWeight: FontWeight.bold,
+  //             ),
+  //           ),
+  //           SizedBox(height: 12),
+  //           // Display all notes from the API
+  //           ...snapshot.data!.map((note) => Column(
+  //                 children: [
+  //                   _buildNoteItem(
+  //                     date: note['date'],
+  //                     note: note['text'],
+  //                     doctor: note['doctorName'],
+  //                     noteId: note['_id'],
+  //                     onDelete: () => _showDeleteConfirmation(
+  //                         context, patientId, admissionId, note['_id']),
+  //                   ),
+  //                   SizedBox(height: 8),
+  //                 ],
+  //               )),
+  //           SizedBox(height: 12),
+  //           // Add note button
+  //           _buildGradientButton(
+  //             icon: Icons.add,
+  //             text: 'Add Note',
+  //             onPressed: () =>
+  //                 _showAddNoteDialog(context, patientId, admissionId),
+  //           ),
+  //         ],
+  //       );
+  //     },
+  //   );
+  // }
+
+// Modified to include delete option
+  Widget _buildNoteItem({
+    required String date,
+    required String note,
+    required String doctor,
+    required String noteId,
+    required Function onDelete,
+  }) {
+    return Container(
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                date,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+              Row(
+                children: [
+                  Text(
+                    doctor,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                      color: Colors.blue.shade700,
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => onDelete(),
+                    child: Icon(
+                      Icons.delete_outline,
+                      size: 18,
+                      color: Colors.red.shade400,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          SizedBox(height: 6),
+          Text(
+            note,
+            style: TextStyle(
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+// Add this method for delete confirmation
+//   void _showDeleteConfirmation(BuildContext context, String patientId,
+//       String admissionId, String noteId) {
+//     showDialog(
+//       context: context,
+//       builder: (context) => AlertDialog(
+//         title: Text('Delete Note'),
+//         content: Text('Are you sure you want to delete this note?'),
+//         actions: [
+//           TextButton(
+//             onPressed: () => Navigator.pop(context),
+//             child: Text('Cancel'),
+//           ),
+//           ElevatedButton(
+//             style: ElevatedButton.styleFrom(
+//               backgroundColor: Colors.red,
+//             ),
+//             onPressed: () async {
+//               // Close the dialog first
+//               Navigator.pop(context);
+//               // Then delete the note
+//               await _deleteNote(patientId, admissionId, noteId);
+//             },
+//             child: Text('Delete'),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+// // Function to show add note dialog
+//   void _showAddNoteDialog(
+//       BuildContext context, String patientId, String admissionId) {
+//     final textController = TextEditingController();
+
+//     showDialog(
+//       context: context,
+//       builder: (context) => AlertDialog(
+//         title: Text('Add Doctor Note'),
+//         content: TextField(
+//           controller: textController,
+//           decoration: InputDecoration(
+//             hintText: 'Enter your note here',
+//             border: OutlineInputBorder(),
+//           ),
+//           maxLines: 5,
+//         ),
+//         actions: [
+//           TextButton(
+//             onPressed: () => Navigator.pop(context),
+//             child: Text('Cancel'),
+//           ),
+//           ElevatedButton(
+//             onPressed: () async {
+//               if (textController.text.isNotEmpty) {
+//                 // Get current date in the required format
+//                 final now = DateTime.now();
+//                 final formattedDate =
+//                     "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}";
+
+//                 // Close dialog first
+//                 Navigator.pop(context);
+
+//                 // Add the note
+//                 await _addDoctorNote(
+//                     patientId, admissionId, textController.text, formattedDate);
+
+//                 // Refresh the UI by updating state and forcing the FutureBuilder to rebuild
+//                 setState(() {
+//                   _futureBuilderKey = UniqueKey();
+//                 });
+//               }
+//             },
+//             child: Text('Save'),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+// Function to fetch doctor notes
+  Future<List<dynamic>> _fetchDoctorNotes(
+      String patientId, String admissionId) async {
+    final url =
+        Uri.parse('${KVM_URL}/doctors/fetchNotes/$patientId/$admissionId');
+    print(url);
+    try {
+      final response = await http.get(
+        url,
+      );
+      print(response.body);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['doctorNotes'];
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception("Error: ${error['message']}");
+      }
+    } catch (e) {
+      throw Exception("Failed to fetch doctor notes: $e");
+    }
+  }
+
+// Function to add a doctor note
+  Future<void> _addDoctorNote(
+      String patientId, String admissionId, String text, String date) async {
+    try {
+      await doctor.addDoctorNote(
+        patientId: patientId,
+        admissionId: admissionId,
+        text: text,
+        date: date,
+      );
+
+      // The setState call will happen in the calling function
+    } catch (e) {
+      print("Error adding note: $e");
+    }
+  }
+
+// Function to delete a doctor note - fixed version
+  Future<void> _deleteNote(
+      String patientId, String admissionId, String noteId) async {
+    try {
+      await doctor.deleteDoctorNote(
+        patientId: patientId,
+        admissionId: admissionId,
+        noteId: noteId,
+      );
+
+      // Refresh the UI by updating state and forcing the FutureBuilder to rebuild
+      setState(() {
+        _futureBuilderKey = UniqueKey();
+      });
+    } catch (e) {
+      print("Error deleting note: $e");
+    }
+  }
+
+// In your StatefulWidget class declaration, make sure to add:
+  Key _futureBuilderKey = UniqueKey();
+  // Horizontal drawer that opens from the middle
+  Widget _buildHorizontalDrawer(
+      BuildContext context, String patientId, String admissionId) {
+    return HorizontalCenterDrawer(
+      closedWidth: 50,
+      openWidth: 300,
+      child: _buildDoctorNotes(context, patientId, admissionId),
+    );
+  }
+
+  // Doctor notes widget
 
   Widget _buildSectionContainer(BuildContext context, Widget child,
       {required String title}) {
@@ -2116,23 +5250,11 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
           const SizedBox(height: 20),
 
           // Add Symptom button
-          ElevatedButton(
+          buildCustomActionButton(
+            label: 'Add Symptom',
+            startColor: Colors.deepPurpleAccent,
+            endColor: Colors.pinkAccent,
             onPressed: _addSymptom,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xffff96a8), // Button color
-              padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 30),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(17), // Rounded corners
-              ),
-            ),
-            child: const Text(
-              'Add Symptom',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
-            ),
           ),
         ],
       ),
@@ -2156,6 +5278,64 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
         });
       }
     });
+  }
+
+  Widget buildCustomActionButton({
+    required String label,
+    required Color startColor,
+    required Color endColor,
+    required VoidCallback onPressed,
+    double width = 150,
+    double height = 70,
+    bool isLoading = false,
+  }) {
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+        padding: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(
+              10), // Less rounded corners for more rectangular look
+        ),
+      ),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [startColor.withOpacity(0.7), endColor],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            BoxShadow(
+              color: startColor.withOpacity(0.4),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (isLoading) const CircularProgressIndicator(color: Colors.white),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void openAddDiagnosisScreen(String patientId, String admissionId) {
@@ -2199,106 +5379,276 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
   }
 
   Widget _buildOverviewSection1(BuildContext context, WidgetRef ref) {
-    return SizedBox(
-      height: 340,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.only(left: 2.0),
-        child: Container(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Patient Info Section
-              _buildPatientInfoCard(ref),
-              const SizedBox(height: 20),
-              Wrap(
-                runAlignment: WrapAlignment.spaceEvenly,
-                spacing: 4.0, // Horizontal spacing between items
-                runSpacing: 4.0, // Vertical spacing between rows
-
-                // mainAxisAlignment: MainAxisAlignment.,
+    return SingleChildScrollView(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Patient Overview Card
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
                 children: [
-                  _buildGradientButton(
-                    icon: Icons.details,
-                    text: 'View Details',
-                    onPressed: () {
-                      Navigator.of(context).push(MaterialPageRoute(
-                        builder: (context) => PatientHistoryDetailScreen(
-                          patientId: widget.patient.patientId,
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundColor: Colors.blue.shade100,
+                    child: Icon(Icons.person, color: Colors.blue.shade600),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.patient.name,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ));
-                    },
-                  ),
-                  _buildGradientButton(
-                    icon: Icons.medication,
-                    text: 'Generate Prescription',
-                    onPressed: () async {
-                      setState(() => _isLoading = true);
-                      await _fetchDoctorAdvice(
-                          context,
-                          widget.patient.patientId,
-                          widget.patient.admissionRecords.first.id);
-                      setState(() => _isLoading = false);
-                    },
-                    isLoading: _isLoading,
-                  ),
-                  _buildGradientButton(
-                    icon: Icons.local_hospital,
-                    text: 'Admit Patient',
-                    onPressed: () async =>
-                        await _admitPatient(widget.patient, ref, context),
-                  ),
-                  _buildGradientButton(
-                    icon: Icons.science,
-                    text: 'Assign to Lab',
-                    onPressed: () async =>
-                        await _handleAssignLab(context, widget.patient, ref),
+                        const SizedBox(height: 4),
+                        Text(
+                          'ID: ${widget.patient.patientId} | Age: ${widget.patient.age} | Gender: ${widget.patient.gender}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
+            ),
 
-              // Admission Records List
-              if (widget.patient.admissionRecords.isNotEmpty)
-                ...widget.patient.admissionRecords.map((record) {
-                  return _buildAdmissionRecordCard(record);
-                }).toList()
-              else
-                const Center(
-                  child: Text(
-                    'No admission records found.',
-                    style: TextStyle(fontSize: 16, fontStyle: FontStyle.italic),
-                  ),
+            const SizedBox(height: 16),
+
+            // Action Buttons
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildActionButton(
+                  icon: Icons.visibility,
+                  label: 'View Details',
+                  color: Colors.teal,
+                  onPressed: () {
+                    Navigator.of(context).push(MaterialPageRoute(
+                      builder: (context) => PatientHistoryDetailScreen(
+                        patientId: widget.patient.patientId,
+                      ),
+                    ));
+                  },
                 ),
-            ],
-          ),
+                _buildActionButton(
+                  icon: Icons.medication,
+                  label: 'Prescription',
+                  color: Colors.purple,
+                  isLoading: _isPrescriptionLoading,
+                  onPressed: () async {
+                    // The loading state is now managed inside _fetchDoctorAdvice
+                    await _fetchDoctorAdvice(context, widget.patient.patientId,
+                        widget.patient.admissionRecords.first.id);
+                  },
+                ),
+                _buildActionButton(
+                  icon: Icons.local_hospital,
+                  label: 'Admit',
+                  color: Colors.red,
+                  onPressed: () async =>
+                      await _admitPatient(widget.patient, ref, context),
+                ),
+                _buildActionButton(
+                  icon: Icons.science,
+                  label: 'Lab Assign',
+                  color: Colors.orange,
+                  onPressed: () async =>
+                      await _handleAssignLab(context, widget.patient, ref),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            // Admission Details
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Admission',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (widget.patient.admissionRecords.isNotEmpty)
+                    ..._buildAdmissionDetails(
+                        widget.patient.admissionRecords.first)
+                  else
+                    Text(
+                      'No admission records found',
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
+// Action Button Widget
+  // Action Button Widget with Gradient and Animation
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+    bool isLoading = false,
+  }) {
+    return GestureDetector(
+      onTap: isLoading ? null : onPressed, // Disable tap when loading
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        width: 90,
+        height: 90,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [color.withOpacity(0.7), color],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.4),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            isLoading
+                ? SizedBox(
+                    height: 36, // Same height as the icon
+                    width: 36, // Same width as the icon
+                    child: CustomLoadingAnimation(),
+                  )
+                : Icon(icon, size: 36, color: Colors.white),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+// Build Admission Details
+  List<Widget> _buildAdmissionDetails(AdmissionRecord record) {
+    return [
+      _buildDetailRow(
+        icon: Icons.calendar_today,
+        label: 'Date',
+        value: record.admissionDate,
+      ),
+      const SizedBox(height: 8),
+      _buildDetailRow(
+        icon: Icons.medical_services,
+        label: 'Reason',
+        value: record.reasonForAdmission,
+      ),
+      const SizedBox(height: 8),
+      _buildDetailRow(
+        icon: Icons.healing,
+        label: 'Symptoms',
+        value: record.symptoms,
+      ),
+    ];
+  }
+
+// Detail Row Widget
+  Widget _buildDetailRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.blue.shade600, size: 20),
+        const SizedBox(width: 8),
+        Text(
+          '$label: ',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.blue.shade700,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(color: Colors.grey.shade800),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  bool _isPrescriptionLoading = false;
+
+// Then update your _fetchDoctorAdvice method to handle loading states appropriately
   Future<void> _fetchDoctorAdvice(
       BuildContext context, patientId, admissionId) async {
-    final url =
-        '${KVM_URL}/reception/getDoctorAdvice/${patientId}/${admissionId}';
+    setState(() => _isPrescriptionLoading = true);
+
     try {
-      print("john cenw");
+      final url =
+          '${KVM_URL}/reception/getDoctorAdvice/${patientId}/${admissionId}';
+
       final response = await http.get(Uri.parse(url));
-      print("body res ${response.body}");
       final data = jsonDecode(response.body);
       final fileLink = data['fileLink'];
-      print("working ${fileLink}");
+
       if (fileLink != null) {
         Methods().openPdf(fileLink);
-        // Methods().downloadFile(fileLink, 'doctor_advice.pdf', context);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('No file link found in the response')),
         );
       }
     } catch (e) {
-      print("fuck $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
+    } finally {
+      // Always reset the loading state, regardless of success or failure
+      setState(() => _isPrescriptionLoading = false);
     }
   }
 
@@ -3153,6 +6503,10 @@ class ViewPrescriptionIntent extends Intent {}
 class ViewConsultationIntent extends Intent {}
 
 class ViewDiagnosisIntent extends Intent {}
+
+class ViewTreatMentIntent extends Intent {}
+
+class ViewHomeIntent extends Intent {}
 
 class AssignLabDialog extends StatefulWidget {
   @override

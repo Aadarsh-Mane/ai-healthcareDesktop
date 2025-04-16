@@ -95,6 +95,23 @@ class Methods {
     }
   }
 
+// Add this to your Methods class
+  void openUrl(String url) {
+    try {
+      if (Platform.isMacOS) {
+        Process.run('open', [url]);
+      } else if (Platform.isLinux) {
+        Process.run('xdg-open', [url]);
+      } else if (Platform.isWindows) {
+        Process.run('start', [url], runInShell: true);
+      } else {
+        // For other platforms, try url_launcher package
+      }
+    } catch (e) {
+      print('Error opening URL in browser: $e');
+    }
+  }
+
 // Function to extract the file ID from a Google Drive URL
   String? extractFileIdFromUrl(String url) {
     final regex = RegExp(r'/d/([a-zA-Z0-9_-]+)');

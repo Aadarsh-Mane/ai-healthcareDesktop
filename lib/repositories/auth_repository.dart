@@ -375,21 +375,28 @@ class AuthRepository {
     }
   }
 
-  Future<Map<String, dynamic>> admitPatient1(
-      {required String admissionId}) async {
+  // Updated admitPatient function in auth_repository.dart
+  Future<Map<String, dynamic>> admitPatient1({
+    required String admissionId,
+    required String admitNote, // Added parameter for admission note
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
 
     if (token == null) {
       throw Exception('No authentication token found.');
     }
+
     final response = await http.post(
       Uri.parse('${KVM_URL}/doctors/admitPatient'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token'
       },
-      body: jsonEncode({'admissionId': admissionId}),
+      body: jsonEncode({
+        'admissionId': admissionId,
+        'admitNote': admitNote, // Include admit note in request body
+      }),
     );
 
     if (response.statusCode == 200) {

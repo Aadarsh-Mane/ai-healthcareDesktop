@@ -25,7 +25,7 @@ class _MovingCubeState extends State<Desktop3DScreen>
       if (status == AnimationStatus.completed) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (context) => PatientAddScreen(),
+            builder: (context) => PatientRegistrationScreen(),
           ),
         );
       }

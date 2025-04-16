@@ -1,3 +1,4 @@
+import 'package:doctordesktop/Admin/AdminDashboard.dart';
 import 'package:doctordesktop/Doctor/SeeNurseAttendace.dart';
 import 'package:doctordesktop/Doctor/fetchDoctor.dart';
 import 'package:doctordesktop/Patient/fetchPatient.dart';
@@ -37,7 +38,7 @@ class _AdminAuthDialogState extends State<AdminAuthDialog> {
       Navigator.pop(context);
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => DesktopButtonScreen()),
+        MaterialPageRoute(builder: (context) => AdminDashBoardScreen()),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(

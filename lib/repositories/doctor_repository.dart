@@ -376,6 +376,130 @@ class DoctorRepository {
     }
   }
 
+  Future<Map<String, dynamic>> admitPatientWithNotes({
+    required String admissionId,
+    required String admitNotes,
+  }) async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('auth_token');
+      // Get the token
+      if (token == null) {
+        throw Exception('Authentication token not found');
+      }
+
+      // Prepare request body
+      final Map<String, dynamic> requestBody = {
+        'admissionId': admissionId,
+        'admitNotes': admitNotes,
+      };
+
+      // Make API call
+      final response = await http.post(
+        Uri.parse('${KVM_URL}/reception/admitPatientWithNotes'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      // Parse response
+      final responseData = json.decode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Patient admitted successfully',
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Failed to admit patient',
+        };
+      }
+    } catch (e) {
+      print('Error in admitPatientWithNotes: $e');
+      return {
+        'success': false,
+        'message': e.toString(),
+      };
+    }
+  }
+
+  Future<void> addDoctorNote({
+    required String patientId,
+    required String admissionId,
+    required String text,
+    required String date,
+  }) async {
+    String? token =
+        await auth.getToken(); // Fetch your token for authentication
+    final url = Uri.parse("${KVM_URL}/doctors/addNotes");
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token", // Add your token here
+        },
+        body: jsonEncode({
+          "patientId": patientId,
+          "admissionId": admissionId,
+          "text": text,
+          "date": date,
+        }),
+      );
+
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        print("Doctor note added successfully: ${responseData['message']}");
+      } else {
+        print("Error adding note: ${responseData['message']}");
+      }
+    } catch (e) {
+      print("Exception: $e");
+    }
+  }
+
+// Function to delete a doctor note
+  Future<void> deleteDoctorNote({
+    required String patientId,
+    required String admissionId,
+    required String noteId,
+  }) async {
+    String? token =
+        await auth.getToken(); // Fetch your token for authentication
+    final url = Uri.parse("$KVM_URL/doctors/deleteNote");
+
+    try {
+      final response = await http.delete(
+        url,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token", // Add your token here
+        },
+        body: jsonEncode({
+          "patientId": patientId,
+          "admissionId": admissionId,
+          "noteId": noteId,
+        }),
+      );
+
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        print("Doctor note deleted successfully: ${responseData['message']}");
+      } else {
+        print("Error deleting note: ${responseData['message']}");
+      }
+    } catch (e) {
+      print("Exception: $e");
+    }
+  }
+
   Future<void> addDoctorConsultant(String patientId, String admissionId,
       DoctorConsulting doctorPrescription) async {
     final url = Uri.parse('${KVM_URL}/doctors/addDoctorConsultant');

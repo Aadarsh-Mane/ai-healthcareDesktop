@@ -6,6 +6,8 @@ import 'package:doctordesktop/repositories/doctor_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:intl/intl.dart';
 
 class AddPrescriptionScreen extends StatefulWidget {
   final String patientId;
@@ -21,7 +23,8 @@ class AddPrescriptionScreen extends StatefulWidget {
   State<AddPrescriptionScreen> createState() => _AddPrescriptionScreenState();
 }
 
-class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
+class _AddPrescriptionScreenState extends State<AddPrescriptionScreen>
+    with SingleTickerProviderStateMixin {
   final doctor = DoctorRepository();
   final TextEditingController medicineNameController = TextEditingController();
   final TextEditingController morningDosageController = TextEditingController();
@@ -29,15 +32,80 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
       TextEditingController();
   final TextEditingController nightDosageController = TextEditingController();
   final TextEditingController commentController = TextEditingController();
+  final FocusNode medicineFocusNode = FocusNode();
+
+  // Colors from HospitalTheme - same as VitalsScreen
+  final Color primaryColor = const Color(0xFF005F9E);
+  final Color accentColor = const Color(0xFF00B8D4);
+  final Color backgroundColor = const Color(0xFFF8FBFD);
+  final Color cardBackground = Colors.white;
+  final Color textDark = const Color(0xFF2D3748);
+  final Color textMedium = const Color(0xFF5A6B7F);
+  final Color success = const Color(0xFF43A047);
+  final Color error = const Color(0xFFE53935);
+  final Color warning = const Color(0xFFFFA000);
+
+  // Animation
+  late AnimationController _animationController;
+  late Animation<double> _animation;
 
   List<String> medicineSuggestions = [];
   List<DoctorPrescription> _prescriptions = [];
 
   String selectedMedicines = ''; // Store as a single string
   bool isLoadingSuggestions = false;
+  bool showComment = false;
+
+  @override
   void initState() {
     super.initState();
     _fetchPrescriptions();
+
+    // Initialize animation controller
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+
+    _animation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    );
+
+    // Add listener to medicine name controller for Enter key
+    medicineNameController.addListener(_handleMedicineNameChange);
+  }
+
+  @override
+  void dispose() {
+    medicineNameController.removeListener(_handleMedicineNameChange);
+    medicineNameController.dispose();
+    morningDosageController.dispose();
+    afternoonDosageController.dispose();
+    nightDosageController.dispose();
+    commentController.dispose();
+    medicineFocusNode.dispose();
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  void _handleMedicineNameChange() {
+    if (medicineNameController.text.contains('\n')) {
+      // Handle Enter key
+      final medicineName =
+          medicineNameController.text.replaceAll('\n', '').trim();
+      if (medicineName.isNotEmpty) {
+        setState(() {
+          if (selectedMedicines.isEmpty) {
+            selectedMedicines = medicineName;
+          } else {
+            selectedMedicines += ', ' + medicineName;
+          }
+          medicineNameController.clear();
+          medicineSuggestions = [];
+        });
+      }
+    }
   }
 
   Future<void> _fetchMedicineSuggestions(String query) async {
@@ -95,13 +163,18 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
         _prescriptions = prescriptions;
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching prescriptions: $e')),
-      );
+      _showSnackBar('Error fetching prescriptions: $e', isError: true);
     }
   }
 
   Future<void> _addPrescription() async {
+    if (selectedMedicines.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please add at least one medicine')),
+      );
+      return;
+    }
+
     final morningDosage = morningDosageController.text.isEmpty
         ? '0'
         : morningDosageController.text;
@@ -110,25 +183,40 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
         : afternoonDosageController.text;
     final nightDosage =
         nightDosageController.text.isEmpty ? '0' : nightDosageController.text;
-    final medicine = Medicine(
-      name: selectedMedicines,
-      morning: morningDosage,
-      afternoon: afternoonDosage,
-      night: nightDosage,
-      comment: commentController.text,
-    );
+    final comment = commentController.text;
 
-    final doctorPrescription = DoctorPrescription(medicine: medicine);
+    // Split the medicines into a list
+    List<String> medicinesList =
+        selectedMedicines.split(', ').where((med) => med.isNotEmpty).toList();
 
     try {
-      await doctor.addPrescription(
-        widget.patientId,
-        widget.admissionId,
-        doctorPrescription,
-      );
+      // Create a counter for successful additions
+      int successCount = 0;
+
+      // Add each medicine individually
+      for (String medicineName in medicinesList) {
+        final medicine = Medicine(
+          name: medicineName.trim(), // Ensure no extra spaces
+          morning: morningDosage,
+          afternoon: afternoonDosage,
+          night: nightDosage,
+          comment: comment,
+        );
+
+        final doctorPrescription = DoctorPrescription(medicine: medicine);
+
+        await doctor.addPrescription(
+          widget.patientId,
+          widget.admissionId,
+          doctorPrescription,
+        );
+
+        successCount++;
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Prescription added successfully')),
+        SnackBar(
+            content: Text('$successCount prescriptions added successfully')),
       );
 
       setState(() {
@@ -147,382 +235,822 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
     }
   }
 
+  void _showSuccessAnimation() {
+    _animationController.forward().then((_) {
+      _showSnackBar('Prescription added successfully');
+      _animationController.reverse();
+    });
+  }
+
   Future<void> _deletePrescription(String id) async {
+    final confirmed = await _showDeleteConfirmationDialog();
+    if (!confirmed) return;
+
     try {
       await doctor.deletePrescription(widget.patientId, widget.admissionId, id);
       await _fetchPrescriptions();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Prescription deleted successfully')),
-      );
+      _showSnackBar('Prescription deleted successfully');
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error deleting prescription: $e')),
-      );
+      _showSnackBar('Error deleting prescription: $e', isError: true);
     }
+  }
+
+  Future<bool> _showDeleteConfirmationDialog() async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              title: const Text('Confirm Deletion'),
+              content: const Text(
+                  'Are you sure you want to delete this prescription?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text('Cancel', style: TextStyle(color: textMedium)),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: error,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Delete'),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
   }
 
   void _handleKeyPress(RawKeyEvent event) {
     if (event is RawKeyDownEvent) {
       if (event.logicalKey == LogicalKeyboardKey.escape) {
         Navigator.of(context).pop(true); // Navigate back on Escape
-      } else if (event.logicalKey == LogicalKeyboardKey.enter) {
-        _addPrescription(); // Add prescription on Enter
+      } else if (event.isControlPressed &&
+          event.logicalKey == LogicalKeyboardKey.keyS) {
+        _addPrescription(); // Add prescription on Ctrl+S
       }
+    }
+  }
+
+  void _showSnackBar(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? error : success,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(10),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void _addMedicine() {
+    final medicineName = medicineNameController.text.trim();
+    if (medicineName.isNotEmpty) {
+      setState(() {
+        if (selectedMedicines.isEmpty) {
+          selectedMedicines = medicineName;
+        } else {
+          selectedMedicines += ', ' + medicineName;
+        }
+        medicineNameController.clear();
+        medicineSuggestions = [];
+      });
+      FocusScope.of(context).requestFocus(medicineFocusNode);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-          title: const Text('Add Precription'),
-          backgroundColor: Colors.teal,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () {
-              Navigator.of(context).pop(true);
-            },
-          ),
-        ),
-        body: Container(
-          height: MediaQuery.of(context)
-              .size
-              .height, // Ensures full screen coverage
-
-          decoration: BoxDecoration(
-            image: DecorationImage(
-              colorFilter: ColorFilter.mode(
-                Colors.white70, // Adjust overlay color opacity
-                BlendMode.lighten,
-              ),
-              image: AssetImage("assets/images/bb1.png"),
-              fit: BoxFit.cover,
+      appBar: AppBar(
+        title: const Text('Add Prescription',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: primaryColor,
+        elevation: 0,
+        actions: [
+          Tooltip(
+            message: 'Save Prescription (Ctrl+S)',
+            child: IconButton(
+              icon: const Icon(Icons.save),
+              onPressed: _addPrescription,
             ),
           ),
-          child: RawKeyboardListener(
-            focusNode: FocusNode(),
-            onKey: _handleKeyPress,
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    Text(
-                      'Prescription Details',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: Colors.teal,
-                          ),
-                    ),
-                    const SizedBox(height: 20),
-                    Wrap(
-                      spacing: 10.0,
-                      runSpacing: 10.0,
-                      children: selectedMedicines
-                          .split(', ')
-                          .map((medicine) => Chip(
-                                label: Text(medicine,
-                                    style:
-                                        const TextStyle(color: Colors.white)),
-                                backgroundColor: Colors.teal,
-                                onDeleted: () {
-                                  setState(() {
-                                    selectedMedicines = selectedMedicines
-                                        .split(', ')
-                                        .where((e) => e != medicine)
-                                        .join(', ');
-                                  });
-                                },
-                              ))
-                          .toList(),
-                    ),
-                    const SizedBox(height: 20),
-                    if (isLoadingSuggestions) const LinearProgressIndicator(),
-                    if (medicineSuggestions.isNotEmpty) _buildSuggestionsList(),
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        SizedBox(
-                          width: 20,
-                        ),
-                        Image.asset(
-                          'assets/images/prescrip.png',
-                          width: 50,
-                          height: 50,
-                        ),
-                        _buildTextField(
-                          controller: medicineNameController,
-                          label: 'Medicine Name',
-                          onChanged: _fetchMedicineSuggestions,
-                        ),
-                        const SizedBox(width: 40),
-                        _buildDosageField(
-                            controller: morningDosageController,
-                            label: 'Morning'),
-                        const SizedBox(width: 23),
-                        _buildDosageField(
-                            controller: afternoonDosageController,
-                            label: 'Afternoon'),
-                        const SizedBox(width: 23),
-                        _buildDosageField(
-                            controller: nightDosageController, label: 'Night'),
-                        const SizedBox(width: 23),
-                        const SizedBox(width: 10),
-                        Container(
-                          width:
-                              170, // Adjust this width based on your text length
-                          child: NeumorphicButton1(
-                            onTap: () {
-                              _addPrescription();
+          const SizedBox(width: 8),
+        ],
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.of(context)
+                .pop(true); // Return true to refresh parent screen
+          },
+        ),
+      ),
+      body: Container(
+        height: MediaQuery.of(context).size.height,
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          image: DecorationImage(
+            image: const AssetImage("assets/images/bb1.png"),
+            fit: BoxFit.cover,
+            opacity: 0.1,
+            colorFilter: ColorFilter.mode(
+              primaryColor.withOpacity(0.05),
+              BlendMode.lighten,
+            ),
+          ),
+        ),
+        child: RawKeyboardListener(
+          focusNode: FocusNode(),
+          onKey: _handleKeyPress,
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                _buildHeaderSection(),
+                const SizedBox(height: 16),
+
+                // Main content
+                Expanded(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Left side - Add prescription form
+                      Expanded(
+                        flex: 3,
+                        child: _buildPrescriptionForm(),
+                      ),
+
+                      const SizedBox(width: 24),
+
+                      // Right side - Current prescriptions
+                      Expanded(
+                        flex: 4,
+                        child: _buildPrescriptionsList(),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeaderSection() {
+    return Container(
+      decoration: BoxDecoration(
+        color: cardBackground,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        children: [
+          // Title with Icon
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [primaryColor, accentColor],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(FontAwesomeIcons.heartPulse,
+                color: Colors.white, size: 24),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Patient Vitals',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: textDark,
+                  ),
+                ),
+                Text(
+                  'Track and monitor patient vital signs',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: textMedium,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Quick Actions
+          Row(
+            children: [
+              _buildActionButton(
+                icon: Icons.print,
+                label: 'Print All',
+                color: accentColor,
+                onPressed: () {
+                  // Implementation for printing
+                },
+              ),
+              const SizedBox(width: 12),
+              _buildActionButton(
+                icon: Icons.add,
+                label: 'Add Vitals',
+                color: primaryColor,
+                onPressed: () => _addPrescription(),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+  // Widget _buildHeaderSection() {
+  //   return Container(
+  //     decoration: BoxDecoration(
+  //       color: cardBackground,
+  //       borderRadius: BorderRadius.circular(16),
+  //       boxShadow: [
+  //         BoxShadow(
+  //           color: Colors.black.withOpacity(0.04),
+  //           blurRadius: 10,
+  //           offset: const Offset(0, 4),
+  //         ),
+  //       ],
+  //     ),
+  //     padding: const EdgeInsets.all(20),
+  //     child: Row(
+  //       children: [
+  //         // Title with Icon
+  //         Container(
+  //           padding: const EdgeInsets.all(10),
+  //           decoration: BoxDecoration(
+  //             gradient: LinearGradient(
+  //               colors: [primaryColor, accentColor],
+  //               begin: Alignment.topLeft,
+  //               end: Alignment.bottomRight,
+  //             ),
+  //             borderRadius: BorderRadius.circular(12),
+  //           ),
+  //           child: const Icon(FontAwesomeIcons.pills,
+  //               color: Colors.white, size: 24),
+  //         ),
+  //         const SizedBox(width: 16),
+  //         Expanded(
+  //           child: Column(
+  //             crossAxisAlignment: CrossAxisAlignment.start,
+  //             children: [
+  //               Text(
+  //                 'Patient Prescriptions',
+  //                 style: TextStyle(
+  //                   fontSize: 24,
+  //                   fontWeight: FontWeight.bold,
+  //                   color: textDark,
+  //                 ),
+  //               ),
+  //               Text(
+  //                 'Manage medications and dosage instructions',
+  //                 style: TextStyle(
+  //                   fontSize: 14,
+  //                   color: textMedium,
+  //                 ),
+  //               ),
+  //             ],
+  //           ),
+  //         ),
+
+  //         // Quick Actions
+  //         Row(
+  //           children: [
+  //             _buildActionButton(
+  //               icon: Icons.print,
+  //               label: 'Print All',
+  //               color: accentColor,
+  //               onPressed: () {
+  //                 // Implementation for printing
+  //               },
+  //             ),
+  //             const SizedBox(width: 12),
+  //             _buildActionButton(
+  //               icon: Icons.save,
+  //               label: 'Save Prescription',
+  //               color: primaryColor,
+  //               onPressed: _addPrescription,
+  //             ),
+  //           ],
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, color: Colors.white, size: 18),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPrescriptionForm() {
+    return Container(
+      decoration: BoxDecoration(
+        color: cardBackground,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(
+          color: const Color(0xFFDFEAF4),
+          width: 1,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Section title
+            Row(
+              children: [
+                Icon(FontAwesomeIcons.penToSquare,
+                    size: 16, color: primaryColor),
+                const SizedBox(width: 8),
+                Text(
+                  'Add New Prescription',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: primaryColor,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // Medicine selection header
+            Text(
+              'Medicine Selection',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: textDark,
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Selected medicines chips
+            if (selectedMedicines.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: backgroundColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(0xFFDFEAF4),
+                    width: 1,
+                  ),
+                ),
+                child: Wrap(
+                  spacing: 8.0,
+                  runSpacing: 8.0,
+                  children: selectedMedicines
+                      .split(', ')
+                      .map((medicine) => Chip(
+                            label: Text(medicine),
+                            backgroundColor: accentColor,
+                            labelStyle: const TextStyle(color: Colors.white),
+                            deleteIconColor: Colors.white,
+                            elevation: 1,
+                            shadowColor: Colors.black12,
+                            onDeleted: () {
+                              setState(() {
+                                selectedMedicines = selectedMedicines
+                                    .split(', ')
+                                    .where((e) => e != medicine)
+                                    .join(', ');
+                              });
                             },
-                            padding: const EdgeInsets.all(12),
-                            child: const Center(
-                              // Ensure text is centered
-                              child: Text(
-                                'Add Prescription',
-                                style: TextStyle(
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                                textAlign: TextAlign.center,
-                                overflow: TextOverflow
-                                    .ellipsis, // Handle long text gracefully
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                          ))
+                      .toList(),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // Medicine search
+            Row(
+              children: [
+                Expanded(
+                  child: _buildTextField(
+                    controller: medicineNameController,
+                    label: 'Search or add medicine',
+                    hintText: 'Type medicine name and press Enter',
+                    prefixIcon: FontAwesomeIcons.magnifyingGlass,
+                    onChanged: _fetchMedicineSuggestions,
+                    focusNode: medicineFocusNode,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    gradient: LinearGradient(
+                      colors: [primaryColor, accentColor],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.add, color: Colors.white),
+                    onPressed: _addMedicine,
+                    tooltip: 'Add Medicine',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            // Loading indicator for suggestions
+            if (isLoadingSuggestions)
+              LinearProgressIndicator(
+                backgroundColor: accentColor.withOpacity(0.1),
+                valueColor: AlwaysStoppedAnimation<Color>(accentColor),
+              ),
+
+            // Suggestions list
+            if (medicineSuggestions.isNotEmpty)
+              Expanded(
+                flex: 2,
+                child: _buildSuggestionsList(),
+              ),
+
+            const SizedBox(height: 16),
+
+            // Dosage section
+            Text(
+              'Dosage Information',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: textDark,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildDosageInput(
+                  controller: morningDosageController,
+                  label: 'Morning',
+                  icon: Icons.wb_sunny_outlined,
+                ),
+                _buildDosageInput(
+                  controller: afternoonDosageController,
+                  label: 'Afternoon',
+                  icon: Icons.wb_twighlight,
+                ),
+                _buildDosageInput(
+                  controller: nightDosageController,
+                  label: 'Night',
+                  icon: Icons.nightlight_outlined,
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            // Comment toggle and field
+            InkWell(
+              onTap: () {
+                setState(() {
+                  showComment = !showComment;
+                });
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Row(
+                  children: [
+                    Icon(
+                      showComment ? Icons.expand_less : Icons.expand_more,
+                      color: primaryColor,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 4),
                     Text(
-                      'Current Prescriptions',
+                      'Additional Notes',
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 14,
                         fontWeight: FontWeight.bold,
-                        color: Colors.teal[700],
+                        color: primaryColor,
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    _prescriptions.isEmpty
-                        ? const Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: Text('No prescriptions added yet'),
-                          )
-                        : ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: _prescriptions.length,
-                            itemBuilder: (context, index) {
-                              final prescription = _prescriptions[index];
-                              return Card(
-                                color: Colors.white,
-                                margin: const EdgeInsets.only(bottom: 12),
-                                elevation: 20,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(15),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          CircleAvatar(
-                                            child: Image.asset(
-                                              'assets/images/prescrip.png',
-                                              width: 40,
-                                              height: 40,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 16),
-                                          Expanded(
-                                            child: Text(
-                                              prescription.medicine.name,
-                                              style: const TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.teal,
-                                              ),
-                                            ),
-                                          ),
-                                          _buildDosageDisplay('M',
-                                              prescription.medicine.morning),
-                                          const SizedBox(width: 10),
-                                          _buildDosageDisplay('A',
-                                              prescription.medicine.afternoon),
-                                          const SizedBox(width: 10),
-                                          _buildDosageDisplay(
-                                              'N', prescription.medicine.night),
-                                          const SizedBox(width: 16),
-                                          IconButton(
-                                            icon: const Icon(
-                                                Icons.delete_outline,
-                                                color: Colors.red),
-                                            onPressed: () =>
-                                                _deletePrescription(
-                                                    prescription.medicine.id!),
-                                          ),
-                                        ],
-                                      ),
-                                      if (prescription
-                                          .medicine.comment.isNotEmpty)
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                              top: 8, left: 56),
-                                          child: Text(
-                                            'Note: ${prescription.medicine.comment}',
-                                            style: TextStyle(
-                                              color: Colors.grey[600],
-                                              fontStyle: FontStyle.italic,
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              );
-
-                              // return Card(
-                              //   margin: const EdgeInsets.only(bottom: 12),
-                              //   elevation: 2,
-                              //   shape: RoundedRectangleBorder(
-                              //     borderRadius: BorderRadius.circular(10),
-                              //   ),
-                              //   child: ListTile(
-                              //     contentPadding: const EdgeInsets.symmetric(
-                              //       horizontal: 16,
-                              //       vertical: 8,
-                              //     ),
-                              //     title: Text(
-                              //       prescription.medicine.name,
-                              //       style: const TextStyle(
-                              //         fontWeight: FontWeight.w500,
-                              //         fontSize: 16,
-                              //       ),
-                              //     ),
-                              //     subtitle: Column(
-                              //       crossAxisAlignment: CrossAxisAlignment.start,
-                              //       children: [
-                              //         const SizedBox(height: 6),
-                              //         _buildDosageRow(
-                              //             'Morning', prescription.medicine.morning),
-                              //         _buildDosageRow('Afternoon',
-                              //             prescription.medicine.afternoon),
-                              //         _buildDosageRow(
-                              //             'Night', prescription.medicine.night),
-                              //         if (prescription.medicine.comment.isNotEmpty)
-                              //           Padding(
-                              //             padding: const EdgeInsets.only(top: 6),
-                              //             child: Text(
-                              //               'Note: ${prescription.medicine.comment}',
-                              //               style: TextStyle(
-                              //                 color: Colors.grey[600],
-                              //                 fontStyle: FontStyle.italic,
-                              //               ),
-                              //             ),
-                              //           ),
-                              //       ],
-                              //     ),
-                              //     trailing: IconButton(
-                              //       icon: const Icon(Icons.delete_outline,
-                              //           color: Colors.red),
-                              //       onPressed: () => _deletePrescription(
-                              //           prescription.medicine.id!),
-                              //     ),
-                              //   ),
-                              // );
-                            },
-                          ),
                   ],
                 ),
               ),
             ),
-          ),
-        ));
-  }
 
-  Widget _buildDosageDisplay(String time, String dosage) {
-    return Container(
-      width: 60,
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.shade300,
-            offset: const Offset(-2, -2),
-            blurRadius: 4,
-          ),
-          BoxShadow(
-            color: Colors.grey.shade500,
-            offset: const Offset(2, 2),
-            blurRadius: 4,
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            time,
-            style: TextStyle(
-              color: Colors.teal.shade700,
-              fontWeight: FontWeight.bold,
+            // Comment field with animation
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              height: showComment ? 120 : 0,
+              margin: EdgeInsets.only(top: showComment ? 12 : 0),
+              child: showComment
+                  ? _buildTextField(
+                      controller: commentController,
+                      label: 'Notes',
+                      prefixIcon: FontAwesomeIcons.notesMedical,
+                      maxLines: 4,
+                    )
+                  : null,
             ),
-          ),
-          Text(
-            dosage,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+
+            const Spacer(),
+
+            // Add button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _addPrescription,
+                icon: const Icon(Icons.add_circle_outline),
+                label: const Text('Add Prescription'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildDosageRow(String time, String dosage) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Text(
-            '$time: ',
-            style: TextStyle(
-              color: Colors.grey[700],
-              fontWeight: FontWeight.w500,
-            ),
+  Widget _buildPrescriptionsList() {
+    return Container(
+      decoration: BoxDecoration(
+        color: cardBackground,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
-          SizedBox(width: 8), // Space between the time and the dosage field
-          Container(
-            width: 60, // Compact size for small numbers
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20), // Circular touch
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.shade300,
-                  offset: const Offset(-2, -2),
-                  blurRadius: 4,
-                ),
-                BoxShadow(
-                  color: Colors.grey.shade500,
-                  offset: const Offset(2, 2),
-                  blurRadius: 4,
+        ],
+        border: Border.all(
+          color: const Color(0xFFDFEAF4),
+          width: 1,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Section title
+            Row(
+              children: [
+                Icon(FontAwesomeIcons.listCheck, size: 16, color: primaryColor),
+                const SizedBox(width: 8),
+                Text(
+                  'Current Prescriptions',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: primaryColor,
+                  ),
                 ),
               ],
             ),
-            child: Text(
-              dosage, // Display the dosage as text here
-              style: const TextStyle(
-                color: Colors.black87,
-                fontWeight: FontWeight.w400,
-                fontSize: 16, // Adjust the font size as needed
+            const SizedBox(height: 12),
+            const Divider(),
+
+            // Prescriptions list
+            Expanded(
+              child: _prescriptions.isEmpty
+                  ? _buildEmptyState()
+                  : ListView.separated(
+                      itemCount: _prescriptions.length,
+                      separatorBuilder: (context, index) => const Divider(),
+                      itemBuilder: (context, index) {
+                        final prescription = _prescriptions[index];
+                        return _buildPrescriptionItem(prescription);
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: primaryColor.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              FontAwesomeIcons.pills,
+              size: 48,
+              color: primaryColor,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'No Prescriptions',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: textDark,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Start managing patient medications by adding the first prescription',
+            style: TextStyle(
+              fontSize: 16,
+              color: textMedium,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(String dateString) {
+    if (dateString.isEmpty) return 'N/A';
+
+    try {
+      final DateTime date = DateTime.parse(dateString);
+      return DateFormat('MMM dd, yyyy - hh:mm a').format(date.toLocal());
+    } catch (e) {
+      return dateString;
+    }
+  }
+
+  Widget _buildPrescriptionItem(DoctorPrescription prescription) {
+    final dateText = prescription.medicine.date != null
+        ? _formatDate(prescription.medicine.date.toString())
+        : 'Today';
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with date and delete option
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.calendar_today, size: 14, color: textMedium),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Prescribed: $dateText',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: textMedium,
+                    ),
+                  ),
+                ],
               ),
+              IconButton(
+                icon: Icon(Icons.delete_outline, color: error, size: 18),
+                onPressed: () => _deletePrescription(prescription.medicine.id!),
+                tooltip: 'Delete Prescription',
+                constraints: const BoxConstraints(),
+                padding: EdgeInsets.zero,
+              ),
+            ],
+          ),
+
+          // Prescription content
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: const Color(0xFFDFEAF4),
+                width: 1,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Medicine name
+                Text(
+                  prescription.medicine.name ?? '',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: primaryColor,
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Dosage information
+                Row(
+                  children: [
+                    _buildDosageDisplay(
+                      icon: Icons.wb_sunny_outlined,
+                      label: 'Morning',
+                      value: prescription.medicine.morning ?? '',
+                      color: Colors.orange,
+                    ),
+                    const SizedBox(width: 12),
+                    _buildDosageDisplay(
+                      icon: Icons.wb_twighlight,
+                      label: 'Afternoon',
+                      value: prescription.medicine.afternoon ?? '',
+                      color: accentColor,
+                    ),
+                    const SizedBox(width: 12),
+                    _buildDosageDisplay(
+                      icon: Icons.nightlight_outlined,
+                      label: 'Night',
+                      value: prescription.medicine.night ?? '',
+                      color: primaryColor.withOpacity(0.7),
+                    ),
+                  ],
+                ),
+
+                // Notes if available
+                if (prescription.medicine.comment != null &&
+                    prescription.medicine.comment!.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  const Divider(height: 1),
+                  const SizedBox(height: 12),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(FontAwesomeIcons.notesMedical,
+                          size: 14, color: textMedium),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          prescription.medicine.comment ?? '',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: textMedium,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
             ),
           ),
         ],
@@ -530,37 +1058,50 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
     );
   }
 
-  Widget _buildDosageField({
-    required TextEditingController controller,
+  Widget _buildDosageDisplay({
+    required IconData icon,
     required String label,
+    required String value,
+    required Color color,
   }) {
-    return Container(
-      width: 60, // Compact size for small numbers
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20), // Circular touch
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.shade300,
-            offset: const Offset(-2, -2),
-            blurRadius: 4,
-          ),
-          BoxShadow(
-            color: Colors.grey.shade500,
-            offset: const Offset(2, 2),
-            blurRadius: 4,
-          ),
-        ],
-      ),
-      child: TextField(
-        controller: controller,
-        keyboardType: TextInputType.number,
-        textAlign: TextAlign.center, // Center align for single digits
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        decoration: InputDecoration(
-          hintText: label.substring(0, 1), // "M", "A", "N"
-          border: InputBorder.none,
+    // Handle empty values
+    final displayValue = value.isEmpty || value == '0' ? '0' : value;
+    final isZero = displayValue == '0';
+    final displayColor = isZero ? textMedium : color;
+
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+        decoration: BoxDecoration(
+          color: displayColor.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: textMedium,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 14, color: displayColor),
+                const SizedBox(width: 6),
+                Text(
+                  displayValue,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: isZero ? textMedium.withOpacity(0.5) : textDark,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -569,53 +1110,134 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
+    IconData? prefixIcon,
     TextInputType? keyboardType,
     Function(String)? onChanged,
+    FocusNode? focusNode,
+    String? hintText,
+    int maxLines = 1,
   }) {
     return Container(
-      width: 600,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20), // Circular touch
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.shade300,
-            offset: const Offset(-2, -2),
-            blurRadius: 4,
-          ),
-          BoxShadow(
-            color: Colors.grey.shade500,
-            offset: const Offset(2, 2),
-            blurRadius: 4,
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(
-          7.0,
-        ),
-        child: TextField(
-          decoration: InputDecoration(
-            border: InputBorder.none,
+      child: TextFormField(
+        controller: controller,
+        focusNode: focusNode,
+        keyboardType: keyboardType,
+        onChanged: onChanged,
+        maxLines: maxLines,
+        decoration: InputDecoration(
+          hintText: hintText,
+          labelText: label,
+          prefixIcon:
+              prefixIcon != null ? Icon(prefixIcon, color: accentColor) : null,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
           ),
-          controller: controller,
-          keyboardType: keyboardType,
-          onChanged: onChanged,
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.all(16),
+          floatingLabelBehavior: FloatingLabelBehavior.auto,
         ),
       ),
     );
   }
 
+  Widget _buildDosageInput({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: textMedium,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: accentColor),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: 50,
+                child: TextField(
+                  controller: controller,
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: textDark,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: '0',
+                    border: InputBorder.none,
+                    hintStyle: TextStyle(
+                      color: textMedium.withOpacity(0.5),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildSuggestionsList() {
     return Container(
-      padding: const EdgeInsets.only(top: 10),
       height: 200,
+      margin: const EdgeInsets.only(top: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: ListView.builder(
         itemCount: medicineSuggestions.length,
         itemBuilder: (context, index) {
           final suggestion = medicineSuggestions[index];
           return ListTile(
             title: Text(suggestion),
+            leading: const Icon(FontAwesomeIcons.pills,
+                color: Colors.teal, size: 16),
             onTap: () {
               setState(() {
                 if (selectedMedicines.isEmpty) {
@@ -626,9 +1248,30 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen> {
                 medicineNameController.clear();
                 medicineSuggestions = [];
               });
+              FocusScope.of(context).requestFocus(medicineFocusNode);
             },
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildIconButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+    required String tooltip,
+    Color? color,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: (color ?? primaryColor).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: IconButton(
+        icon: Icon(icon, color: color ?? primaryColor),
+        onPressed: onPressed,
+        tooltip: tooltip,
+        splashRadius: 24,
       ),
     );
   }

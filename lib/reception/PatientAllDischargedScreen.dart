@@ -169,7 +169,7 @@ class _DischargedPatientsScreen1State
                         ),
                       );
                       print("shouldRefresh $shouldRefresh");
-                      if (shouldRefresh == null) {
+                      if (shouldRefresh == true) {
                         ref
                             .read(dischargedPatientsProvider.notifier)
                             .manualRefresh();
@@ -872,6 +872,8 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                                   patientId: widget.patient.patientId,
                                   remainingAmount:
                                       record.previousRemainingAmount.toString(),
+                                  amountTobePaid:
+                                      record.amountToBePayed.toString(),
                                 )),
                       )),
             ),

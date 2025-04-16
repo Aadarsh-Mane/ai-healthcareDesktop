@@ -1,38 +1,27 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:http/http.dart' as http;
+import 'package:toastification/toastification.dart';
+
+// Import local dependencies
+import 'package:doctordesktop/constants/HospitalTheme.dart';
+import 'package:doctordesktop/constants/ToastMessage.dart';
+import 'package:doctordesktop/constants/Url.dart';
 import 'package:doctordesktop/constants/Assets.dart';
-import 'package:doctordesktop/constants/ToastMessage.dart';
-import 'package:doctordesktop/constants/Url.dart';
 import 'package:doctordesktop/reception/AssignScreen.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
-import 'package:toastification/toastification.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-import 'dart:convert';
-import 'dart:io';
-import 'package:doctordesktop/constants/ToastMessage.dart';
-import 'package:doctordesktop/constants/Url.dart';
-import 'package:doctordesktop/reception/AssignScreen.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
-import 'package:toastification/toastification.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
-
-class PatientAddScreen extends StatefulWidget {
-  const PatientAddScreen({super.key});
+class PatientRegistrationScreen extends StatefulWidget {
+  const PatientRegistrationScreen({super.key});
 
   @override
-  State<PatientAddScreen> createState() => _PatientAddScreenState();
+  State<PatientRegistrationScreen> createState() =>
+      _PatientRegistrationScreenState();
 }
 
-class _PatientAddScreenState extends State<PatientAddScreen>
+class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
@@ -56,6 +45,7 @@ class _PatientAddScreenState extends State<PatientAddScreen>
   bool _ipdIsReadmission = false;
   String? _ipdPatientIdResult;
   List<String> _ipdPatientSuggestions = [];
+  bool _isIpdSubmitting = false;
 
   // OPD Controllers and State Variables
   final TextEditingController _opdSearchController = TextEditingController();
@@ -71,6 +61,7 @@ class _PatientAddScreenState extends State<PatientAddScreen>
   bool _opdIsReadmission = false;
   String? _opdPatientIdResult;
   List<String> _opdPatientSuggestions = [];
+  bool _isOpdSubmitting = false;
 
   @override
   void initState() {
@@ -104,7 +95,10 @@ class _PatientAddScreenState extends State<PatientAddScreen>
     final name = _ipdSearchController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter a name to search.")),
+        SnackBar(
+          content: Text("Please enter a name to search."),
+          backgroundColor: HospitalTheme.error,
+        ),
       );
       return;
     }
@@ -117,18 +111,30 @@ class _PatientAddScreenState extends State<PatientAddScreen>
         final data = jsonDecode(response.body);
         setState(() {
           _ipdPatientIdResult = data['patientId'];
+          // Auto-fill patient information
+          _ipdNameController.text = data['name'] ?? '';
+          _ipdAgeController.text = data['age']?.toString() ?? '';
+          _ipdSelectedGender = data['gender'] ?? 'Male';
+          _ipdContactController.text = data['contact'] ?? '';
+          _ipdAddressController.text = data['address'] ?? '';
         });
       } else {
         setState(() {
           _ipdPatientIdResult = null;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("No patient found with that name.")),
+          SnackBar(
+            content: Text("No patient found with that name."),
+            backgroundColor: HospitalTheme.warning,
+          ),
         );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("An error occurred. Please try again.")),
+        SnackBar(
+          content: Text("An error occurred. Please try again."),
+          backgroundColor: HospitalTheme.error,
+        ),
       );
     }
   }
@@ -137,7 +143,10 @@ class _PatientAddScreenState extends State<PatientAddScreen>
     final name = _opdSearchController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter a name to search.")),
+        SnackBar(
+          content: Text("Please enter a name to search."),
+          backgroundColor: HospitalTheme.error,
+        ),
       );
       return;
     }
@@ -150,18 +159,30 @@ class _PatientAddScreenState extends State<PatientAddScreen>
         final data = jsonDecode(response.body);
         setState(() {
           _opdPatientIdResult = data['patientId'];
+          // Auto-fill patient information
+          _opdNameController.text = data['name'] ?? '';
+          _opdAgeController.text = data['age']?.toString() ?? '';
+          _opdSelectedGender = data['gender'] ?? 'Male';
+          _opdContactController.text = data['contact'] ?? '';
+          _opdAddressController.text = data['address'] ?? '';
         });
       } else {
         setState(() {
           _opdPatientIdResult = null;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("No patient found with that name.")),
+          SnackBar(
+            content: Text("No patient found with that name."),
+            backgroundColor: HospitalTheme.warning,
+          ),
         );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("An error occurred. Please try again.")),
+        SnackBar(
+          content: Text("An error occurred. Please try again."),
+          backgroundColor: HospitalTheme.error,
+        ),
       );
     }
   }
@@ -224,17 +245,34 @@ class _PatientAddScreenState extends State<PatientAddScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: HospitalTheme.background,
       appBar: AppBar(
-        title: const Text("Add New Patient"),
+        title: Text(
+          "Patient Registration",
+          style: TextStyle(
+            color: HospitalTheme.textDark,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(text: "OPD"),
-            Tab(text: "IPD"),
+          indicatorColor: HospitalTheme.primary,
+          labelColor: HospitalTheme.primary,
+          unselectedLabelColor: HospitalTheme.textMedium,
+          tabs: [
+            Tab(
+              text: "OPD Registration",
+              icon: Icon(Icons.local_hospital_outlined),
+            ),
+            Tab(
+              text: "IPD Registration",
+              icon: Icon(Icons.personal_injury_outlined),
+            ),
           ],
         ),
       ),
-      backgroundColor: Colors.white,
       body: TabBarView(
         controller: _tabController,
         children: [
@@ -248,253 +286,641 @@ class _PatientAddScreenState extends State<PatientAddScreen>
   Widget _buildIPDForm() {
     return SafeArea(
       child: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(14.0),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 800),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Center(
-                  child: Image.asset("${AppImages.logo}", height: 100),
-                ),
-                Text(
-                  "IPD Patient Registration",
-                  style: Theme.of(context)
-                      .textTheme
-                      .headlineMedium!
-                      .copyWith(fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 5.0),
-                Form(
-                  key: _ipdFormKey,
-                  child: Column(
+        child: Container(
+          constraints: BoxConstraints(maxWidth: 1000),
+          child: Card(
+            margin: EdgeInsets.all(16),
+            elevation: 4,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Header section
+                  Row(
                     children: [
-                      _buildField(
-                        label: "Full Name",
-                        controller: _ipdNameController,
-                        hintText: 'Enter full name',
-                      ),
-                      const SizedBox(height: 24.0),
-                      Autocomplete<String>(
-                        optionsBuilder: (TextEditingValue textEditingValue) {
-                          _fetchIPDSuggestions(textEditingValue.text);
-                          return _ipdPatientSuggestions.where((option) => option
-                              .toLowerCase()
-                              .contains(textEditingValue.text.toLowerCase()));
-                        },
-                        onSelected: (String selectedPatient) async {
-                          _ipdSearchController.text = selectedPatient;
-                          await _fetchIPDPatientId();
-                        },
-                        fieldViewBuilder:
-                            (context, controller, focusNode, onFieldSubmitted) {
-                          return TextField(
-                            cursorColor: Colors.black,
-                            controller: controller,
-                            decoration: const InputDecoration(
-                              labelText: "Search Patient by Name",
-                              hintText: "Enter patient name",
-                              border: OutlineInputBorder(),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 16.0),
                       Container(
-                        padding: const EdgeInsets.all(12.0),
-                        margin: const EdgeInsets.symmetric(vertical: 8.0),
+                        padding: EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.grey[200],
-                          border: Border.all(color: Colors.grey),
-                          borderRadius: BorderRadius.circular(8.0),
+                          color: HospitalTheme.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        child: Icon(
+                          Icons.personal_injury_outlined,
+                          color: HospitalTheme.primary,
+                          size: 32,
+                        ),
+                      ),
+                      SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            SelectableText(
-                              _ipdPatientIdResult != null
-                                  ? "Patient ID: $_ipdPatientIdResult"
-                                  : "No patient found.",
-                              style: Theme.of(context).textTheme.bodyLarge,
-                              textAlign: TextAlign.center,
+                            Text(
+                              "IPD Patient Registration",
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: HospitalTheme.textDark,
+                              ),
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.copy),
-                              onPressed: () {
-                                if (_ipdPatientIdResult != null) {
-                                  Clipboard.setData(ClipboardData(
-                                      text: _ipdPatientIdResult ?? ''));
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text(
-                                            "Patient ID copied to clipboard!")),
-                                  );
-                                }
-                              },
+                            Text(
+                              "Enter patient details for in-patient department",
+                              style: TextStyle(
+                                color: HospitalTheme.textMedium,
+                              ),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 24.0),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildField(
-                              label: "Age",
-                              controller: _ipdAgeController,
-                              hintText: 'Enter age',
-                              keyboardType: TextInputType.number,
-                            ),
-                          ),
-                          const SizedBox(width: 16.0),
-                          Expanded(
-                            child: _buildField(
-                              label: "Weight",
-                              controller: _ipdWeightController,
-                              hintText: 'Enter weight',
-                              keyboardType: TextInputType.number,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24.0),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildField(
-                              label: "Phone",
-                              controller: _ipdContactController,
-                              hintText: 'Enter phone number',
-                              keyboardType: TextInputType.phone,
-                            ),
-                          ),
-                          const SizedBox(width: 16.0),
-                          Expanded(
-                            child: _buildField(
-                              label: "Address",
-                              controller: _ipdAddressController,
-                              hintText: 'Enter address',
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24.0),
-                      _buildField(
-                        label: "Reason for Admission",
-                        controller: _ipdReasonForAdmissionController,
-                        hintText: 'Enter reason for admission',
-                      ),
-                      const SizedBox(height: 24.0),
-                      _buildField(
-                        label: "Symptoms",
-                        controller: _ipdSymptomsController,
-                        hintText: 'Enter symptoms',
-                      ),
-                      const SizedBox(height: 24.0),
-                      _buildField(
-                        label: "Initial Diagnosis",
-                        controller: _ipdInitialDiagnosisController,
-                        hintText: 'Enter initial diagnosis',
-                      ),
-                      const SizedBox(height: 24.0),
-                      _genderSelection(
-                        selectedGender: _ipdSelectedGender,
-                        onChanged: (newValue) =>
-                            setState(() => _ipdSelectedGender = newValue!),
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          const SizedBox(width: 16.0),
-                          Expanded(
-                            child: _buildField(
-                              label: "Patient ID",
-                              controller: _ipdPatientIdController,
-                              hintText: 'Enter patient ID',
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24.0),
-                      _readmissionSelection(
-                        isReadmission: _ipdIsReadmission,
-                        onChanged: (value) =>
-                            setState(() => _ipdIsReadmission = value),
+                      SizedBox(width: 16),
+                      Container(
+                        height: 50,
+                        child: Center(
+                          child: Image.asset("${AppImages.logo}", height: 50),
+                        ),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 24.0),
-                if (_ipdSelectedImage != null)
-                  Column(
-                    children: [
-                      Text(
-                        "Selected Image:",
-                        style: GoogleFonts.poppins(fontSize: 16.sp),
-                      ),
-                      SizedBox(height: 12.h),
-                      Image.file(
-                        _ipdSelectedImage!,
-                        height: 150.h,
-                        fit: BoxFit.cover,
-                      ),
-                      SizedBox(height: 8.h),
-                      Text(
-                        _ipdSelectedImage!.path,
-                        style: GoogleFonts.poppins(fontSize: 12.sp),
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(height: 8),
-                      ElevatedButton(
-                        onPressed: () =>
-                            setState(() => _ipdSelectedImage = null),
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red),
-                        child: const Text("Remove Image"),
-                      ),
-                    ],
+
+                  Divider(
+                    color: HospitalTheme.border,
+                    height: 32,
                   ),
-                SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () => pickImage(true),
-                  style: ElevatedButton.styleFrom(
-                    elevation: 0,
-                    backgroundColor: const Color(0xFF00BF6D),
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(33, 48),
-                    shape: const StadiumBorder(),
+
+                  // Form section
+                  Form(
+                    key: _ipdFormKey,
+                    child: Column(
+                      children: [
+                        // Search and Patient ID Row
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Search Existing Patient",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: HospitalTheme.textDark,
+                                    ),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Autocomplete<String>(
+                                    optionsBuilder:
+                                        (TextEditingValue textEditingValue) {
+                                      _fetchIPDSuggestions(
+                                          textEditingValue.text);
+                                      return _ipdPatientSuggestions.where(
+                                          (option) => option
+                                              .toLowerCase()
+                                              .contains(textEditingValue.text
+                                                  .toLowerCase()));
+                                    },
+                                    onSelected: (String selectedPatient) async {
+                                      _ipdSearchController.text =
+                                          selectedPatient;
+                                      await _fetchIPDPatientId();
+                                    },
+                                    fieldViewBuilder: (context, controller,
+                                        focusNode, onFieldSubmitted) {
+                                      return Container(
+                                        height: 50,
+                                        child: TextField(
+                                          controller: controller,
+                                          focusNode: focusNode,
+                                          decoration: InputDecoration(
+                                            labelText: "Patient Name",
+                                            hintText: "Search by patient name",
+                                            prefixIcon: Icon(
+                                              Icons.search,
+                                              color: HospitalTheme.primary,
+                                            ),
+                                            border: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              borderSide: BorderSide(
+                                                  color: HospitalTheme.border),
+                                            ),
+                                            focusedBorder: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              borderSide: BorderSide(
+                                                  color: HospitalTheme.primary),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(width: 16),
+                            Expanded(
+                              flex: 2,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Patient ID Result",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: HospitalTheme.textDark,
+                                    ),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Container(
+                                    height: 50,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16),
+                                    decoration: BoxDecoration(
+                                      color: HospitalTheme.surfaceLight,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                          color: HospitalTheme.border),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: SelectableText(
+                                            _ipdPatientIdResult != null
+                                                ? "$_ipdPatientIdResult"
+                                                : "No patient found",
+                                            style: TextStyle(
+                                              color: _ipdPatientIdResult != null
+                                                  ? HospitalTheme.primary
+                                                  : HospitalTheme.textMedium,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                        if (_ipdPatientIdResult != null)
+                                          IconButton(
+                                            icon: Icon(Icons.copy,
+                                                color: HospitalTheme.primary),
+                                            onPressed: () {
+                                              Clipboard.setData(ClipboardData(
+                                                  text: _ipdPatientIdResult!));
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                      "Patient ID copied to clipboard!"),
+                                                  backgroundColor:
+                                                      HospitalTheme.success,
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        SizedBox(height: 24),
+
+                        // Personal Information
+                        Container(
+                          padding: EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: HospitalTheme.background,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: HospitalTheme.border),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Personal Information",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: HospitalTheme.primary,
+                                ),
+                              ),
+                              SizedBox(height: 16),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Left column
+                                  Expanded(
+                                    child: Column(
+                                      children: [
+                                        _buildStyledField(
+                                          label: "Full Name",
+                                          controller: _ipdNameController,
+                                          hintText: 'Enter patient full name',
+                                          icon: Icons.person,
+                                          validator: (value) {
+                                            if (value == null ||
+                                                value.isEmpty) {
+                                              return 'Please enter patient name';
+                                            }
+                                            return null;
+                                          },
+                                        ),
+                                        SizedBox(height: 16),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: _buildStyledField(
+                                                label: "Age",
+                                                controller: _ipdAgeController,
+                                                hintText: 'Age in years',
+                                                keyboardType:
+                                                    TextInputType.number,
+                                                icon: Icons.calendar_today,
+                                                validator: (value) {
+                                                  if (value == null ||
+                                                      value.isEmpty) {
+                                                    return 'Enter age';
+                                                  }
+                                                  return null;
+                                                },
+                                              ),
+                                            ),
+                                            SizedBox(width: 16),
+                                            Expanded(
+                                              child: _buildStyledField(
+                                                label: "Weight (kg)",
+                                                controller:
+                                                    _ipdWeightController,
+                                                hintText: 'Weight in kg',
+                                                keyboardType:
+                                                    TextInputType.number,
+                                                icon: Icons.monitor_weight,
+                                                validator: (value) {
+                                                  if (value == null ||
+                                                      value.isEmpty) {
+                                                    return 'Enter weight';
+                                                  }
+                                                  return null;
+                                                },
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  SizedBox(width: 16),
+                                  // Right column
+                                  Expanded(
+                                    child: Column(
+                                      children: [
+                                        _buildStyledField(
+                                          label: "Phone Number",
+                                          controller: _ipdContactController,
+                                          hintText: 'Enter contact number',
+                                          keyboardType: TextInputType.phone,
+                                          icon: Icons.phone,
+                                          validator: (value) {
+                                            if (value == null ||
+                                                value.isEmpty) {
+                                              return 'Enter phone number';
+                                            }
+                                            return null;
+                                          },
+                                        ),
+                                        SizedBox(height: 16),
+                                        _buildStyledField(
+                                          label: "Address",
+                                          controller: _ipdAddressController,
+                                          hintText: 'Enter home address',
+                                          icon: Icons.home,
+                                          validator: (value) {
+                                            if (value == null ||
+                                                value.isEmpty) {
+                                              return 'Enter address';
+                                            }
+                                            return null;
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 16),
+                              _buildGenderSelection(
+                                selectedGender: _ipdSelectedGender,
+                                onChanged: (newValue) => setState(
+                                    () => _ipdSelectedGender = newValue!),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        SizedBox(height: 24),
+
+                        // Medical Information
+                        Container(
+                          padding: EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: HospitalTheme.background,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: HospitalTheme.border),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Medical Information",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: HospitalTheme.medical,
+                                ),
+                              ),
+                              SizedBox(height: 16),
+                              // Medical details
+                              _buildStyledField(
+                                label: "Reason for Admission",
+                                controller: _ipdReasonForAdmissionController,
+                                hintText: 'Enter reason for admission',
+                                icon: Icons.local_hospital,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Please enter reason for admission';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              SizedBox(height: 16),
+                              _buildStyledField(
+                                label: "Symptoms",
+                                controller: _ipdSymptomsController,
+                                hintText: 'Enter symptoms',
+                                icon: Icons.sick,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Please enter symptoms';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              SizedBox(height: 16),
+                              _buildStyledField(
+                                label: "Initial Diagnosis",
+                                controller: _ipdInitialDiagnosisController,
+                                hintText: 'Enter initial diagnosis if any',
+                                icon: Icons.medical_services,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Please enter initial diagnosis';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              SizedBox(height: 16),
+                              // Caste Field
+                              _buildStyledField(
+                                label: "Caste (Optional)",
+                                controller: _ipdCasteController,
+                                hintText: 'Enter caste if applicable',
+                                icon: Icons.group,
+                              ),
+                              SizedBox(height: 16),
+                              // Readmission
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.rotate_left,
+                                        color: HospitalTheme.primary,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        "Is this a readmission?",
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: HospitalTheme.textDark,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Switch(
+                                    value: _ipdIsReadmission,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _ipdIsReadmission = value;
+                                      });
+                                    },
+                                    activeColor: HospitalTheme.success,
+                                  ),
+                                ],
+                              ),
+                              // Patient ID field for readmission
+                              if (_ipdIsReadmission)
+                                _buildStyledField(
+                                  label: "Patient ID for Readmission",
+                                  controller: _ipdPatientIdController,
+                                  hintText: 'Enter previous patient ID',
+                                  icon: Icons.badge,
+                                  validator: (value) {
+                                    if (_ipdIsReadmission &&
+                                        (value == null || value.isEmpty)) {
+                                      return 'Patient ID is required for readmission';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                            ],
+                          ),
+                        ),
+
+                        SizedBox(height: 24),
+
+                        // Patient Photo
+                        Container(
+                          padding: EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: HospitalTheme.background,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: HospitalTheme.border),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Patient Photo",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: HospitalTheme.primary,
+                                ),
+                              ),
+                              SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  // Image preview
+                                  Container(
+                                    width: 150,
+                                    height: 150,
+                                    decoration: BoxDecoration(
+                                      color: HospitalTheme.surfaceLight,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                          color: HospitalTheme.border),
+                                    ),
+                                    child: _ipdSelectedImage != null
+                                        ? ClipRRect(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            child: Image.file(
+                                              _ipdSelectedImage!,
+                                              fit: BoxFit.cover,
+                                            ),
+                                          )
+                                        : Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Icon(
+                                                Icons.add_a_photo,
+                                                color: HospitalTheme.textMedium,
+                                                size: 40,
+                                              ),
+                                              SizedBox(height: 8),
+                                              Text(
+                                                "No image selected",
+                                                style: TextStyle(
+                                                  color:
+                                                      HospitalTheme.textMedium,
+                                                ),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            ],
+                                          ),
+                                  ),
+                                  SizedBox(width: 24),
+                                  // Upload button
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          "Upload patient photo",
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        SizedBox(height: 8),
+                                        Text(
+                                          "Please upload a clear photo of the patient's face for identification purposes.",
+                                          style: TextStyle(
+                                            color: HospitalTheme.textMedium,
+                                          ),
+                                        ),
+                                        SizedBox(height: 16),
+                                        Row(
+                                          children: [
+                                            ElevatedButton.icon(
+                                              onPressed: () => pickImage(true),
+                                              icon: Icon(Icons.file_upload),
+                                              label: Text("Select Image"),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor:
+                                                    HospitalTheme.primary,
+                                                foregroundColor: Colors.white,
+                                                padding: EdgeInsets.symmetric(
+                                                    horizontal: 16,
+                                                    vertical: 12),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                              ),
+                                            ),
+                                            SizedBox(width: 16),
+                                            if (_ipdSelectedImage != null)
+                                              TextButton.icon(
+                                                onPressed: () {
+                                                  setState(() {
+                                                    _ipdSelectedImage = null;
+                                                  });
+                                                },
+                                                icon: Icon(Icons.delete,
+                                                    color: HospitalTheme.error),
+                                                label: Text(
+                                                  "Remove",
+                                                  style: TextStyle(
+                                                    color: HospitalTheme.error,
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        SizedBox(height: 32),
+
+                        // Submit button
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: _isIpdSubmitting
+                                  ? null
+                                  : () {
+                                      if (_ipdFormKey.currentState!
+                                          .validate()) {
+                                        _showConfirmationDialog(context, true);
+                                      }
+                                    },
+                              icon: _isIpdSubmitting
+                                  ? SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Icon(Icons.save),
+                              label: Text(_isIpdSubmitting
+                                  ? "Processing..."
+                                  : "Register Patient"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: HospitalTheme.primary,
+                                foregroundColor: Colors.white,
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: 32, vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                  child: const Text("Pick Image"),
-                ),
-                SizedBox(height: 36),
-                // ElevatedButton(
-                //   onPressed: () {
-                //     if (_ipdFormKey.currentState!.validate()) {
-                //       _showPreviewDialog(context, true); // Show IPD preview
-                //     }
-                //   },
-                //   // ... rest of button styling
-                //   child: const Text("Submit"),
-                // ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (_ipdFormKey.currentState!.validate()) {
-                      _addIPDPatient(context);
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    elevation: 0,
-                    backgroundColor: const Color(0xFF00BF6D),
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(150, 50),
-                    shape: const StadiumBorder(),
-                  ),
-                  child: const Text("Submit"),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -502,7 +928,757 @@ class _PatientAddScreenState extends State<PatientAddScreen>
     );
   }
 
-  void _showPreviewDialog(BuildContext context, bool isIPD) {
+  Widget _buildOPDForm() {
+    return SafeArea(
+      child: Center(
+        child: Container(
+          constraints: BoxConstraints(maxWidth: 1000),
+          child: Card(
+            margin: EdgeInsets.all(16),
+            elevation: 4,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Header section
+                  Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: HospitalTheme.pharmacy.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.local_hospital_outlined,
+                          color: HospitalTheme.pharmacy,
+                          size: 32,
+                        ),
+                      ),
+                      SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "OPD Patient Registration",
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: HospitalTheme.textDark,
+                              ),
+                            ),
+                            Text(
+                              "Enter patient details for out-patient department",
+                              style: TextStyle(
+                                color: HospitalTheme.textMedium,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(width: 16),
+                      Container(
+                        height: 50,
+                        child: Center(
+                          child: Image.asset("${AppImages.logo}", height: 50),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  Divider(
+                    color: HospitalTheme.border,
+                    height: 32,
+                  ),
+
+                  // Form section
+                  Form(
+                    key: _opdFormKey,
+                    child: Column(
+                      children: [
+                        // Search and Patient ID Row
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Search Existing Patient",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: HospitalTheme.textDark,
+                                    ),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Autocomplete<String>(
+                                    optionsBuilder:
+                                        (TextEditingValue textEditingValue) {
+                                      _fetchOPDSuggestions(
+                                          textEditingValue.text);
+                                      return _opdPatientSuggestions.where(
+                                          (option) => option
+                                              .toLowerCase()
+                                              .contains(textEditingValue.text
+                                                  .toLowerCase()));
+                                    },
+                                    onSelected: (String selectedPatient) async {
+                                      _opdSearchController.text =
+                                          selectedPatient;
+                                      await _fetchOPDPatientId();
+                                    },
+                                    fieldViewBuilder: (context, controller,
+                                        focusNode, onFieldSubmitted) {
+                                      return Container(
+                                        height: 50,
+                                        child: TextField(
+                                          controller: controller,
+                                          focusNode: focusNode,
+                                          decoration: InputDecoration(
+                                            labelText: "Patient Name",
+                                            hintText: "Search by patient name",
+                                            prefixIcon: Icon(
+                                              Icons.search,
+                                              color: HospitalTheme.pharmacy,
+                                            ),
+                                            border: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              borderSide: BorderSide(
+                                                  color: HospitalTheme.border),
+                                            ),
+                                            focusedBorder: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              borderSide: BorderSide(
+                                                  color:
+                                                      HospitalTheme.pharmacy),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(width: 16),
+                            Expanded(
+                              flex: 2,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Patient ID Result",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: HospitalTheme.textDark,
+                                    ),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Container(
+                                    height: 50,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16),
+                                    decoration: BoxDecoration(
+                                      color: HospitalTheme.surfaceLight,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                          color: HospitalTheme.border),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: SelectableText(
+                                            _opdPatientIdResult != null
+                                                ? "$_opdPatientIdResult"
+                                                : "No patient found",
+                                            style: TextStyle(
+                                              color: _opdPatientIdResult != null
+                                                  ? HospitalTheme.pharmacy
+                                                  : HospitalTheme.textMedium,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                        if (_opdPatientIdResult != null)
+                                          IconButton(
+                                            icon: Icon(Icons.copy,
+                                                color: HospitalTheme.pharmacy),
+                                            onPressed: () {
+                                              Clipboard.setData(ClipboardData(
+                                                  text: _opdPatientIdResult!));
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                      "Patient ID copied to clipboard!"),
+                                                  backgroundColor:
+                                                      HospitalTheme.success,
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        SizedBox(height: 24),
+
+                        // Personal Information
+                        Container(
+                          padding: EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: HospitalTheme.background,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: HospitalTheme.border),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Personal Information",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: HospitalTheme.pharmacy,
+                                ),
+                              ),
+                              SizedBox(height: 16),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Left column
+                                  Expanded(
+                                    child: Column(
+                                      children: [
+                                        _buildStyledField(
+                                          label: "Full Name",
+                                          controller: _opdNameController,
+                                          hintText: 'Enter patient full name',
+                                          icon: Icons.person,
+                                          color: HospitalTheme.pharmacy,
+                                          validator: (value) {
+                                            if (value == null ||
+                                                value.isEmpty) {
+                                              return 'Please enter patient name';
+                                            }
+                                            return null;
+                                          },
+                                        ),
+                                        SizedBox(height: 16),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: _buildStyledField(
+                                                label: "Age",
+                                                controller: _opdAgeController,
+                                                hintText: 'Age in years',
+                                                keyboardType:
+                                                    TextInputType.number,
+                                                icon: Icons.calendar_today,
+                                                color: HospitalTheme.pharmacy,
+                                                validator: (value) {
+                                                  if (value == null ||
+                                                      value.isEmpty) {
+                                                    return 'Enter age';
+                                                  }
+                                                  return null;
+                                                },
+                                              ),
+                                            ),
+                                            SizedBox(width: 16),
+                                            Expanded(
+                                              child: _buildStyledField(
+                                                label: "Weight (kg)",
+                                                controller:
+                                                    _opdWeightController,
+                                                hintText: 'Weight in kg',
+                                                keyboardType:
+                                                    TextInputType.number,
+                                                icon: Icons.monitor_weight,
+                                                color: HospitalTheme.pharmacy,
+                                                validator: (value) {
+                                                  if (value == null ||
+                                                      value.isEmpty) {
+                                                    return 'Enter weight';
+                                                  }
+                                                  return null;
+                                                },
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  SizedBox(width: 16),
+                                  // Right column
+                                  Expanded(
+                                    child: Column(
+                                      children: [
+                                        _buildStyledField(
+                                          label: "Phone Number",
+                                          controller: _opdContactController,
+                                          hintText: 'Enter contact number',
+                                          keyboardType: TextInputType.phone,
+                                          icon: Icons.phone,
+                                          color: HospitalTheme.pharmacy,
+                                          validator: (value) {
+                                            if (value == null ||
+                                                value.isEmpty) {
+                                              return 'Enter phone number';
+                                            }
+                                            return null;
+                                          },
+                                        ),
+                                        SizedBox(height: 16),
+                                        _buildStyledField(
+                                          label: "Address",
+                                          controller: _opdAddressController,
+                                          hintText: 'Enter home address',
+                                          icon: Icons.home,
+                                          color: HospitalTheme.pharmacy,
+                                          validator: (value) {
+                                            if (value == null ||
+                                                value.isEmpty) {
+                                              return 'Enter address';
+                                            }
+                                            return null;
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 16),
+                              _buildGenderSelection(
+                                selectedGender: _opdSelectedGender,
+                                onChanged: (newValue) => setState(
+                                    () => _opdSelectedGender = newValue!),
+                                color: HospitalTheme.pharmacy,
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        SizedBox(height: 24),
+
+                        // Readmission Section
+                        Container(
+                          padding: EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: HospitalTheme.background,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: HospitalTheme.border),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Visit Information",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: HospitalTheme.pharmacy,
+                                ),
+                              ),
+                              SizedBox(height: 16),
+                              // Readmission toggle
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.rotate_left,
+                                        color: HospitalTheme.pharmacy,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        "Is this a return visit?",
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: HospitalTheme.textDark,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Switch(
+                                    value: _opdIsReadmission,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _opdIsReadmission = value;
+                                      });
+                                    },
+                                    activeColor: HospitalTheme.success,
+                                  ),
+                                ],
+                              ),
+                              // Patient ID field for readmission
+                              if (_opdIsReadmission)
+                                _buildStyledField(
+                                  label: "Previous Patient ID",
+                                  controller: _opdPatientIdController,
+                                  hintText: 'Enter previous patient ID',
+                                  icon: Icons.badge,
+                                  color: HospitalTheme.pharmacy,
+                                  validator: (value) {
+                                    if (_opdIsReadmission &&
+                                        (value == null || value.isEmpty)) {
+                                      return 'Patient ID is required for return patients';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                            ],
+                          ),
+                        ),
+
+                        SizedBox(height: 24),
+
+                        // Patient Photo
+                        Container(
+                          padding: EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: HospitalTheme.background,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: HospitalTheme.border),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Patient Photo",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: HospitalTheme.pharmacy,
+                                ),
+                              ),
+                              SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  // Image preview
+                                  Container(
+                                    width: 150,
+                                    height: 150,
+                                    decoration: BoxDecoration(
+                                      color: HospitalTheme.surfaceLight,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                          color: HospitalTheme.border),
+                                    ),
+                                    child: _opdSelectedImage != null
+                                        ? ClipRRect(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            child: Image.file(
+                                              _opdSelectedImage!,
+                                              fit: BoxFit.cover,
+                                            ),
+                                          )
+                                        : Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Icon(
+                                                Icons.add_a_photo,
+                                                color: HospitalTheme.textMedium,
+                                                size: 40,
+                                              ),
+                                              SizedBox(height: 8),
+                                              Text(
+                                                "No image selected",
+                                                style: TextStyle(
+                                                  color:
+                                                      HospitalTheme.textMedium,
+                                                ),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            ],
+                                          ),
+                                  ),
+                                  SizedBox(width: 24),
+                                  // Upload button
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          "Upload patient photo",
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        SizedBox(height: 8),
+                                        Text(
+                                          "Please upload a clear photo of the patient's face for identification purposes.",
+                                          style: TextStyle(
+                                            color: HospitalTheme.textMedium,
+                                          ),
+                                        ),
+                                        SizedBox(height: 16),
+                                        Row(
+                                          children: [
+                                            ElevatedButton.icon(
+                                              onPressed: () => pickImage(false),
+                                              icon: Icon(Icons.file_upload),
+                                              label: Text("Select Image"),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor:
+                                                    HospitalTheme.pharmacy,
+                                                foregroundColor: Colors.white,
+                                                padding: EdgeInsets.symmetric(
+                                                    horizontal: 16,
+                                                    vertical: 12),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                              ),
+                                            ),
+                                            SizedBox(width: 16),
+                                            if (_opdSelectedImage != null)
+                                              TextButton.icon(
+                                                onPressed: () {
+                                                  setState(() {
+                                                    _opdSelectedImage = null;
+                                                  });
+                                                },
+                                                icon: Icon(Icons.delete,
+                                                    color: HospitalTheme.error),
+                                                label: Text(
+                                                  "Remove",
+                                                  style: TextStyle(
+                                                    color: HospitalTheme.error,
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        SizedBox(height: 32),
+
+                        // Submit button
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: _isOpdSubmitting
+                                  ? null
+                                  : () {
+                                      if (_opdFormKey.currentState!
+                                          .validate()) {
+                                        _showConfirmationDialog(context, false);
+                                      }
+                                    },
+                              icon: _isOpdSubmitting
+                                  ? SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Icon(Icons.save),
+                              label: Text(_isOpdSubmitting
+                                  ? "Processing..."
+                                  : "Register Patient"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: HospitalTheme.pharmacy,
+                                foregroundColor: Colors.white,
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: 32, vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Helper widget for styled form fields
+  Widget _buildStyledField({
+    required String label,
+    required TextEditingController controller,
+    required String hintText,
+    required IconData icon,
+    TextInputType keyboardType = TextInputType.text,
+    String? Function(String?)? validator,
+    Color color = HospitalTheme.primary,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: HospitalTheme.textDark,
+          ),
+        ),
+        SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          validator: validator,
+          decoration: InputDecoration(
+            hintText: hintText,
+            prefixIcon: Icon(icon, color: color),
+            contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: HospitalTheme.border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: color, width: 2),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: HospitalTheme.error),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: HospitalTheme.error, width: 2),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Gender selection widget
+  Widget _buildGenderSelection({
+    required String selectedGender,
+    required ValueChanged<String?> onChanged,
+    Color color = HospitalTheme.primary,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "Gender",
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: HospitalTheme.textDark,
+          ),
+        ),
+        SizedBox(height: 8),
+        Row(
+          children: [
+            _buildGenderOption(
+              label: "Male",
+              icon: Icons.male,
+              isSelected: selectedGender == "Male",
+              onTap: () => onChanged("Male"),
+              color: color,
+            ),
+            SizedBox(width: 16),
+            _buildGenderOption(
+              label: "Female",
+              icon: Icons.female,
+              isSelected: selectedGender == "Female",
+              onTap: () => onChanged("Female"),
+              color: color,
+            ),
+            SizedBox(width: 16),
+            _buildGenderOption(
+              label: "Other",
+              icon: Icons.transgender,
+              isSelected: selectedGender == "Other",
+              onTap: () => onChanged("Other"),
+              color: color,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // Gender option widget
+  Widget _buildGenderOption({
+    required String label,
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+    required Color color,
+  }) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? color.withOpacity(0.1) : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected ? color : HospitalTheme.border,
+              width: isSelected ? 2 : 1,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                color: isSelected ? color : HospitalTheme.textMedium,
+                size: 20,
+              ),
+              SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? color : HospitalTheme.textDark,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Confirmation dialog
+  void _showConfirmationDialog(BuildContext context, bool isIPD) {
     final name = isIPD ? _ipdNameController.text : _opdNameController.text;
     final age = isIPD ? _ipdAgeController.text : _opdAgeController.text;
     final gender = isIPD ? _ipdSelectedGender : _opdSelectedGender;
@@ -512,51 +1688,110 @@ class _PatientAddScreenState extends State<PatientAddScreen>
         isIPD ? _ipdAddressController.text : _opdAddressController.text;
     final weight =
         isIPD ? _ipdWeightController.text : _opdWeightController.text;
-    final image = isIPD ? _ipdSelectedImage : _opdSelectedImage;
-    final readmission = isIPD ? _ipdIsReadmission : _opdIsReadmission;
+    final isReadmission = isIPD ? _ipdIsReadmission : _opdIsReadmission;
     final patientId =
         isIPD ? _ipdPatientIdController.text : _opdPatientIdController.text;
 
+    final themeColor = isIPD ? HospitalTheme.primary : HospitalTheme.pharmacy;
+
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text("Patient Details Preview"),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        titlePadding: EdgeInsets.zero,
+        title: Container(
+          padding: EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: themeColor,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(12),
+              topRight: Radius.circular(12),
+            ),
+          ),
+          child: Row(
             children: [
-              if (image != null) ...[
-                Center(
-                  child: Image.file(
-                    image,
-                    height: 150,
-                    fit: BoxFit.cover,
-                  ),
+              Icon(
+                Icons.medical_information,
+                color: Colors.white,
+              ),
+              SizedBox(width: 8),
+              Text(
+                "Confirm Patient Details",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
                 ),
-                const SizedBox(height: 10),
-              ],
-              _buildPreviewRow("Name:", name),
-              _buildPreviewRow("Age:", age),
-              _buildPreviewRow("Gender:", gender),
-              _buildPreviewRow("Contact:", contact),
-              _buildPreviewRow("Address:", address),
-              _buildPreviewRow("Weight:", weight),
-              if (isIPD) ...[
-                _buildPreviewRow("Reason for Admission:",
-                    _ipdReasonForAdmissionController.text),
-                _buildPreviewRow("Symptoms:", _ipdSymptomsController.text),
-                _buildPreviewRow(
-                    "Initial Diagnosis:", _ipdInitialDiagnosisController.text),
-              ],
-              _buildPreviewRow("Readmission:", readmission ? "Yes" : "No"),
-              if (readmission) _buildPreviewRow("Patient ID:", patientId),
+              ),
             ],
+          ),
+        ),
+        content: Container(
+          width: double.maxFinite,
+          constraints: BoxConstraints(maxWidth: 500, maxHeight: 500),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if ((isIPD && _ipdSelectedImage != null) ||
+                    (!isIPD && _opdSelectedImage != null))
+                  Center(
+                    child: Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(60),
+                        border: Border.all(color: themeColor, width: 2),
+                        image: DecorationImage(
+                          image: FileImage(
+                            isIPD ? _ipdSelectedImage! : _opdSelectedImage!,
+                          ),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                  ),
+                SizedBox(height: 16),
+                _buildConfirmationSectionHeader(
+                    "Personal Information", themeColor),
+                _buildConfirmationRow("Full Name", name),
+                _buildConfirmationRow("Age", "$age years"),
+                _buildConfirmationRow("Gender", gender),
+                _buildConfirmationRow("Phone", contact),
+                _buildConfirmationRow("Address", address),
+                _buildConfirmationRow("Weight", "$weight kg"),
+                if (isIPD) ...[
+                  SizedBox(height: 16),
+                  _buildConfirmationSectionHeader(
+                      "Medical Information", themeColor),
+                  _buildConfirmationRow("Reason for Admission",
+                      _ipdReasonForAdmissionController.text),
+                  _buildConfirmationRow(
+                      "Symptoms", _ipdSymptomsController.text),
+                  _buildConfirmationRow(
+                      "Initial Diagnosis", _ipdInitialDiagnosisController.text),
+                  if (_ipdCasteController.text.isNotEmpty)
+                    _buildConfirmationRow("Caste", _ipdCasteController.text),
+                ],
+                SizedBox(height: 16),
+                _buildConfirmationSectionHeader(
+                    "Visit Information", themeColor),
+                _buildConfirmationRow(
+                    isIPD ? "Is Readmission" : "Is Return Visit",
+                    isReadmission ? "Yes" : "No"),
+                if (isReadmission)
+                  _buildConfirmationRow("Previous Patient ID", patientId),
+              ],
+            ),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Edit"),
+            child: Text(
+              "Edit",
+              style: TextStyle(color: HospitalTheme.textMedium),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -567,360 +1802,76 @@ class _PatientAddScreenState extends State<PatientAddScreen>
                 _addOPDPatient(context);
               }
             },
-            child: const Text("Confirm"),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: themeColor,
+              foregroundColor: Colors.white,
+            ),
+            child: Text("Confirm & Register"),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildPreviewRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              value.isNotEmpty ? value : "Not provided",
-              softWrap: true,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOPDForm() {
-    return SafeArea(
-      child: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(14.0),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 800),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Center(
-                  child: Image.asset("${AppImages.logo}", height: 100),
-                ),
-                Text(
-                  "OPD Patient Registration",
-                  style: Theme.of(context)
-                      .textTheme
-                      .headlineMedium!
-                      .copyWith(fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 5.0),
-                Form(
-                  key: _opdFormKey,
-                  child: Column(
-                    children: [
-                      _buildField(
-                        label: "Full Name",
-                        controller: _opdNameController,
-                        hintText: 'Enter full name',
-                      ),
-                      const SizedBox(height: 24.0),
-                      Autocomplete<String>(
-                        optionsBuilder: (TextEditingValue textEditingValue) {
-                          _fetchOPDSuggestions(textEditingValue.text);
-                          return _opdPatientSuggestions.where((option) => option
-                              .toLowerCase()
-                              .contains(textEditingValue.text.toLowerCase()));
-                        },
-                        onSelected: (String selectedPatient) async {
-                          _opdSearchController.text = selectedPatient;
-                          await _fetchOPDPatientId();
-                        },
-                        fieldViewBuilder:
-                            (context, controller, focusNode, onFieldSubmitted) {
-                          return TextField(
-                            controller: controller,
-                            focusNode: focusNode,
-                            decoration: const InputDecoration(
-                              labelText: "Search Patient by Name",
-                              hintText: "Enter patient name",
-                              border: OutlineInputBorder(),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 16.0),
-                      Container(
-                        padding: const EdgeInsets.all(7.0),
-                        margin: const EdgeInsets.symmetric(vertical: 3.0),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[200],
-                          border: Border.all(color: Colors.grey),
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SelectableText(
-                              _opdPatientIdResult != null
-                                  ? "Patient ID: $_opdPatientIdResult"
-                                  : "No patient found.",
-                              style: Theme.of(context).textTheme.bodyLarge,
-                              textAlign: TextAlign.center,
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.copy),
-                              onPressed: () {
-                                if (_opdPatientIdResult != null) {
-                                  Clipboard.setData(ClipboardData(
-                                      text: _opdPatientIdResult ?? ''));
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text(
-                                            "Patient ID copied to clipboard!")),
-                                  );
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24.0),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildField(
-                              label: "Age",
-                              controller: _opdAgeController,
-                              hintText: 'Enter age',
-                              keyboardType: TextInputType.number,
-                            ),
-                          ),
-                          const SizedBox(width: 16.0),
-                          Expanded(
-                            child: _buildField(
-                              label: "Weight",
-                              controller: _opdWeightController,
-                              hintText: 'Enter weight',
-                              keyboardType: TextInputType.number,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24.0),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildField(
-                              label: "Phone",
-                              controller: _opdContactController,
-                              hintText: 'Enter phone number',
-                              keyboardType: TextInputType.phone,
-                            ),
-                          ),
-                          const SizedBox(width: 16.0),
-                          Expanded(
-                            child: _buildField(
-                              label: "Address",
-                              controller: _opdAddressController,
-                              hintText: 'Enter address',
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24.0),
-                      _genderSelection(
-                        selectedGender: _opdSelectedGender,
-                        onChanged: (newValue) =>
-                            setState(() => _opdSelectedGender = newValue!),
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          const SizedBox(width: 16.0),
-                          Expanded(
-                            child: _buildField(
-                              label: "Patient ID",
-                              controller: _opdPatientIdController,
-                              hintText: 'Enter patient ID',
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24.0),
-                      _readmissionSelection(
-                        isReadmission: _opdIsReadmission,
-                        onChanged: (value) =>
-                            setState(() => _opdIsReadmission = value),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24.0),
-                if (_opdSelectedImage != null)
-                  Column(
-                    children: [
-                      Text(
-                        "Selected Image:",
-                        style: GoogleFonts.poppins(fontSize: 16.sp),
-                      ),
-                      SizedBox(height: 12.h),
-                      Image.file(
-                        _opdSelectedImage!,
-                        height: 150.h,
-                        fit: BoxFit.cover,
-                      ),
-                      SizedBox(height: 8.h),
-                      Text(
-                        _opdSelectedImage!.path,
-                        style: GoogleFonts.poppins(fontSize: 12.sp),
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(height: 8),
-                      ElevatedButton(
-                        onPressed: () =>
-                            setState(() => _opdSelectedImage = null),
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red),
-                        child: const Text("Remove Image"),
-                      ),
-                    ],
-                  ),
-                SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () => pickImage(false),
-                  style: ElevatedButton.styleFrom(
-                    elevation: 0,
-                    backgroundColor: const Color(0xFF00BF6D),
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(33, 48),
-                    shape: const StadiumBorder(),
-                  ),
-                  child: const Text("Pick Image"),
-                ),
-                SizedBox(height: 36),
-                ElevatedButton(
-                  onPressed: () {
-                    if (_opdFormKey.currentState!.validate()) {
-                      _addOPDPatient(context);
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    elevation: 0,
-                    backgroundColor: const Color(0xFF00BF6D),
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(150, 50),
-                    shape: const StadiumBorder(),
-                  ),
-                  child: const Text("Submit"),
-                ),
-              ],
-            ),
-          ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
         ),
       ),
     );
   }
 
-  Widget _buildField({
-    required String label,
-    required TextEditingController controller,
-    required String hintText,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
+  // Confirmation section header
+  Widget _buildConfirmationSectionHeader(String title, Color color) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          label,
-          style: const TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold),
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
         ),
-        const SizedBox(height: 8.0),
-        SizedBox(
-          height: 50,
-          child: TextFormField(
-            cursorColor: Colors.black,
-            controller: controller,
-            decoration: InputDecoration(
-              hintText: hintText,
-              filled: true,
-              fillColor: const Color(0xFFF5FCF9),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20.0),
-              border: const OutlineInputBorder(
-                borderSide: BorderSide.none,
-                borderRadius: BorderRadius.all(Radius.circular(8)),
+        Divider(color: color.withOpacity(0.5)),
+        SizedBox(height: 8),
+      ],
+    );
+  }
+
+  // Confirmation row
+  Widget _buildConfirmationRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(
+              "$label:",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: HospitalTheme.textDark,
               ),
             ),
-            keyboardType: keyboardType,
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _genderSelection({
-    required String selectedGender,
-    required ValueChanged<String?> onChanged,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Gender",
-          style: TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold),
-        ),
-        Row(
-          children: [
-            _buildRadioButton("Male", selectedGender, onChanged),
-            _buildRadioButton("Female", selectedGender, onChanged),
-            _buildRadioButton("Other", selectedGender, onChanged),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRadioButton(
-    String value,
-    String groupValue,
-    ValueChanged<String?> onChanged,
-  ) {
-    return Expanded(
-      child: Row(
-        children: [
-          Radio<String>(
-            value: value,
-            groupValue: groupValue,
-            onChanged: onChanged,
-            activeColor: const Color(0xFF00BF6D),
+          Expanded(
+            flex: 3,
+            child: Text(
+              value,
+              style: TextStyle(
+                color: HospitalTheme.textDark,
+              ),
+            ),
           ),
-          Text(value),
         ],
       ),
     );
   }
 
-  Widget _readmissionSelection({
-    required bool isReadmission,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return Row(
-      children: [
-        const Text("Readmission:"),
-        Switch(
-          value: isReadmission,
-          onChanged: onChanged,
-          activeColor: const Color(0xFF00BF6D),
-        ),
-      ],
-    );
-  }
-
+  // Add IPD Patient
   Future<void> _addIPDPatient(BuildContext context) async {
+    setState(() {
+      _isIpdSubmitting = true;
+    });
+
     try {
       final uri = Uri.parse('${KVM_URL}/reception/addPatient');
       final request = http.MultipartRequest('POST', uri);
@@ -941,6 +1892,9 @@ class _PatientAddScreenState extends State<PatientAddScreen>
 
       if (_ipdIsReadmission) {
         if (_ipdPatientIdController.text.isEmpty) {
+          setState(() {
+            _isIpdSubmitting = false;
+          });
           ToastMessage().showToast(
               context,
               'Patient ID is required for readmission',
@@ -960,18 +1914,26 @@ class _PatientAddScreenState extends State<PatientAddScreen>
       }
 
       final response = await request.send();
+
+      setState(() {
+        _isIpdSubmitting = false;
+      });
+
       if (response.statusCode == 200) {
         final responseBody = jsonDecode(await response.stream.bytesToString());
         final patientId = responseBody['patientDetails']['patientId'];
         final admissionId =
             responseBody['patientDetails']['admissionRecords'][0]['_id'];
-        Navigator.push(
+
+        // Navigate to AssignScreen and prevent going back
+        Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (context) =>
                 AssignScreen(patientId: patientId, admissionId: admissionId),
           ),
         );
+
         ToastMessage().showToast(context, 'Patient Registered Successfully', '',
             ToastificationType.success);
       } else {
@@ -982,12 +1944,20 @@ class _PatientAddScreenState extends State<PatientAddScreen>
             .showToast(context, errorMessage, '', ToastificationType.error);
       }
     } catch (e) {
+      setState(() {
+        _isIpdSubmitting = false;
+      });
       ToastMessage().showToast(context, 'Failed to register patient: $e', '',
           ToastificationType.error);
     }
   }
 
+  // Add OPD Patient
   Future<void> _addOPDPatient(BuildContext context) async {
+    setState(() {
+      _isOpdSubmitting = true;
+    });
+
     try {
       final uri = Uri.parse('${KVM_URL}/reception/addPatient');
       final request = http.MultipartRequest('POST', uri);
@@ -1003,9 +1973,12 @@ class _PatientAddScreenState extends State<PatientAddScreen>
 
       if (_opdIsReadmission) {
         if (_opdPatientIdController.text.isEmpty) {
+          setState(() {
+            _isOpdSubmitting = false;
+          });
           ToastMessage().showToast(
               context,
-              'Patient ID is required for readmission',
+              'Patient ID is required for return visit',
               '',
               ToastificationType.error);
           return;
@@ -1022,18 +1995,26 @@ class _PatientAddScreenState extends State<PatientAddScreen>
       }
 
       final response = await request.send();
+
+      setState(() {
+        _isOpdSubmitting = false;
+      });
+
       if (response.statusCode == 200) {
         final responseBody = jsonDecode(await response.stream.bytesToString());
         final patientId = responseBody['patientDetails']['patientId'];
         final admissionId =
             responseBody['patientDetails']['admissionRecords'][0]['_id'];
-        Navigator.push(
+
+        // Navigate to AssignScreen and prevent going back
+        Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (context) =>
                 AssignScreen(patientId: patientId, admissionId: admissionId),
           ),
         );
+
         ToastMessage().showToast(context, 'Patient Registered Successfully', '',
             ToastificationType.success);
       } else {
@@ -1044,6 +2025,9 @@ class _PatientAddScreenState extends State<PatientAddScreen>
             .showToast(context, errorMessage, '', ToastificationType.error);
       }
     } catch (e) {
+      setState(() {
+        _isOpdSubmitting = false;
+      });
       ToastMessage().showToast(context, 'Failed to register patient: $e', '',
           ToastificationType.error);
     }

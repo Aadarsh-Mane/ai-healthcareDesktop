@@ -4,6 +4,7 @@ import 'package:doctordesktop/constants/Assets.dart';
 import 'package:doctordesktop/reception/PatientAllDischargedScreen.dart';
 import 'package:doctordesktop/reception/PatientDischarge.dart';
 import 'package:doctordesktop/reception/PatientRegister.dart';
+import 'package:doctordesktop/reception/ReceptionDashboard.dart';
 import 'package:doctordesktop/screens/DoctorRegister.dart';
 import 'package:doctordesktop/screens/ListPatienAssignToDoctor.dart';
 import 'package:flutter/material.dart';
@@ -98,7 +99,12 @@ class _ReceptionAuthDialogState extends State<ReceptionAuthDialog> {
           ),
           ElevatedButton(
             onPressed: () {
-              _authenticate(context);
+              // Handle button 1 press
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => ReceptionDashBoard()),
+              );
+              // _authenticate(context);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blue,
@@ -156,7 +162,8 @@ class DesktopButtonScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (context) => PatientAddScreen()),
+                              builder: (context) =>
+                                  PatientRegistrationScreen()),
                         );
                       },
                       style: ElevatedButton.styleFrom(

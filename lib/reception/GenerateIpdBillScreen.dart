@@ -8,8 +8,12 @@ import 'package:http/http.dart' as http;
 class GenerateIpdBillScreen extends StatefulWidget {
   final String patientId;
   final String remainingAmount;
+  final String amountTobePaid;
   const GenerateIpdBillScreen(
-      {Key? key, required this.patientId, required this.remainingAmount})
+      {Key? key,
+      required this.patientId,
+      required this.remainingAmount,
+      required this.amountTobePaid})
       : super(key: key);
 
   @override
@@ -79,6 +83,10 @@ class _GenerateOpdBillScreenState extends State<GenerateIpdBillScreen> {
             children: [
               Text(
                 'Patient ID: ${widget.patientId}',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              Text(
+                'Amount Mentioned By Doctor: ${widget.amountTobePaid}',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               Text(

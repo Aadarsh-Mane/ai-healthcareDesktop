@@ -1,12 +1,22 @@
+import 'dart:async';
+import 'dart:math';
+
 import 'package:doctordesktop/Admin/AdminAuthDialod.dart';
+import 'package:doctordesktop/Admin/AdminDashboard.dart';
+import 'package:doctordesktop/Admin/BedManagement.dart';
 import 'package:doctordesktop/Admin/ReceptionAuthDialog.dart';
+import 'package:doctordesktop/Check.dart';
+import 'package:doctordesktop/Doctor/AddMedicine.dart';
 import 'package:doctordesktop/Lab/LabAuthDialog.dart';
 import 'package:doctordesktop/Lab/LabScreen.dart';
 import 'package:doctordesktop/Working.dart';
 import 'package:doctordesktop/constants/AppTheme.dart';
 import 'package:doctordesktop/constants/Assets.dart';
+import 'package:doctordesktop/gamm.dart';
 import 'package:doctordesktop/model/getPatientHistory.dart';
 import 'package:doctordesktop/reception/PatientDischarge.dart';
+import 'package:doctordesktop/reception/ReceptionAdmitted.dart';
+import 'package:doctordesktop/reception/ReceptionDashboard.dart';
 import 'package:doctordesktop/screens/3d.dart';
 import 'package:doctordesktop/screens/AssignDoctor.dart';
 import 'package:doctordesktop/Doctor/fetchDoctor.dart';
@@ -16,6 +26,7 @@ import 'package:doctordesktop/screens/NurseRegister.dart';
 import 'package:doctordesktop/Patient/fetchPatient.dart';
 import 'package:doctordesktop/reception/PatientRegister.dart';
 import 'package:doctordesktop/screens/login_screen.dart';
+import 'package:doctordesktop/services/motion_control.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -34,18 +45,26 @@ class MyApp extends StatelessWidget {
       designSize: Size(1920, 1080),
       builder: (context, child) {
         return MaterialApp(
-          title: 'Flutter Windows App',
-          theme: AppTheme.lightTheme,
-          // theme: ThemeData(
-          //   primarySwatch: Colors.blue,
-          //   textTheme: GoogleFonts.poppinsTextTheme(),
-          // ),
-          home: HomeScreen(),
-        );
+            title: 'Flutter Windows App',
+            theme: AppTheme.lightTheme,
+            // theme: ThemeData(
+            //   primarySwatch: Colors.blue,
+            //   textTheme: GoogleFonts.poppinsTextTheme(),
+            // ),
+            home: HomeScreen()
+            // home: HomePage()
+            // home: const BirdGameScreen()
+            // home: HospitalManagementApp(),
+            // home: BedManagementDashboard(),
+            // home: MedicineManagementScreen(),
+            // home: ReceptionBedManagementScreen(),
+            );
       },
     );
   }
 }
+
+// Game state provider
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -273,10 +292,16 @@ class _HomeScreenState extends State<HomeScreen>
                   ElevatedButton(
                     onPressed: () {
                       // Add functionality if needed
-                      showDialog(
-                        context: context,
-                        builder: (context) => ReceptionAuthDialog(),
+                      // Handle button 1 press
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => ReceptionDashBoard()),
                       );
+                      // showDialog(
+                      //   context: context,
+                      //   builder: (context) => ReceptionAuthDialog(),
+                      // );
                     },
                     style: _buttonStyle(),
                     child: Text('Reception Login', style: _buttonTextStyle()),
