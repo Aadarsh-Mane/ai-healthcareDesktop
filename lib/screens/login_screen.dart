@@ -7,12 +7,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class LoginScreen extends ConsumerStatefulWidget {
+class LoginScreen1 extends ConsumerStatefulWidget {
   @override
   _LoginScreenState createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen1> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final authController = AuthRepository();
@@ -89,6 +89,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     SizedBox(height: 40),
                     // Email field
+                    // Email field
                     TextFormField(
                       controller: emailController,
                       decoration: InputDecoration(
@@ -97,7 +98,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         prefixIcon: Icon(Icons.email),
+                        // Add these properties to ensure visibility
+                        fillColor: Colors.white,
+                        filled: true,
                       ),
+                      style: TextStyle(
+                        color: Colors.black, // Explicitly set text color
+                        fontSize: 16.0,
+                      ),
+                      cursorColor: Colors.blue[900], // Match your app's theme
+                      cursorWidth: 2.0, // Make cursor more visible
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Please enter an email';
@@ -106,7 +116,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       },
                     ),
                     SizedBox(height: 20),
-                    // Password field
+// Password field
                     TextFormField(
                       controller: passwordController,
                       decoration: InputDecoration(
@@ -115,7 +125,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         prefixIcon: Icon(Icons.lock),
+                        // Add these properties to ensure visibility
+                        fillColor: Colors.white,
+                        filled: true,
                       ),
+                      style: TextStyle(
+                        color: Colors.black, // Explicitly set text color
+                        fontSize: 16.0,
+                      ),
+                      cursorColor: Colors.blue[900], // Match your app's theme
+                      cursorWidth: 2.0, // Make cursor more visible
                       obscureText: true,
                       validator: (value) {
                         if (value == null || value.isEmpty) {

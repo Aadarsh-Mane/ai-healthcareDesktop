@@ -16,11 +16,11 @@ class LogoutScreen extends ConsumerWidget {
           onPressed: () async {
             await authController.logout();
             // Navigate back to LoginScreen and clear navigation history
-            // Navigator.pushAndRemoveUntil(
-            //   context,
-            //   MaterialPageRoute(builder: (context) => HomeScreen()),
-            //   (route) => false,
-            // );
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => LoginScreen1()),
+              (route) => false,
+            );
           },
           child: Text("Logout"),
         ),

@@ -23,29 +23,32 @@ class DischargedPatientsNotifier
   Future<void> fetchDischargedPatients() async {
     print('Fetching discharged patients...');
     try {
+      state = const AsyncValue.loading(); // Ensure we're in loading state
+
       final response = await http
           .get(Uri.parse('${KVM_URL}/reception/getAllDischargedPatient'));
       print(response.body);
+
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         final patients =
             data.map((json) => PatientDischarge.fromJson(json)).toList();
         state = AsyncValue.data(patients);
       } else {
-        throw Exception('Failed to load discharged patients');
+        throw Exception(
+            'Failed to load discharged patients: ${response.statusCode}');
       }
     } catch (e) {
       print('Error fetching discharged patients: $e');
-
-      // state = AsyncValue.error(e);
+      // Important fix: Update state with error instead of keeping it in loading
+      state = AsyncValue.error(e, StackTrace.current);
     }
   }
 
   // Manual refresh method
   Future<void> manualRefresh() async {
     print('Manual refresh');
-    state = const AsyncValue.loading(); // Set state to loading
-    await fetchDischargedPatients(); // Fetch new data
+    await fetchDischargedPatients(); // This already sets loading state
   }
 }
 
@@ -65,16 +68,20 @@ class DischargedPatientsScreen1 extends ConsumerStatefulWidget {
 class _DischargedPatientsScreen1State
     extends ConsumerState<DischargedPatientsScreen1> {
   @override
-  @override
   void initState() {
     super.initState();
     ref.refresh(dischargedPatientsProvider.notifier).fetchDischargedPatients();
     // Listen for route changes
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ModalRoute.of(context)!.addScopedWillPopCallback(() async {
-        await ref.refresh(dischargedPatientsProvider.notifier).manualRefresh();
-        return true;
-      });
+      final route = ModalRoute.of(context);
+      if (route != null) {
+        route.addScopedWillPopCallback(() async {
+          await ref
+              .refresh(dischargedPatientsProvider.notifier)
+              .manualRefresh();
+          return true;
+        });
+      }
     });
   }
 
@@ -97,14 +104,14 @@ class _DischargedPatientsScreen1State
               colors: [
                 Color(0xFF005F9E),
                 Color(0xFF00B8D4),
-              ], // Purple to Blue gradient
+              ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
           ),
           child: Center(
             child: Text(
-              'Total Discharged Patients: ${total}',
+              'Total Discharged Patients: $total',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 18,
@@ -122,7 +129,7 @@ class _DischargedPatientsScreen1State
             icon: const Icon(Icons.refresh),
             onPressed: () {
               // Trigger the manual refresh
-              ref.invalidate(dischargedPatientsProvider);
+              ref.read(dischargedPatientsProvider.notifier).manualRefresh();
             },
           ),
         ],
@@ -132,7 +139,7 @@ class _DischargedPatientsScreen1State
               colors: [
                 Color(0xFF005F9E),
                 Color(0xFF00B8D4),
-              ], // Purple to Blue gradient
+              ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -142,9 +149,7 @@ class _DischargedPatientsScreen1State
       body: dischargedPatientsAsync.when(
         data: (patients) {
           if (patients.isEmpty) {
-            return const Center(
-              child: Text('No discharged patients found.'),
-            );
+            return _buildEmptyState();
           }
           return ListView.builder(
             itemCount: patients.length,
@@ -186,8 +191,7 @@ class _DischargedPatientsScreen1State
                         ),
                       ),
                       leading: CircleAvatar(
-                        backgroundColor:
-                            Colors.transparent, // Removes the background color
+                        backgroundColor: Colors.transparent,
                         backgroundImage: AssetImage('assets/images/p2.png'),
                         radius: 30,
                       ),
@@ -284,10 +288,126 @@ class _DischargedPatientsScreen1State
             },
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stackTrace) => Center(
-          child: Text('Error: ${error.toString()}'),
+        loading: () => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00B8D4)),
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Loading patients...',
+                style: TextStyle(
+                  color: Color(0xFF005F9E),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
         ),
+        error: (error, stackTrace) => _buildErrorState(error),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.folder_open,
+            size: 80,
+            color: Color(0xFF00B8D4).withOpacity(0.5),
+          ),
+          SizedBox(height: 16),
+          Text(
+            'No Discharged Patients',
+            style: TextStyle(
+              color: Color(0xFF005F9E),
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'All patients are currently checked in',
+            style: TextStyle(
+              color: Colors.grey.shade600,
+              fontSize: 16,
+            ),
+          ),
+          SizedBox(height: 24),
+          ElevatedButton.icon(
+            icon: Icon(Icons.refresh),
+            label: Text('Refresh'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Color(0xFF005F9E),
+              foregroundColor: Colors.white,
+              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            onPressed: () {
+              ref.read(dischargedPatientsProvider.notifier).manualRefresh();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(Object error) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 80,
+            color: Colors.red.shade300,
+          ),
+          SizedBox(height: 16),
+          Text(
+            'No Patients Found',
+            style: TextStyle(
+              color: Colors.red.shade700,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          SizedBox(height: 8),
+          // Padding(
+          //   padding: const EdgeInsets.symmetric(horizontal: 32),
+          //   child: Text(
+          //     error.toString(),
+          //     textAlign: TextAlign.center,
+          //     style: TextStyle(
+          //       color: Colors.grey.shade700,
+          //       fontSize: 14,
+          //     ),
+          //   ),
+          // ),
+          SizedBox(height: 24),
+          ElevatedButton.icon(
+            icon: Icon(Icons.refresh),
+            label: Text('Try Again'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Color(0xFF005F9E),
+              foregroundColor: Colors.white,
+              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            onPressed: () {
+              ref.read(dischargedPatientsProvider.notifier).manualRefresh();
+            },
+          ),
+        ],
       ),
     );
   }
@@ -360,26 +480,37 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
   }
 
   Future<void> _updateDischargeStatus() async {
-    // Replace with your API call
-    final response = await http.put(
-      Uri.parse(
-          '${KVM_URL}/reception/dischargeByReceptionCondition/${widget.patient.patientId}/${widget.patient.lastRecord.admissionId}'),
-    );
-    print("heeeloooo ${response.body}");
-    if (response.statusCode == 200) {
-      // Update the UI to reflect the discharge status
-      _showSnackBar(context, "Patient discharged successfully.");
-    } else {
-      _showSnackBar(context, "Failed to discharge patient.");
+    try {
+      final response = await http.put(
+        Uri.parse(
+            '${KVM_URL}/reception/dischargeByReceptionCondition/${widget.patient.patientId}/${widget.patient.lastRecord.admissionId}'),
+      );
+      print("Response: ${response.body}");
+
+      if (response.statusCode == 200) {
+        // Update the UI to reflect the discharge status
+        _showSnackBar(context, "Patient discharged successfully.");
+      } else {
+        setState(() {
+          // Reset the switch if the API call fails
+          _isDischargedByReception = false;
+        });
+        _showSnackBar(
+            context, "Failed to discharge patient: ${response.statusCode}");
+      }
+    } catch (e) {
+      setState(() {
+        // Reset the switch if there's an exception
+        _isDischargedByReception = false;
+      });
+      _showSnackBar(context, "Error: $e");
     }
   }
 
-  @override
   final Color _primaryColor = const Color(0xFF2A79B4);
   final Color _accentColor = const Color(0xFF00C2CB);
   final Color _backgroundColor = const Color(0xFFF8F9FA);
 
-  @override
   @override
   Widget build(BuildContext context) {
     final record = widget.patient.lastRecord;
@@ -823,10 +954,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
   }
 
   Widget _buildActionButtons(record) {
-    return // ... Rest of the code remains the same until the action buttons section
-
-// Updated Action Buttons Section
-        Column(
+    return Column(
       children: [
         Row(
           children: [
@@ -895,8 +1023,6 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
         ),
       ],
     );
-
-// ... Rest of the code remains the sa
   }
 
   Widget _buildActionButton(String text, IconData icon, VoidCallback onTap) {

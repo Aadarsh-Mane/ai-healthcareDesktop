@@ -134,6 +134,19 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Doctor Dashboard'),
+        backgroundColor: HospitalTheme.primary,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            tooltip: 'Back',
+          ),
+        ],
+      ),
       body: Row(
         children: [
           // Left side: Improved Sidebar

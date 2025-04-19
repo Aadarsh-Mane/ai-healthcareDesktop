@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:doctordesktop/constants/Url.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
@@ -29,7 +30,7 @@ class DoctorNote {
 
 // API Service for Doctor Notes
 class DoctorNotesService {
-  final String baseUrl = 'http://localhost:4001/doctors';
+  final String baseUrl = '${KVM_URL}/doctors';
 
   // Fetch notes for a patient admission
   Future<List<DoctorNote>> fetchNotes(
@@ -37,7 +38,7 @@ class DoctorNotesService {
     try {
       final response = await http.get(
         Uri.parse(
-            '$baseUrl/getNotes?patientId=$patientId&admissionId=$admissionId'),
+            '${KVM_URL}/getNotes?patientId=$patientId&admissionId=$admissionId'),
       );
 
       if (response.statusCode == 200) {

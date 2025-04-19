@@ -7,10 +7,13 @@ import 'package:doctordesktop/Admin/BedManagement.dart';
 import 'package:doctordesktop/Admin/ReceptionAuthDialog.dart';
 import 'package:doctordesktop/Check.dart';
 import 'package:doctordesktop/Doctor/AddMedicine.dart';
+import 'package:doctordesktop/Doctor/DoctorMainScreen.dart';
+import 'package:doctordesktop/External/CommonScreen.dart';
 import 'package:doctordesktop/External/DashBoard.dart';
 import 'package:doctordesktop/Lab/LabAuthDialog.dart';
 import 'package:doctordesktop/Lab/LabScreen.dart';
 import 'package:doctordesktop/Working.dart';
+import 'package:doctordesktop/authProvider/auth_provider.dart';
 import 'package:doctordesktop/constants/AppTheme.dart';
 import 'package:doctordesktop/constants/Assets.dart';
 import 'package:doctordesktop/gamm.dart';
@@ -35,7 +38,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-
   runApp(ProviderScope(child: MyApp()));
 }
 
@@ -46,33 +48,21 @@ class MyApp extends StatelessWidget {
       designSize: Size(1920, 1080),
       builder: (context, child) {
         return MaterialApp(
-            title: 'Flutter Windows App',
-            theme: AppTheme.lightTheme,
-            // theme: ThemeData(
-            //   primarySwatch: Colors.blue,
-            //   textTheme: GoogleFonts.poppinsTextTheme(),
-            // ),
-            home: HomeScreen()
-            // home: HomePage()
-            // home: const BirdGameScreen()
-            // home: HospitalManagementApp(),
-            // home: BedManagementDashboard(),
-            // home: MedicineManagementScreen(),
-            // home: ReceptionBedManagementScreen(),
-            );
+          title: 'Flutter Windows App',
+          theme: AppTheme.lightTheme,
+          home: HomeScreen(),
+        );
       },
     );
   }
 }
 
-// Game state provider
-
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   @override
-  _HomeScreenState createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen>
+class _HomeScreenState extends ConsumerState<HomeScreen>
     with SingleTickerProviderStateMixin {
   TabController? _tabController;
 
@@ -80,6 +70,11 @@ class _HomeScreenState extends State<HomeScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+
+    // Check authentication status on app start
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(authControllerProvider.notifier).checkLoginStatus();
+    });
   }
 
   @override
@@ -124,6 +119,8 @@ class _HomeScreenState extends State<HomeScreen>
 
   // Drawer widget
   Widget _buildDrawer(BuildContext context) {
+    final isLoggedIn = ref.watch(authControllerProvider);
+
     return Drawer(
       backgroundColor: Colors.white,
       child: ListView(
@@ -141,19 +138,35 @@ class _HomeScreenState extends State<HomeScreen>
           ),
           ListTile(
             leading: Icon(Icons.person_add),
-            title: Text('Doctor Login'),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => Doct()),
-              );
+            title: Text('Doctor Dashboard'),
+            onTap: () async {
+              // Check if already logged in
+              final isLoggedIn = ref.read(authControllerProvider);
+              final userType =
+                  await ref.read(authControllerProvider.notifier).getUsertype();
+
+              if (isLoggedIn && userType == 'doctor') {
+                // Navigate directly to doctor main screen
+                Navigator.pop(context); // Close the drawer first
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => DoctorMainScreen()),
+                );
+              } else {
+                // Navigate to login screen
+                Navigator.pop(context); // Close the drawer first
+                // Navigator.push(
+                //   context,
+                //   MaterialPageRoute(builder: (context) => DoctorAuthScreen()),
+                // );
+              }
             },
           ),
           ListTile(
             leading: Icon(Icons.person_add_alt),
             title: Text('Lab Login'),
             onTap: () {
-              // Add functionality if needed
+              Navigator.pop(context); // Close the drawer first
               showDialog(
                 context: context,
                 builder: (context) => LabAuthDialog(),
@@ -164,7 +177,7 @@ class _HomeScreenState extends State<HomeScreen>
             leading: Icon(Icons.person_add_alt),
             title: Text('Admin Login'),
             onTap: () {
-              // Add functionality if needed
+              Navigator.pop(context); // Close the drawer first
               showDialog(
                 context: context,
                 builder: (context) => AdminAuthDialog(),
@@ -175,9 +188,10 @@ class _HomeScreenState extends State<HomeScreen>
             leading: Icon(Icons.person_add_alt_1),
             title: Text('External Dashboard'),
             onTap: () {
+              Navigator.pop(context); // Close the drawer first
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => DoctorDashboard()),
+                MaterialPageRoute(builder: (context) => SplashScreen1()),
               );
             },
           ),
@@ -185,6 +199,7 @@ class _HomeScreenState extends State<HomeScreen>
             leading: Icon(Icons.list),
             title: Text('Patient List'),
             onTap: () {
+              Navigator.pop(context); // Close the drawer first
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => PatientListScreen()),
@@ -195,68 +210,25 @@ class _HomeScreenState extends State<HomeScreen>
             leading: Icon(Icons.list_alt),
             title: Text('Doctor List'),
             onTap: () {
+              Navigator.pop(context); // Close the drawer first
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => DoctorListScreen()),
               );
             },
           ),
-          // New Screens
-          // ListTile(
-          //   leading: Icon(Icons.assignment_ind),
-          //   title: Text('Assign Doctor'),
-          //   onTap: () {
-          //     Navigator.push(
-          //       context,
-          //       MaterialPageRoute(builder: (context) => AssignDoctorScreen()),
-          //     );
-          //   },
-          // ),
-          // ListTile(
-          //   leading: Icon(Icons.assignment),
-          //   title: Text('Patient Assignments'),
-          //   onTap: () {
-          //     Navigator.push(
-          //       context,
-          //       MaterialPageRoute(
-          //           builder: (context) => PatientAssignmentScreen()),
-          //     );
-          //   },
-          // ),
-          // ListTile(
-          //   leading: Icon(Icons.settings),
-          //   title: Text('Reception Login'),
-          //   onTap: () {
-          //     // Add functionality if needed
-          //     showDialog(
-          //       context: context,
-          //       builder: (context) => ReceptionAuthDialog(),
-          //     );
-          //   },
-          // ),
-          // s
-          // ListTile(
-          //   leading: Icon(Icons.login_outlined),
-          //   title: Text('Doctor Login'),
-          //   onTap: () {
-          //     // Add functionality if needed
-          //     Navigator.push(
-          //       context,
-          //       MaterialPageRoute(builder: (context) => Doct()),
-          //     );
-          //   },
-          // ),
-          // ListTile(
-          //   leading: Icon(Icons.info),
-          //   title: Text('Lab '),
-          //   onTap: () {
-          //     // Add functionality if needed
-          //     showDialog(
-          //       context: context,
-          //       builder: (context) => LabAuthDialog(),
-          //     );
-          //   },
-          // ),
+          if (isLoggedIn)
+            ListTile(
+              leading: Icon(Icons.logout),
+              title: Text('Logout'),
+              onTap: () async {
+                await ref.read(authControllerProvider.notifier).logout();
+                Navigator.pop(context); // Close the drawer
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Successfully logged out')),
+                );
+              },
+            ),
         ],
       ),
     );
@@ -277,14 +249,6 @@ class _HomeScreenState extends State<HomeScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Text(
-              //   'Welcome to the Flutter Windows App',
-              //   style: TextStyle(
-              //     color: Colors.white,
-              //     fontSize: 32.sp,
-              //     fontWeight: FontWeight.bold,
-              //   ),
-              // ),
               SizedBox(height: 180.h),
               Wrap(
                 spacing: 100.w,
@@ -292,34 +256,54 @@ class _HomeScreenState extends State<HomeScreen>
                 children: [
                   ElevatedButton(
                     onPressed: () {
-                      // Add functionality if needed
-                      // Handle button 1 press
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                             builder: (context) => ReceptionDashBoard()),
                       );
-                      // showDialog(
-                      //   context: context,
-                      //   builder: (context) => ReceptionAuthDialog(),
-                      // );
                     },
                     style: _buttonStyle(),
                     child: Text('Reception Login', style: _buttonTextStyle()),
                   ),
                   ElevatedButton(
                     onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => Doct()),
-                      );
+                      // Check if already logged in first
+                      final isLoggedIn = ref.read(authControllerProvider);
+                      if (isLoggedIn) {
+                        // If already logged in, check user type
+                        ref
+                            .read(authControllerProvider.notifier)
+                            .getUsertype()
+                            .then((userType) {
+                          if (userType == 'doctor') {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => DoctorMainScreen()),
+                            );
+                          } else {
+                            // Not a doctor, go to login
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => LoginScreen1()),
+                            );
+                          }
+                        });
+                      } else {
+                        // Not logged in, go to login
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => LoginScreen1()),
+                        );
+                      }
                     },
                     style: _buttonStyle(),
-                    child: Text('Doctor Login ', style: _buttonTextStyle()),
+                    child: Text('Doctor Login', style: _buttonTextStyle()),
                   ),
                   ElevatedButton(
                     onPressed: () {
-                      // Add functionality if needed
                       showDialog(
                         context: context,
                         builder: (context) => LabAuthDialog(),
@@ -352,60 +336,7 @@ class _HomeScreenState extends State<HomeScreen>
             spacing: 40.w,
             runSpacing: 30.h,
             children: [
-              // ElevatedButton(
-              //   onPressed: () {
-              //     Navigator.push(
-              //       context,
-              //       MaterialPageRoute(
-              //           builder: (context) => PatientListScreen()),
-              //     );
-              //   },
-              //   style: _buttonStyle(),
-              //   child: Text('Get Patient', style: _buttonTextStyle()),
-              // ),
-              // ElevatedButton(
-              //   onPressed: () {
-              //     Navigator.push(
-              //       context,
-              //       MaterialPageRoute(builder: (context) => DoctorListScreen()),
-              //     );
-              //   },
-              //   style: _buttonStyle(),
-              //   child: Text('Get Doctor', style: _buttonTextStyle()),
-              // ),
-              // ElevatedButton(
-              //   onPressed: () {
-              //     Navigator.push(
-              //       context,
-              //       MaterialPageRoute(
-              //           builder: (context) => AssignDoctorScreen()),
-              //     );
-              //   },
-              //   style: _buttonStyle(),
-              //   child: Text('Assign Doctor', style: _buttonTextStyle()),
-              // ),
-              // ElevatedButton(
-              //   onPressed: () {
-              //     Navigator.push(
-              //       context,
-              //       MaterialPageRoute(
-              //           builder: (context) => PatientAssignmentScreen()),
-              //     );
-              //   },
-              //   style: _buttonStyle(),
-              //   child: Text('Doctor Patient', style: _buttonTextStyle()),
-              // ),
-              // ElevatedButton(
-              //   onPressed: () {
-              //     Navigator.push(
-              //       context,
-              //       MaterialPageRoute(
-              //           builder: (context) => DischargedPatientsScreen()),
-              //     );
-              //   },
-              //   style: _buttonStyle(),
-              //   child: Text('Discharged Patient', style: _buttonTextStyle()),
-              // ),
+              // Add your admin screen buttons here
             ],
           ),
         ),

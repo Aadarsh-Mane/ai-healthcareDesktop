@@ -8,17 +8,43 @@ import 'package:doctordesktop/model/getNewPatientModel.dart';
 import 'package:doctordesktop/repositories/doctor_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 import 'dart:async';
 
 import 'package:intl/intl.dart';
 
+// Custom loading animation widget
+class CustomLoadingAnimation extends StatelessWidget {
+  final Color color;
+  final double size;
+
+  const CustomLoadingAnimation({
+    Key? key,
+    this.color = Colors.cyan,
+    this.size = 50,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: LoadingAnimationWidget.staggeredDotsWave(
+        color: color,
+        size: size,
+      ),
+    );
+  }
+}
+
+// Create a provider to track loading state
+final refreshLoadingProvider = StateProvider<bool>((ref) => false);
+
+// Modify the provider to prevent state updates after dispose
 final assignedPatientsProvider =
     StateNotifierProvider<AssignedPatientsNotifier, AsyncValue<List<Patient1>>>(
   (ref) {
     final authRepository = ref.read(authRepositoryProvider);
     final notifier = AssignedPatientsNotifier(authRepository);
-    notifier.fetchAssignedPatients();
     return notifier;
   },
 );
@@ -33,35 +59,64 @@ class AssignedPatientsScreen extends ConsumerStatefulWidget {
 class _AssignedPatientsScreenState
     extends ConsumerState<AssignedPatientsScreen> {
   Timer? _refreshTimer;
+  bool _mounted = true;
 
   @override
   void initState() {
     super.initState();
-    // Initial manual refresh
-    ref.refresh(assignedPatientsProvider.notifier).fetchAssignedPatients();
-    // Set up the timer to refresh every 1 minute (60 seconds)
+
+    // Safe initial fetch with delayed execution to avoid build-time updates
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchData();
+    });
+
+    // Set up the timer to refresh every 1 minute with animation
     _refreshTimer = Timer.periodic(const Duration(minutes: 1), (_) {
-      ref.refresh(assignedPatientsProvider.notifier).fetchAssignedPatients();
+      if (_mounted) {
+        _fetchData();
+      }
     });
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    ref.refresh(assignedPatientsProvider.notifier).fetchAssignedPatients();
+  // Method to fetch data with loading animation
+  Future<void> _fetchData() async {
+    if (!_mounted) return;
+
+    // Show loading animation after the current frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_mounted) {
+        ref.read(refreshLoadingProvider.notifier).state = true;
+      }
+    });
+
+    try {
+      await ref.read(assignedPatientsProvider.notifier).fetchAssignedPatients();
+    } finally {
+      // Only hide the animation if we're still mounted (outside of build)
+      if (_mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_mounted) {
+            ref.read(refreshLoadingProvider.notifier).state = false;
+          }
+        });
+      }
+    }
   }
 
   @override
   void dispose() {
-    // Cancel the timer when the screen is disposed to avoid memory leaks
+    _mounted = false;
     _refreshTimer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Access the loading state
+    final isRefreshing = ref.watch(refreshLoadingProvider);
+
     return DefaultTabController(
-      length: 2, // Number of tabs
+      length: 2,
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: Colors.white,
@@ -69,25 +124,24 @@ class _AssignedPatientsScreenState
             Padding(
               padding: const EdgeInsets.only(right: 8.0),
               child: IconButton(
-                icon: const Icon(Icons.refresh, color: Colors.black),
-                onPressed: () {
-                  // Refresh logic for assigned patients
-                  ref
-                      .refresh(assignedPatientsProvider.notifier)
-                      .fetchAssignedPatients();
-                },
+                icon: isRefreshing
+                    ? LoadingAnimationWidget.staggeredDotsWave(
+                        color: Colors.black,
+                        size: 20,
+                      )
+                    : const Icon(Icons.refresh, color: Colors.black),
+                onPressed: isRefreshing ? null : _fetchData,
               ),
             ),
           ],
           bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(19), // Adjust height of TabBar
+            preferredSize: const Size.fromHeight(19),
             child: Container(
-              color: Colors.black, // Background color for TabBar
+              color: Colors.black,
               child: const TabBar(
-                indicatorColor: Colors.cyan, // Tab selection indicator color
-                labelColor: Colors.cyan, // Active tab text/icon color
-                unselectedLabelColor:
-                    Colors.grey, // Inactive tab text/icon color
+                indicatorColor: Colors.cyan,
+                labelColor: Colors.cyan,
+                unselectedLabelColor: Colors.grey,
                 tabs: [
                   Tab(
                     icon: Icon(Icons.people),
@@ -102,7 +156,7 @@ class _AssignedPatientsScreenState
             ),
           ),
         ),
-        body: const TabBarView(
+        body: TabBarView(
           children: [
             AssignedPatientsView(),
             AdmittedPatientsScreen(),
@@ -122,73 +176,38 @@ class AssignedPatientsView extends ConsumerStatefulWidget {
 }
 
 class _AssignedPatientsViewState extends ConsumerState<AssignedPatientsView> {
+  bool _mounted = true;
+  final _refreshKey = GlobalKey<RefreshIndicatorState>();
+
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Refresh the provider when dependencies change
-    ref.refresh(assignedPatientsProvider);
+  void dispose() {
+    _mounted = false;
+    super.dispose();
   }
 
-  Future<bool?> _showDischargeConfirmationDialog(BuildContext context) async {
-    // Implementation of the discharge confirmation dialog
-    return showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirm Discharge'),
-        content: const Text('Are you sure you want to discharge this patient?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Confirm'),
-          ),
-        ],
-      ),
-    );
-  }
+  // Refresh function with proper mounted checks
+  Future<void> _refreshData() async {
+    if (!_mounted) return;
 
-  Future<void> _dischargePatient(Patient1 patient, WidgetRef ref) async {
     try {
-      final admissionId = patient.admissionRecords.isNotEmpty
-          ? patient.admissionRecords.first.id
-          : '';
-      final authRepository = ref.read(authRepositoryProvider);
-      final result = await authRepository.dischargePatient(
-        patientId: patient.patientId,
-        admissionId: admissionId,
-      );
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message']),
-          backgroundColor: result['success'] ? Colors.green : Colors.red,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-
-      ref.refresh(assignedPatientsProvider.notifier).fetchAssignedPatients();
-      ref.refresh(assignedPatientsProvider1.notifier).fetchAssignedPatients();
+      // Defer state updates to avoid build-time issues
+      await Future.microtask(() => {});
+      await ref.read(assignedPatientsProvider.notifier).fetchAssignedPatients();
     } catch (e) {
-      ref.refresh(assignedPatientsProvider.notifier).fetchAssignedPatients();
-      // ref.refresh(assignedPatientsProvider.notifier).fe;
-      ref.refresh(assignedPatientsProvider1.notifier).fetchAssignedPatients();
-
-      print('Error discharging patient: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Discharged patient: $e'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      print('Error refreshing: $e');
+      // Show error only if mounted
+      if (_mounted && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to refresh: $e')),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final assignedPatients = ref.watch(assignedPatientsProvider);
+    final isRefreshing = ref.watch(refreshLoadingProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -202,250 +221,255 @@ class _AssignedPatientsViewState extends ConsumerState<AssignedPatientsView> {
         backgroundColor: Colors.white,
         elevation: 0,
       ),
-      body: Container(
-        decoration: BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage('assets/images/bb1.png'),
-            opacity: 0.3,
-            fit: BoxFit.cover,
-          ),
-        ),
-        child: assignedPatients.when(
-          data: (patients) => ListView.builder(
-            itemCount: patients.length,
-            itemBuilder: (context, index) {
-              final patient = patients[index];
-              final admissionStatus = patient.admissionRecords.isNotEmpty
-                  ? patient.admissionRecords.first.status
-                  : 'Pending';
-
-              final statusColor =
-                  admissionStatus == 'admitted' ? Colors.green : Colors.red;
-
-              return Dismissible(
-                  key: Key(patient.id),
-                  direction: DismissDirection.startToEnd,
-                  onDismissed: (direction) async {
-                    final shouldDischarge =
-                        await _showDischargeConfirmationDialog(context);
-
-                    if (shouldDischarge == true) {
-                      await _dischargePatient(patient, ref);
-                      ref
-                          .read(assignedPatientsProvider.notifier)
-                          .removePatient(patient);
-                    } else {
-                      ref
-                          .refresh(assignedPatientsProvider.notifier)
-                          .fetchAssignedPatients();
-                    }
-                  },
-                  background: Container(
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Colors.red, Colors.deepOrange],
-                        begin: Alignment.centerRight,
-                        end: Alignment.centerLeft,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.only(right: 20),
-                    child: const Icon(
-                      Icons.delete,
-                      color: Colors.white,
-                      size: 30,
-                    ),
-                  ),
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => PatientDetailScreen4(
-                            patient: patient,
+      body: Stack(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/images/bb1.png'),
+                opacity: 0.3,
+                fit: BoxFit.cover,
+              ),
+            ),
+            child: RefreshIndicator(
+              key: _refreshKey,
+              onRefresh: _refreshData,
+              displacement: 50,
+              color: Colors.cyan,
+              backgroundColor: Colors.white,
+              child: assignedPatients.when(
+                data: (patients) => patients.isEmpty
+                    ? ListView(
+                        // Using ListView instead of Center to work with RefreshIndicator
+                        children: [
+                          Container(
+                            height: MediaQuery.of(context).size.height * 0.7,
+                            alignment: Alignment.center,
+                            child: const Text(
+                              'No assigned patients found',
+                              style: TextStyle(fontSize: 18),
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                    child: Card(
-                      elevation: 8.0,
-                      margin: const EdgeInsets.symmetric(
-                          vertical: 10, horizontal: 15),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                        side: const BorderSide(
-                            color: Color(0Xffeff7f8), width: 2.0),
-                      ),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [
-                              Color(0xFF005F9E),
-                              Color(0xFF00B8D4),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 12),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            CircleAvatar(
-                                radius: 30,
-                                backgroundColor: Colors.white,
-                                child: Text(
-                                  patient.name[0].toUpperCase(),
-                                  style: const TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black,
+                        ],
+                      )
+                    : ListView.builder(
+                        itemCount: patients.length,
+                        itemBuilder: (context, index) {
+                          final patient = patients[index];
+                          final admissionStatus =
+                              patient.admissionRecords.isNotEmpty
+                                  ? patient.admissionRecords.first.status
+                                  : 'Pending';
+
+                          return GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => PatientDetailScreen4(
+                                    patient: patient,
                                   ),
-                                )
-                                // backgroundImage:
-                                //     AssetImage('assets/images/tt1.png'),
-                                // backgroundColor: Colors.transparent,
-                                // radius: 30,
-                                // backgroundImage: NetworkImage(
-                                //   Methods()
-                                //       .getGoogleDriveDirectLink(patient.imageUrl),
-                                // ),
-                                // radius: 30,
                                 ),
-                            const SizedBox(width: 15),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    patient.name,
-                                    style: const TextStyle(
-                                      fontFamily: 'Poppins',
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
+                              );
+                            },
+                            child: Card(
+                              elevation: 8.0,
+                              margin: const EdgeInsets.symmetric(
+                                  vertical: 10, horizontal: 15),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15),
+                                side: const BorderSide(
+                                    color: Color(0Xffeff7f8), width: 2.0),
+                              ),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF005F9E),
+                                      Color(0xFF00B8D4),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
                                   ),
-                                  const SizedBox(height: 5),
-                                  Text(
-                                      'Age: ${patient.age}, Gender: ${patient.gender}',
-                                      style: const TextStyle(
-                                        fontFamily: 'Poppins',
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.normal,
-                                        fontStyle: FontStyle.normal,
-                                        letterSpacing: 0.5,
-                                        wordSpacing: 1.0,
-                                        height: 1.5,
-                                        color: Colors.white,
-                                        backgroundColor: Colors.transparent,
-                                        decoration: TextDecoration.none,
-                                        decorationColor: Colors.white70,
-                                        decorationStyle:
-                                            TextDecorationStyle.solid,
-                                        decorationThickness: 1.0,
-                                        shadows: [
-                                          Shadow(
-                                            color: Colors.black54,
-                                            offset: Offset(1.0, 1.0),
-                                            blurRadius: 2.0,
+                                  borderRadius: BorderRadius.circular(15),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 20, vertical: 12),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 30,
+                                      backgroundColor: Colors.white,
+                                      child: Text(
+                                        patient.name.isNotEmpty
+                                            ? patient.name[0].toUpperCase()
+                                            : '?',
+                                        style: const TextStyle(
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 15),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            patient.name,
+                                            style: const TextStyle(
+                                              fontFamily: 'Poppins',
+                                              fontSize: 22,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 5),
+                                          Text(
+                                            'Age: ${patient.age}, Gender: ${patient.gender}',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.normal,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 5),
+                                          Text(
+                                            'Status: $admissionStatus',
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
                                           ),
                                         ],
-                                        overflow: TextOverflow.ellipsis,
-                                        leadingDistribution:
-                                            TextLeadingDistribution
-                                                .proportional,
-                                        fontFeatures: [
-                                          FontFeature.enable(
-                                              'smcp'), // Example: Small caps
-                                          FontFeature.enable(
-                                              'liga'), // Enable ligatures
-                                        ],
-                                        debugLabel: 'PoppinsStyle',
-                                      )),
-                                  const SizedBox(height: 5),
-                                  Text(
-                                    'Status: $admissionStatus',
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            ElevatedButton(
-                              onPressed: () async {
-                                final admissionId =
-                                    patient.admissionRecords.first.id;
-                                _showConditionDialog(
-                                    context, admissionId, patient, ref);
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
+                                    const SizedBox(width: 10),
+                                    ElevatedButton(
+                                      onPressed: isRefreshing
+                                          ? null
+                                          : () async {
+                                              if (patient.admissionRecords
+                                                  .isNotEmpty) {
+                                                final admissionId = patient
+                                                    .admissionRecords.first.id;
+                                                _showConditionDialog(context,
+                                                    admissionId, patient, ref);
+                                              } else {
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                        "No admission record found"),
+                                                    backgroundColor: Colors.red,
+                                                  ),
+                                                );
+                                              }
+                                            },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red,
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 8),
+                                      ),
+                                      child: const Text(
+                                        "Discharge",
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    ElevatedButton(
+                                      onPressed: isRefreshing
+                                          ? null
+                                          : () async {
+                                              await _admitPatient(
+                                                  patient, ref, context);
+                                            },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.white,
+                                        foregroundColor: Colors.black,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 8),
+                                      ),
+                                      child: const Text(
+                                        "Admit",
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8),
-                              ),
-                              child: const Text(
-                                "Discharge",
-                                style: TextStyle(fontWeight: FontWeight.bold),
                               ),
                             ),
-                            const SizedBox(width: 10),
-                            ElevatedButton(
-                              onPressed: () async {
-                                await _admitPatient(patient, ref, context);
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: Colors.black,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8),
-                              ),
-                              child: const Text(
-                                "Admit",
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ],
-                        ),
+                          );
+                        },
                       ),
-                    ),
-                  ));
-            },
-          ),
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stackTrace) => Center(
-            child: Text(
-              'Error: $error',
-              style: const TextStyle(color: Colors.red),
+                error: (error, stackTrace) => Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Error loading patients: ${error.toString()}',
+                        style: const TextStyle(color: Colors.red, fontSize: 18),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 10),
+                      ElevatedButton(
+                        onPressed: () {
+                          if (_mounted) {
+                            _refreshData();
+                          }
+                        },
+                        child: Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+                loading: () => Container(), // Empty container for loading state
+              ),
             ),
           ),
-        ),
+          // Single centralized loading overlay - show only when loading or refreshing
+          if (isRefreshing || assignedPatients is AsyncLoading)
+            Container(
+              color: Colors.black.withOpacity(0.3),
+              child: const CustomLoadingAnimation(),
+            ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          ref.refresh(assignedPatientsProvider);
-        },
-        child: const Icon(Icons.refresh),
+        onPressed: isRefreshing
+            ? null
+            : () {
+                // Trigger the pull-to-refresh animation programmatically
+                _refreshKey.currentState?.show();
+              },
+        child: isRefreshing
+            ? LoadingAnimationWidget.staggeredDotsWave(
+                color: Colors.white,
+                size: 20,
+              )
+            : const Icon(Icons.refresh),
         backgroundColor: Colors.cyan,
       ),
     );
   }
 }
 
+// This function needs to be updated to respect the mounted state
 Future<void> _showDischargeDialog(
     BuildContext context,
     String admissionId,
@@ -453,7 +477,6 @@ Future<void> _showDischargeDialog(
     int amount,
     Patient1 patient,
     WidgetRef ref) async {
-  final doctor = DoctorRepository();
   bool? confirmDischarge = await showDialog<bool>(
     context: context,
     builder: (context) {
@@ -484,25 +507,48 @@ Future<void> _showDischargeDialog(
 
   if (confirmDischarge == true) {
     try {
+      // Show loading animation during discharge process - using Future to avoid build-time updates
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(refreshLoadingProvider.notifier).state = true;
+      });
+
+      final doctor = DoctorRepository();
       final response = await doctor.updateConditionAtDischarge(
         admissionId: admissionId,
         conditionAtDischarge: selectedCondition,
         amountToBePayed: amount,
       );
 
-      await _dischargePatient(patient, ref); // Pass ref here
+      await _dischargePatient(patient, ref);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Discharge successful: ${response['message']}'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      // Hide loading animation - using Future to avoid build-time updates
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(refreshLoadingProvider.notifier).state = false;
+      });
+
+      // Check if context is still valid before showing SnackBar
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Discharge successful: ${response['message']}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
-      print("this error is $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to discharge patient')),
-      );
+      print("Error during discharge: $e");
+
+      // Hide loading animation even on error - using Future to avoid build-time updates
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(refreshLoadingProvider.notifier).state = false;
+      });
+
+      // Check if context is still valid before showing SnackBar
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to discharge patient')),
+        );
+      }
     }
   }
 }
@@ -523,7 +569,44 @@ Future<void> _showConditionDialog(BuildContext context, String admissionId,
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // ... [keep dropdown and other fields unchanged] ...
+                DropdownButtonFormField<String>(
+                  value: selectedCondition,
+                  decoration: const InputDecoration(
+                    labelText: 'Condition at Discharge',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: [
+                    'Discharged',
+                    'Referred',
+                    'LAMA',
+                    'Expired',
+                    'Absconded'
+                  ].map((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
+                  onChanged: (String? newValue) {
+                    if (newValue != null) {
+                      setState(() {
+                        selectedCondition = newValue;
+                      });
+                    }
+                  },
+                ),
+                SizedBox(height: 15),
+                TextField(
+                  onChanged: (text) {
+                    additionalInfo = text;
+                  },
+                  decoration: const InputDecoration(
+                    labelText: 'Additional Information (Optional)',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 2,
+                ),
+                SizedBox(height: 15),
                 TextField(
                   onChanged: (text) {
                     amountToBePayed = text;
@@ -584,38 +667,52 @@ Future<void> _showConditionDialog(BuildContext context, String admissionId,
   );
 }
 
-class OtherScreenView extends StatelessWidget {
-  const OtherScreenView({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        'This is the other screen',
-        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-      ),
-    );
-  }
-}
-
 Future<void> _admitPatient(
     Patient1 patient, WidgetRef ref, BuildContext context) async {
   try {
-    // Assuming the first admission record's ID is used as the admissionId
+    // Show loading animation - using Future to avoid build-time updates
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(refreshLoadingProvider.notifier).state = true;
+    });
+
+    // Wait for the next frame to ensure the loading state has updated
+    await Future.microtask(() => {});
+
+    // Ensure there are admission records
     if (patient.admissionRecords.isEmpty) {
-      throw Exception('No admission records found for this patient.');
+      // Hide loading animation - using Future to avoid build-time updates
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(refreshLoadingProvider.notifier).state = false;
+      });
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No admission records found for this patient'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
     }
 
     final admissionId = patient.admissionRecords.first.id;
 
+    // Hide loading during dialog - using Future to avoid build-time updates
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(refreshLoadingProvider.notifier).state = false;
+    });
+
+    // Wait for the next frame to ensure the loading state has updated
+    await Future.microtask(() => {});
+
     // Show our new admission dialog and get the admit note
     final admitNote = await showDialog<String>(
       context: context,
+      barrierDismissible: false, // Prevent accidental dismissal
       builder: (context) => AdmitPatientDialog(
         patientName: patient.name,
         onAdmit: (String location) {
-          // Handle the admit action here if needed
-          // For now, we just return the location
           Navigator.of(context).pop(location);
         },
       ),
@@ -624,230 +721,89 @@ Future<void> _admitPatient(
     // If dialog was dismissed without selecting, return early
     if (admitNote == null) return;
 
+    // Check if context is still valid
+    if (!context.mounted) return;
+
+    // Show loading animation again - using Future to avoid build-time updates
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(refreshLoadingProvider.notifier).state = true;
+    });
+
+    // Wait for the next frame to ensure the loading state has updated
+    await Future.microtask(() => {});
+
     final authRepository = ref.read(authRepositoryProvider);
     final result = await authRepository.admitPatient1(
       admissionId: admissionId,
-      admitNote: admitNote, // Pass the admit note to the repository function
+      admitNote: admitNote,
     );
+
+    // Hide loading animation - using Future to avoid build-time updates
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(refreshLoadingProvider.notifier).state = false;
+    });
+
+    // Check if context is still valid after async operation
+    if (!context.mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(result['message'] ?? 'Unknown error occurred.'),
+        content: Text(result['message'] ?? 'Unknown error occurred'),
         backgroundColor:
             (result['success'] as bool? ?? false) ? Colors.green : Colors.red,
+        duration: const Duration(seconds: 2),
       ),
     );
 
-    ref.refresh(assignedPatientsProvider.notifier).fetchAssignedPatients();
+    // Only refresh if needed, with delayed execution
+    Future.microtask(() {
+      ref.read(assignedPatientsProvider.notifier).fetchAssignedPatients();
+    });
   } catch (e) {
-    print(e);
-    String errorMessage = 'Failed to admit patient';
+    print('Error admitting patient: $e');
 
-    // If the error is a Map (e.g., JSON), parse it
-    if (e is Map) {
-      errorMessage = e['message'] ?? 'Unknown error occurred';
-    } else if (e is String) {
-      // If it's a string, use it directly
-      errorMessage = e;
-    }
+    // Hide loading animation on error - using Future to avoid build-time updates
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(refreshLoadingProvider.notifier).state = false;
+    });
+
+    // Check if context is still valid
+    if (!context.mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Patient already admitted '),
+        content: Text('Patient already admitted: ${e.toString()}'),
         backgroundColor: Colors.red,
       ),
     );
   }
 }
 
-Future<bool?> _showDischargeConfirmationDialog(BuildContext context) async {
-  return showDialog<bool>(
-    context: context,
-    builder: (context) {
-      return AlertDialog(
-        title: const Text('Confirm Discharge',
-            style: TextStyle(color: Colors.deepPurple)),
-        content: const Text('Are you sure you want to discharge this patient?',
-            style: TextStyle(fontSize: 16)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Discharge',
-                style: TextStyle(color: Colors.deepPurple)),
-          ),
-        ],
-      );
-    },
-  );
-}
-
+// Update dischargePatient function to check for mounted state
 Future<void> _dischargePatient(Patient1 patient, WidgetRef ref) async {
   try {
     final admissionId = patient.admissionRecords.isNotEmpty
         ? patient.admissionRecords.first.id
         : '';
+
+    if (admissionId.isEmpty) {
+      print("Cannot discharge: No admission ID found");
+      return;
+    }
+
     final authRepository = ref.read(authRepositoryProvider);
     final result = await authRepository.dischargePatient(
       patientId: patient.patientId,
       admissionId: admissionId,
     );
-    print("the admission id is ${admissionId}");
-    // ScaffoldMessenger.of(context).showSnackBar(
-    //   SnackBar(
-    //     content: Text(result['message'] ?? 'Unknown error occurred.'),
-    //     backgroundColor:
-    //         (result['success'] as bool? ?? false) ? Colors.green : Colors.red,
-    //   ),
-    // );
-    ;
 
-    ref.refresh(assignedPatientsProvider.notifier).fetchAssignedPatients();
+    print("Discharge result: ${result['message']}");
+
+    // Refresh data only if needed, with delayed execution
+    Future.microtask(() {
+      ref.read(assignedPatientsProvider.notifier).fetchAssignedPatients();
+    });
   } catch (e) {
     print('Error discharging patient: $e');
-    // ScaffoldMessenger.of(context).showSnackBar(
-    //   SnackBar(
-    //     content: Text('Error discharging patient: $e'),
-    //     backgroundColor: Colors.red,
-    //   ),
-    // );
-  }
-}
-
-Future<void> _handleAssignLab(
-    BuildContext context, Patient1 patient, WidgetRef ref) async {
-  final authRepository = ref.read(authRepositoryProvider);
-  final admissionId = await showDialog<String>(
-    context: context,
-    builder: (context) => SelectAdmissionDialog(
-      admissionRecords: patient.admissionRecords,
-    ),
-  );
-
-  if (admissionId == null) return;
-
-  final labTestNameGivenByDoctor = await showDialog<String>(
-    context: context,
-    builder: (context) => AssignLabDialog(),
-  );
-
-  if (labTestNameGivenByDoctor == null || labTestNameGivenByDoctor.isEmpty) {
-    return;
-  }
-
-  try {
-    final result = await authRepository.assignPatientToLab(
-      patientId: patient.id,
-      admissionId: admissionId,
-      labTestNameGivenByDoctor: labTestNameGivenByDoctor,
-    );
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(result['message']),
-        backgroundColor: result['success'] ? Colors.green : Colors.red,
-      ),
-    );
-
-    ref.refresh(assignedPatientsProvider.notifier).fetchAssignedPatients();
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Failed to assign lab: $e'),
-        backgroundColor: Colors.red,
-      ),
-    );
-  }
-}
-
-class SelectAdmissionDialog extends StatelessWidget {
-  final List<AdmissionRecord> admissionRecords;
-
-  const SelectAdmissionDialog({
-    Key? key,
-    required this.admissionRecords,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Select Admission Record',
-          style: TextStyle(color: Colors.deepPurple)),
-      content: SingleChildScrollView(
-        child: Column(
-          children: admissionRecords.map((admission) {
-            return ListTile(
-              title: Text('Admission Date: ${admission.admissionDate}'),
-              subtitle: Text('Reason: ${admission.reasonForAdmission}'),
-              onTap: () {
-                Navigator.of(context).pop(admission.id);
-              },
-            );
-          }).toList(),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-        ),
-      ],
-    );
-  }
-}
-
-class AssignLabDialog extends StatefulWidget {
-  @override
-  _AssignLabDialogState createState() => _AssignLabDialogState();
-}
-
-class _AssignLabDialogState extends State<AssignLabDialog> {
-  final TextEditingController _controller = TextEditingController();
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text(
-        'Assign to Lab',
-        style: TextStyle(color: Colors.deepPurple),
-      ),
-      content: TextField(
-        controller: _controller,
-        decoration: const InputDecoration(
-          labelText: 'Lab Test Name',
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-        ),
-        TextButton(
-          onPressed: () {
-            // Get the current date and time in IST
-            final now = DateTime.now()
-                .toUtc()
-                .add(const Duration(hours: 5, minutes: 30));
-            final formattedDate = DateFormat('yyyy-MM-dd h:mm a').format(now);
-
-            // Append the date and time to the test name
-            final updatedTestName =
-                '${_controller.text.trim()} - $formattedDate';
-
-            Navigator.of(context).pop(updatedTestName);
-          },
-          child:
-              const Text('Assign', style: TextStyle(color: Colors.deepPurple)),
-        ),
-      ],
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose(); // Dispose the controller to prevent memory leaks
-    super.dispose();
   }
 }

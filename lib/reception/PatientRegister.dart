@@ -24,6 +24,7 @@ class PatientRegistrationScreen extends StatefulWidget {
 class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
   // IPD Controllers and State Variables
   final TextEditingController _ipdSearchController = TextEditingController();
@@ -1868,12 +1869,15 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
 
   // Add IPD Patient
   Future<void> _addIPDPatient(BuildContext context) async {
+    final currentContext = context;
+
     setState(() {
       _isIpdSubmitting = true;
     });
 
     try {
       final uri = Uri.parse('${KVM_URL}/reception/addPatient');
+      print("IPD Request URL: $uri");
       final request = http.MultipartRequest('POST', uri);
 
       // Add IPD-specific fields
@@ -1895,11 +1899,13 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
           setState(() {
             _isIpdSubmitting = false;
           });
-          ToastMessage().showToast(
-              context,
-              'Patient ID is required for readmission',
-              '',
-              ToastificationType.error);
+          if (currentContext.mounted) {
+            ToastMessage().showToast(
+                currentContext,
+                'Patient ID is required for readmission',
+                '',
+                ToastificationType.error);
+          }
           return;
         }
         request.fields['patientId'] = _ipdPatientIdController.text;
@@ -1913,53 +1919,101 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
         request.files.add(imageFile);
       }
 
+      print("Sending IPD request...");
       final response = await request.send();
+      print("IPD Response status code: ${response.statusCode}");
+
+      // Read the response body once and store it
+      final responseString = await response.stream.bytesToString();
+      print("IPD Response body: $responseString");
 
       setState(() {
         _isIpdSubmitting = false;
       });
 
+      // Update the _addIPDPatient method:
       if (response.statusCode == 200) {
-        final responseBody = jsonDecode(await response.stream.bytesToString());
-        final patientId = responseBody['patientDetails']['patientId'];
-        final admissionId =
-            responseBody['patientDetails']['admissionRecords'][0]['_id'];
+        try {
+          final responseBody = jsonDecode(responseString);
+          print("IPD Parsed response: $responseBody");
 
-        // Navigate to AssignScreen and prevent going back
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) =>
-                AssignScreen(patientId: patientId, admissionId: admissionId),
-          ),
-        );
+          final patientId = responseBody['patientDetails']['patientId'];
+          final admissionId =
+              responseBody['patientDetails']['admissionRecords'][0]['_id'];
 
-        ToastMessage().showToast(context, 'Patient Registered Successfully', '',
-            ToastificationType.success);
+          print(
+              "IPD Navigation data: patientId=$patientId, admissionId=$admissionId");
+
+          // Check if the context is still valid before navigating
+          if (currentContext.mounted) {
+            Navigator.of(currentContext).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => AssignScreen(
+                    patientId: patientId, admissionId: admissionId),
+              ),
+            );
+          }
+
+          // Show toast after navigation
+          Future.delayed(Duration(milliseconds: 300), () {
+            if (currentContext.mounted) {
+              ToastMessage().showToast(
+                currentContext,
+                'Patient Registered Successfully',
+                '',
+                ToastificationType.success,
+              );
+            }
+          });
+        } catch (parseError) {
+          print("Error parsing IPD response: $parseError");
+          if (currentContext.mounted) {
+            ToastMessage().showToast(
+              currentContext,
+              'Error processing response: $parseError',
+              '',
+              ToastificationType.error,
+            );
+          }
+        }
       } else {
-        final responseBody = jsonDecode(await response.stream.bytesToString());
-        final errorMessage =
-            responseBody['message'] ?? 'An unknown error occurred';
-        ToastMessage()
-            .showToast(context, errorMessage, '', ToastificationType.error);
+        String errorMessage = 'An unknown error occurred';
+        try {
+          final errorData = jsonDecode(responseString);
+          errorMessage = errorData['message'] ?? errorMessage;
+        } catch (e) {
+          print("Error parsing error response: $e");
+        }
+
+        if (currentContext.mounted) {
+          ToastMessage().showToast(
+              currentContext, errorMessage, '', ToastificationType.error);
+        }
       }
     } catch (e) {
+      print("Exception in _addIPDPatient: $e");
       setState(() {
         _isIpdSubmitting = false;
       });
-      ToastMessage().showToast(context, 'Failed to register patient: $e', '',
-          ToastificationType.error);
+
+      if (currentContext.mounted) {
+        ToastMessage().showToast(currentContext,
+            'Failed to register patient: $e', '', ToastificationType.error);
+      }
     }
   }
 
-  // Add OPD Patient
+// Add OPD Patient
   Future<void> _addOPDPatient(BuildContext context) async {
+    final currentContext = context;
+
     setState(() {
       _isOpdSubmitting = true;
     });
 
     try {
       final uri = Uri.parse('${KVM_URL}/reception/addPatient');
+      print("OPD Request URL: $uri");
       final request = http.MultipartRequest('POST', uri);
 
       // Add OPD-specific fields
@@ -1976,11 +2030,13 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
           setState(() {
             _isOpdSubmitting = false;
           });
-          ToastMessage().showToast(
-              context,
-              'Patient ID is required for return visit',
-              '',
-              ToastificationType.error);
+          if (currentContext.mounted) {
+            ToastMessage().showToast(
+                currentContext,
+                'Patient ID is required for return visit',
+                '',
+                ToastificationType.error);
+          }
           return;
         }
         request.fields['patientId'] = _opdPatientIdController.text;
@@ -1994,42 +2050,87 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
         request.files.add(imageFile);
       }
 
+      print("Sending OPD request...");
       final response = await request.send();
+      print("OPD Response status code: ${response.statusCode}");
+
+      // Read the response body once and store it
+      final responseString = await response.stream.bytesToString();
+      print("OPD Response body: $responseString");
 
       setState(() {
         _isOpdSubmitting = false;
       });
 
+      // Update the _addOPDPatient method:
       if (response.statusCode == 200) {
-        final responseBody = jsonDecode(await response.stream.bytesToString());
-        final patientId = responseBody['patientDetails']['patientId'];
-        final admissionId =
-            responseBody['patientDetails']['admissionRecords'][0]['_id'];
+        try {
+          final responseBody = jsonDecode(responseString);
+          print("OPD Parsed response: $responseBody");
 
-        // Navigate to AssignScreen and prevent going back
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) =>
-                AssignScreen(patientId: patientId, admissionId: admissionId),
-          ),
-        );
+          final patientId = responseBody['patientDetails']['patientId'];
+          final admissionId =
+              responseBody['patientDetails']['admissionRecords'][0]['_id'];
 
-        ToastMessage().showToast(context, 'Patient Registered Successfully', '',
-            ToastificationType.success);
+          print(
+              "OPD Navigation data: patientId=$patientId, admissionId=$admissionId");
+
+          // Check if the context is still valid before navigating
+          if (currentContext.mounted) {
+            Navigator.of(currentContext).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => AssignScreen(
+                    patientId: patientId, admissionId: admissionId),
+              ),
+            );
+          }
+
+          // Show toast after navigation
+          Future.delayed(Duration(milliseconds: 300), () {
+            if (currentContext.mounted) {
+              ToastMessage().showToast(
+                currentContext,
+                'Patient Registered Successfully',
+                '',
+                ToastificationType.success,
+              );
+            }
+          });
+        } catch (parseError) {
+          print("Error parsing OPD response: $parseError");
+          if (currentContext.mounted) {
+            ToastMessage().showToast(
+              currentContext,
+              'Error processing response: $parseError',
+              '',
+              ToastificationType.error,
+            );
+          }
+        }
       } else {
-        final responseBody = jsonDecode(await response.stream.bytesToString());
-        final errorMessage =
-            responseBody['message'] ?? 'An unknown error occurred';
-        ToastMessage()
-            .showToast(context, errorMessage, '', ToastificationType.error);
+        String errorMessage = 'An unknown error occurred';
+        try {
+          final errorData = jsonDecode(responseString);
+          errorMessage = errorData['message'] ?? errorMessage;
+        } catch (e) {
+          print("Error parsing error response: $e");
+        }
+
+        if (currentContext.mounted) {
+          ToastMessage().showToast(
+              currentContext, errorMessage, '', ToastificationType.error);
+        }
       }
     } catch (e) {
+      print("Exception in _addOPDPatient: $e");
       setState(() {
         _isOpdSubmitting = false;
       });
-      ToastMessage().showToast(context, 'Failed to register patient: $e', '',
-          ToastificationType.error);
+
+      if (currentContext.mounted) {
+        ToastMessage().showToast(currentContext,
+            'Failed to register patient: $e', '', ToastificationType.error);
+      }
     }
   }
 }

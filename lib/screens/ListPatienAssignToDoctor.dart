@@ -43,10 +43,20 @@ class _PatientAssignmentScreenState extends State<PatientAssignmentScreen> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        setState(() {
-          doctorNames = List<String>.from(
-              data['doctors'].map((doctor) => doctor['doctorName']));
-        });
+
+        // Check if 'doctors' key exists and is not empty
+        if (data['doctors'] != null && data['doctors'].isNotEmpty) {
+          setState(() {
+            doctorNames = List<String>.from(
+                data['doctors'].map((doctor) => doctor['doctorName']));
+          });
+        } else {
+          // Handle empty doctors list gracefully
+          setState(() {
+            doctorNames = [];
+            error = ''; // Clear any existing error
+          });
+        }
       } else {
         setState(() {
           error = 'Failed to load doctors: ${response.statusCode}';
@@ -81,7 +91,7 @@ class _PatientAssignmentScreenState extends State<PatientAssignmentScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
-          patients = List<Map<String, dynamic>>.from(data['patients']);
+          patients = List<Map<String, dynamic>>.from(data['patients'] ?? []);
           selectedPatient = null;
         });
       } else {
@@ -169,15 +179,23 @@ class _PatientAssignmentScreenState extends State<PatientAssignmentScreen> {
         child: DropdownButton<String>(
           value: selectedDoctor,
           hint: Text(
-            'Select Doctor',
+            doctorNames.isEmpty ? 'No doctors available' : 'Select Doctor',
             style: TextStyle(color: textSecondaryColor),
           ),
           icon: Icon(Icons.arrow_drop_down, color: primaryColor),
           isExpanded: true,
-          onChanged: (String? newDoctor) {
-            setState(() => selectedDoctor = newDoctor);
-            _fetchPatients();
-          },
+          disabledHint: doctorNames.isEmpty
+              ? Text(
+                  'No doctors available',
+                  style: TextStyle(color: textSecondaryColor),
+                )
+              : null,
+          onChanged: doctorNames.isEmpty
+              ? null // Disable dropdown if no doctors
+              : (String? newDoctor) {
+                  setState(() => selectedDoctor = newDoctor);
+                  _fetchPatients();
+                },
           items: doctorNames.map<DropdownMenuItem<String>>((String doctorName) {
             return DropdownMenuItem<String>(
               value: doctorName,
@@ -193,7 +211,7 @@ class _PatientAssignmentScreenState extends State<PatientAssignmentScreen> {
   }
 
   Widget _buildContent() {
-    if (isLoading && patients.isEmpty) {
+    if (isLoading && patients.isEmpty && doctorNames.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -209,7 +227,7 @@ class _PatientAssignmentScreenState extends State<PatientAssignmentScreen> {
       );
     }
 
-    if (error.isNotEmpty && patients.isEmpty) {
+    if (error.isNotEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -226,6 +244,46 @@ class _PatientAssignmentScreenState extends State<PatientAssignmentScreen> {
               onPressed: _fetchDoctors,
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: primaryColor,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (doctorNames.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.medical_services_outlined,
+              size: 64,
+              color: primaryColor.withOpacity(0.5),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'No doctors available in the system',
+              style: TextStyle(
+                fontSize: 18,
+                color: textSecondaryColor,
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _fetchDoctors,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Refresh'),
               style: ElevatedButton.styleFrom(
                 foregroundColor: Colors.white,
                 backgroundColor: primaryColor,
@@ -387,7 +445,10 @@ class _PatientAssignmentScreenState extends State<PatientAssignmentScreen> {
                                     ? primaryColor
                                     : accentColor.withOpacity(0.2),
                                 child: Text(
-                                  patient['name'][0].toUpperCase(),
+                                  patient['name'] != null &&
+                                          patient['name'].toString().isNotEmpty
+                                      ? patient['name'][0].toUpperCase()
+                                      : '?',
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
@@ -410,7 +471,7 @@ class _PatientAssignmentScreenState extends State<PatientAssignmentScreen> {
                                 children: [
                                   const SizedBox(height: 4),
                                   Text(
-                                    'ID: ${patient['patientId']}',
+                                    'ID: ${patient['patientId'] ?? 'N/A'}',
                                     style: TextStyle(
                                       fontSize: 13,
                                       color: primaryColor,
@@ -418,7 +479,7 @@ class _PatientAssignmentScreenState extends State<PatientAssignmentScreen> {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    '${patient['age']} yrs | ${patient['gender']}',
+                                    '${patient['age'] ?? 'N/A'} yrs | ${patient['gender'] ?? 'N/A'}',
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: textSecondaryColor,
@@ -507,7 +568,11 @@ class _PatientAssignmentScreenState extends State<PatientAssignmentScreen> {
           radius: 32,
           backgroundColor: primaryColor.withOpacity(0.2),
           child: Text(
-            selectedPatient?['name'][0].toUpperCase() ?? '?',
+            selectedPatient != null &&
+                    selectedPatient!['name'] != null &&
+                    selectedPatient!['name'].toString().isNotEmpty
+                ? selectedPatient!['name'][0].toUpperCase()
+                : '?',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -530,7 +595,7 @@ class _PatientAssignmentScreenState extends State<PatientAssignmentScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Patient ID: ${selectedPatient?['patientId']}',
+                'Patient ID: ${selectedPatient?['patientId'] ?? 'N/A'}',
                 style: TextStyle(
                   fontSize: 14,
                   color: primaryColor,
@@ -570,9 +635,14 @@ class _PatientAssignmentScreenState extends State<PatientAssignmentScreen> {
                   ),
                   Expanded(
                     child: _buildInfoItem(
-                      icon: selectedPatient?['gender']?.toLowerCase() == 'male'
+                      icon: selectedPatient?['gender']
+                                  ?.toString()
+                                  .toLowerCase() ==
+                              'male'
                           ? Icons.male
-                          : selectedPatient?['gender']?.toLowerCase() ==
+                          : selectedPatient?['gender']
+                                      ?.toString()
+                                      .toLowerCase() ==
                                   'female'
                               ? Icons.female
                               : Icons.people,

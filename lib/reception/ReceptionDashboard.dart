@@ -539,10 +539,11 @@ class NavbarWidget extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.search, color: Colors.grey.shade500, size: 20),
+                  Icon(Icons.gesture_outlined,
+                      color: Colors.grey.shade500, size: 20),
                   const SizedBox(width: 8),
                   Text(
-                    'Search...',
+                    'Welcome to HMS',
                     style: TextStyle(
                       color: Colors.grey.shade500,
                       fontSize: 14,

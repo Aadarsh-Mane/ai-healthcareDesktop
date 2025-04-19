@@ -130,7 +130,7 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (context) => LoginScreen()),
+                              builder: (context) => LoginScreen1()),
                         );
                       },
                       style: ElevatedButton.styleFrom(
