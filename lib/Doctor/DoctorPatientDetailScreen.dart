@@ -1262,149 +1262,170 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
   }) {
     bool isSelected = _selectedTabIndex == index;
 
-    return AnimatedContainer(
-      duration: Duration(milliseconds: 400),
-      curve: Curves.easeInOutQuint,
-      margin: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        gradient: isSelected
-            ? LinearGradient(
-                colors: [
-                  Colors.white,
-                  Colors.white,
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              )
-            : null,
-        color: isSelected ? Colors.white.withOpacity(0.2) : Colors.transparent,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(
-          color:
-              isSelected ? Colors.white.withOpacity(0.3) : Colors.transparent,
-          width: 1.5,
-        ),
-        boxShadow: isSelected
-            ? [
-                BoxShadow(
-                  color: Colors.white.withOpacity(0.1),
-                  spreadRadius: 1,
-                  blurRadius: 10,
-                  offset: Offset(0, 4),
+    return LayoutBuilder(builder: (context, constraints) {
+      // Adjust for different screen widths
+      final bool isSmallScreen = constraints.maxWidth < 120;
+      final double iconSize = isSmallScreen ? 20 : 24;
+      final double fontSize = isSmallScreen ? 12 : 15;
+      final double verticalPadding = isSmallScreen ? 6 : 8;
+      final double horizontalPadding = isSmallScreen ? 8 : 16;
+
+      return AnimatedContainer(
+        duration: Duration(milliseconds: 400),
+        curve: Curves.easeInOutQuint,
+        margin: EdgeInsets.symmetric(
+            horizontal: isSmallScreen ? 6 : 10,
+            vertical: isSmallScreen ? 4 : 5),
+        decoration: BoxDecoration(
+          gradient: isSelected
+              ? LinearGradient(
+                  colors: [
+                    Colors.white,
+                    Colors.white,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 )
-              ]
-            : [],
-      ),
-      child: Stack(
-        children: [
-          // Main Content
-          ListTile(
-            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-
-            // Leading Icon with Animated Container
-            leading: AnimatedContainer(
-              duration: Duration(milliseconds: 300),
-              padding: EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? Colors.white.withOpacity(0.1)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                icon,
-                color: isSelected ? Colors.white : Colors.white70,
-                size: 24,
-              ),
-            ),
-
-            // Title with Animated Positioning
-            title: AnimatedDefaultTextStyle(
-              duration: Duration(milliseconds: 300),
-              style: TextStyle(
-                color: isSelected ? Colors.white : Colors.white70,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                fontSize: isSelected ? 16 : 15,
-                letterSpacing: isSelected ? 0.7 : 0.5,
-              ),
-              child: Text(label),
-            ),
-
-            // Trailing Indicator
-            trailing: isSelected
-                ? Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.white.withOpacity(0.5),
-                          spreadRadius: 2,
-                          blurRadius: 5,
-                        )
-                      ],
-                    ),
-                  )
-                : null,
-
-            // Tap Action
-            onTap: () {
-              if (onCustomTap != null) {
-                onCustomTap();
-              } else {
-                setState(() {
-                  // Slide out other items
-                  _selectedTabIndex = index;
-                  _tabController.animateTo(index);
-                });
-              }
-            },
+              : null,
+          color:
+              isSelected ? Colors.white.withOpacity(0.2) : Colors.transparent,
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(
+            color:
+                isSelected ? Colors.white.withOpacity(0.3) : Colors.transparent,
+            width: 1.5,
           ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.white.withOpacity(0.1),
+                    spreadRadius: 1,
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  )
+                ]
+              : [],
+        ),
+        child: Stack(
+          children: [
+            // Main Content
+            ListTile(
+              contentPadding: EdgeInsets.symmetric(
+                  horizontal: horizontalPadding, vertical: verticalPadding),
 
-          // Footer-like Interaction Layer
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: AnimatedContainer(
-              duration: Duration(milliseconds: 300),
-              height: isSelected ? 5 : 0,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.7),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(15),
-                  bottomRight: Radius.circular(15),
+              // Leading Icon with Animated Container
+              leading: AnimatedContainer(
+                duration: Duration(milliseconds: 300),
+                padding: EdgeInsets.all(isSmallScreen ? 6 : 8),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? Colors.white.withOpacity(0.1)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  icon,
+                  color: isSelected ? Colors.white : Colors.white70,
+                  size: iconSize,
+                ),
+              ),
+
+              // Title with responsive sizing
+              title: isSmallScreen
+                  ? null
+                  : // Hide text on very small screens - just show icon
+                  AnimatedDefaultTextStyle(
+                      duration: Duration(milliseconds: 300),
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : Colors.white70,
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.normal,
+                        fontSize: isSelected ? fontSize + 1 : fontSize,
+                        letterSpacing: isSelected ? 0.7 : 0.5,
+                      ),
+                      child: Text(
+                        label,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+
+              // Trailing Indicator - only on larger screens
+              trailing: isSmallScreen
+                  ? null
+                  : (isSelected
+                      ? Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.white.withOpacity(0.5),
+                                spreadRadius: 2,
+                                blurRadius: 5,
+                              )
+                            ],
+                          ),
+                        )
+                      : null),
+
+              // Tap Action
+              onTap: () {
+                if (onCustomTap != null) {
+                  onCustomTap();
+                } else {
+                  setState(() {
+                    _selectedTabIndex = index;
+                    _tabController.animateTo(index);
+                  });
+                }
+              },
+            ),
+
+            // Footer-like Interaction Layer
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: AnimatedContainer(
+                duration: Duration(milliseconds: 300),
+                height: isSelected ? 5 : 0,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.7),
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(15),
+                    bottomRight: Radius.circular(15),
+                  ),
                 ),
               ),
             ),
-          ),
 
-          // Hover and Interaction Effect
-          Positioned.fill(
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(15),
-                splashColor: Colors.white.withOpacity(0.2),
-                highlightColor: Colors.white.withOpacity(0.1),
-                onTap: () {
-                  if (onCustomTap != null) {
-                    onCustomTap();
-                  } else {
-                    setState(() {
-                      _selectedTabIndex = index;
-                      _tabController.animateTo(index);
-                    });
-                  }
-                },
+            // Hover and Interaction Effect
+            Positioned.fill(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(15),
+                  splashColor: Colors.white.withOpacity(0.2),
+                  highlightColor: Colors.white.withOpacity(0.1),
+                  onTap: () {
+                    if (onCustomTap != null) {
+                      onCustomTap();
+                    } else {
+                      setState(() {
+                        _selectedTabIndex = index;
+                        _tabController.animateTo(index);
+                      });
+                    }
+                  },
+                ),
               ),
             ),
-          ),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
+    });
   }
 
   final TextEditingController medicineNameController = TextEditingController();
@@ -3581,9 +3602,23 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
       String patientId, String admissionId) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        // Determine grid layout based on screen width
+        final int crossAxisCount = constraints.maxWidth > 1400
+            ? 3
+            : constraints.maxWidth > 900
+                ? 2
+                : 1;
+
+        // Calculate child aspect ratio based on screen dimensions
+        final double childAspectRatio = constraints.maxWidth > 1200
+            ? 1.1
+            : constraints.maxWidth > 800
+                ? 1.0
+                : 0.9;
+
         return Stack(
           children: [
-            // Main content remains the same
+            // Background container
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -3595,38 +3630,41 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
               child: CustomScrollView(
                 slivers: [
                   SliverPadding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: EdgeInsets.all(
+                        constraints.maxWidth > 900 ? 16.0 : 12.0),
                     sliver: SliverGrid(
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: constraints.maxWidth > 1200
-                            ? 4
-                            : constraints.maxWidth > 800
-                                ? 2
-                                : 1,
-                        crossAxisSpacing: 16,
-                        mainAxisSpacing: 16,
-                        childAspectRatio: 1.2,
+                        crossAxisCount: crossAxisCount,
+                        crossAxisSpacing: constraints.maxWidth > 900 ? 16 : 12,
+                        mainAxisSpacing: constraints.maxWidth > 900 ? 16 : 12,
+                        childAspectRatio: childAspectRatio,
                       ),
                       delegate: SliverChildListDelegate([
-                        // Original sections
+                        // Patient Overview Card
                         _buildStyledSectionContainer(
                           context,
                           child: _buildOverviewSection1(context, ref),
                           title: 'Patient Overview',
                           icon: Icons.person_outline,
                         ),
+
+                        // Prescription Management Card
                         _buildStyledSectionContainer(
                           context,
                           child: _buildPrescriptionLayout(),
                           title: 'Prescription Management',
-                          icon: Icons.precision_manufacturing,
+                          icon: Icons.medication_outlined,
                         ),
+
+                        // Vitals Monitoring Card
                         _buildStyledSectionContainer(
                           context,
                           child: _buildVitalsLayout(),
                           title: 'Vitals Monitoring',
                           icon: Icons.monitor_heart_outlined,
                         ),
+
+                        // Symptoms Card
                         _buildStyledSectionContainer(
                           context,
                           child: Column(
@@ -3640,6 +3678,8 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                           title: 'Symptoms',
                           icon: Icons.medical_services_outlined,
                         ),
+
+                        // Diagnosis Card
                         _buildStyledSectionContainer(
                           context,
                           child: buildDiagnosisLayout(
@@ -3658,10 +3698,10 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
               ),
             ),
 
-            // Interactive Doctor Notes Button
+            // Doctor Notes button - responsive positioning
             Positioned(
-              right: 20,
-              top: 20,
+              right: constraints.maxWidth > 900 ? 20 : 10,
+              top: constraints.maxWidth > 900 ? 20 : 10,
               child: Container(
                 key: _notesButtonKey,
                 child: InkWell(
@@ -3672,8 +3712,10 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                   },
                   child: AnimatedContainer(
                     duration: Duration(milliseconds: 300),
-                    width: _showFloatingNotes ? 150 : 50,
-                    height: 50,
+                    width: _showFloatingNotes
+                        ? (constraints.maxWidth > 900 ? 150 : 120)
+                        : (constraints.maxWidth > 900 ? 50 : 40),
+                    height: constraints.maxWidth > 900 ? 50 : 40,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [Color(0xFF1E2843), Color(0xFF2C3E50)],
@@ -3695,6 +3737,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                         Icon(
                           Icons.note_alt_outlined,
                           color: Colors.white,
+                          size: constraints.maxWidth > 900 ? 24 : 20,
                         ),
                         if (_showFloatingNotes)
                           Padding(
@@ -3704,6 +3747,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                               style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
+                                fontSize: constraints.maxWidth > 900 ? 14 : 12,
                               ),
                             ),
                           ),
@@ -3714,27 +3758,29 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
               ),
             ),
 
-            // Floating Doctor Notes Panel
+            // Floating Notes Panel - responsive width
             AnimatedPositioned(
               duration: Duration(milliseconds: 400),
               curve: Curves.easeOutQuad,
-              right: _showFloatingNotes ? 30 : -350,
-              top: 80,
+              right: _showFloatingNotes
+                  ? (constraints.maxWidth > 900 ? 30 : 15)
+                  : -(_getNotesWidth(constraints)),
+              top: constraints.maxWidth > 900 ? 80 : 60,
               child: AnimatedOpacity(
                 duration: Duration(milliseconds: 300),
                 opacity: _showFloatingNotes ? 1.0 : 0.0,
                 child: GestureDetector(
                   onHorizontalDragEnd: (details) {
                     if (details.primaryVelocity! > 0) {
-                      // Swiped right
                       setState(() {
                         _showFloatingNotes = false;
                       });
                     }
                   },
                   child: Container(
-                    width: 320,
-                    height: MediaQuery.of(context).size.height * 0.7,
+                    width: _getNotesWidth(constraints),
+                    height: MediaQuery.of(context).size.height *
+                        (constraints.maxWidth > 900 ? 0.7 : 0.6),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
@@ -3746,239 +3792,28 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                         ),
                       ],
                     ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.95),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: Colors.grey.shade200,
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              // Doctor Notes Header
-                              Container(
-                                padding: EdgeInsets.symmetric(
-                                    vertical: 16, horizontal: 20),
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Color(0xFF1E2843),
-                                      Color(0xFF2C3E50),
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                                  borderRadius: BorderRadius.only(
-                                    topLeft: Radius.circular(20),
-                                    topRight: Radius.circular(20),
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            Icons.note_alt_outlined,
-                                            color: Colors.white,
-                                          ),
-                                          SizedBox(width: 12),
-                                          Text(
-                                            " Notes",
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 18,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Row(
-                                      children: [
-                                        IconButton(
-                                          icon: Icon(
-                                            Icons.minimize,
-                                            color: Colors.white,
-                                          ),
-                                          onPressed: () {
-                                            setState(() {
-                                              _isNotesExpanded = false;
-                                            });
-                                          },
-                                        ),
-                                        IconButton(
-                                          icon: Icon(
-                                            _isNotesExpanded
-                                                ? Icons.fullscreen_exit
-                                                : Icons.fullscreen,
-                                            color: Colors.white,
-                                          ),
-                                          onPressed: () {
-                                            setState(() {
-                                              _isNotesExpanded =
-                                                  !_isNotesExpanded;
-                                            });
-                                          },
-                                        ),
-                                        IconButton(
-                                          icon: Icon(
-                                            Icons.close,
-                                            color: Colors.white,
-                                          ),
-                                          onPressed: () {
-                                            setState(() {
-                                              _showFloatingNotes = false;
-                                            });
-                                          },
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              // Doctor Notes Content
-                              Expanded(
-                                child: _buildDoctorNotes(
-                                  context,
-                                  patientId,
-                                  admissionId,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+                    child: _buildNotesPanel(
+                        context, patientId, admissionId, constraints),
                   ),
                 ),
               ),
             ),
 
-            // Expanded Doctor Notes Panel
+            // Expanded Notes Panel
             if (_isNotesExpanded && _showFloatingNotes)
-              Positioned.fill(
-                child: Container(
-                  color: Colors.black54,
-                  child: Center(
-                    child: Container(
-                      width: MediaQuery.of(context).size.width * 0.85,
-                      height: MediaQuery.of(context).size.height * 0.85,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black26,
-                            blurRadius: 20,
-                            spreadRadius: 5,
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          // Expanded Notes Header
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                                vertical: 16, horizontal: 20),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Color(0xFF1E2843),
-                                  Color(0xFF2C3E50),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.only(
-                                topLeft: Radius.circular(20),
-                                topRight: Radius.circular(20),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.note_alt_outlined,
-                                      color: Colors.white,
-                                    ),
-                                    SizedBox(width: 12),
-                                    Text(
-                                      "Doctor Notes - Full View",
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 18,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Row(
-                                  children: [
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.fullscreen_exit,
-                                        color: Colors.white,
-                                      ),
-                                      onPressed: () {
-                                        setState(() {
-                                          _isNotesExpanded = false;
-                                        });
-                                      },
-                                    ),
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.close,
-                                        color: Colors.white,
-                                      ),
-                                      onPressed: () {
-                                        setState(() {
-                                          _showFloatingNotes = false;
-                                          _isNotesExpanded = false;
-                                        });
-                                      },
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
+              _buildExpandedNotesPanel(
+                  context, patientId, admissionId, constraints),
 
-                          // Expanded Notes Content
-                          Expanded(
-                            child: _buildDoctorNotes(
-                              context,
-                              patientId,
-                              admissionId,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-            // Quick Add Note Floating Action Button
+            // Quick Add Note Button
             Positioned(
-              right: 30,
-              bottom: 100,
+              right: constraints.maxWidth > 900 ? 30 : 15,
+              bottom: constraints.maxWidth > 900 ? 100 : 80,
               child: AnimatedOpacity(
                 duration: Duration(milliseconds: 300),
                 opacity: _showFloatingNotes ? 1.0 : 0.0,
                 child: FloatingActionButton(
                   backgroundColor: Color(0xFF005F9E),
+                  mini: constraints.maxWidth <= 900,
                   child: Icon(Icons.add, color: Colors.white),
                   onPressed: () {
                     _showAddNoteDialog(context, patientId, admissionId);
@@ -3990,6 +3825,231 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
           ],
         );
       },
+    );
+  }
+
+  double _getNotesWidth(BoxConstraints constraints) {
+    if (constraints.maxWidth > 1400) return 380;
+    if (constraints.maxWidth > 900) return 320;
+    return 280;
+  }
+
+// Helper method to build notes panel with proper styling
+  Widget _buildNotesPanel(BuildContext context, String patientId,
+      String admissionId, BoxConstraints constraints) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.95),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: Colors.grey.shade200,
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: EdgeInsets.symmetric(
+                    vertical: constraints.maxWidth > 900 ? 16 : 12,
+                    horizontal: constraints.maxWidth > 900 ? 20 : 16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF1E2843), Color(0xFF2C3E50)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Icon(Icons.note_alt_outlined, color: Colors.white),
+                          SizedBox(width: 12),
+                          Text(
+                            "Notes",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: constraints.maxWidth > 900 ? 18 : 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.minimize, color: Colors.white),
+                          onPressed: () {
+                            setState(() {
+                              _isNotesExpanded = false;
+                            });
+                          },
+                          iconSize: constraints.maxWidth > 900 ? 24 : 20,
+                          padding: EdgeInsets.all(
+                              constraints.maxWidth > 900 ? 8 : 4),
+                          constraints: BoxConstraints(),
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            _isNotesExpanded
+                                ? Icons.fullscreen_exit
+                                : Icons.fullscreen,
+                            color: Colors.white,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _isNotesExpanded = !_isNotesExpanded;
+                            });
+                          },
+                          iconSize: constraints.maxWidth > 900 ? 24 : 20,
+                          padding: EdgeInsets.all(
+                              constraints.maxWidth > 900 ? 8 : 4),
+                          constraints: BoxConstraints(),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.close, color: Colors.white),
+                          onPressed: () {
+                            setState(() {
+                              _showFloatingNotes = false;
+                            });
+                          },
+                          iconSize: constraints.maxWidth > 900 ? 24 : 20,
+                          padding: EdgeInsets.all(
+                              constraints.maxWidth > 900 ? 8 : 4),
+                          constraints: BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // Content
+              Expanded(
+                child: _buildDoctorNotes(context, patientId, admissionId),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+// Helper method to build expanded notes panel
+  Widget _buildExpandedNotesPanel(BuildContext context, String patientId,
+      String admissionId, BoxConstraints constraints) {
+    double width, height;
+
+    // Responsive sizing for different screen sizes
+    if (constraints.maxWidth > 1400) {
+      width = MediaQuery.of(context).size.width * 0.85;
+      height = MediaQuery.of(context).size.height * 0.85;
+    } else if (constraints.maxWidth > 900) {
+      width = MediaQuery.of(context).size.width * 0.8;
+      height = MediaQuery.of(context).size.height * 0.8;
+    } else {
+      width = MediaQuery.of(context).size.width * 0.9;
+      height = MediaQuery.of(context).size.height * 0.75;
+    }
+
+    return Positioned.fill(
+      child: Container(
+        color: Colors.black54,
+        child: Center(
+          child: Container(
+            width: width,
+            height: height,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 20,
+                  spreadRadius: 5,
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                // Header
+                Container(
+                  padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF1E2843), Color(0xFF2C3E50)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.note_alt_outlined, color: Colors.white),
+                          SizedBox(width: 12),
+                          Text(
+                            "Doctor Notes - Full View",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: Icon(Icons.fullscreen_exit,
+                                color: Colors.white),
+                            onPressed: () {
+                              setState(() {
+                                _isNotesExpanded = false;
+                              });
+                            },
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.close, color: Colors.white),
+                            onPressed: () {
+                              setState(() {
+                                _showFloatingNotes = false;
+                                _isNotesExpanded = false;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Content
+                Expanded(
+                  child: _buildDoctorNotes(context, patientId, admissionId),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -4544,73 +4604,88 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     );
   }
 
-// New method for styled section container
   Widget _buildStyledSectionContainer(
     BuildContext context, {
     required Widget child,
     required String title,
     required IconData icon,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.shade200,
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+    return LayoutBuilder(builder: (context, constraints) {
+      // Adjust sizing and padding based on available width
+      final double iconSize = constraints.maxWidth > 600 ? 20 : 18;
+      final double titleFontSize = constraints.maxWidth > 600 ? 16 : 14;
+      final double headerPadding = constraints.maxWidth > 600 ? 12 : 10;
+      final double contentPadding = constraints.maxWidth > 600 ? 12 : 10;
+
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.shade200,
+              blurRadius: 10,
+              offset: const Offset(0, 5),
+            ),
+          ],
+          border: Border.all(
+            color: Colors.grey.shade100,
+            width: 1,
           ),
-        ],
-        border: Border.all(
-          color: Colors.grey.shade100,
-          width: 1,
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with icon and title
+            Container(
+              padding: EdgeInsets.symmetric(
+                  horizontal: headerPadding, vertical: headerPadding * 0.8),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  topRight: Radius.circular(12),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(headerPadding * 0.5),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child:
+                        Icon(icon, color: Colors.blue.shade700, size: iconSize),
+                  ),
+                  SizedBox(width: headerPadding * 0.8),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: titleFontSize,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.blue.shade800,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
             ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade100,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(icon, color: Colors.blue.shade700, size: 20),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.blue.shade800,
-                  ),
-                ),
-              ],
+            const Divider(height: 1, thickness: 0.5),
+
+            // Content with responsive padding
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.all(contentPadding),
+                child: child,
+              ),
             ),
-          ),
-          const Divider(height: 1, thickness: 0.5),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: child,
-            ),
-          ),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
+    });
   }
 //   Widget _buildFourSquareLayout(BuildContext context, WidgetRef ref,
 //       String patientId, String admissionId) {

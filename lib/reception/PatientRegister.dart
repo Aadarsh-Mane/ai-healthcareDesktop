@@ -1945,13 +1945,19 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
               "IPD Navigation data: patientId=$patientId, admissionId=$admissionId");
 
           // Check if the context is still valid before navigating
+          // In both _addIPDPatient and _addOPDPatient methods, replace the navigation code with:
+
+// Check if the context is still valid before navigating
           if (currentContext.mounted) {
-            Navigator.of(currentContext).pushReplacement(
-              MaterialPageRoute(
-                builder: (context) => AssignScreen(
-                    patientId: patientId, admissionId: admissionId),
-              ),
-            );
+            // Use Future.microtask to ensure the navigation happens after the current build cycle
+            Future.microtask(() {
+              Navigator.of(currentContext).pushReplacement(
+                MaterialPageRoute(
+                  builder: (context) => AssignScreen(
+                      patientId: patientId, admissionId: admissionId),
+                ),
+              );
+            });
           }
 
           // Show toast after navigation
@@ -2076,13 +2082,27 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
               "OPD Navigation data: patientId=$patientId, admissionId=$admissionId");
 
           // Check if the context is still valid before navigating
+          // if (currentContext.mounted) {
+          //   Navigator.of(currentContext).pushReplacement(
+          //     MaterialPageRoute(
+          //       builder: (context) => AssignScreen(
+          //           patientId: patientId, admissionId: admissionId),
+          //     ),
+          //   );
+          // }
+          // In both _addIPDPatient and _addOPDPatient methods, replace the navigation code with:
+
+// Check if the context is still valid before navigating
           if (currentContext.mounted) {
-            Navigator.of(currentContext).pushReplacement(
-              MaterialPageRoute(
-                builder: (context) => AssignScreen(
-                    patientId: patientId, admissionId: admissionId),
-              ),
-            );
+            // Use Future.microtask to ensure the navigation happens after the current build cycle
+            Future.microtask(() {
+              Navigator.of(currentContext).pushReplacement(
+                MaterialPageRoute(
+                  builder: (context) => AssignScreen(
+                      patientId: patientId, admissionId: admissionId),
+                ),
+              );
+            });
           }
 
           // Show toast after navigation
