@@ -2031,31 +2031,35 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
               "IPD Navigation data: patientId=$patientId, admissionId=$admissionId");
 
           // Improved navigation logic that works across platforms
+          // In both _addIPDPatient and _addOPDPatient methods:
           if (currentContext.mounted) {
-            // Wait for the next frame to ensure state is updated
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              // Use Navigator.of(context).pushAndRemoveUntil to clear previous routes
-              Navigator.of(currentContext).pushAndRemoveUntil(
-                MaterialPageRoute(
-                  builder: (context) => AssignScreen(
-                    patientId: patientId,
-                    admissionId: admissionId,
-                  ),
+            // First, navigate immediately with a simple direct replacement
+            Navigator.of(currentContext).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => AssignScreen(
+                  patientId: patientId,
+                  admissionId: admissionId,
                 ),
-                (route) => false, // This will remove all previous routes
-              );
-            });
+              ),
+            );
 
-            // Show a toast to indicate successful registration
-            // Small delay to ensure navigation has started
-            Future.delayed(Duration(milliseconds: 100), () {
-              if (currentContext.mounted) {
-                ToastMessage().showToast(
-                  currentContext,
-                  'Patient Registered Successfully',
-                  '',
-                  ToastificationType.success,
-                );
+            // Additionally, schedule a "backup" navigation to ensure it happens
+            // This will only execute if the first attempt didn't succeed
+            Future.delayed(Duration(milliseconds: 500), () {
+              if (currentContext.mounted &&
+                  Navigator.of(currentContext).canPop()) {
+                print("Executing backup navigation strategy");
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  Navigator.pushReplacement(
+                    currentContext,
+                    MaterialPageRoute(
+                      builder: (context) => AssignScreen(
+                        patientId: patientId,
+                        admissionId: admissionId,
+                      ),
+                    ),
+                  );
+                });
               }
             });
           }
@@ -2169,31 +2173,35 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
               "OPD Navigation data: patientId=$patientId, admissionId=$admissionId");
 
           // Improved navigation logic that works across platforms
+          // In both _addIPDPatient and _addOPDPatient methods:
           if (currentContext.mounted) {
-            // Wait for the next frame to ensure state is updated
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              // Use Navigator.of(context).pushAndRemoveUntil to clear previous routes
-              Navigator.of(currentContext).pushAndRemoveUntil(
-                MaterialPageRoute(
-                  builder: (context) => AssignScreen(
-                    patientId: patientId,
-                    admissionId: admissionId,
-                  ),
+            // First, navigate immediately with a simple direct replacement
+            Navigator.of(currentContext).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => AssignScreen(
+                  patientId: patientId,
+                  admissionId: admissionId,
                 ),
-                (route) => false, // This will remove all previous routes
-              );
-            });
+              ),
+            );
 
-            // Show a toast to indicate successful registration
-            // Small delay to ensure navigation has started
-            Future.delayed(Duration(milliseconds: 100), () {
-              if (currentContext.mounted) {
-                ToastMessage().showToast(
-                  currentContext,
-                  'Patient Registered Successfully',
-                  '',
-                  ToastificationType.success,
-                );
+            // Additionally, schedule a "backup" navigation to ensure it happens
+            // This will only execute if the first attempt didn't succeed
+            Future.delayed(Duration(milliseconds: 500), () {
+              if (currentContext.mounted &&
+                  Navigator.of(currentContext).canPop()) {
+                print("Executing backup navigation strategy");
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  Navigator.pushReplacement(
+                    currentContext,
+                    MaterialPageRoute(
+                      builder: (context) => AssignScreen(
+                        patientId: patientId,
+                        admissionId: admissionId,
+                      ),
+                    ),
+                  );
+                });
               }
             });
           }
