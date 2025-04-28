@@ -49,7 +49,7 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
     {
       'title': 'Assigned Labs',
       'imagePath': 'assets/images/labs1.png',
-      'screen': AssignedLabsScreen(),
+      'screen': LaboratoryAssignmentsScreen(),
     },
     {
       'title': 'Patients',

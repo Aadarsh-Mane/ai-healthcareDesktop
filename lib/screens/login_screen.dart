@@ -217,7 +217,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen1> {
         final usertype = await authController.getUsertype();
         print("User type: $usertype");
 
-        if (usertype == 'doctor') {
+        if (usertype == 'doctor' || usertype == 'external') {
           // Navigate to DoctorMainScreen if the user type is doctor
           Navigator.pushReplacement(
             context,

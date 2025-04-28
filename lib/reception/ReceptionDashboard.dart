@@ -11,6 +11,7 @@ import 'package:doctordesktop/reception/PatientAllDischargedScreen.dart';
 import 'package:doctordesktop/reception/PatientRegister.dart';
 import 'package:doctordesktop/reception/ReceptionAdmitted.dart';
 import 'package:doctordesktop/reception/ReceptionMainScreen.dart';
+import 'package:doctordesktop/reception/RegistrationDashboard.dart';
 import 'package:doctordesktop/screens/DoctorRegister.dart';
 import 'package:doctordesktop/screens/ListPatienAssignToDoctor.dart';
 import 'package:doctordesktop/screens/NurseRegister.dart';
@@ -59,6 +60,7 @@ class _MainLayoutState extends State<MainLayout> {
     ReceptionBedManagementScreen(),
     ExternalDoctorRegister(),
     const ReceptionMainScreen(),
+    RegistrationDashboard(),
   ];
 
   // Add this new public method
@@ -364,13 +366,22 @@ class SidebarWidget extends StatelessWidget {
                   onTap: () => onItemSelected(6),
                 ),
                 _buildNavItem(
-                  index: 6,
+                  index: 7,
                   icon: Icons
                       .health_and_safety_outlined, // Changed icon to be more specific
                   label: 'Create Appointment',
                   isSelected: selectedIndex == 7,
                   isCollapsed: isCollapsed,
                   onTap: () => onItemSelected(7),
+                ),
+                _buildNavItem(
+                  index: 8,
+                  icon: Icons
+                      .health_and_safety_outlined, // Changed icon to be more specific
+                  label: 'Register',
+                  isSelected: selectedIndex == 8,
+                  isCollapsed: isCollapsed,
+                  onTap: () => onItemSelected(8),
                 ),
               ],
             ),

@@ -1,5 +1,7 @@
 import 'package:doctordesktop/Doctor/AdmitNoteDialog.dart';
+import 'package:doctordesktop/Doctor/Animate.dart';
 import 'package:doctordesktop/Doctor/DoctorAdmittedPatientScreen.dart';
+import 'package:doctordesktop/Doctor/DoctorMainScreen.dart';
 import 'package:doctordesktop/Doctor/DoctorPatientDetailScreen.dart';
 import 'package:doctordesktop/StateProvider.dart';
 import 'package:doctordesktop/authProvider/auth_provider.dart';
@@ -15,26 +17,6 @@ import 'dart:async';
 import 'package:intl/intl.dart';
 
 // Custom loading animation widget
-class CustomLoadingAnimation extends StatelessWidget {
-  final Color color;
-  final double size;
-
-  const CustomLoadingAnimation({
-    Key? key,
-    this.color = Colors.cyan,
-    this.size = 50,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: LoadingAnimationWidget.staggeredDotsWave(
-        color: color,
-        size: size,
-      ),
-    );
-  }
-}
 
 // Create a provider to track loading state
 final refreshLoadingProvider = StateProvider<bool>((ref) => false);
@@ -215,7 +197,14 @@ class _AssignedPatientsViewState extends ConsumerState<AssignedPatientsView> {
           icon: const Icon(Icons.arrow_back),
           color: Colors.black,
           onPressed: () {
-            Navigator.pop(context);
+            // Check if the context is still mounted before popping
+
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => DoctorMainScreen(),
+              ),
+            );
           },
         ),
         backgroundColor: Colors.white,

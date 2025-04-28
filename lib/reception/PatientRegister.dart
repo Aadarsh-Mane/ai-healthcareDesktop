@@ -710,9 +710,11 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
     return SafeArea(
       child: Center(
         child: Container(
+          color: HospitalTheme.background,
           constraints:
               BoxConstraints(maxWidth: isSmallScreen ? double.infinity : 1000),
           child: Card(
+            color: HospitalTheme.background,
             margin: EdgeInsets.all(isSmallScreen ? 8 : 16),
             elevation: 4,
             shape: RoundedRectangleBorder(
@@ -729,7 +731,7 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
                     subtitle:
                         "Enter patient details for out-patient department",
                     icon: Icons.local_hospital_outlined,
-                    color: HospitalTheme.pharmacy,
+                    color: HospitalTheme.primary,
                     isSmallScreen: isSmallScreen,
                   ),
 
@@ -793,7 +795,7 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
                         // Personal Information Section
                         _buildInfoSection(
                           title: "Personal Information",
-                          color: HospitalTheme.pharmacy,
+                          color: HospitalTheme.primary,
                           isSmallScreen: isSmallScreen,
                           content: isSmallScreen
                               ? Column(
@@ -818,7 +820,7 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
                                       hintText: 'Age in years',
                                       keyboardType: TextInputType.number,
                                       icon: Icons.calendar_today,
-                                      color: HospitalTheme.pharmacy,
+                                      color: HospitalTheme.primary,
                                       validator: (value) {
                                         if (value == null || value.isEmpty) {
                                           return 'Enter age';
@@ -833,7 +835,7 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
                                       hintText: 'Weight in kg',
                                       keyboardType: TextInputType.number,
                                       icon: Icons.monitor_weight,
-                                      color: HospitalTheme.pharmacy,
+                                      color: HospitalTheme.primaryDark,
                                       validator: (value) {
                                         if (value == null || value.isEmpty) {
                                           return 'Enter weight';
@@ -848,7 +850,7 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
                                       hintText: 'Enter contact number',
                                       keyboardType: TextInputType.phone,
                                       icon: Icons.phone,
-                                      color: HospitalTheme.pharmacy,
+                                      color: HospitalTheme.primaryDark,
                                       validator: (value) {
                                         if (value == null || value.isEmpty) {
                                           return 'Enter phone number';
@@ -862,7 +864,7 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
                                       controller: _opdAddressController,
                                       hintText: 'Enter home address',
                                       icon: Icons.home,
-                                      color: HospitalTheme.pharmacy,
+                                      color: HospitalTheme.primaryDark,
                                       validator: (value) {
                                         if (value == null || value.isEmpty) {
                                           return 'Enter address';
@@ -884,7 +886,7 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
                                             controller: _opdNameController,
                                             hintText: 'Enter patient full name',
                                             icon: Icons.person,
-                                            color: HospitalTheme.pharmacy,
+                                            color: HospitalTheme.primaryDark,
                                             validator: (value) {
                                               if (value == null ||
                                                   value.isEmpty) {
@@ -904,7 +906,8 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
                                                   keyboardType:
                                                       TextInputType.number,
                                                   icon: Icons.calendar_today,
-                                                  color: HospitalTheme.pharmacy,
+                                                  color:
+                                                      HospitalTheme.primaryDark,
                                                   validator: (value) {
                                                     if (value == null ||
                                                         value.isEmpty) {
@@ -924,7 +927,8 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
                                                   keyboardType:
                                                       TextInputType.number,
                                                   icon: Icons.monitor_weight,
-                                                  color: HospitalTheme.pharmacy,
+                                                  color:
+                                                      HospitalTheme.primaryDark,
                                                   validator: (value) {
                                                     if (value == null ||
                                                         value.isEmpty) {
@@ -950,7 +954,7 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
                                             hintText: 'Enter contact number',
                                             keyboardType: TextInputType.phone,
                                             icon: Icons.phone,
-                                            color: HospitalTheme.pharmacy,
+                                            color: HospitalTheme.primaryDark,
                                             validator: (value) {
                                               if (value == null ||
                                                   value.isEmpty) {
@@ -965,7 +969,7 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
                                             controller: _opdAddressController,
                                             hintText: 'Enter home address',
                                             icon: Icons.home,
-                                            color: HospitalTheme.pharmacy,
+                                            color: HospitalTheme.primaryDark,
                                             validator: (value) {
                                               if (value == null ||
                                                   value.isEmpty) {
@@ -1725,7 +1729,315 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
     );
   }
 
-  // Confirmation dialog
+  // Confirmation section header
+  Widget _buildConfirmationSectionHeader(String title, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        Divider(color: color.withOpacity(0.5)),
+        SizedBox(height: 8),
+      ],
+    );
+  }
+
+  // Confirmation row
+  Widget _buildConfirmationRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(
+              "$label:",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: HospitalTheme.textDark,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(
+              value,
+              style: TextStyle(
+                color: HospitalTheme.textDark,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Add IPD Patient with improved navigation handling
+// Add IPD Patient with fixed navigation
+  Future<void> _addIPDPatient(BuildContext context) async {
+    // Get and store the current context before async operations
+    final navigatorContext = context;
+
+    setState(() {
+      _isIpdSubmitting = true;
+    });
+
+    try {
+      final uri = Uri.parse('${KVM_URL}/reception/addPatient');
+      print("IPD Request URL: $uri");
+      final request = http.MultipartRequest('POST', uri);
+
+      // Add IPD-specific fields
+      request.fields['name'] = _ipdNameController.text;
+      request.fields['age'] = _ipdAgeController.text;
+      request.fields['gender'] = _ipdSelectedGender;
+      request.fields['contact'] = _ipdContactController.text;
+      request.fields['address'] = _ipdAddressController.text;
+      request.fields['weight'] = _ipdWeightController.text;
+      request.fields['reasonForAdmission'] =
+          _ipdReasonForAdmissionController.text;
+      request.fields['symptoms'] = _ipdSymptomsController.text;
+      request.fields['initialDiagnosis'] = _ipdInitialDiagnosisController.text;
+      request.fields['caste'] = _ipdCasteController.text;
+      request.fields['isReadmission'] = _ipdIsReadmission.toString();
+
+      if (_ipdIsReadmission) {
+        if (_ipdPatientIdController.text.isEmpty) {
+          setState(() {
+            _isIpdSubmitting = false;
+          });
+          if (mounted) {
+            ToastMessage().showToast(
+                context,
+                'Patient ID is required for readmission',
+                '',
+                ToastificationType.error);
+          }
+          return;
+        }
+        request.fields['patientId'] = _ipdPatientIdController.text;
+      }
+
+      if (_ipdSelectedImage != null) {
+        final imageFile = await http.MultipartFile.fromPath(
+          'image',
+          _ipdSelectedImage!.path,
+        );
+        request.files.add(imageFile);
+      }
+
+      print("Sending IPD request...");
+      final response = await request.send();
+      print("IPD Response status code: ${response.statusCode}");
+
+      final responseString = await response.stream.bytesToString();
+      print("IPD Response body: $responseString");
+
+      setState(() {
+        _isIpdSubmitting = false;
+      });
+
+      if (response.statusCode == 200) {
+        try {
+          final responseBody = jsonDecode(responseString);
+          print("IPD Parsed response: $responseBody");
+
+          final patientId = responseBody['patientDetails']['patientId'];
+          final admissionId =
+              responseBody['patientDetails']['admissionRecords'][0]['_id'];
+
+          print(
+              "IPD Navigation data: patientId=$patientId, admissionId=$admissionId");
+
+          // FIXED NAVIGATION: Use a post-frame callback for reliable navigation
+          if (mounted) {
+            // First, pop all routes back to where we need to be
+            Navigator.of(navigatorContext).popUntil((route) => route.isFirst);
+
+            // Then push the AssignScreen as a completely new route
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              Navigator.of(navigatorContext).pushReplacement(
+                MaterialPageRoute(
+                  builder: (context) => AssignScreen(
+                    patientId: patientId,
+                    admissionId: admissionId,
+                  ),
+                ),
+              );
+            });
+          }
+        } catch (parseError) {
+          print("Error parsing IPD response: $parseError");
+          if (mounted) {
+            ToastMessage().showToast(
+              context,
+              'Error processing response: $parseError',
+              '',
+              ToastificationType.error,
+            );
+          }
+        }
+      } else {
+        String errorMessage = 'An unknown error occurred';
+        try {
+          final errorData = jsonDecode(responseString);
+          errorMessage = errorData['message'] ?? errorMessage;
+        } catch (e) {
+          print("Error parsing error response: $e");
+        }
+
+        if (mounted) {
+          ToastMessage()
+              .showToast(context, errorMessage, '', ToastificationType.error);
+        }
+      }
+    } catch (e) {
+      print("Exception in _addIPDPatient: $e");
+      setState(() {
+        _isIpdSubmitting = false;
+      });
+
+      if (mounted) {
+        ToastMessage().showToast(context, 'Failed to register patient: $e', '',
+            ToastificationType.error);
+      }
+    }
+  }
+
+// Add OPD Patient with fixed navigation
+  Future<void> _addOPDPatient(BuildContext context) async {
+    // Get and store the current context before async operations
+    final navigatorContext = context;
+
+    setState(() {
+      _isOpdSubmitting = true;
+    });
+
+    try {
+      final uri = Uri.parse('${KVM_URL}/reception/addPatient');
+      print("OPD Request URL: $uri");
+      final request = http.MultipartRequest('POST', uri);
+
+      // Add OPD-specific fields
+      request.fields['name'] = _opdNameController.text;
+      request.fields['age'] = _opdAgeController.text;
+      request.fields['gender'] = _opdSelectedGender;
+      request.fields['contact'] = _opdContactController.text;
+      request.fields['address'] = _opdAddressController.text;
+      request.fields['weight'] = _opdWeightController.text;
+      request.fields['isReadmission'] = _opdIsReadmission.toString();
+
+      if (_opdIsReadmission) {
+        if (_opdPatientIdController.text.isEmpty) {
+          setState(() {
+            _isOpdSubmitting = false;
+          });
+          if (mounted) {
+            ToastMessage().showToast(
+                context,
+                'Patient ID is required for return visit',
+                '',
+                ToastificationType.error);
+          }
+          return;
+        }
+        request.fields['patientId'] = _opdPatientIdController.text;
+      }
+
+      if (_opdSelectedImage != null) {
+        final imageFile = await http.MultipartFile.fromPath(
+          'image',
+          _opdSelectedImage!.path,
+        );
+        request.files.add(imageFile);
+      }
+
+      print("Sending OPD request...");
+      final response = await request.send();
+      print("OPD Response status code: ${response.statusCode}");
+
+      final responseString = await response.stream.bytesToString();
+      print("OPD Response body: $responseString");
+
+      setState(() {
+        _isOpdSubmitting = false;
+      });
+
+      if (response.statusCode == 200) {
+        try {
+          final responseBody = jsonDecode(responseString);
+          print("OPD Parsed response: $responseBody");
+
+          final patientId = responseBody['patientDetails']['patientId'];
+          final admissionId =
+              responseBody['patientDetails']['admissionRecords'][0]['_id'];
+
+          print(
+              "OPD Navigation data: patientId=$patientId, admissionId=$admissionId");
+
+          // FIXED NAVIGATION: Use a post-frame callback for reliable navigation
+          if (mounted) {
+            // First, pop all routes back to where we need to be
+            Navigator.of(navigatorContext).popUntil((route) => route.isFirst);
+
+            // Then push the AssignScreen as a completely new route
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              Navigator.of(navigatorContext).pushReplacement(
+                MaterialPageRoute(
+                  builder: (context) => AssignScreen(
+                    patientId: patientId,
+                    admissionId: admissionId,
+                  ),
+                ),
+              );
+            });
+          }
+        } catch (parseError) {
+          print("Error parsing OPD response: $parseError");
+          if (mounted) {
+            ToastMessage().showToast(
+              context,
+              'Error processing response: $parseError',
+              '',
+              ToastificationType.error,
+            );
+          }
+        }
+      } else {
+        String errorMessage = 'An unknown error occurred';
+        try {
+          final errorData = jsonDecode(responseString);
+          errorMessage = errorData['message'] ?? errorMessage;
+        } catch (e) {
+          print("Error parsing error response: $e");
+        }
+
+        if (mounted) {
+          ToastMessage()
+              .showToast(context, errorMessage, '', ToastificationType.error);
+        }
+      }
+    } catch (e) {
+      print("Exception in _addOPDPatient: $e");
+      setState(() {
+        _isOpdSubmitting = false;
+      });
+
+      if (mounted) {
+        ToastMessage().showToast(context, 'Failed to register patient: $e', '',
+            ToastificationType.error);
+      }
+    }
+  }
+
+// Confirmation dialog with shorter timeout
   void _showConfirmationDialog(BuildContext context, bool isIPD) {
     final name = isIPD ? _ipdNameController.text : _opdNameController.text;
     final age = isIPD ? _ipdAgeController.text : _opdAgeController.text;
@@ -1748,8 +2060,8 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
 
     showDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => Dialog(
+      barrierDismissible: true, // Allow dismissal by tapping outside
+      builder: (BuildContext dialogContext) => Dialog(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
@@ -1866,7 +2178,7 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () => Navigator.pop(dialogContext),
                       child: Text(
                         "Edit",
                         style: TextStyle(color: HospitalTheme.textMedium),
@@ -1875,12 +2187,17 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
                     SizedBox(width: 16),
                     ElevatedButton(
                       onPressed: () {
-                        Navigator.pop(context);
-                        if (isIPD) {
-                          _addIPDPatient(context);
-                        } else {
-                          _addOPDPatient(context);
-                        }
+                        // Pop the dialog first to prevent stacking issues
+                        Navigator.pop(dialogContext);
+
+                        // Brief delay to ensure dialog is dismissed
+                        Future.delayed(Duration(milliseconds: 100), () {
+                          if (isIPD) {
+                            _addIPDPatient(context);
+                          } else {
+                            _addOPDPatient(context);
+                          }
+                        });
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: themeColor,
@@ -1903,343 +2220,5 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
     );
   }
 
-  // Confirmation section header
-  Widget _buildConfirmationSectionHeader(String title, Color color) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-        Divider(color: color.withOpacity(0.5)),
-        SizedBox(height: 8),
-      ],
-    );
-  }
-
-  // Confirmation row
-  Widget _buildConfirmationRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            flex: 2,
-            child: Text(
-              "$label:",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: HospitalTheme.textDark,
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 3,
-            child: Text(
-              value,
-              style: TextStyle(
-                color: HospitalTheme.textDark,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Add IPD Patient with improved navigation handling
-  Future<void> _addIPDPatient(BuildContext context) async {
-    final currentContext = context;
-
-    setState(() {
-      _isIpdSubmitting = true;
-    });
-
-    try {
-      final uri = Uri.parse('${KVM_URL}/reception/addPatient');
-      print("IPD Request URL: $uri");
-      final request = http.MultipartRequest('POST', uri);
-
-      // Add IPD-specific fields
-      request.fields['name'] = _ipdNameController.text;
-      request.fields['age'] = _ipdAgeController.text;
-      request.fields['gender'] = _ipdSelectedGender;
-      request.fields['contact'] = _ipdContactController.text;
-      request.fields['address'] = _ipdAddressController.text;
-      request.fields['weight'] = _ipdWeightController.text;
-      request.fields['reasonForAdmission'] =
-          _ipdReasonForAdmissionController.text;
-      request.fields['symptoms'] = _ipdSymptomsController.text;
-      request.fields['initialDiagnosis'] = _ipdInitialDiagnosisController.text;
-      request.fields['caste'] = _ipdCasteController.text;
-      request.fields['isReadmission'] = _ipdIsReadmission.toString();
-
-      if (_ipdIsReadmission) {
-        if (_ipdPatientIdController.text.isEmpty) {
-          setState(() {
-            _isIpdSubmitting = false;
-          });
-          if (currentContext.mounted) {
-            ToastMessage().showToast(
-                currentContext,
-                'Patient ID is required for readmission',
-                '',
-                ToastificationType.error);
-          }
-          return;
-        }
-        request.fields['patientId'] = _ipdPatientIdController.text;
-      }
-
-      if (_ipdSelectedImage != null) {
-        final imageFile = await http.MultipartFile.fromPath(
-          'image',
-          _ipdSelectedImage!.path,
-        );
-        request.files.add(imageFile);
-      }
-
-      print("Sending IPD request...");
-      final response = await request.send();
-      print("IPD Response status code: ${response.statusCode}");
-
-      // Read the response body once and store it
-      final responseString = await response.stream.bytesToString();
-      print("IPD Response body: $responseString");
-
-      // Update submission state
-      setState(() {
-        _isIpdSubmitting = false;
-      });
-
-      if (response.statusCode == 200) {
-        try {
-          final responseBody = jsonDecode(responseString);
-          print("IPD Parsed response: $responseBody");
-
-          final patientId = responseBody['patientDetails']['patientId'];
-          final admissionId =
-              responseBody['patientDetails']['admissionRecords'][0]['_id'];
-
-          print(
-              "IPD Navigation data: patientId=$patientId, admissionId=$admissionId");
-
-          // Improved navigation logic that works across platforms
-          // In both _addIPDPatient and _addOPDPatient methods:
-          if (currentContext.mounted) {
-            // First, navigate immediately with a simple direct replacement
-            Navigator.of(currentContext).pushReplacement(
-              MaterialPageRoute(
-                builder: (context) => AssignScreen(
-                  patientId: patientId,
-                  admissionId: admissionId,
-                ),
-              ),
-            );
-
-            // Additionally, schedule a "backup" navigation to ensure it happens
-            // This will only execute if the first attempt didn't succeed
-            Future.delayed(Duration(milliseconds: 500), () {
-              if (currentContext.mounted &&
-                  Navigator.of(currentContext).canPop()) {
-                print("Executing backup navigation strategy");
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  Navigator.pushReplacement(
-                    currentContext,
-                    MaterialPageRoute(
-                      builder: (context) => AssignScreen(
-                        patientId: patientId,
-                        admissionId: admissionId,
-                      ),
-                    ),
-                  );
-                });
-              }
-            });
-          }
-        } catch (parseError) {
-          print("Error parsing IPD response: $parseError");
-          if (currentContext.mounted) {
-            ToastMessage().showToast(
-              currentContext,
-              'Error processing response: $parseError',
-              '',
-              ToastificationType.error,
-            );
-          }
-        }
-      } else {
-        String errorMessage = 'An unknown error occurred';
-        try {
-          final errorData = jsonDecode(responseString);
-          errorMessage = errorData['message'] ?? errorMessage;
-        } catch (e) {
-          print("Error parsing error response: $e");
-        }
-
-        if (currentContext.mounted) {
-          ToastMessage().showToast(
-              currentContext, errorMessage, '', ToastificationType.error);
-        }
-      }
-    } catch (e) {
-      print("Exception in _addIPDPatient: $e");
-      setState(() {
-        _isIpdSubmitting = false;
-      });
-
-      if (currentContext.mounted) {
-        ToastMessage().showToast(currentContext,
-            'Failed to register patient: $e', '', ToastificationType.error);
-      }
-    }
-  }
-
-  // Add OPD Patient with improved navigation handling
-  Future<void> _addOPDPatient(BuildContext context) async {
-    final currentContext = context;
-
-    setState(() {
-      _isOpdSubmitting = true;
-    });
-
-    try {
-      final uri = Uri.parse('${KVM_URL}/reception/addPatient');
-      print("OPD Request URL: $uri");
-      final request = http.MultipartRequest('POST', uri);
-
-      // Add OPD-specific fields
-      request.fields['name'] = _opdNameController.text;
-      request.fields['age'] = _opdAgeController.text;
-      request.fields['gender'] = _opdSelectedGender;
-      request.fields['contact'] = _opdContactController.text;
-      request.fields['address'] = _opdAddressController.text;
-      request.fields['weight'] = _opdWeightController.text;
-      request.fields['isReadmission'] = _opdIsReadmission.toString();
-
-      if (_opdIsReadmission) {
-        if (_opdPatientIdController.text.isEmpty) {
-          setState(() {
-            _isOpdSubmitting = false;
-          });
-          if (currentContext.mounted) {
-            ToastMessage().showToast(
-                currentContext,
-                'Patient ID is required for return visit',
-                '',
-                ToastificationType.error);
-          }
-          return;
-        }
-        request.fields['patientId'] = _opdPatientIdController.text;
-      }
-
-      if (_opdSelectedImage != null) {
-        final imageFile = await http.MultipartFile.fromPath(
-          'image',
-          _opdSelectedImage!.path,
-        );
-        request.files.add(imageFile);
-      }
-
-      print("Sending OPD request...");
-      final response = await request.send();
-      print("OPD Response status code: ${response.statusCode}");
-
-      // Read the response body once and store it
-      final responseString = await response.stream.bytesToString();
-      print("OPD Response body: $responseString");
-
-      setState(() {
-        _isOpdSubmitting = false;
-      });
-
-      if (response.statusCode == 200) {
-        try {
-          final responseBody = jsonDecode(responseString);
-          print("OPD Parsed response: $responseBody");
-
-          final patientId = responseBody['patientDetails']['patientId'];
-          final admissionId =
-              responseBody['patientDetails']['admissionRecords'][0]['_id'];
-
-          print(
-              "OPD Navigation data: patientId=$patientId, admissionId=$admissionId");
-
-          // Improved navigation logic that works across platforms
-          // In both _addIPDPatient and _addOPDPatient methods:
-          if (currentContext.mounted) {
-            // First, navigate immediately with a simple direct replacement
-            Navigator.of(currentContext).pushReplacement(
-              MaterialPageRoute(
-                builder: (context) => AssignScreen(
-                  patientId: patientId,
-                  admissionId: admissionId,
-                ),
-              ),
-            );
-
-            // Additionally, schedule a "backup" navigation to ensure it happens
-            // This will only execute if the first attempt didn't succeed
-            Future.delayed(Duration(milliseconds: 500), () {
-              if (currentContext.mounted &&
-                  Navigator.of(currentContext).canPop()) {
-                print("Executing backup navigation strategy");
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  Navigator.pushReplacement(
-                    currentContext,
-                    MaterialPageRoute(
-                      builder: (context) => AssignScreen(
-                        patientId: patientId,
-                        admissionId: admissionId,
-                      ),
-                    ),
-                  );
-                });
-              }
-            });
-          }
-        } catch (parseError) {
-          print("Error parsing OPD response: $parseError");
-          if (currentContext.mounted) {
-            ToastMessage().showToast(
-              currentContext,
-              'Error processing response: $parseError',
-              '',
-              ToastificationType.error,
-            );
-          }
-        }
-      } else {
-        String errorMessage = 'An unknown error occurred';
-        try {
-          final errorData = jsonDecode(responseString);
-          errorMessage = errorData['message'] ?? errorMessage;
-        } catch (e) {
-          print("Error parsing error response: $e");
-        }
-
-        if (currentContext.mounted) {
-          ToastMessage().showToast(
-              currentContext, errorMessage, '', ToastificationType.error);
-        }
-      }
-    } catch (e) {
-      print("Exception in _addOPDPatient: $e");
-      setState(() {
-        _isOpdSubmitting = false;
-      });
-
-      if (currentContext.mounted) {
-        ToastMessage().showToast(currentContext,
-            'Failed to register patient: $e', '', ToastificationType.error);
-      }
-    }
-  }
+// The remaining UI builders would be here...
 }

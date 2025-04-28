@@ -1,4 +1,5 @@
 import 'dart:ffi';
+import 'dart:math';
 import 'dart:ui';
 
 import 'package:doctordesktop/Doctor/AddDiagnosisScreen.dart';
@@ -7,19 +8,26 @@ import 'package:doctordesktop/Doctor/AddPrescriptionDialod.dart';
 import 'package:doctordesktop/Doctor/AddSymptomsScreen.dart';
 import 'package:doctordesktop/Doctor/AdmitNoteDialog.dart';
 import 'package:doctordesktop/Doctor/Animate.dart';
+import 'package:doctordesktop/Doctor/AssignedPatientScreen.dart';
 import 'package:doctordesktop/Doctor/DoctorAdmittedPatientScreen.dart';
 import 'package:doctordesktop/Doctor/DoctorConsultantScreen.dart';
 import 'package:doctordesktop/Doctor/DoctorMainScreen.dart';
+import 'package:doctordesktop/Doctor/DoctorProfile.dart';
 import 'package:doctordesktop/Doctor/PatientHistoryDetailScreen.dart';
+import 'package:doctordesktop/Doctor/Tabs/AdmissionLabReportScreen.dart';
 import 'package:doctordesktop/Doctor/Tabs/DiagnosisScreen.dart';
+import 'package:doctordesktop/Doctor/Tabs/GetInvestigation.dart';
+import 'package:doctordesktop/Doctor/Tabs/InvestigationScreen.dart';
 import 'package:doctordesktop/Doctor/Tabs/PatientCheck.dart';
 import 'package:doctordesktop/Doctor/Tabs/PatientProfileScreen.dart';
 import 'package:doctordesktop/Doctor/Tabs/PrescriptionScreen.dart';
+import 'package:doctordesktop/Doctor/Tabs/SymptomsLayout.dart';
 import 'package:doctordesktop/Doctor/Tabs/SymtomsScreen.dart';
 import 'package:doctordesktop/Doctor/Tabs/TreatMent.dart';
 import 'package:doctordesktop/Doctor/Tabs/VitalsScreen.dart';
 import 'package:doctordesktop/Doctor/da.dart';
 import 'package:doctordesktop/Doctor/doctornote.dart';
+import 'package:doctordesktop/Doctor/sub.dart';
 import 'package:doctordesktop/StateProvider.dart';
 import 'package:doctordesktop/authProvider/auth_provider.dart';
 import 'package:doctordesktop/constants/HospitalTheme.dart';
@@ -634,6 +642,31 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
   //     },
   //   );
   // }
+  bool _isMonitoringSubmenuOpen = false;
+  bool _isInvestigationSubmenuOpen = false;
+
+// Add these methods to toggle the submenu visibility
+  void _toggleMonitoringSubmenu() {
+    setState(() {
+      _isMonitoringSubmenuOpen = !_isMonitoringSubmenuOpen;
+
+      // If we're opening the monitoring submenu, close the investigation submenu
+      if (_isMonitoringSubmenuOpen) {
+        _isInvestigationSubmenuOpen = false;
+      }
+    });
+  }
+
+  void _toggleInvestigationSubmenu() {
+    setState(() {
+      _isInvestigationSubmenuOpen = !_isInvestigationSubmenuOpen;
+
+      // If we're opening the investigation submenu, close the monitoring submenu
+      if (_isInvestigationSubmenuOpen) {
+        _isMonitoringSubmenuOpen = false;
+      }
+    });
+  }
 
   @override
   @override
@@ -659,6 +692,8 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                   AddSymtomsIntent(),
               LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyO):
                   ViewOverviewIntent(),
+              LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyM):
+                  ViewMonitoringIntent(), // New shortcut for Monitoring section
               LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyV):
                   ViewVitalsIntent(),
               LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyS):
@@ -675,9 +710,12 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                   ViewTreatMentIntent(),
               LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyH):
                   ViewHomeIntent(),
+              LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyI):
+                  ViewInvestigationIntent(), // New shortcut for Investigation section
             },
             child: Actions(
               actions: <Type, Action<Intent>>{
+                // Original action handlers
                 AddDiagnosisIntent: CallbackAction<AddDiagnosisIntent>(
                   onInvoke: (intent) {
                     openAddDiagnosisScreen(widget.patient.patientId,
@@ -723,6 +761,18 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                     return null;
                   },
                 ),
+                // New monitoring intent action
+                ViewMonitoringIntent: CallbackAction<ViewMonitoringIntent>(
+                  onInvoke: (intent) {
+                    // Toggle the monitoring submenu visibility
+                    setState(() {
+                      // Find the monitoring nav item and toggle its submenu
+                      _toggleMonitoringSubmenu();
+                    });
+                    return null;
+                  },
+                ),
+                // Original tab navigation intents remain the same
                 ViewVitalsIntent: CallbackAction<ViewVitalsIntent>(
                   onInvoke: (intent) {
                     setState(() {
@@ -802,6 +852,17 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                     return null;
                   },
                 ),
+                // New investigation intent action
+                ViewInvestigationIntent:
+                    CallbackAction<ViewInvestigationIntent>(
+                  onInvoke: (intent) {
+                    // Toggle the investigation submenu visibility
+                    setState(() {
+                      _toggleInvestigationSubmenu();
+                    });
+                    return null;
+                  },
+                ),
               },
               child: Focus(
                 autofocus: true,
@@ -810,7 +871,6 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                     children: [
                       // Modern Sidebar
 
-                      // Main Content Area
                       Container(
                         width: 300,
                         decoration: BoxDecoration(
@@ -825,124 +885,316 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                         ),
                         child: Column(
                           children: [
-                            // Enhanced Header
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                  vertical: 30, horizontal: 20),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    Color(0xFF2C3E50),
-                                    Color(0xFF34495E),
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Colors.white.withOpacity(0.3),
-                                        width: 3,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black26,
-                                          blurRadius: 10,
-                                        )
+                            // Enhanced Header with Back Button
+                            Stack(
+                              children: [
+                                // Gradient Background
+                                Container(
+                                  padding: EdgeInsets.symmetric(
+                                      vertical: 30, horizontal: 20),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        Color(0xFF2C3E50),
+                                        Color(0xFF34495E),
                                       ],
-                                    ),
-                                    child: CircleAvatar(
-                                      radius: 40,
-                                      backgroundColor:
-                                          Colors.white.withOpacity(0.1),
-                                      child: Image.asset(
-                                          'assets/images/icon1.png'),
-                                      // child: Icon(
-                                      //   Icons.person,
-                                      //   color: Colors.white,
-                                      //   size: 45,
-                                      // ),
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
                                     ),
                                   ),
-                                  SizedBox(width: 15),
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                  // Back Button added at the top
+                                  child: Column(
                                     children: [
-                                      Text(
-                                        widget.patient.name,
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.w600,
-                                          letterSpacing: 0.5,
+                                      // Back Button Row
+                                      Container(
+                                        width: double.infinity,
+                                        margin: EdgeInsets.only(bottom: 15),
+                                        child: Material(
+                                          color: Colors.transparent,
+                                          child: InkWell(
+                                            onTap: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      AssignedPatientsScreen(),
+                                                ),
+                                              );
+                                            },
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                            child: Container(
+                                              padding: EdgeInsets.symmetric(
+                                                  vertical: 8, horizontal: 12),
+                                              decoration: BoxDecoration(
+                                                gradient: LinearGradient(
+                                                  colors: [
+                                                    Colors.white
+                                                        .withOpacity(0.2),
+                                                    Colors.white
+                                                        .withOpacity(0.1),
+                                                  ],
+                                                  begin: Alignment.topLeft,
+                                                  end: Alignment.bottomRight,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                border: Border.all(
+                                                  color: Colors.white
+                                                      .withOpacity(0.3),
+                                                  width: 1,
+                                                ),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    Icons.arrow_back_ios_new,
+                                                    color: Colors.white,
+                                                    size: 18,
+                                                  ),
+                                                  SizedBox(width: 8),
+                                                  Text(
+                                                    'Back to Dashboard',
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      fontSize: 14,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
                                         ),
                                       ),
-                                      SizedBox(height: 5),
-                                      Text(
-                                        'Patient ID: ${widget.patient.patientId}',
-                                        style: TextStyle(
-                                          color: Colors.white54,
-                                          fontSize: 12,
-                                        ),
+
+                                      // Original Patient Info Section
+                                      Row(
+                                        children: [
+                                          Container(
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: Colors.white
+                                                    .withOpacity(0.3),
+                                                width: 3,
+                                              ),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black26,
+                                                  blurRadius: 10,
+                                                )
+                                              ],
+                                            ),
+                                            child: CircleAvatar(
+                                              radius: 40,
+                                              backgroundColor:
+                                                  Colors.white.withOpacity(0.1),
+                                              child: Image.asset(
+                                                  'assets/images/icon1.png'),
+                                            ),
+                                          ),
+                                          SizedBox(width: 15),
+                                          Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                widget.patient.name,
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 20,
+                                                  fontWeight: FontWeight.w600,
+                                                  letterSpacing: 0.5,
+                                                ),
+                                              ),
+                                              SizedBox(height: 5),
+                                              Text(
+                                                'Patient ID: ${widget.patient.patientId}',
+                                                style: TextStyle(
+                                                  color: Colors.white54,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
 
                             // Navigation Items with Improved Design
+                            // Navigation Items list in the sidebar's ListView
                             Expanded(
                               child: ListView(
                                 padding: EdgeInsets.symmetric(vertical: 20),
                                 children: [
+                                  // Overview remains as a main item
                                   _buildNavItem(
                                     index: 0,
                                     icon: Icons.dashboard,
                                     label: 'Overview',
                                   ),
+
+                                  // New Monitoring section with subitems
                                   _buildNavItem(
-                                    index: 1,
-                                    icon: Icons.monitor_heart,
-                                    label: 'Vitals',
+                                    index: 1, // New index for Monitoring
+                                    icon: Icons
+                                        .monitor_heart_outlined, // Changed icon to represent monitoring
+                                    label: 'Monitoring',
+                                    hasSubmenu: true,
+                                    submenuItems: [
+                                      SubmenuItem(
+                                        label: 'Vitals',
+                                        icon: Icons.favorite,
+                                        onTap: () {
+                                          setState(() {
+                                            _selectedTabIndex = 1;
+                                            _tabController.animateTo(1);
+                                          });
+                                        },
+                                      ),
+                                      SubmenuItem(
+                                        label: 'Symptoms',
+                                        icon: Icons.medical_information,
+                                        onTap: () {
+                                          setState(() {
+                                            _selectedTabIndex = 2;
+                                            _tabController.animateTo(2);
+                                          });
+                                        },
+                                      ),
+                                      SubmenuItem(
+                                        label: 'Follow Ups',
+                                        icon: Icons.calendar_today,
+                                        onTap: () {
+                                          setState(() {
+                                            _selectedTabIndex = 3;
+                                            _tabController.animateTo(3);
+                                          });
+                                        },
+                                      ),
+                                      SubmenuItem(
+                                        label: 'Prescription',
+                                        icon: Icons.medication,
+                                        onTap: () {
+                                          setState(() {
+                                            _selectedTabIndex = 4;
+                                            _tabController.animateTo(4);
+                                          });
+                                        },
+                                      ),
+                                      SubmenuItem(
+                                        label: 'Consultation',
+                                        icon: Icons.medical_services,
+                                        onTap: () {
+                                          setState(() {
+                                            _selectedTabIndex = 5;
+                                            _tabController.animateTo(5);
+                                          });
+                                        },
+                                      ),
+                                      SubmenuItem(
+                                        label: 'Diagnosis',
+                                        icon: Icons.local_hospital,
+                                        onTap: () {
+                                          setState(() {
+                                            _selectedTabIndex = 6;
+                                            _tabController.animateTo(6);
+                                          });
+                                        },
+                                      ),
+                                    ],
                                   ),
-                                  _buildNavItem(
-                                    index: 2,
-                                    icon: Icons.medical_information,
-                                    label: 'Symptoms',
-                                  ),
-                                  _buildNavItem(
-                                    index: 3,
-                                    icon: Icons.calendar_today,
-                                    label: 'Follow Ups',
-                                  ),
-                                  _buildNavItem(
-                                    index: 4,
-                                    icon: Icons.medication,
-                                    label: 'Prescription',
-                                  ),
-                                  _buildNavItem(
-                                    index: 5,
-                                    icon: Icons.medical_services,
-                                    label: 'Consultation',
-                                  ),
-                                  _buildNavItem(
-                                    index: 6,
-                                    icon: Icons.local_hospital,
-                                    label: 'Diagnosis',
-                                  ),
+
+                                  // Treatment remains as a main item
                                   _buildNavItem(
                                     index: 7,
                                     icon: Icons.healing,
                                     label: 'Treatment',
                                   ),
                                   _buildNavItem(
-                                    index: 8, // Different index than Treatment
+                                    index: 9,
+                                    icon: Icons.biotech,
+                                    label: 'Investigation',
+                                    hasSubmenu: true,
+                                    submenuItems: [
+                                      SubmenuItem(
+                                        label: 'Investigation Results',
+                                        icon: Icons.science,
+                                        onTap: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  DoctorInvestigationScreen(
+                                                patientId:
+                                                    widget.patient.patientId,
+                                                admissionId: widget.patient
+                                                    .admissionRecords.first.id,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                      SubmenuItem(
+                                        label: 'Investigation lab',
+                                        icon: Icons.image,
+                                        onTap: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  InvestigationScreen1(),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                      SubmenuItem(
+                                        label:
+                                            'Laboratory Patient ${widget.patient.name}',
+                                        icon: Icons.assignment,
+                                        onTap: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  AdmissionLabReportsScreen(
+                                                admissionId: widget.patient
+                                                    .admissionRecords.first.id,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                      SubmenuItem(
+                                        label: 'All Investigations',
+                                        icon: Icons.dashboard,
+                                        onTap: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  DoctorInvestigationScreen(
+                                                patientId:
+                                                    widget.patient.patientId,
+                                                admissionId: widget.patient
+                                                    .admissionRecords.first.id,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                  // Home remains as a main item
+                                  _buildNavItem(
+                                    index: 8,
                                     icon: Icons.home,
                                     label: 'Home',
                                     onCustomTap: () {
@@ -950,11 +1202,13 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                                         context,
                                         MaterialPageRoute(
                                           builder: (context) =>
-                                              DoctorHomeScreen(),
+                                              AssignedPatientsScreen(),
                                         ),
                                       );
                                     },
                                   ),
+
+                                  // Investigation section with subitems remains
                                 ],
                               ),
                             ),
@@ -1145,6 +1399,12 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                                                 // Handle user actions
                                                 switch (value) {
                                                   case 'profile':
+                                                    Navigator.push(
+                                                        context,
+                                                        MaterialPageRoute(
+                                                          builder: (context) =>
+                                                              DoctorProfileScreen(),
+                                                        ));
                                                     // Navigate to profile
                                                     break;
                                                   case 'logout':
@@ -1254,13 +1514,28 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     );
   }
 
+// Define a class for submenu items
+
   Widget _buildNavItem({
     required int index,
     required IconData icon,
     required String label,
     VoidCallback? onCustomTap,
+    bool hasSubmenu = false,
+    List<SubmenuItem>? submenuItems,
   }) {
     bool isSelected = _selectedTabIndex == index;
+    // Use the shared state variables instead of local ones
+    bool isSubmenuOpen = false;
+
+    // Determine which submenu state to use based on the index or label
+    if (index == 1) {
+      // Monitoring section
+      isSubmenuOpen = _isMonitoringSubmenuOpen;
+    } else if (index == 9) {
+      // Investigation section
+      isSubmenuOpen = _isInvestigationSubmenuOpen;
+    }
 
     return LayoutBuilder(builder: (context, constraints) {
       // Adjust for different screen widths
@@ -1270,147 +1545,140 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
       final double verticalPadding = isSmallScreen ? 6 : 8;
       final double horizontalPadding = isSmallScreen ? 8 : 16;
 
-      return AnimatedContainer(
-        duration: Duration(milliseconds: 400),
-        curve: Curves.easeInOutQuint,
-        margin: EdgeInsets.symmetric(
-            horizontal: isSmallScreen ? 6 : 10,
-            vertical: isSmallScreen ? 4 : 5),
-        decoration: BoxDecoration(
-          gradient: isSelected
-              ? LinearGradient(
-                  colors: [
-                    Colors.white,
-                    Colors.white,
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : null,
-          color:
-              isSelected ? Colors.white.withOpacity(0.2) : Colors.transparent,
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(
-            color:
-                isSelected ? Colors.white.withOpacity(0.3) : Colors.transparent,
-            width: 1.5,
-          ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: Colors.white.withOpacity(0.1),
-                    spreadRadius: 1,
-                    blurRadius: 10,
-                    offset: Offset(0, 4),
-                  )
-                ]
-              : [],
-        ),
-        child: Stack(
-          children: [
-            // Main Content
-            ListTile(
-              contentPadding: EdgeInsets.symmetric(
-                  horizontal: horizontalPadding, vertical: verticalPadding),
-
-              // Leading Icon with Animated Container
-              leading: AnimatedContainer(
-                duration: Duration(milliseconds: 300),
-                padding: EdgeInsets.all(isSmallScreen ? 6 : 8),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? Colors.white.withOpacity(0.1)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  icon,
-                  color: isSelected ? Colors.white : Colors.white70,
-                  size: iconSize,
-                ),
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Main Nav Item
+          AnimatedContainer(
+            duration: Duration(milliseconds: 400),
+            curve: Curves.easeInOutQuint,
+            margin: EdgeInsets.symmetric(
+                horizontal: isSmallScreen ? 6 : 10,
+                vertical: isSmallScreen ? 4 : 5),
+            decoration: BoxDecoration(
+              gradient: isSelected || isSubmenuOpen
+                  ? LinearGradient(
+                      colors: [
+                        Colors.white,
+                        Colors.white,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    )
+                  : null,
+              color: isSelected || isSubmenuOpen
+                  ? Colors.white.withOpacity(0.2)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(
+                color: isSelected || isSubmenuOpen
+                    ? Colors.white.withOpacity(0.3)
+                    : Colors.transparent,
+                width: 1.5,
               ),
+              boxShadow: isSelected || isSubmenuOpen
+                  ? [
+                      BoxShadow(
+                        color: Colors.white.withOpacity(0.1),
+                        spreadRadius: 1,
+                        blurRadius: 10,
+                        offset: Offset(0, 4),
+                      )
+                    ]
+                  : [],
+            ),
+            child: Stack(
+              children: [
+                // Main Content
+                ListTile(
+                  contentPadding: EdgeInsets.symmetric(
+                      horizontal: horizontalPadding, vertical: verticalPadding),
 
-              // Title with responsive sizing
-              title: isSmallScreen
-                  ? null
-                  : // Hide text on very small screens - just show icon
-                  AnimatedDefaultTextStyle(
-                      duration: Duration(milliseconds: 300),
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : Colors.white70,
-                        fontWeight:
-                            isSelected ? FontWeight.bold : FontWeight.normal,
-                        fontSize: isSelected ? fontSize + 1 : fontSize,
-                        letterSpacing: isSelected ? 0.7 : 0.5,
-                      ),
-                      child: Text(
-                        label,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                  // Leading Icon with Animated Container
+                  leading: AnimatedContainer(
+                    duration: Duration(milliseconds: 300),
+                    padding: EdgeInsets.all(isSmallScreen ? 6 : 8),
+                    decoration: BoxDecoration(
+                      color: isSelected || isSubmenuOpen
+                          ? Colors.white.withOpacity(0.1)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(10),
                     ),
-
-              // Trailing Indicator - only on larger screens
-              trailing: isSmallScreen
-                  ? null
-                  : (isSelected
-                      ? Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.white.withOpacity(0.5),
-                                spreadRadius: 2,
-                                blurRadius: 5,
-                              )
-                            ],
-                          ),
-                        )
-                      : null),
-
-              // Tap Action
-              onTap: () {
-                if (onCustomTap != null) {
-                  onCustomTap();
-                } else {
-                  setState(() {
-                    _selectedTabIndex = index;
-                    _tabController.animateTo(index);
-                  });
-                }
-              },
-            ),
-
-            // Footer-like Interaction Layer
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: AnimatedContainer(
-                duration: Duration(milliseconds: 300),
-                height: isSelected ? 5 : 0,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.7),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(15),
-                    bottomRight: Radius.circular(15),
+                    child: Icon(
+                      icon,
+                      color: isSelected || isSubmenuOpen
+                          ? Colors.white
+                          : Colors.white70,
+                      size: iconSize,
+                    ),
                   ),
-                ),
-              ),
-            ),
 
-            // Hover and Interaction Effect
-            Positioned.fill(
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(15),
-                  splashColor: Colors.white.withOpacity(0.2),
-                  highlightColor: Colors.white.withOpacity(0.1),
+                  // Title with responsive sizing
+                  title: isSmallScreen
+                      ? null
+                      : AnimatedDefaultTextStyle(
+                          duration: Duration(milliseconds: 300),
+                          style: TextStyle(
+                            color: isSelected || isSubmenuOpen
+                                ? Colors.white
+                                : Colors.white70,
+                            fontWeight: isSelected || isSubmenuOpen
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            fontSize: isSelected || isSubmenuOpen
+                                ? fontSize + 1
+                                : fontSize,
+                            letterSpacing:
+                                isSelected || isSubmenuOpen ? 0.7 : 0.5,
+                          ),
+                          child: Text(
+                            label,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+
+                  // Trailing icon - chevron for submenu, indicator dot for regular
+                  trailing: isSmallScreen
+                      ? null
+                      : (hasSubmenu
+                          ? Icon(
+                              isSubmenuOpen
+                                  ? Icons.keyboard_arrow_up
+                                  : Icons.keyboard_arrow_down,
+                              color: isSelected || isSubmenuOpen
+                                  ? Colors.white
+                                  : Colors.white70,
+                              size: 18,
+                            )
+                          : isSelected
+                              ? Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.white.withOpacity(0.5),
+                                        spreadRadius: 2,
+                                        blurRadius: 5,
+                                      )
+                                    ],
+                                  ),
+                                )
+                              : null),
+
+                  // Tap Action
                   onTap: () {
-                    if (onCustomTap != null) {
+                    if (hasSubmenu) {
+                      if (index == 1) {
+                        // Monitoring section
+                        _toggleMonitoringSubmenu();
+                      } else if (index == 9) {
+                        // Investigation section
+                        _toggleInvestigationSubmenu();
+                      }
+                    } else if (onCustomTap != null) {
                       onCustomTap();
                     } else {
                       setState(() {
@@ -1420,10 +1688,96 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                     }
                   },
                 ),
+
+                // Footer-like Interaction Layer
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: AnimatedContainer(
+                    duration: Duration(milliseconds: 300),
+                    height: isSelected || isSubmenuOpen ? 5 : 0,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.7),
+                      borderRadius: BorderRadius.only(
+                        bottomLeft: Radius.circular(15),
+                        bottomRight: Radius.circular(15),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Hover and Interaction Effect
+                Positioned.fill(
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(15),
+                      splashColor: Colors.white.withOpacity(0.2),
+                      highlightColor: Colors.white.withOpacity(0.1),
+                      onTap: () {
+                        if (hasSubmenu) {
+                          if (index == 1) {
+                            // Monitoring section
+                            _toggleMonitoringSubmenu();
+                          } else if (index == 9) {
+                            // Investigation section
+                            _toggleInvestigationSubmenu();
+                          }
+                        } else if (onCustomTap != null) {
+                          onCustomTap();
+                        } else {
+                          setState(() {
+                            _selectedTabIndex = index;
+                            _tabController.animateTo(index);
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Submenu items (conditionally displayed)
+          if (hasSubmenu && isSubmenuOpen && submenuItems != null)
+            AnimatedContainer(
+              duration: Duration(milliseconds: 400),
+              curve: Curves.easeOutQuad,
+              margin: EdgeInsets.only(left: 20, right: 10),
+              child: Column(
+                children: submenuItems
+                    .map(
+                      (item) => Container(
+                        margin: EdgeInsets.only(top: 4, bottom: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: ListTile(
+                          dense: true,
+                          visualDensity: VisualDensity.compact,
+                          leading: Icon(
+                            item.icon,
+                            color: Colors.white70,
+                            size: 18,
+                          ),
+                          title: Text(
+                            item.label,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                            ),
+                          ),
+                          onTap: item.onTap,
+                        ),
+                      ),
+                    )
+                    .toList(),
               ),
             ),
-          ],
-        ),
+        ],
       );
     });
   }
@@ -2500,458 +2854,496 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
 
   List<Medicine> _medicines = [];
   String? _errorMessage;
-  Widget _buildPrescriptionLayout() {
-    return Padding(
-      padding: const EdgeInsets.all(12.0),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Quick Access Medicine Database Banner - Match Overview Style
-            Container(
-              width: double.infinity,
-              margin: EdgeInsets.only(bottom: 16),
-              padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 4,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.medication_outlined,
-                      color: Colors.black, size: 24),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Quick Access to Your Medicine Database',
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      _showMedicineSelectionDialog();
-                    },
-                    child: Text('Open Database'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.teal,
-                      foregroundColor: Color(0xFF1E2843),
-                      elevation: 0,
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      textStyle:
-                          TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
-            ),
 
-            Text(
-              'Prescription Detail',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E2843),
-              ),
-            ),
-            SizedBox(height: 16),
-
-            // Selected Medicines Section
-            Container(
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Selected Medicines',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF1E2843),
-                    ),
-                  ),
-                  SizedBox(height: 10),
-
-                  // Selected medicines as chips
-                  selectedMedicines.isEmpty
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8.0),
-                            child: Text(
-                              'No medicines selected yet',
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        )
-                      : Wrap(
-                          spacing: 8.0,
-                          runSpacing: 8.0,
-                          children: selectedMedicines
-                              .split(', ')
-                              .where((medicine) => medicine.isNotEmpty)
-                              .map((medicine) => Chip(
-                                    label: Text(
-                                      medicine,
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    backgroundColor: Color(0xFF1E2843),
-                                    deleteIconColor: Colors.white,
-                                    materialTapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                    visualDensity: VisualDensity.compact,
-                                    labelPadding:
-                                        EdgeInsets.symmetric(horizontal: 4),
-                                    padding:
-                                        EdgeInsets.symmetric(horizontal: 4),
-                                    onDeleted: () {
-                                      setState(() {
-                                        selectedMedicines = selectedMedicines
-                                            .split(', ')
-                                            .where((e) => e != medicine)
-                                            .join(', ');
-                                      });
-                                    },
-                                  ))
-                              .toList(),
-                        ),
-
-                  SizedBox(height: 12),
-
-                  // Medicine Name search field
-                  TextField(
-                    controller: medicineNameController,
-                    decoration: InputDecoration(
-                      labelText: 'Medicine Name',
-                      labelStyle:
-                          TextStyle(color: Color(0xFF1E2843), fontSize: 12),
-                      prefixIcon: Icon(Icons.search,
-                          size: 18, color: Color(0xFF1E2843)),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.grey.shade400),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide:
-                            BorderSide(color: Color(0xFF1E2843), width: 1.5),
-                      ),
-                      contentPadding:
-                          EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                      isDense: true,
-                    ),
-                    onChanged: _fetchMedicineSuggestions,
-                    onSubmitted: (value) {
-                      if (value.trim().isNotEmpty) {
-                        setState(() {
-                          List<String> medicines = selectedMedicines
-                              .split(', ')
-                              .where((e) => e.isNotEmpty)
-                              .toList();
-                          if (!medicines.contains(value.trim())) {
-                            medicines.add(value.trim());
-                            selectedMedicines = medicines.join(', ');
-                          }
-                          medicineNameController.clear();
-                        });
-                      }
-                    },
-                  ),
-
-                  // Loading indicator & suggestions
-                  if (isLoadingSuggestions)
-                    LinearProgressIndicator(
-                      backgroundColor: Colors.grey.shade200,
-                      valueColor:
-                          AlwaysStoppedAnimation<Color>(Color(0xFF1E2843)),
-                    ),
-
-                  if (medicineSuggestions.isNotEmpty)
-                    Container(
-                      constraints: BoxConstraints(maxHeight: 120),
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: medicineSuggestions.length,
-                        itemBuilder: (context, index) {
-                          return ListTile(
-                            dense: true,
-                            title: Text(
-                              medicineSuggestions[index],
-                              style: TextStyle(fontSize: 12),
-                            ),
-                            onTap: () {
-                              setState(() {
-                                List<String> medicines = selectedMedicines
-                                    .split(', ')
-                                    .where((e) => e.isNotEmpty)
-                                    .toList();
-                                if (!medicines
-                                    .contains(medicineSuggestions[index])) {
-                                  medicines.add(medicineSuggestions[index]);
-                                  selectedMedicines = medicines.join(', ');
-                                }
-                                medicineNameController.clear();
-                                medicineSuggestions = [];
-                              });
-                            },
-                          );
-                        },
-                      ),
-                    ),
-                ],
-              ),
-            ),
-
-            SizedBox(height: 16),
-
-            // Dosage Information
-            Container(
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Dosage Information',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF1E2843),
-                    ),
-                  ),
-                  SizedBox(height: 12),
-
-                  // Dosage Fields in compact row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildCompactDosageField(
-                          controller: morningDosageController,
-                          label: "M",
-                          tooltip: "Morning",
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: _buildCompactDosageField(
-                          controller: afternoonDosageController,
-                          label: "A",
-                          tooltip: "Afternoon",
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: _buildCompactDosageField(
-                          controller: nightDosageController,
-                          label: "N",
-                          tooltip: "Night",
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  SizedBox(height: 12),
-
-                  // Comment field
-                  TextField(
-                    controller: commentController,
-                    decoration: InputDecoration(
-                      labelText: 'Comment',
-                      labelStyle:
-                          TextStyle(color: Color(0xFF1E2843), fontSize: 12),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.grey.shade400),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide:
-                            BorderSide(color: Color(0xFF1E2843), width: 1.5),
-                      ),
-                      contentPadding:
-                          EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                      isDense: true,
-                    ),
-                    maxLines: 2,
-                    style: TextStyle(fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-
-            SizedBox(height: 16),
-
-            // Add button centered
-            Center(
-              child: ElevatedButton.icon(
-                onPressed: _addPrescription,
-                icon: Icon(Icons.add_circle_outline),
-                label: Text('Add Prescription'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFF1E2843),
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+// Single column layout for narrower views
+  Widget _buildSingleColumnPrescriptionContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Selected Medicines Section
+        Container(
+          padding: EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Selected Medicines',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1E2843),
                 ),
               ),
-            ),
+              SizedBox(height: 10),
 
-            SizedBox(height: 16),
-
-            // Current Prescriptions
-            Container(
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Current Prescriptions',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF1E2843),
-                    ),
-                  ),
-
-                  SizedBox(height: 12),
-
-                  // Prescriptions list
-                  _prescriptions.isEmpty
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            child: Column(
-                              children: [
-                                Icon(
-                                  Icons.medication_outlined,
-                                  size: 32,
-                                  color: Colors.grey.shade400,
-                                ),
-                                SizedBox(height: 8),
-                                Text(
-                                  'No prescriptions added yet',
+              // Selected medicines as chips
+              selectedMedicines.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Text(
+                          'No medicines selected yet',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    )
+                  : Wrap(
+                      spacing: 8.0,
+                      runSpacing: 8.0,
+                      children: selectedMedicines
+                          .split(', ')
+                          .where((medicine) => medicine.isNotEmpty)
+                          .map((medicine) => Chip(
+                                label: Text(
+                                  medicine,
                                   style: TextStyle(
-                                    color: Colors.grey.shade600,
+                                    color: Colors.white,
                                     fontSize: 12,
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-                        )
-                      : ListView.builder(
-                          shrinkWrap: true,
-                          physics: NeverScrollableScrollPhysics(),
-                          itemCount: _prescriptions.length,
-                          itemBuilder: (context, index) {
-                            final prescription = _prescriptions[index];
-                            return Card(
-                              margin: EdgeInsets.only(bottom: 8),
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                side: BorderSide(color: Colors.grey.shade300),
-                              ),
-                              child: ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 4),
-                                leading: CircleAvatar(
-                                  radius: 16,
-                                  backgroundColor:
-                                      Color(0xFF1E2843).withOpacity(0.1),
-                                  child: Icon(
-                                    Icons.medication,
-                                    size: 16,
-                                    color: Color(0xFF1E2843),
-                                  ),
-                                ),
-                                title: Text(
-                                  prescription.medicine.name,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                    color: Color(0xFF1E2843),
-                                  ),
-                                ),
-                                subtitle:
-                                    prescription.medicine.comment.isNotEmpty
-                                        ? Text(
-                                            prescription.medicine.comment,
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: Colors.grey.shade600,
-                                            ),
-                                          )
-                                        : null,
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    _buildCompactDosagePill(
-                                        'M', prescription.medicine.morning),
-                                    SizedBox(width: 4),
-                                    _buildCompactDosagePill(
-                                        'A', prescription.medicine.afternoon),
-                                    SizedBox(width: 4),
-                                    _buildCompactDosagePill(
-                                        'N', prescription.medicine.night),
-                                    IconButton(
-                                      icon: Icon(Icons.delete_outline,
-                                          size: 18, color: Colors.red),
-                                      padding: EdgeInsets.zero,
-                                      constraints: BoxConstraints(),
-                                      visualDensity: VisualDensity.compact,
-                                      onPressed: () => _deletePrescription(
-                                          prescription.medicine.id!),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
+                                backgroundColor: Color(0xFF1E2843),
+                                deleteIconColor: Colors.white,
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                                visualDensity: VisualDensity.compact,
+                                labelPadding:
+                                    EdgeInsets.symmetric(horizontal: 4),
+                                padding: EdgeInsets.symmetric(horizontal: 4),
+                                onDeleted: () {
+                                  setState(() {
+                                    selectedMedicines = selectedMedicines
+                                        .split(', ')
+                                        .where((e) => e != medicine)
+                                        .join(', ');
+                                  });
+                                },
+                              ))
+                          .toList(),
+                    ),
+
+              SizedBox(height: 12),
+
+              // Medicine Name search field
+              TextField(
+                controller: medicineNameController,
+                decoration: InputDecoration(
+                  labelText: 'Medicine Name',
+                  labelStyle: TextStyle(color: Color(0xFF1E2843), fontSize: 12),
+                  prefixIcon:
+                      Icon(Icons.search, size: 18, color: Color(0xFF1E2843)),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey.shade400),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide:
+                        BorderSide(color: Color(0xFF1E2843), width: 1.5),
+                  ),
+                  contentPadding:
+                      EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  isDense: true,
+                ),
+                onChanged: _fetchMedicineSuggestions,
+                onSubmitted: (value) {
+                  if (value.trim().isNotEmpty) {
+                    setState(() {
+                      List<String> medicines = selectedMedicines
+                          .split(', ')
+                          .where((e) => e.isNotEmpty)
+                          .toList();
+                      if (!medicines.contains(value.trim())) {
+                        medicines.add(value.trim());
+                        selectedMedicines = medicines.join(', ');
+                      }
+                      medicineNameController.clear();
+                    });
+                  }
+                },
+              ),
+
+              // Loading indicator & suggestions
+              if (isLoadingSuggestions)
+                LinearProgressIndicator(
+                  backgroundColor: Colors.grey.shade200,
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1E2843)),
+                ),
+
+              if (medicineSuggestions.isNotEmpty)
+                Container(
+                  constraints: BoxConstraints(maxHeight: 120),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: medicineSuggestions.length,
+                    itemBuilder: (context, index) {
+                      return ListTile(
+                        dense: true,
+                        title: Text(
+                          medicineSuggestions[index],
+                          style: TextStyle(fontSize: 12),
                         ),
+                        onTap: () {
+                          setState(() {
+                            List<String> medicines = selectedMedicines
+                                .split(', ')
+                                .where((e) => e.isNotEmpty)
+                                .toList();
+                            if (!medicines
+                                .contains(medicineSuggestions[index])) {
+                              medicines.add(medicineSuggestions[index]);
+                              selectedMedicines = medicines.join(', ');
+                            }
+                            medicineNameController.clear();
+                            medicineSuggestions = [];
+                          });
+                        },
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ),
+
+        SizedBox(height: 16),
+
+        // Dosage Information
+        Container(
+          padding: EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Dosage Information',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1E2843),
+                ),
+              ),
+              SizedBox(height: 12),
+
+              // Dosage Fields in compact row
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildCompactDosageField(
+                      controller: morningDosageController,
+                      label: "M",
+                      tooltip: "Morning",
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: _buildCompactDosageField(
+                      controller: afternoonDosageController,
+                      label: "A",
+                      tooltip: "Afternoon",
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: _buildCompactDosageField(
+                      controller: nightDosageController,
+                      label: "N",
+                      tooltip: "Night",
+                    ),
+                  ),
                 ],
               ),
-            ),
-          ],
+
+              SizedBox(height: 12),
+
+              // Comment field
+              TextField(
+                controller: commentController,
+                decoration: InputDecoration(
+                  labelText: 'Comment',
+                  labelStyle: TextStyle(color: Color(0xFF1E2843), fontSize: 12),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey.shade400),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide:
+                        BorderSide(color: Color(0xFF1E2843), width: 1.5),
+                  ),
+                  contentPadding:
+                      EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  isDense: true,
+                ),
+                maxLines: 2,
+                style: TextStyle(fontSize: 12),
+              ),
+            ],
+          ),
         ),
-      ),
+      ],
     );
   }
 
-// Compact dosage field for smaller UI
+// Two column layout for wider screens
+  Widget _buildTwoColumnPrescriptionContent() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Left column - Selected Medicines
+        Expanded(
+          child: Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Selected Medicines',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1E2843),
+                  ),
+                ),
+                SizedBox(height: 10),
+
+                // Selected medicines as chips
+                selectedMedicines.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Text(
+                            'No medicines selected yet',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      )
+                    : Wrap(
+                        spacing: 8.0,
+                        runSpacing: 8.0,
+                        children: selectedMedicines
+                            .split(', ')
+                            .where((medicine) => medicine.isNotEmpty)
+                            .map((medicine) => Chip(
+                                  label: Text(
+                                    medicine,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  backgroundColor: Color(0xFF1E2843),
+                                  deleteIconColor: Colors.white,
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  visualDensity: VisualDensity.compact,
+                                  labelPadding:
+                                      EdgeInsets.symmetric(horizontal: 4),
+                                  padding: EdgeInsets.symmetric(horizontal: 4),
+                                  onDeleted: () {
+                                    setState(() {
+                                      selectedMedicines = selectedMedicines
+                                          .split(', ')
+                                          .where((e) => e != medicine)
+                                          .join(', ');
+                                    });
+                                  },
+                                ))
+                            .toList(),
+                      ),
+
+                SizedBox(height: 12),
+
+                // Medicine Name search field
+                TextField(
+                  controller: medicineNameController,
+                  decoration: InputDecoration(
+                    labelText: 'Medicine Name',
+                    labelStyle:
+                        TextStyle(color: Color(0xFF1E2843), fontSize: 12),
+                    prefixIcon:
+                        Icon(Icons.search, size: 18, color: Color(0xFF1E2843)),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: Colors.grey.shade400),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide:
+                          BorderSide(color: Color(0xFF1E2843), width: 1.5),
+                    ),
+                    contentPadding:
+                        EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    isDense: true,
+                  ),
+                  onChanged: _fetchMedicineSuggestions,
+                  onSubmitted: (value) {
+                    if (value.trim().isNotEmpty) {
+                      setState(() {
+                        List<String> medicines = selectedMedicines
+                            .split(', ')
+                            .where((e) => e.isNotEmpty)
+                            .toList();
+                        if (!medicines.contains(value.trim())) {
+                          medicines.add(value.trim());
+                          selectedMedicines = medicines.join(', ');
+                        }
+                        medicineNameController.clear();
+                      });
+                    }
+                  },
+                ),
+
+                // Loading indicator & suggestions
+                if (isLoadingSuggestions)
+                  LinearProgressIndicator(
+                    backgroundColor: Colors.grey.shade200,
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(Color(0xFF1E2843)),
+                  ),
+
+                if (medicineSuggestions.isNotEmpty)
+                  Container(
+                    constraints: BoxConstraints(maxHeight: 120),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: medicineSuggestions.length,
+                      itemBuilder: (context, index) {
+                        return ListTile(
+                          dense: true,
+                          title: Text(
+                            medicineSuggestions[index],
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          onTap: () {
+                            setState(() {
+                              List<String> medicines = selectedMedicines
+                                  .split(', ')
+                                  .where((e) => e.isNotEmpty)
+                                  .toList();
+                              if (!medicines
+                                  .contains(medicineSuggestions[index])) {
+                                medicines.add(medicineSuggestions[index]);
+                                selectedMedicines = medicines.join(', ');
+                              }
+                              medicineNameController.clear();
+                              medicineSuggestions = [];
+                            });
+                          },
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+
+        SizedBox(width: 16),
+
+        // Right column - Dosage Information
+        Expanded(
+          child: Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Dosage Information',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1E2843),
+                  ),
+                ),
+                SizedBox(height: 12),
+
+                // Dosage Fields
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildCompactDosageField(
+                        controller: morningDosageController,
+                        label: "M",
+                        tooltip: "Morning",
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: _buildCompactDosageField(
+                        controller: afternoonDosageController,
+                        label: "A",
+                        tooltip: "Afternoon",
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: _buildCompactDosageField(
+                        controller: nightDosageController,
+                        label: "N",
+                        tooltip: "Night",
+                      ),
+                    ),
+                  ],
+                ),
+
+                SizedBox(height: 12),
+
+                // Comment field
+                TextField(
+                  controller: commentController,
+                  decoration: InputDecoration(
+                    labelText: 'Comment',
+                    labelStyle:
+                        TextStyle(color: Color(0xFF1E2843), fontSize: 12),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: Colors.grey.shade400),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide:
+                          BorderSide(color: Color(0xFF1E2843), width: 1.5),
+                    ),
+                    contentPadding:
+                        EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    isDense: true,
+                  ),
+                  maxLines: 3,
+                  style: TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  } // Compact dosage field for smaller UI
+
   Widget _buildCompactDosageField({
     required TextEditingController controller,
     required String label,
@@ -3368,7 +3760,6 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
   List<String> medicineSuggestions = [];
   String selectedMedicines = ''; // Store as a single string
   bool isLoadingSuggestions = false;
-
   Future<void> _fetchMedicineSuggestions(String query) async {
     // Clear immediately when query is empty
     if (query.isEmpty) {
@@ -3420,12 +3811,30 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     return Container(
       padding: const EdgeInsets.only(top: 10),
       height: 200,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 3,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
       child: ListView.builder(
         itemCount: medicineSuggestions.length,
         itemBuilder: (context, index) {
           final suggestion = medicineSuggestions[index];
           return ListTile(
-            title: Text(suggestion),
+            dense: true,
+            title: Text(
+              suggestion,
+              style: TextStyle(fontSize: 13),
+            ),
+            leading: Icon(Icons.medication_outlined,
+                size: 16, color: Color(0xFF1E2843)),
             onTap: () {
               setState(() {
                 List<String> medicines = selectedMedicines
@@ -3439,7 +3848,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                 }
 
                 medicineNameController.clear();
-                medicineSuggestions = [];
+                medicineSuggestions = []; // Clear suggestions after selection
               });
             },
           );
@@ -3495,11 +3904,14 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                 ElevatedButton(
                   onPressed: _addVitals,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xffff96a8),
+                    backgroundColor: Color(0xFF00B8D4),
+                    foregroundColor: Colors.white,
+                    elevation: 4,
                     padding: const EdgeInsets.symmetric(
                         vertical: 14, horizontal: 24),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(24),
+                    ),
                   ),
                   child: const Text('Add Vitals',
                       style: TextStyle(
@@ -3511,11 +3923,14 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                 ElevatedButton(
                   onPressed: _clearVitalsFields,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xffff96a8),
+                    backgroundColor: Color.fromARGB(255, 212, 0, 0),
+                    foregroundColor: Colors.white,
+                    elevation: 4,
                     padding: const EdgeInsets.symmetric(
                         vertical: 14, horizontal: 24),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(24),
+                    ),
                   ),
                   child: const Text('Clear',
                       style: TextStyle(fontWeight: FontWeight.bold)),
@@ -3602,229 +4017,1183 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
       String patientId, String admissionId) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Determine grid layout based on screen width
-        final int crossAxisCount = constraints.maxWidth > 1400
-            ? 3
-            : constraints.maxWidth > 900
-                ? 2
-                : 1;
+        // Determine layout based on screen width
+        final bool isLargeScreen = constraints.maxWidth > 1400;
+        final bool isMediumScreen =
+            constraints.maxWidth >= 768; // Mac/laptop screens
 
-        // Calculate child aspect ratio based on screen dimensions
-        final double childAspectRatio = constraints.maxWidth > 1200
-            ? 1.1
-            : constraints.maxWidth > 800
-                ? 1.0
-                : 0.9;
+        // Define fixed heights for Mac/laptop screens
+        final double fixedHeight =
+            isMediumScreen && !isLargeScreen ? 300 : double.infinity;
 
-        return Stack(
-          children: [
-            // Background container
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFFF5F7FA), Color(0xFFE6E9F0)],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-              ),
-              child: CustomScrollView(
-                slivers: [
-                  SliverPadding(
-                    padding: EdgeInsets.all(
-                        constraints.maxWidth > 900 ? 16.0 : 12.0),
-                    sliver: SliverGrid(
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: crossAxisCount,
-                        crossAxisSpacing: constraints.maxWidth > 900 ? 16 : 12,
-                        mainAxisSpacing: constraints.maxWidth > 900 ? 16 : 12,
-                        childAspectRatio: childAspectRatio,
-                      ),
-                      delegate: SliverChildListDelegate([
-                        // Patient Overview Card
-                        _buildStyledSectionContainer(
-                          context,
-                          child: _buildOverviewSection1(context, ref),
-                          title: 'Patient Overview',
-                          icon: Icons.person_outline,
+        return Container(
+          decoration: BoxDecoration(
+            color: Color(0xFFF8FBFD), // Light background
+          ),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // First row: Overview and Prescription - side by side for medium and large screens
+                  isMediumScreen
+                      ? Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Patient Overview - Left column (45%)
+                            Expanded(
+                              flex: 45,
+                              child: _buildStyledSectionContainer(
+                                context,
+                                child: _buildOverviewSection1(context, ref),
+                                title: 'Patient Overview',
+                                icon: Icons.person_outline,
+                                maxHeight: fixedHeight,
+                              ),
+                            ),
+                            SizedBox(width: 16),
+                            // Prescription - Right column (55%) with fixed height and scrolling
+                            Expanded(
+                              flex: 45,
+                              child: _buildStyledSectionContainer(
+                                context,
+                                child: _buildPrescriptionLayout(),
+                                title: 'Prescription Management',
+                                icon: Icons.medication_outlined,
+                                maxHeight: fixedHeight,
+                              ),
+                            ),
+                          ],
+                        )
+                      : // For smaller screens, stack them vertically
+                      Column(
+                          children: [
+                            _buildStyledSectionContainer(
+                              context,
+                              child: _buildOverviewSection1(context, ref),
+                              title: 'Patient Overview',
+                              icon: Icons.person_outline,
+                            ),
+                            SizedBox(height: 16),
+                            _buildStyledSectionContainer(
+                              context,
+                              child: _buildPrescriptionLayout(),
+                              title: 'Prescription Management',
+                              icon: Icons.medication_outlined,
+                            ),
+                          ],
                         ),
 
-                        // Prescription Management Card
-                        _buildStyledSectionContainer(
-                          context,
-                          child: _buildPrescriptionLayout(),
-                          title: 'Prescription Management',
-                          icon: Icons.medication_outlined,
-                        ),
+                  SizedBox(height: 16),
 
-                        // Vitals Monitoring Card
-                        _buildStyledSectionContainer(
-                          context,
-                          child: _buildVitalsLayout(),
-                          title: 'Vitals Monitoring',
-                          icon: Icons.monitor_heart_outlined,
-                        ),
-
-                        // Symptoms Card
-                        _buildStyledSectionContainer(
-                          context,
-                          child: Column(
-                            children: [
-                              _buildSymptomsLayout(
-                                  context, ref, patientId, admissionId),
-                              const SizedBox(height: 12),
-                              const Divider(),
-                            ],
-                          ),
-                          title: 'Symptoms',
-                          icon: Icons.medical_services_outlined,
-                        ),
-
-                        // Diagnosis Card
-                        _buildStyledSectionContainer(
-                          context,
-                          child: buildDiagnosisLayout(
-                            admissionId: admissionId,
-                            patientId: patientId,
-                            addDoctorDiagnosis: doctor.addDoctorDiagnosis,
-                            fetchDoctorDiagnosis: doctor.fetchDoctorDiagnosis,
-                          ),
-                          title: 'Diagnosis',
-                          icon: Icons.description_outlined,
-                        ),
-                      ]),
-                    ),
-                  ),
+                  // Second row: Vitals, Symptoms and Diagnosis
+                  isLargeScreen
+                      ? // Three columns on large screens
+                      Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Vitals
+                            Expanded(
+                              child: _buildStyledSectionContainer(
+                                context,
+                                child: _buildVitalsLayout(),
+                                title: 'Vitals Monitoring',
+                                icon: Icons.monitor_heart_outlined,
+                              ),
+                            ),
+                            SizedBox(width: 16),
+                            // Symptoms
+                            Expanded(
+                                child: _buildStyledSectionContainer(
+                              context,
+                              child: SymptomsLayout(
+                                patientId: widget.patient.patientId,
+                                admissionId:
+                                    widget.patient.admissionRecords.first.id,
+                                addSymptomsByDoctor: doctor.addSymptomsByDoctor,
+                              ),
+                              title: 'Symptoms',
+                              icon: Icons.medical_services_outlined,
+                            )),
+                            SizedBox(width: 16),
+                            // Diagnosis
+                            Expanded(
+                              child: _buildStyledSectionContainer(
+                                context,
+                                child: buildDiagnosisLayout(
+                                  admissionId: admissionId,
+                                  patientId: patientId,
+                                  addDoctorDiagnosis: doctor.addDoctorDiagnosis,
+                                  fetchDoctorDiagnosis:
+                                      doctor.fetchDoctorDiagnosis,
+                                ),
+                                title: 'Diagnosis',
+                                icon: Icons.description_outlined,
+                              ),
+                            ),
+                          ],
+                        )
+                      : // Stack in one or two columns for medium/small screens
+                      isMediumScreen
+                          ? // Two columns for medium screens (Mac/laptop)
+                          Column(
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Vitals
+                                    Expanded(
+                                      child: _buildStyledSectionContainer(
+                                        context,
+                                        child: _buildVitalsLayout(),
+                                        title: 'Vitals Monitoring',
+                                        icon: Icons.monitor_heart_outlined,
+                                      ),
+                                    ),
+                                    SizedBox(width: 16),
+                                    // Symptoms
+                                    Expanded(
+                                      child: _buildStyledSectionContainer(
+                                        context,
+                                        child: SymptomsLayout(
+                                          patientId: widget.patient.patientId,
+                                          admissionId: widget.patient
+                                              .admissionRecords.first.id,
+                                          addSymptomsByDoctor:
+                                              doctor.addSymptomsByDoctor,
+                                        ),
+                                        title: 'Symptoms',
+                                        icon: Icons.medical_services_outlined,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: 16),
+                                // Diagnosis full width
+                                _buildStyledSectionContainer(
+                                  context,
+                                  child: buildDiagnosisLayout(
+                                    admissionId: admissionId,
+                                    patientId: patientId,
+                                    addDoctorDiagnosis:
+                                        doctor.addDoctorDiagnosis,
+                                    fetchDoctorDiagnosis:
+                                        doctor.fetchDoctorDiagnosis,
+                                  ),
+                                  title: 'Diagnosis',
+                                  icon: Icons.description_outlined,
+                                ),
+                              ],
+                            )
+                          : // Single column for small screens (mobile)
+                          Column(
+                              children: [
+                                _buildStyledSectionContainer(
+                                  context,
+                                  child: _buildVitalsLayout(),
+                                  title: 'Vitals Monitoring',
+                                  icon: Icons.monitor_heart_outlined,
+                                ),
+                                SizedBox(height: 16),
+                                _buildStyledSectionContainer(
+                                  context,
+                                  child: SymptomsLayout(
+                                    patientId: widget.patient.patientId,
+                                    admissionId: widget
+                                        .patient.admissionRecords.first.id,
+                                    addSymptomsByDoctor:
+                                        doctor.addSymptomsByDoctor,
+                                  ),
+                                  title: 'Symptoms',
+                                  icon: Icons.medical_services_outlined,
+                                ),
+                                SizedBox(height: 16),
+                                _buildStyledSectionContainer(
+                                  context,
+                                  child: buildDiagnosisLayout(
+                                    admissionId: admissionId,
+                                    patientId: patientId,
+                                    addDoctorDiagnosis:
+                                        doctor.addDoctorDiagnosis,
+                                    fetchDoctorDiagnosis:
+                                        doctor.fetchDoctorDiagnosis,
+                                  ),
+                                  title: 'Diagnosis',
+                                  icon: Icons.description_outlined,
+                                ),
+                              ],
+                            ),
                 ],
               ),
             ),
+          ),
+        );
+      },
+    );
+  }
 
-            // Doctor Notes button - responsive positioning
-            Positioned(
-              right: constraints.maxWidth > 900 ? 20 : 10,
-              top: constraints.maxWidth > 900 ? 20 : 10,
-              child: Container(
-                key: _notesButtonKey,
-                child: InkWell(
-                  onTap: () {
-                    setState(() {
-                      _showFloatingNotes = !_showFloatingNotes;
-                    });
-                  },
-                  child: AnimatedContainer(
-                    duration: Duration(milliseconds: 300),
-                    width: _showFloatingNotes
-                        ? (constraints.maxWidth > 900 ? 150 : 120)
-                        : (constraints.maxWidth > 900 ? 50 : 40),
-                    height: constraints.maxWidth > 900 ? 50 : 40,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFF1E2843), Color(0xFF2C3E50)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+// Section container with fixed height and scrolling for content
+  Widget _buildStyledSectionContainer(
+    BuildContext context, {
+    required Widget child,
+    required String title,
+    required IconData icon,
+    double maxHeight = double.infinity,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.shade200,
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+        border: Border.all(
+          color: Colors.grey.shade100,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header container
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: Colors.blue.shade700, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.blue.shade800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Thin divider
+          const Divider(height: 1, thickness: 0.5),
+
+          // Content with constrained height and scrolling
+          Container(
+            constraints: BoxConstraints(
+              maxHeight: maxHeight != double.infinity
+                  ? maxHeight - 50
+                  : double.infinity,
+            ),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: child,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+// Function to build section containers with consistent styling
+
+// Function to build a styled container with consistent look
+
+// Custom layout for larger screens with prescription taking more space
+  Widget _buildCustomLayoutGrid(BuildContext context, WidgetRef ref,
+      String patientId, String admissionId) {
+    return SliverToBoxAdapter(
+      child: Column(
+        children: [
+          // First row: Overview and Prescription with Prescription taking more space
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Overview section - 40% width
+              Expanded(
+                flex: 4,
+                child: _buildStyledSectionContainer(
+                  context,
+                  child: _buildOverviewSection1(context, ref),
+                  title: 'Patient Overview',
+                  icon: Icons.person_outline,
+                ),
+              ),
+              SizedBox(width: 16),
+              // Prescription section - 60% width (larger as requested)
+              Expanded(
+                flex: 6,
+                child: _buildStyledSectionContainer(
+                  context,
+                  child: _buildPrescriptionLayout(),
+                  title: 'Prescription Management',
+                  icon: Icons.medication_outlined,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          // Second row: Vitals, Symptoms, and Diagnosis in equal columns
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Vitals section
+              Expanded(
+                child: _buildStyledSectionContainer(
+                  context,
+                  child: _buildVitalsLayout(),
+                  title: 'Vitals Monitoring',
+                  icon: Icons.monitor_heart_outlined,
+                ),
+              ),
+              SizedBox(width: 16),
+              // Symptoms section
+              Expanded(
+                child: _buildStyledSectionContainer(
+                  context,
+                  child: Column(
+                    children: [
+                      SymptomsLayout(
+                        patientId: widget.patient.patientId,
+                        admissionId: widget.patient.admissionRecords.first.id,
+                        addSymptomsByDoctor: doctor.addSymptomsByDoctor,
                       ),
-                      borderRadius: BorderRadius.circular(25),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 10,
-                          offset: Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.note_alt_outlined,
-                          color: Colors.white,
-                          size: constraints.maxWidth > 900 ? 24 : 20,
-                        ),
-                        if (_showFloatingNotes)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 8.0),
-                            child: Text(
-                              "Doctor Notes",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: constraints.maxWidth > 900 ? 14 : 12,
-                              ),
-                            ),
-                          ),
-                      ],
+                      const SizedBox(height: 12),
+                      const Divider(),
+                    ],
+                  ),
+                  title: 'Symptoms',
+                  icon: Icons.medical_services_outlined,
+                ),
+              ),
+              SizedBox(width: 16),
+              // Diagnosis section
+              Expanded(
+                child: _buildStyledSectionContainer(
+                  context,
+                  child: buildDiagnosisLayout(
+                    admissionId: admissionId,
+                    patientId: patientId,
+                    addDoctorDiagnosis: doctor.addDoctorDiagnosis,
+                    fetchDoctorDiagnosis: doctor.fetchDoctorDiagnosis,
+                  ),
+                  title: 'Diagnosis',
+                  icon: Icons.description_outlined,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPrescriptionLayout() {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Quick Access Medicine Database Banner
+          Container(
+            width: double.infinity,
+            margin: EdgeInsets.only(bottom: 16),
+            padding: EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.medication_outlined, color: Colors.black, size: 20),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Quick Access to Your Medicine Database',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 14,
                     ),
                   ),
                 ),
-              ),
+                ElevatedButton(
+                  onPressed: () {
+                    _showMedicineSelectionDialog();
+                  },
+                  child: Text('Open Database'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFF00B8D4),
+                    foregroundColor: Colors.white,
+                    elevation: 4,
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 14, horizontal: 24),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                  ),
+                ),
+              ],
             ),
+          ),
 
-            // Floating Notes Panel - responsive width
-            AnimatedPositioned(
-              duration: Duration(milliseconds: 400),
-              curve: Curves.easeOutQuad,
-              right: _showFloatingNotes
-                  ? (constraints.maxWidth > 900 ? 30 : 15)
-                  : -(_getNotesWidth(constraints)),
-              top: constraints.maxWidth > 900 ? 80 : 60,
-              child: AnimatedOpacity(
-                duration: Duration(milliseconds: 300),
-                opacity: _showFloatingNotes ? 1.0 : 0.0,
-                child: GestureDetector(
-                  onHorizontalDragEnd: (details) {
-                    if (details.primaryVelocity! > 0) {
+          Text(
+            'Prescription Detail',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1E2843),
+            ),
+          ),
+          SizedBox(height: 16),
+
+          // Selected Medicines
+          Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Selected Medicines',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1E2843),
+                  ),
+                ),
+                SizedBox(height: 10),
+
+                selectedMedicines.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Text(
+                            'No medicines selected yet',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      )
+                    : Wrap(
+                        spacing: 8.0,
+                        runSpacing: 8.0,
+                        children: selectedMedicines
+                            .split(', ')
+                            .where((medicine) => medicine.isNotEmpty)
+                            .map((medicine) => Chip(
+                                  label: Text(
+                                    medicine,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  backgroundColor: Color(0xFF1E2843),
+                                  deleteIconColor: Colors.white,
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  visualDensity: VisualDensity.compact,
+                                  labelPadding:
+                                      EdgeInsets.symmetric(horizontal: 4),
+                                  padding: EdgeInsets.symmetric(horizontal: 4),
+                                  onDeleted: () {
+                                    setState(() {
+                                      selectedMedicines = selectedMedicines
+                                          .split(', ')
+                                          .where((e) => e != medicine)
+                                          .join(', ');
+                                    });
+                                  },
+                                ))
+                            .toList(),
+                      ),
+
+                SizedBox(height: 12),
+
+                // Medicine Name search field - simplified
+                TextField(
+                  controller: medicineNameController,
+                  decoration: InputDecoration(
+                    labelText: 'Medicine Name',
+                    labelStyle:
+                        TextStyle(color: Color(0xFF1E2843), fontSize: 12),
+                    prefixIcon:
+                        Icon(Icons.search, size: 18, color: Color(0xFF1E2843)),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: Colors.grey.shade400),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide:
+                          BorderSide(color: Color(0xFF1E2843), width: 1.5),
+                    ),
+                    contentPadding:
+                        EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    isDense: true,
+                  ),
+                  onChanged: _fetchMedicineSuggestions,
+                  onSubmitted: (value) {
+                    if (value.trim().isNotEmpty) {
                       setState(() {
-                        _showFloatingNotes = false;
+                        List<String> medicines = selectedMedicines
+                            .split(', ')
+                            .where((e) => e.isNotEmpty)
+                            .toList();
+                        if (!medicines.contains(value.trim())) {
+                          medicines.add(value.trim());
+                          selectedMedicines = medicines.join(', ');
+                        }
+                        medicineNameController.clear();
+                        medicineSuggestions =
+                            []; // Clear suggestions after selection
                       });
                     }
                   },
-                  child: Container(
-                    width: _getNotesWidth(constraints),
-                    height: MediaQuery.of(context).size.height *
-                        (constraints.maxWidth > 900 ? 0.7 : 0.6),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 20,
-                          spreadRadius: 5,
-                        ),
-                      ],
+                ),
+
+                // Display loading indicator or suggestions
+                if (isLoadingSuggestions)
+                  Container(
+                    padding: EdgeInsets.symmetric(vertical: 10),
+                    alignment: Alignment.center,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else if (medicineSuggestions.isNotEmpty)
+                  _buildSuggestionsList(),
+              ],
+            ),
+          ),
+
+          SizedBox(height: 16),
+
+          // Dosage Information
+          Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Dosage Information',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1E2843),
+                  ),
+                ),
+                SizedBox(height: 12),
+
+                // Dosage Fields in compact row
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildCompactDosageField(
+                        controller: morningDosageController,
+                        label: "M",
+                        tooltip: "Morning",
+                      ),
                     ),
-                    child: _buildNotesPanel(
-                        context, patientId, admissionId, constraints),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: _buildCompactDosageField(
+                        controller: afternoonDosageController,
+                        label: "A",
+                        tooltip: "Afternoon",
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: _buildCompactDosageField(
+                        controller: nightDosageController,
+                        label: "N",
+                        tooltip: "Night",
+                      ),
+                    ),
+                  ],
+                ),
+
+                SizedBox(height: 12),
+
+                // Comment field
+                TextField(
+                  controller: commentController,
+                  decoration: InputDecoration(
+                    labelText: 'Comment',
+                    labelStyle:
+                        TextStyle(color: Color(0xFF1E2843), fontSize: 12),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: Colors.grey.shade400),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide:
+                          BorderSide(color: Color(0xFF1E2843), width: 1.5),
+                    ),
+                    contentPadding:
+                        EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    isDense: true,
+                  ),
+                  maxLines: 2,
+                  style: TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+
+          SizedBox(height: 16),
+
+          // Add button centered
+          Center(
+            child: ElevatedButton.icon(
+              onPressed: _addPrescription,
+              icon: Icon(Icons.add_circle_outline),
+              label: Text('Add Prescription'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF1E2843),
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
+
+          SizedBox(height: 16),
+
+          // Current Prescriptions
+          Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Current Prescriptions',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1E2843),
+                  ),
+                ),
+
+                SizedBox(height: 12),
+
+                // Simple ListView for prescriptions to avoid scroll conflicts
+                _prescriptions.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.medication_outlined,
+                                size: 32,
+                                color: Colors.grey.shade400,
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'No prescriptions added yet',
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : Column(
+                        children: _prescriptions.map((prescription) {
+                          return Card(
+                            margin: EdgeInsets.only(bottom: 8),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              side: BorderSide(color: Colors.grey.shade300),
+                            ),
+                            child: ListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 4),
+                              leading: CircleAvatar(
+                                radius: 16,
+                                backgroundColor:
+                                    Color(0xFF1E2843).withOpacity(0.1),
+                                child: Icon(
+                                  Icons.medication,
+                                  size: 16,
+                                  color: Color(0xFF1E2843),
+                                ),
+                              ),
+                              title: Text(
+                                prescription.medicine.name,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: Color(0xFF1E2843),
+                                ),
+                              ),
+                              subtitle: prescription.medicine.comment.isNotEmpty
+                                  ? Text(
+                                      prescription.medicine.comment,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    )
+                                  : null,
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _buildCompactDosagePill(
+                                      'M', prescription.medicine.morning),
+                                  SizedBox(width: 4),
+                                  _buildCompactDosagePill(
+                                      'A', prescription.medicine.afternoon),
+                                  SizedBox(width: 4),
+                                  _buildCompactDosagePill(
+                                      'N', prescription.medicine.night),
+                                  IconButton(
+                                    icon: Icon(Icons.delete_outline,
+                                        size: 18, color: Colors.red),
+                                    padding: EdgeInsets.zero,
+                                    constraints: BoxConstraints(),
+                                    visualDensity: VisualDensity.compact,
+                                    onPressed: () => _deletePrescription(
+                                        prescription.medicine.id!),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOverviewSection1(BuildContext context, WidgetRef ref) {
+    return Container(
+      // Instead of padding directly, we keep width fluid
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Patient Overview Card
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 30,
+                  backgroundColor: Colors.blue.shade100,
+                  child: Icon(Icons.person, color: Colors.blue.shade600),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.patient.name,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'ID: ${widget.patient.patientId} | Age: ${widget.patient.age} | Gender: ${widget.patient.gender}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Action Buttons with Wrap for better responsiveness
+          Wrap(
+            spacing: 8.0,
+            runSpacing: 8.0,
+            alignment: WrapAlignment.spaceBetween,
+            children: [
+              _buildActionButton(
+                icon: Icons.visibility,
+                label: 'View Details',
+                color: Colors.teal,
+                onPressed: () {
+                  Navigator.of(context).push(MaterialPageRoute(
+                    builder: (context) => PatientHistoryDetailScreen(
+                      patientId: widget.patient.patientId,
+                    ),
+                  ));
+                },
+              ),
+              _buildActionButton(
+                icon: Icons.medication,
+                label: 'Prescription',
+                color: Colors.purple,
+                isLoading: _isPrescriptionLoading,
+                onPressed: () async {
+                  await _fetchDoctorAdvice(context, widget.patient.patientId,
+                      widget.patient.admissionRecords.first.id);
+                },
+              ),
+              _buildActionButton(
+                icon: Icons.local_hospital,
+                label: 'Admit',
+                color: Colors.red,
+                onPressed: () async =>
+                    await _admitPatient(widget.patient, ref, context),
+              ),
+              _buildActionButton(
+                icon: Icons.science,
+                label: 'Lab Assign',
+                color: Colors.orange,
+                onPressed: () async =>
+                    await _handleAssignLab(context, widget.patient, ref),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // Admission Details
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Admission',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue.shade700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (widget.patient.admissionRecords.isNotEmpty)
+                  ..._buildAdmissionDetails(
+                      widget.patient.admissionRecords.first)
+                else
+                  Text(
+                    'No admission records found',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFloatingNotesPanel(BuildContext context, String patientId,
+      String admissionId, BoxConstraints constraints) {
+    final bool isMediumScreen = constraints.maxWidth > 900;
+    final double panelWidth =
+        isMediumScreen ? 320 : min(constraints.maxWidth * 0.85, 280);
+
+    return AnimatedPositioned(
+      duration: Duration(milliseconds: 400),
+      curve: Curves.easeOutQuad,
+      right: isMediumScreen ? 30 : 15,
+      top: isMediumScreen ? 80 : 60,
+      child: AnimatedOpacity(
+        duration: Duration(milliseconds: 300),
+        opacity: 1.0,
+        child: GestureDetector(
+          onHorizontalDragEnd: (details) {
+            if (details.primaryVelocity! > 0) {
+              setState(() {
+                _showFloatingNotes = false;
+              });
+            }
+          },
+          child: Container(
+            width: panelWidth,
+            height: MediaQuery.of(context).size.height *
+                (isMediumScreen ? 0.7 : 0.6),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 20,
+                  spreadRadius: 5,
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.95),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.grey.shade200,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      // Doctor Notes Header
+                      Container(
+                        padding:
+                            EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Color(0xFF1E2843),
+                              Color(0xFF2C3E50),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(20),
+                            topRight: Radius.circular(20),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.note_alt_outlined,
+                                    color: Colors.white,
+                                  ),
+                                  SizedBox(width: 12),
+                                  Text(
+                                    "Doctor Notes",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                IconButton(
+                                  icon: Icon(
+                                    _isNotesExpanded
+                                        ? Icons.fullscreen_exit
+                                        : Icons.fullscreen,
+                                    color: Colors.white,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _isNotesExpanded = !_isNotesExpanded;
+                                    });
+                                  },
+                                ),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.close,
+                                    color: Colors.white,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _showFloatingNotes = false;
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Doctor Notes Content
+                      Expanded(
+                        child: _buildDoctorNotes(
+                          context,
+                          patientId,
+                          admissionId,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
 
-            // Expanded Notes Panel
-            if (_isNotesExpanded && _showFloatingNotes)
-              _buildExpandedNotesPanel(
-                  context, patientId, admissionId, constraints),
-
-            // Quick Add Note Button
-            Positioned(
-              right: constraints.maxWidth > 900 ? 30 : 15,
-              bottom: constraints.maxWidth > 900 ? 100 : 80,
-              child: AnimatedOpacity(
-                duration: Duration(milliseconds: 300),
-                opacity: _showFloatingNotes ? 1.0 : 0.0,
-                child: FloatingActionButton(
-                  backgroundColor: Color(0xFF005F9E),
-                  mini: constraints.maxWidth <= 900,
-                  child: Icon(Icons.add, color: Colors.white),
-                  onPressed: () {
-                    _showAddNoteDialog(context, patientId, admissionId);
-                  },
-                  tooltip: 'Quick Add Note',
+// Build expanded notes panel when maximized
+  Widget _buildExpandedNotesPanel(BuildContext context, String patientId,
+      String admissionId, BoxConstraints constraints) {
+    return Positioned.fill(
+      child: Container(
+        color: Colors.black54,
+        child: Center(
+          child: Container(
+            width: min(constraints.maxWidth * 0.85, 1200),
+            height: constraints.maxHeight * 0.85,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 20,
+                  spreadRadius: 5,
                 ),
-              ),
+              ],
             ),
-          ],
-        );
-      },
+            child: Column(
+              children: [
+                // Expanded Notes Header
+                Container(
+                  padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Color(0xFF1E2843),
+                        Color(0xFF2C3E50),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.note_alt_outlined,
+                            color: Colors.white,
+                          ),
+                          SizedBox(width: 12),
+                          Text(
+                            "Doctor Notes - Full View",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: Icon(
+                              Icons.fullscreen_exit,
+                              color: Colors.white,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _isNotesExpanded = false;
+                              });
+                            },
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              Icons.close,
+                              color: Colors.white,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _showFloatingNotes = false;
+                                _isNotesExpanded = false;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Expanded Notes Content
+                Expanded(
+                  child: _buildDoctorNotes(
+                    context,
+                    patientId,
+                    admissionId,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -3948,110 +5317,110 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
   }
 
 // Helper method to build expanded notes panel
-  Widget _buildExpandedNotesPanel(BuildContext context, String patientId,
-      String admissionId, BoxConstraints constraints) {
-    double width, height;
+  // Widget _buildExpandedNotesPanel(BuildContext context, String patientId,
+  //     String admissionId, BoxConstraints constraints) {
+  //   double width, height;
 
-    // Responsive sizing for different screen sizes
-    if (constraints.maxWidth > 1400) {
-      width = MediaQuery.of(context).size.width * 0.85;
-      height = MediaQuery.of(context).size.height * 0.85;
-    } else if (constraints.maxWidth > 900) {
-      width = MediaQuery.of(context).size.width * 0.8;
-      height = MediaQuery.of(context).size.height * 0.8;
-    } else {
-      width = MediaQuery.of(context).size.width * 0.9;
-      height = MediaQuery.of(context).size.height * 0.75;
-    }
+  //   // Responsive sizing for different screen sizes
+  //   if (constraints.maxWidth > 1400) {
+  //     width = MediaQuery.of(context).size.width * 0.85;
+  //     height = MediaQuery.of(context).size.height * 0.85;
+  //   } else if (constraints.maxWidth > 900) {
+  //     width = MediaQuery.of(context).size.width * 0.8;
+  //     height = MediaQuery.of(context).size.height * 0.8;
+  //   } else {
+  //     width = MediaQuery.of(context).size.width * 0.9;
+  //     height = MediaQuery.of(context).size.height * 0.75;
+  //   }
 
-    return Positioned.fill(
-      child: Container(
-        color: Colors.black54,
-        child: Center(
-          child: Container(
-            width: width,
-            height: height,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black26,
-                  blurRadius: 20,
-                  spreadRadius: 5,
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                // Header
-                Container(
-                  padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF1E2843), Color(0xFF2C3E50)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(20),
-                      topRight: Radius.circular(20),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.note_alt_outlined, color: Colors.white),
-                          SizedBox(width: 12),
-                          Text(
-                            "Doctor Notes - Full View",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: Icon(Icons.fullscreen_exit,
-                                color: Colors.white),
-                            onPressed: () {
-                              setState(() {
-                                _isNotesExpanded = false;
-                              });
-                            },
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.close, color: Colors.white),
-                            onPressed: () {
-                              setState(() {
-                                _showFloatingNotes = false;
-                                _isNotesExpanded = false;
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+  //   return Positioned.fill(
+  //     child: Container(
+  //       color: Colors.black54,
+  //       child: Center(
+  //         child: Container(
+  //           width: width,
+  //           height: height,
+  //           decoration: BoxDecoration(
+  //             color: Colors.white,
+  //             borderRadius: BorderRadius.circular(20),
+  //             boxShadow: [
+  //               BoxShadow(
+  //                 color: Colors.black26,
+  //                 blurRadius: 20,
+  //                 spreadRadius: 5,
+  //               ),
+  //             ],
+  //           ),
+  //           child: Column(
+  //             children: [
+  //               // Header
+  //               Container(
+  //                 padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+  //                 decoration: BoxDecoration(
+  //                   gradient: LinearGradient(
+  //                     colors: [Color(0xFF1E2843), Color(0xFF2C3E50)],
+  //                     begin: Alignment.topLeft,
+  //                     end: Alignment.bottomRight,
+  //                   ),
+  //                   borderRadius: BorderRadius.only(
+  //                     topLeft: Radius.circular(20),
+  //                     topRight: Radius.circular(20),
+  //                   ),
+  //                 ),
+  //                 child: Row(
+  //                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  //                   children: [
+  //                     Row(
+  //                       children: [
+  //                         Icon(Icons.note_alt_outlined, color: Colors.white),
+  //                         SizedBox(width: 12),
+  //                         Text(
+  //                           "Doctor Notes - Full View",
+  //                           style: TextStyle(
+  //                             color: Colors.white,
+  //                             fontWeight: FontWeight.bold,
+  //                             fontSize: 18,
+  //                           ),
+  //                         ),
+  //                       ],
+  //                     ),
+  //                     Row(
+  //                       children: [
+  //                         IconButton(
+  //                           icon: Icon(Icons.fullscreen_exit,
+  //                               color: Colors.white),
+  //                           onPressed: () {
+  //                             setState(() {
+  //                               _isNotesExpanded = false;
+  //                             });
+  //                           },
+  //                         ),
+  //                         IconButton(
+  //                           icon: Icon(Icons.close, color: Colors.white),
+  //                           onPressed: () {
+  //                             setState(() {
+  //                               _showFloatingNotes = false;
+  //                               _isNotesExpanded = false;
+  //                             });
+  //                           },
+  //                         ),
+  //                       ],
+  //                     ),
+  //                   ],
+  //                 ),
+  //               ),
 
-                // Content
-                Expanded(
-                  child: _buildDoctorNotes(context, patientId, admissionId),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  //               // Content
+  //               Expanded(
+  //                 child: _buildDoctorNotes(context, patientId, admissionId),
+  //               ),
+  //             ],
+  //           ),
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  // }
 
 // Optional: Update the _buildDoctorNotes method to be better suited for the floating panel
   Widget _buildDoctorNotes(
@@ -4604,89 +5973,6 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     );
   }
 
-  Widget _buildStyledSectionContainer(
-    BuildContext context, {
-    required Widget child,
-    required String title,
-    required IconData icon,
-  }) {
-    return LayoutBuilder(builder: (context, constraints) {
-      // Adjust sizing and padding based on available width
-      final double iconSize = constraints.maxWidth > 600 ? 20 : 18;
-      final double titleFontSize = constraints.maxWidth > 600 ? 16 : 14;
-      final double headerPadding = constraints.maxWidth > 600 ? 12 : 10;
-      final double contentPadding = constraints.maxWidth > 600 ? 12 : 10;
-
-      return Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.shade200,
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
-          border: Border.all(
-            color: Colors.grey.shade100,
-            width: 1,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header with icon and title
-            Container(
-              padding: EdgeInsets.symmetric(
-                  horizontal: headerPadding, vertical: headerPadding * 0.8),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  topRight: Radius.circular(12),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: EdgeInsets.all(headerPadding * 0.5),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade100,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child:
-                        Icon(icon, color: Colors.blue.shade700, size: iconSize),
-                  ),
-                  SizedBox(width: headerPadding * 0.8),
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: titleFontSize,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.blue.shade800,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1, thickness: 0.5),
-
-            // Content with responsive padding
-            Expanded(
-              child: Padding(
-                padding: EdgeInsets.all(contentPadding),
-                child: child,
-              ),
-            ),
-          ],
-        ),
-      );
-    });
-  }
 //   Widget _buildFourSquareLayout(BuildContext context, WidgetRef ref,
 //       String patientId, String admissionId) {
 //     return Container(
@@ -5451,141 +6737,6 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
         });
       }
     });
-  }
-
-  Widget _buildOverviewSection1(BuildContext context, WidgetRef ref) {
-    return SingleChildScrollView(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Patient Overview Card
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundColor: Colors.blue.shade100,
-                    child: Icon(Icons.person, color: Colors.blue.shade600),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.patient.name,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'ID: ${widget.patient.patientId} | Age: ${widget.patient.age} | Gender: ${widget.patient.gender}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Action Buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildActionButton(
-                  icon: Icons.visibility,
-                  label: 'View Details',
-                  color: Colors.teal,
-                  onPressed: () {
-                    Navigator.of(context).push(MaterialPageRoute(
-                      builder: (context) => PatientHistoryDetailScreen(
-                        patientId: widget.patient.patientId,
-                      ),
-                    ));
-                  },
-                ),
-                _buildActionButton(
-                  icon: Icons.medication,
-                  label: 'Prescription',
-                  color: Colors.purple,
-                  isLoading: _isPrescriptionLoading,
-                  onPressed: () async {
-                    // The loading state is now managed inside _fetchDoctorAdvice
-                    await _fetchDoctorAdvice(context, widget.patient.patientId,
-                        widget.patient.admissionRecords.first.id);
-                  },
-                ),
-                _buildActionButton(
-                  icon: Icons.local_hospital,
-                  label: 'Admit',
-                  color: Colors.red,
-                  onPressed: () async =>
-                      await _admitPatient(widget.patient, ref, context),
-                ),
-                _buildActionButton(
-                  icon: Icons.science,
-                  label: 'Lab Assign',
-                  color: Colors.orange,
-                  onPressed: () async =>
-                      await _handleAssignLab(context, widget.patient, ref),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            // Admission Details
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Admission',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue.shade700,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  if (widget.patient.admissionRecords.isNotEmpty)
-                    ..._buildAdmissionDetails(
-                        widget.patient.admissionRecords.first)
-                  else
-                    Text(
-                      'No admission records found',
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
 // Action Button Widget
@@ -6582,6 +7733,10 @@ class ViewDiagnosisIntent extends Intent {}
 class ViewTreatMentIntent extends Intent {}
 
 class ViewHomeIntent extends Intent {}
+
+class ViewMonitoringIntent extends Intent {}
+
+class ViewInvestigationIntent extends Intent {}
 
 class AssignLabDialog extends StatefulWidget {
   @override

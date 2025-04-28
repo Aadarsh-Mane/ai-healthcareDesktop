@@ -26,7 +26,7 @@ class _DoctorRegisterScreenState extends State<ExternalDoctorRegister> {
   String _customDepartment = '';
 
   // Form fields
-  String userType = 'doctor'; // This is already set to 'external'
+  String userType = 'external'; // This is already set to 'external'
   String email = '';
   String password = '';
   String confirmPassword = '';
