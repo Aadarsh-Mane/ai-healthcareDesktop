@@ -221,7 +221,7 @@ class _AppointmentCreationScreenState extends State<AppointmentCreationScreen> {
         headers: {'Content-Type': 'application/json'},
         body: json.encode(appointmentData),
       );
-
+      print(response.body);
       if (response.statusCode == 200 || response.statusCode == 201) {
         // Success
         ScaffoldMessenger.of(context).showSnackBar(

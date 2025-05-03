@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:doctordesktop/External/AppointMentScreen.dart';
 import 'package:doctordesktop/External/DashBoard.dart';
+import 'package:doctordesktop/ExternalDoctor/AppointmentDashboardScreen.dart';
 import 'package:doctordesktop/constants/HospitalTheme.dart';
 import 'package:doctordesktop/constants/Url.dart';
 import 'package:doctordesktop/main.dart';
@@ -28,7 +29,7 @@ class _SplashScreenState extends State<SplashScreen1> {
 
   Future<void> _checkLoginStatus() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('doctor_token');
+    final token = prefs.getString('auth_token');
     final userType = prefs.getString('user_type');
 
     if (token != null && userType != null) {
@@ -36,7 +37,7 @@ class _SplashScreenState extends State<SplashScreen1> {
       Future.delayed(const Duration(seconds: 1), () {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (context) => DoctorDashboard(),
+            builder: (context) => AppointmentsScreen(),
           ),
         );
       });
@@ -222,7 +223,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 // External Doctor Login
                 LoginForm(
                   title: 'External Doctor Login',
-                  apiEndpoint: '${KVM_URL}/users/externalSigninDoctor',
+                  apiEndpoint: '${KVM_URL}/users/signin',
                   userType: 'doctor',
                   fields: const ['email', 'password'],
                 ),
@@ -403,7 +404,7 @@ class _LoginFormState extends State<LoginForm> {
 
           // Save credentials to SharedPreferences
           final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('doctor_token', data['token']);
+          await prefs.setString('auth_token', data['token']);
           await prefs.setString('user_type', widget.userType);
 
           // Store user details
@@ -425,7 +426,7 @@ class _LoginFormState extends State<LoginForm> {
           if (!mounted) return;
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (context) => DoctorDashboard(),
+              builder: (context) => AppointmentsScreen(),
             ),
           );
         } else {

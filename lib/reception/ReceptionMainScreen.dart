@@ -33,14 +33,14 @@ class _ReceptionMainScreenState extends State<ReceptionMainScreen> {
       body: Row(
         children: [
           // Sidebar
-          ImprovedSidebar(
-            selectedIndex: _selectedNavIndex,
-            onDestinationSelected: (index) {
-              setState(() {
-                _selectedNavIndex = index;
-              });
-            },
-          ),
+          // ImprovedSidebar(
+          //   selectedIndex: _selectedNavIndex,
+          //   onDestinationSelected: (index) {
+          //     setState(() {
+          //       _selectedNavIndex = index;
+          //     });
+          //   },
+          // ),
 
           // Content area - shows the selected screen
           Expanded(

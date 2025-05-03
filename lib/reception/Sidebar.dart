@@ -1,14 +1,38 @@
 import 'package:doctordesktop/constants/HospitalTheme.dart';
 import 'package:flutter/material.dart';
 
+class NavigationItem {
+  final int index;
+  final IconData icon;
+  final String label;
+  final bool isSection;
+  final String? sectionTitle;
+
+  NavigationItem({
+    required this.index,
+    required this.icon,
+    required this.label,
+    this.isSection = false,
+    this.sectionTitle,
+  });
+}
+
 class ImprovedSidebar extends StatefulWidget {
   final int selectedIndex;
   final Function(int) onDestinationSelected;
+  final List<NavigationItem> navigationItems;
+  final String? title;
+  final String? subtitle;
+  final Widget? userProfile;
 
   const ImprovedSidebar({
     Key? key,
     required this.selectedIndex,
     required this.onDestinationSelected,
+    required this.navigationItems,
+    this.title,
+    this.subtitle,
+    this.userProfile,
   }) : super(key: key);
 
   @override
@@ -16,7 +40,7 @@ class ImprovedSidebar extends StatefulWidget {
 }
 
 class _ImprovedSidebarState extends State<ImprovedSidebar> {
-  bool _isExpanded = false;
+  bool _isExpanded = true;
 
   @override
   Widget build(BuildContext context) {
@@ -66,7 +90,7 @@ class _ImprovedSidebarState extends State<ImprovedSidebar> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'MedCare',
+                          widget.title ?? 'MedCare',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -74,7 +98,7 @@ class _ImprovedSidebarState extends State<ImprovedSidebar> {
                           ),
                         ),
                         Text(
-                          'Hospital Management',
+                          widget.subtitle ?? 'Hospital Management',
                           style: TextStyle(
                             fontSize: 12,
                             color: HospitalTheme.textOnPrimary.withOpacity(0.8),
@@ -84,19 +108,19 @@ class _ImprovedSidebarState extends State<ImprovedSidebar> {
                     ),
                   ),
                 ],
-                // IconButton(
-                //   onPressed: () {
-                //     setState(() {
-                //       _isExpanded = !_isExpanded;
-                //     });
-                //   },
-                //   icon: Icon(
-                //     _isExpanded
-                //         ? Icons.keyboard_double_arrow_left
-                //         : Icons.keyboard_double_arrow_right,
-                //     color: HospitalTheme.textOnPrimary.withOpacity(0.7),
-                //   ),
-                // ),
+                IconButton(
+                  onPressed: () {
+                    setState(() {
+                      _isExpanded = !_isExpanded;
+                    });
+                  },
+                  icon: Icon(
+                    _isExpanded
+                        ? Icons.keyboard_double_arrow_left
+                        : Icons.keyboard_double_arrow_right,
+                    color: HospitalTheme.textOnPrimary.withOpacity(0.7),
+                  ),
+                ),
               ],
             ),
           ),
@@ -111,58 +135,19 @@ class _ImprovedSidebarState extends State<ImprovedSidebar> {
 
           // Navigation items
           Expanded(
-            child: ListView(
+            child: ListView.builder(
               padding: EdgeInsets.symmetric(horizontal: _isExpanded ? 18 : 8),
-              children: [
-                _buildNavItem(
-                  0,
-                  Icons.dashboard_rounded,
-                  'Dashboard',
-                  widget.selectedIndex == 0,
-                ),
-                _buildNavItem(
-                  1,
-                  Icons.calendar_month_rounded,
-                  'Appointments',
-                  widget.selectedIndex == 1,
-                ),
-                _buildNavItem(
-                  2,
-                  Icons.people_alt_rounded,
-                  'Patients',
-                  widget.selectedIndex == 2,
-                ),
-                _buildNavItem(
-                  3,
-                  Icons.medical_services_rounded,
-                  'Doctors',
-                  widget.selectedIndex == 3,
-                ),
-                _buildNavItem(
-                  4,
-                  Icons.medication_rounded,
-                  'Pharmacy',
-                  widget.selectedIndex == 4,
-                ),
-                _buildNavItem(
-                  5,
-                  Icons.analytics_rounded,
-                  'Reports',
-                  widget.selectedIndex == 5,
-                ),
-                _buildNavItem(
-                  6,
-                  Icons.payments_rounded,
-                  'Billing',
-                  widget.selectedIndex == 6,
-                ),
-                const SizedBox(height: 16),
-                if (_isExpanded)
-                  Padding(
+              itemCount: widget.navigationItems.length,
+              itemBuilder: (context, index) {
+                final item = widget.navigationItems[index];
+
+                // If it's a section title
+                if (item.isSection && _isExpanded) {
+                  return Padding(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                     child: Text(
-                      'SETTINGS',
+                      item.sectionTitle ?? '',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
@@ -170,129 +155,127 @@ class _ImprovedSidebarState extends State<ImprovedSidebar> {
                         letterSpacing: 1.5,
                       ),
                     ),
-                  ),
-                _buildNavItem(
-                  7,
-                  Icons.settings_rounded,
-                  'Settings',
-                  widget.selectedIndex == 7,
-                ),
-                _buildNavItem(
-                  8,
-                  Icons.help_outline_rounded,
-                  'Help & Support',
-                  widget.selectedIndex == 8,
-                ),
-              ],
+                  );
+                }
+
+                return _buildNavItem(
+                  item.index,
+                  item.icon,
+                  item.label,
+                  widget.selectedIndex == item.index,
+                );
+              },
             ),
           ),
 
           // User profile section
-          Container(
-            margin: EdgeInsets.all(_isExpanded ? 16 : 8),
-            padding: EdgeInsets.all(_isExpanded ? 16 : 8),
-            decoration: BoxDecoration(
-              color: HospitalTheme.textOnPrimary.withOpacity(0.1),
-              borderRadius: HospitalTheme.radiusMedium,
-            ),
-            child: _isExpanded
-                ? Row(
+          widget.userProfile ?? _buildDefaultUserProfile(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDefaultUserProfile() {
+    return Container(
+      margin: EdgeInsets.all(_isExpanded ? 16 : 8),
+      padding: EdgeInsets.all(_isExpanded ? 16 : 8),
+      decoration: BoxDecoration(
+        color: HospitalTheme.textOnPrimary.withOpacity(0.1),
+        borderRadius: HospitalTheme.radiusMedium,
+      ),
+      child: _isExpanded
+          ? Row(
+              children: [
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: HospitalTheme.textOnPrimary.withOpacity(0.2),
+                  child: Icon(
+                    Icons.local_hospital,
+                    color: HospitalTheme.textOnPrimary,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      CircleAvatar(
-                        radius: 24,
-                        backgroundColor:
-                            HospitalTheme.textOnPrimary.withOpacity(0.2),
-                        child: Icon(
-                          Icons.person,
+                      Text(
+                        'DocNex.Care',
+                        style: TextStyle(
                           color: HospitalTheme.textOnPrimary,
-                          size: 28,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Reception Staff',
-                              style: TextStyle(
-                                color: HospitalTheme.textOnPrimary,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            Row(
-                              children: [
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                    color: HospitalTheme.success,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Online',
-                                  style: TextStyle(
-                                    color: HospitalTheme.textOnPrimary
-                                        .withOpacity(0.8),
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      PopupMenuButton(
-                        icon: Icon(
-                          Icons.more_vert,
-                          color: HospitalTheme.textOnPrimary,
-                        ),
-                        color: HospitalTheme.cardBackground,
-                        itemBuilder: (context) => [
-                          PopupMenuItem(
-                            value: 'profile',
-                            child: Row(
-                              children: [
-                                Icon(Icons.person_outline,
-                                    color: HospitalTheme.primary, size: 20),
-                                const SizedBox(width: 8),
-                                Text('My Profile'),
-                              ],
+                      Row(
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: HospitalTheme.success,
+                              shape: BoxShape.circle,
                             ),
                           ),
-                          PopupMenuItem(
-                            value: 'logout',
-                            child: Row(
-                              children: [
-                                Icon(Icons.logout,
-                                    color: HospitalTheme.error, size: 20),
-                                const SizedBox(width: 8),
-                                Text('Logout'),
-                              ],
+                          const SizedBox(width: 4),
+                          Text(
+                            '20s Developers',
+                            style: TextStyle(
+                              color:
+                                  HospitalTheme.textOnPrimary.withOpacity(0.8),
+                              fontSize: 12,
                             ),
                           ),
                         ],
                       ),
                     ],
-                  )
-                : Center(
-                    child: CircleAvatar(
-                      radius: 24,
-                      backgroundColor:
-                          HospitalTheme.textOnPrimary.withOpacity(0.2),
-                      child: Icon(
-                        Icons.person,
-                        color: HospitalTheme.textOnPrimary,
-                        size: 28,
-                      ),
-                    ),
                   ),
-          ),
-        ],
-      ),
+                ),
+                // PopupMenuButton(
+                //   icon: Icon(
+                //     Icons.more_vert,
+                //     color: HospitalTheme.textOnPrimary,
+                //   ),
+                //   color: HospitalTheme.cardBackground,
+                //   itemBuilder: (context) => [
+                //     PopupMenuItem(
+                //       value: 'profile',
+                //       child: Row(
+                //         children: [
+                //           Icon(Icons.person_outline,
+                //               color: HospitalTheme.primary, size: 20),
+                //           const SizedBox(width: 8),
+                //           Text('My Profile'),
+                //         ],
+                //       ),
+                //     ),
+                //     PopupMenuItem(
+                //       value: 'logout',
+                //       child: Row(
+                //         children: [
+                //           Icon(Icons.logout,
+                //               color: HospitalTheme.error, size: 20),
+                //           const SizedBox(width: 8),
+                //           Text('Logout'),
+                //         ],
+                //       ),
+                //     ),
+                //   ],
+                // ),
+              ],
+            )
+          : Center(
+              child: CircleAvatar(
+                radius: 24,
+                backgroundColor: HospitalTheme.textOnPrimary.withOpacity(0.2),
+                child: Icon(
+                  Icons.person,
+                  color: HospitalTheme.textOnPrimary,
+                  size: 28,
+                ),
+              ),
+            ),
     );
   }
 
@@ -355,6 +338,7 @@ class _ImprovedSidebarState extends State<ImprovedSidebar> {
                         isSelected ? FontWeight.bold : FontWeight.normal,
                   ),
                 ),
+                const Spacer(),
                 if (isSelected)
                   Container(
                     width: 6,

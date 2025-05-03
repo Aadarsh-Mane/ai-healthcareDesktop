@@ -1,3 +1,4 @@
+import 'package:doctordesktop/Lab/LabDashBoard.dart';
 import 'package:doctordesktop/Lab/LabScreen.dart';
 import 'package:flutter/material.dart';
 
@@ -66,7 +67,11 @@ class _LabAuthDialogState extends State<LabAuthDialog> {
         ),
         TextButton(
           onPressed: () {
-            _authenticate(context);
+            // _authenticate(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => LabDashBoardScreen()),
+            );
           },
           child: Text('Login'),
         ),

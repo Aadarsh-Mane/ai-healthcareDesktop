@@ -11,6 +11,7 @@ import 'package:doctordesktop/Doctor/DoctorMainScreen.dart';
 import 'package:doctordesktop/External/CommonScreen.dart';
 import 'package:doctordesktop/External/DashBoard.dart';
 import 'package:doctordesktop/Lab/LabAuthDialog.dart';
+import 'package:doctordesktop/Lab/LabDashBoard.dart';
 import 'package:doctordesktop/Lab/LabScreen.dart';
 import 'package:doctordesktop/Working.dart';
 import 'package:doctordesktop/authProvider/auth_provider.dart';
@@ -163,16 +164,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             },
           ),
           ListTile(
-            leading: Icon(Icons.person_add_alt),
-            title: Text('Lab Login'),
-            onTap: () {
-              Navigator.pop(context); // Close the drawer first
-              showDialog(
-                context: context,
-                builder: (context) => LabAuthDialog(),
-              );
-            },
-          ),
+              leading: Icon(Icons.person_add_alt),
+              title: Text('Lab Login'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LabPatientsScreen()),
+                );
+              }
+              // Navigator.pop(context); // Close the drawer first
+              // showDialog(
+              //   context: context,
+              //   builder: (context) => LabAuthDialog(),
+
+              ),
           ListTile(
             leading: Icon(Icons.person_add_alt),
             title: Text('Admin Login'),
@@ -304,9 +309,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   ),
                   ElevatedButton(
                     onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (context) => LabAuthDialog(),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => LabDashBoardScreen()),
                       );
                     },
                     style: _buttonStyle(),

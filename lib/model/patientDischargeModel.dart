@@ -45,6 +45,7 @@ class LastRecord {
   final int previousRemainingAmount;
   final String symptoms;
   final String initialDiagnosis;
+  final String? patientType; // Added new field
   final Doctor doctor;
   final int weight;
 
@@ -59,6 +60,7 @@ class LastRecord {
     required this.previousRemainingAmount,
     required this.symptoms,
     required this.initialDiagnosis,
+    this.patientType, // Optional because it might be missing in older data
     required this.doctor,
     required this.weight,
   });
@@ -78,11 +80,13 @@ class LastRecord {
           (json['previousRemainingAmount'] as num?)?.toInt() ?? 0,
       symptoms: json['symptoms'] ?? '',
       initialDiagnosis: json['initialDiagnosis'] ?? '',
+      patientType: json['patientType'], // Added new field
       doctor: Doctor.fromJson(json['doctor'] ?? {}),
       // Convert double to int (if needed)
       weight: (json['weight'] as num?)?.toInt() ?? 0,
     );
   }
+
   Map<String, dynamic> toJson() {
     return {
       'admissionId': admissionId,
@@ -95,6 +99,7 @@ class LastRecord {
       'previousRemainingAmount': previousRemainingAmount,
       'symptoms': symptoms,
       'initialDiagnosis': initialDiagnosis,
+      'patientType': patientType, // Added new field
       'doctor': doctor.toJson(),
       'weight': weight,
     };
@@ -104,16 +109,19 @@ class LastRecord {
 class Doctor {
   final String id;
   final String name;
+  final String? usertype; // Added new field for doctor type
 
   Doctor({
     required this.id,
     required this.name,
+    this.usertype, // Optional because it might be missing in older data
   });
 
   factory Doctor.fromJson(Map<String, dynamic> json) {
     return Doctor(
       id: json['id'] ?? '',
       name: json['name'] ?? '',
+      usertype: json['usertype'], // Added new field
     );
   }
 
@@ -121,6 +129,7 @@ class Doctor {
     return {
       'id': id,
       'name': name,
+      'usertype': usertype, // Added new field
     };
   }
 }

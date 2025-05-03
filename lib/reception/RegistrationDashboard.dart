@@ -35,14 +35,14 @@ class _RegistrationDashboardScreenState extends State<RegistrationDashboard> {
       body: Row(
         children: [
           // Sidebar
-          ImprovedSidebar(
-            selectedIndex: _selectedNavIndex,
-            onDestinationSelected: (index) {
-              setState(() {
-                _selectedNavIndex = index;
-              });
-            },
-          ),
+          // ImprovedSidebar(
+          //   selectedIndex: _selectedNavIndex,
+          //   onDestinationSelected: (index) {
+          //     setState(() {
+          //       _selectedNavIndex = index;
+          //     });
+          //   },
+          // ),
 
           // Content area - shows the selected screen
           Expanded(

@@ -314,8 +314,8 @@ class HospitalTheme {
     required IconData icon,
     Color startColor = primary,
     Color endColor = secondary,
-    double width = 150,
-    double height = 48,
+    double width = 160,
+    double height = 38,
     bool isLoading = false,
   }) {
     return GestureDetector(

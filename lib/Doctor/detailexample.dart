@@ -1,5 +1,3 @@
-import 'dart:ffi';
-
 import 'package:doctordesktop/Doctor/AddPrescriptionDialod.dart';
 import 'package:doctordesktop/Doctor/AddSymptomsScreen.dart';
 import 'package:doctordesktop/Doctor/Animate.dart';

@@ -8,20 +8,21 @@ import 'package:doctordesktop/constants/Methods.dart';
 import 'package:doctordesktop/constants/Url.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class DoctorInvestigationScreen extends StatefulWidget {
+class PatientInvestigationScreen extends StatefulWidget {
   final String patientId;
   final String admissionId;
 
-  const DoctorInvestigationScreen(
+  const PatientInvestigationScreen(
       {Key? key, required this.patientId, required this.admissionId})
       : super(key: key);
 
   @override
-  _DoctorInvestigationScreenState createState() =>
-      _DoctorInvestigationScreenState();
+  _PatientInvestigationScreenState createState() =>
+      _PatientInvestigationScreenState();
 }
 
-class _DoctorInvestigationScreenState extends State<DoctorInvestigationScreen> {
+class _PatientInvestigationScreenState
+    extends State<PatientInvestigationScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   List<Investigation1> _investigations = [];
@@ -29,7 +30,7 @@ class _DoctorInvestigationScreenState extends State<DoctorInvestigationScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   String _selectedStatusFilter = 'All';
-  String _selectedDischargeFilter = 'Active'; // Add this new filter
+  String? _patientName; // To store patient name from API response
 
   @override
   void initState() {
@@ -38,6 +39,10 @@ class _DoctorInvestigationScreenState extends State<DoctorInvestigationScreen> {
   }
 
   Future<void> _fetchInvestigations() async {
+    if (_investigations.isNotEmpty) {
+      _patientName =
+          _investigations.first.patientName; // This will now use the getter
+    }
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -52,7 +57,8 @@ class _DoctorInvestigationScreenState extends State<DoctorInvestigationScreen> {
       }
 
       final response = await http.get(
-        Uri.parse('${KVM_URL}/doctors/getDoctorInvestigations'),
+        Uri.parse(
+            '${KVM_URL}/doctors/getPatientInvestigationsByAdmission/${widget.patientId}/${widget.admissionId}'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -68,6 +74,11 @@ class _DoctorInvestigationScreenState extends State<DoctorInvestigationScreen> {
             _investigations = investigationsJson
                 .map((json) => Investigation1.fromJson(json))
                 .toList();
+
+            // Set patient name from the first investigation
+            if (_investigations.isNotEmpty) {
+              _patientName = _investigations.first.patientName;
+            }
 
             if (_investigations.isNotEmpty && _selectedInvestigation == null) {
               _selectedInvestigation = _investigations.first;
@@ -100,10 +111,7 @@ class _DoctorInvestigationScreenState extends State<DoctorInvestigationScreen> {
   List<Investigation1> get _filteredInvestigations {
     return _investigations.where((investigation) {
       // Apply search query filter
-      final matchesSearch = investigation.patientName
-              .toLowerCase()
-              .contains(_searchQuery.toLowerCase()) ||
-          investigation.investigationType
+      final matchesSearch = investigation.investigationType
               .toLowerCase()
               .contains(_searchQuery.toLowerCase()) ||
           investigation.status
@@ -117,14 +125,7 @@ class _DoctorInvestigationScreenState extends State<DoctorInvestigationScreen> {
       final matchesStatus = _selectedStatusFilter == 'All' ||
           investigation.status == _selectedStatusFilter;
 
-      // Apply discharge filter
-      final matchesDischarge = _selectedDischargeFilter == 'All' ||
-          (_selectedDischargeFilter == 'Active' &&
-              !investigation.patientDischarged) ||
-          (_selectedDischargeFilter == 'Discharged' &&
-              investigation.patientDischarged);
-
-      return matchesSearch && matchesStatus && matchesDischarge;
+      return matchesSearch && matchesStatus;
     }).toList();
   }
 
@@ -139,13 +140,14 @@ class _DoctorInvestigationScreenState extends State<DoctorInvestigationScreen> {
     return Scaffold(
       appBar: HospitalTheme.buildAppBar(
         context: context,
-        title: 'Investigation Management',
+        title: 'Patient Investigations',
+        showBackButton: true,
+        onBackPressed: () => Navigator.pop(context),
         actions: [
           IconButton(
             icon: Icon(Icons.refresh),
-            onPressed: () {
-              Navigator.pop(context);
-            },
+            onPressed: _fetchInvestigations,
+            tooltip: 'Refresh',
           ),
         ],
       ),
@@ -195,16 +197,31 @@ class _DoctorInvestigationScreenState extends State<DoctorInvestigationScreen> {
             size: 28,
           ),
           SizedBox(width: 16),
-          Text(
-            'Investigation Management',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: HospitalTheme.textDark,
-            ),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Investigations',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: HospitalTheme.textDark,
+                ),
+              ),
+              if (_patientName != null)
+                Text(
+                  'Patient: $_patientName (${widget.patientId})',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: HospitalTheme.textMedium,
+                  ),
+                ),
+            ],
           ),
           Spacer(),
-          ElevatedButton.icon(
+          HospitalTheme.buildGradientButton(
+            label: 'New Investigation',
             onPressed: () {
               Navigator.push(
                 context,
@@ -219,34 +236,10 @@ class _DoctorInvestigationScreenState extends State<DoctorInvestigationScreen> {
                 _fetchInvestigations();
               });
             },
-            icon: Icon(Icons.add),
-            label: Text('New Investigation'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: HospitalTheme.primary,
-              foregroundColor: Colors.white,
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            ),
+            icon: Icons.add,
           ),
-          SizedBox(width: 16),
-          _buildRefreshButton(),
         ],
       ),
-    );
-  }
-
-  Widget _buildRefreshButton() {
-    return ElevatedButton.icon(
-      icon: Icon(Icons.refresh),
-      label: Text('Refresh Data'),
-      style: ElevatedButton.styleFrom(
-        foregroundColor: Colors.white,
-        backgroundColor: HospitalTheme.primary,
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-      ),
-      onPressed: _fetchInvestigations,
     );
   }
 
@@ -291,18 +284,10 @@ class _DoctorInvestigationScreenState extends State<DoctorInvestigationScreen> {
             textAlign: TextAlign.center,
           ),
           SizedBox(height: 24),
-          ElevatedButton.icon(
-            icon: Icon(Icons.refresh),
-            label: Text('Try Again'),
-            style: ElevatedButton.styleFrom(
-              foregroundColor: Colors.white,
-              backgroundColor: HospitalTheme.primary,
-              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
+          HospitalTheme.buildGradientButton(
+            label: 'Try Again',
             onPressed: _fetchInvestigations,
+            icon: Icons.refresh,
           ),
         ],
       ),
@@ -348,7 +333,6 @@ class _DoctorInvestigationScreenState extends State<DoctorInvestigationScreen> {
     );
   }
 
-  // Update the _buildFiltersSection method
   Widget _buildFiltersSection() {
     final statusOptions = [
       'All',
@@ -358,8 +342,6 @@ class _DoctorInvestigationScreenState extends State<DoctorInvestigationScreen> {
       'Completed',
       'Cancelled'
     ];
-
-    final dischargeOptions = ['All', 'Active', 'Discharged'];
 
     return Container(
       padding: EdgeInsets.all(16),
@@ -439,44 +421,6 @@ class _DoctorInvestigationScreenState extends State<DoctorInvestigationScreen> {
 
           SizedBox(height: 16),
 
-          // Discharge status filter
-          Text(
-            'Patient Status:',
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              color: HospitalTheme.textDark,
-            ),
-          ),
-          SizedBox(height: 8),
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: HospitalTheme.border),
-            ),
-            padding: EdgeInsets.symmetric(horizontal: 12),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _selectedDischargeFilter,
-                isExpanded: true,
-                items: dischargeOptions.map((option) {
-                  return DropdownMenuItem<String>(
-                    value: option,
-                    child: Text(option),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      _selectedDischargeFilter = value;
-                    });
-                  }
-                },
-              ),
-            ),
-          ),
-
-          SizedBox(height: 16),
-
           // Investigations count
           Text(
             '${_filteredInvestigations.length} investigations found',
@@ -519,6 +463,24 @@ class _DoctorInvestigationScreenState extends State<DoctorInvestigationScreen> {
                 ),
               ),
             ),
+          SizedBox(height: 24),
+          HospitalTheme.buildGradientButton(
+            label: 'Create  ',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => CreateInvestigationScreen(
+                    patientId: widget.patientId,
+                    admissionId: widget.admissionId,
+                  ),
+                ),
+              ).then((_) {
+                _fetchInvestigations();
+              });
+            },
+            icon: Icons.add,
+          ),
         ],
       ),
     );
@@ -590,63 +552,10 @@ class _DoctorInvestigationScreenState extends State<DoctorInvestigationScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: statusColor),
-                  ),
-                  child: Text(
-                    investigation.status,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: statusColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                HospitalTheme.buildStatusBadge(
+                  investigation.status,
+                  color: statusColor,
                 ),
-              ],
-            ),
-            SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(Icons.person_outline,
-                    size: 16, color: HospitalTheme.textMedium),
-                SizedBox(width: 4),
-                Text(
-                  investigation.patientName,
-                  style: TextStyle(color: HospitalTheme.textMedium),
-                ),
-                // Add discharge status indicator
-                if (investigation.patientDischarged) ...[
-                  SizedBox(width: 8),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: HospitalTheme.success.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(4),
-                      border:
-                          Border.all(color: HospitalTheme.success, width: 0.5),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.exit_to_app,
-                            size: 12, color: HospitalTheme.success),
-                        SizedBox(width: 4),
-                        Text(
-                          'Discharged',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: HospitalTheme.success,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
               ],
             ),
             SizedBox(height: 4),
@@ -800,7 +709,6 @@ class _DoctorInvestigationScreenState extends State<DoctorInvestigationScreen> {
                           Methods().openPdf(
                               investigation.attachments!.first.fileUrl!);
                         } else {
-                          // Show error or message that file is not available
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                                 content:
@@ -825,14 +733,13 @@ class _DoctorInvestigationScreenState extends State<DoctorInvestigationScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildDetailCard(
-                      title: 'Basic Information',
-                      icon: Icons.info_outline,
-                      content: Column(
+                    HospitalTheme.buildCard(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildDetailItem(
-                              'Patient', investigation.patientName),
+                          HospitalTheme.buildSectionHeader('Basic Information'),
+                          _buildDetailItem('Patient',
+                              investigation.patientName ?? 'Unknown'),
                           _buildDetailItem(
                               'Patient ID', investigation.patientIdNumber),
                           _buildDetailItem('Doctor', investigation.doctorName),
@@ -848,12 +755,12 @@ class _DoctorInvestigationScreenState extends State<DoctorInvestigationScreen> {
                       ),
                     ),
                     SizedBox(height: 20),
-                    _buildDetailCard(
-                      title: 'Investigation Details',
-                      icon: Icons.science_outlined,
-                      content: Column(
+                    HospitalTheme.buildCard(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          HospitalTheme.buildSectionHeader(
+                              'Investigation Details'),
                           _buildDetailItem(
                               'Type', investigation.investigationType),
                           _buildDetailItem(
@@ -894,12 +801,12 @@ class _DoctorInvestigationScreenState extends State<DoctorInvestigationScreen> {
                     ),
                     if (investigation.billing != null) ...[
                       SizedBox(height: 20),
-                      _buildDetailCard(
-                        title: 'Billing Information',
-                        icon: Icons.payments_outlined,
-                        content: Column(
+                      HospitalTheme.buildCard(
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            HospitalTheme.buildSectionHeader(
+                                'Billing Information'),
                             _buildDetailItem(
                                 'Payment Status',
                                 investigation.billing!.paymentStatus ??
@@ -953,731 +860,814 @@ class _DoctorInvestigationScreenState extends State<DoctorInvestigationScreen> {
       ),
     );
   }
-}
 
-Widget _buildStatusWithPriorityIndicator(Investigation1 investigation) {
-  // Determine status color
-  Color statusColor;
-  switch (investigation.status) {
-    case 'Results Available':
-      statusColor = HospitalTheme.success;
-      break;
-    case 'Scheduled':
-      statusColor = HospitalTheme.info;
-      break;
-    case 'Pending':
-      statusColor = HospitalTheme.warning;
-      break;
-    case 'Cancelled':
-      statusColor = HospitalTheme.error;
-      break;
-    default:
-      statusColor = HospitalTheme.textMedium;
-  }
+  // ... [Copy all the helper methods from DoctorInvestigationScreen starting from _buildStatusWithPriorityIndicator to the end]
+  // I'll include the key ones here for brevity, but you would need all of them
 
-  return Row(
-    children: [
-      Container(
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        decoration: BoxDecoration(
-          color: statusColor.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: statusColor),
-        ),
-        child: Text(
-          investigation.status,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: statusColor,
+  Widget _buildStatusWithPriorityIndicator(Investigation1 investigation) {
+    // Determine status color
+    Color statusColor;
+    switch (investigation.status) {
+      case 'Results Available':
+        statusColor = HospitalTheme.success;
+        break;
+      case 'Scheduled':
+        statusColor = HospitalTheme.info;
+        break;
+      case 'Pending':
+        statusColor = HospitalTheme.warning;
+        break;
+      case 'Cancelled':
+        statusColor = HospitalTheme.error;
+        break;
+      default:
+        statusColor = HospitalTheme.textMedium;
+    }
+
+    return Row(
+      children: [
+        Container(
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: statusColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: statusColor),
           ),
-        ),
-      ),
-
-      SizedBox(width: 12),
-
-      // Priority indicator
-      Row(
-        children: [
-          Icon(
-            Icons.flag,
-            size: 16,
-            color: investigation.priority == 'Urgent'
-                ? HospitalTheme.error
-                : HospitalTheme.info,
-          ),
-          SizedBox(width: 4),
-          Text(
-            investigation.priority,
+          child: Text(
+            investigation.status,
             style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: statusColor,
+            ),
+          ),
+        ),
+
+        SizedBox(width: 12),
+
+        // Priority indicator
+        Row(
+          children: [
+            Icon(
+              Icons.flag,
+              size: 16,
               color: investigation.priority == 'Urgent'
                   ? HospitalTheme.error
                   : HospitalTheme.info,
-              fontWeight: FontWeight.w600,
+            ),
+            SizedBox(width: 4),
+            Text(
+              investigation.priority,
+              style: TextStyle(
+                color: investigation.priority == 'Urgent'
+                    ? HospitalTheme.error
+                    : HospitalTheme.info,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  String _formatInvestigationDetails(Map<String, dynamic> details) {
+    if (details.isEmpty) return 'No details available';
+
+    String result = '';
+
+    if (details.containsKey('parameters') && details['parameters'] is List) {
+      List<dynamic> parameters = details['parameters'];
+      result += 'Parameters: ${parameters.join(', ')}';
+    }
+
+    if (details.containsKey('bodySite')) {
+      if (result.isNotEmpty) result += '\n';
+      result += 'Body Site: ${details['bodySite']}';
+    }
+
+    // If there are other fields in the details that are not handled, add them
+    details.forEach((key, value) {
+      if (key != 'parameters' && key != 'bodySite') {
+        if (result.isNotEmpty) result += '\n';
+        if (value is List) {
+          result += '$key: ${value.join(', ')}';
+        } else {
+          result += '$key: $value';
+        }
+      }
+    });
+
+    return result;
+  }
+
+  Widget _buildActionButton({
+    required String label,
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
+    return ElevatedButton.icon(
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        foregroundColor: HospitalTheme.textOnPrimary,
+        backgroundColor: HospitalTheme.primary,
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+      onPressed: onPressed,
+    );
+  }
+
+  Widget _buildDetailCard({
+    required String title,
+    required IconData icon,
+    required Widget content,
+  }) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: HospitalTheme.surfaceLight,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, color: HospitalTheme.primary),
+                SizedBox(width: 8),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: HospitalTheme.primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Content
+          Padding(
+            padding: EdgeInsets.all(16),
+            child: content,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailItem(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              '$label:',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: HospitalTheme.textDark,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(color: HospitalTheme.textDark),
             ),
           ),
         ],
       ),
-    ],
-  );
-}
+    );
+  }
 
-Widget _buildActionButton({
-  required String label,
-  required IconData icon,
-  required VoidCallback onPressed,
-}) {
-  return ElevatedButton.icon(
-    icon: Icon(icon, size: 18),
-    label: Text(label),
-    style: ElevatedButton.styleFrom(
-      foregroundColor: HospitalTheme.textOnPrimary,
-      backgroundColor: HospitalTheme.primary,
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
+  Widget _buildResultsCard(Investigation1 investigation) {
+    if (investigation.results == null) return Container();
+
+    final results = investigation.results!;
+
+    return _buildDetailCard(
+      title: 'Results',
+      icon: Icons.assessment,
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (results.findings != null) ...[
+            Text(
+              'Findings:',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: HospitalTheme.textDark,
+              ),
+            ),
+            SizedBox(height: 4),
+            Text(
+              results.findings!,
+              style: TextStyle(color: HospitalTheme.textDark),
+            ),
+            SizedBox(height: 12),
+          ],
+          if (results.impression != null) ...[
+            Text(
+              'Impression:',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: HospitalTheme.textDark,
+              ),
+            ),
+            SizedBox(height: 4),
+            Text(
+              results.impression!,
+              style: TextStyle(color: HospitalTheme.textDark),
+            ),
+            SizedBox(height: 12),
+          ],
+          if (results.isAbnormal != null) ...[
+            _buildDetailItem(
+                'Abnormal Result', results.isAbnormal! ? 'Yes' : 'No'),
+            SizedBox(height: 8),
+          ],
+          if (results.numericalResults != null &&
+              results.numericalResults!.isNotEmpty) ...[
+            Text(
+              'Numerical Results:',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: HospitalTheme.textDark,
+              ),
+            ),
+            SizedBox(height: 8),
+            _buildNumericalResultsTable(results),
+            SizedBox(height: 12),
+          ],
+          if (results.recommendations != null) ...[
+            Text(
+              'Recommendations:',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: HospitalTheme.textDark,
+              ),
+            ),
+            SizedBox(height: 4),
+            Text(
+              results.recommendations!,
+              style: TextStyle(color: HospitalTheme.textDark),
+            ),
+          ],
+          if (investigation.performedBy != null) ...[
+            SizedBox(height: 16),
+            Divider(),
+            SizedBox(height: 8),
+            Text(
+              'Performed By:',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: HospitalTheme.textDark,
+              ),
+            ),
+            SizedBox(height: 4),
+            Text(
+              '${investigation.performedBy!.name} (${investigation.performedBy!.designation}), ${investigation.performedBy!.facility}',
+              style: TextStyle(
+                color: HospitalTheme.textDark,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ],
       ),
-    ),
-    onPressed: onPressed,
-  );
-}
+    );
+  }
 
-Widget _buildDetailCard({
-  required String title,
-  required IconData icon,
-  required Widget content,
-}) {
-  return Container(
-    width: double.infinity,
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.05),
-          blurRadius: 10,
-          offset: Offset(0, 2),
-        ),
-      ],
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildNumericalResultsTable(InvestigationResults results) {
+    // Extract normal ranges and numerical results
+    final numericalResults = results.numericalResults!;
+    final normalRanges = results.normalRanges ?? {};
+
+    // Create a list of all keys from both maps
+    final allKeys = <String>{};
+    allKeys.addAll(numericalResults.keys);
+    allKeys.addAll(normalRanges.keys);
+
+    return Table(
+      border: TableBorder.all(
+        color: HospitalTheme.border,
+        width: 1,
+      ),
+      columnWidths: {
+        0: FlexColumnWidth(2),
+        1: FlexColumnWidth(1),
+        2: FlexColumnWidth(2),
+      },
       children: [
-        // Header
-        Container(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        // Header row
+        TableRow(
           decoration: BoxDecoration(
             color: HospitalTheme.surfaceLight,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(12),
-              topRight: Radius.circular(12),
-            ),
           ),
-          child: Row(
-            children: [
-              Icon(icon, color: HospitalTheme.primary),
-              SizedBox(width: 8),
-              Text(
-                title,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: HospitalTheme.primary,
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        // Content
-        Padding(
-          padding: EdgeInsets.all(16),
-          child: content,
-        ),
-      ],
-    ),
-  );
-}
-
-Widget _buildDetailItem(String label, String value) {
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 8.0),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 120,
-          child: Text(
-            '$label:',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: HospitalTheme.textDark,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: TextStyle(color: HospitalTheme.textDark),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-Widget _buildResultsCard(Investigation1 investigation) {
-  if (investigation.results == null) return Container();
-
-  final results = investigation.results!;
-
-  return _buildDetailCard(
-    title: 'Results',
-    icon: Icons.assessment,
-    content: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (results.findings != null) ...[
-          Text(
-            'Findings:',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: HospitalTheme.textDark,
-            ),
-          ),
-          SizedBox(height: 4),
-          Text(
-            results.findings!,
-            style: TextStyle(color: HospitalTheme.textDark),
-          ),
-          SizedBox(height: 12),
-        ],
-        if (results.impression != null) ...[
-          Text(
-            'Impression:',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: HospitalTheme.textDark,
-            ),
-          ),
-          SizedBox(height: 4),
-          Text(
-            results.impression!,
-            style: TextStyle(color: HospitalTheme.textDark),
-          ),
-          SizedBox(height: 12),
-        ],
-        if (results.isAbnormal != null) ...[
-          _buildDetailItem(
-              'Abnormal Result', results.isAbnormal! ? 'Yes' : 'No'),
-          SizedBox(height: 8),
-        ],
-        if (results.numericalResults != null &&
-            results.numericalResults!.isNotEmpty) ...[
-          Text(
-            'Numerical Results:',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: HospitalTheme.textDark,
-            ),
-          ),
-          SizedBox(height: 8),
-          _buildNumericalResultsTable(results),
-          SizedBox(height: 12),
-        ],
-        if (results.recommendations != null) ...[
-          Text(
-            'Recommendations:',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: HospitalTheme.textDark,
-            ),
-          ),
-          SizedBox(height: 4),
-          Text(
-            results.recommendations!,
-            style: TextStyle(color: HospitalTheme.textDark),
-          ),
-        ],
-        if (investigation.performedBy != null) ...[
-          SizedBox(height: 16),
-          Divider(),
-          SizedBox(height: 8),
-          Text(
-            'Performed By:',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: HospitalTheme.textDark,
-            ),
-          ),
-          SizedBox(height: 4),
-          Text(
-            '${investigation.performedBy!.name} (${investigation.performedBy!.designation}), ${investigation.performedBy!.facility}',
-            style: TextStyle(
-              color: HospitalTheme.textDark,
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-        ],
-      ],
-    ),
-  );
-}
-
-Widget _buildNumericalResultsTable(InvestigationResults results) {
-  // Extract normal ranges and numerical results
-  final numericalResults = results.numericalResults!;
-  final normalRanges = results.normalRanges ?? {};
-
-  // Create a list of all keys from both maps
-  final allKeys = <String>{};
-  allKeys.addAll(numericalResults.keys);
-  allKeys.addAll(normalRanges.keys);
-
-  return Table(
-    border: TableBorder.all(
-      color: HospitalTheme.border,
-      width: 1,
-    ),
-    columnWidths: {
-      0: FlexColumnWidth(2),
-      1: FlexColumnWidth(1),
-      2: FlexColumnWidth(2),
-    },
-    children: [
-      // Header row
-      TableRow(
-        decoration: BoxDecoration(
-          color: HospitalTheme.surfaceLight,
-        ),
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text(
-              'Parameter',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: HospitalTheme.textDark,
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text(
-              'Value',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: HospitalTheme.textDark,
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text(
-              'Normal Range',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: HospitalTheme.textDark,
-              ),
-            ),
-          ),
-        ],
-      ),
-      // Data rows
-      ...allKeys.map((key) {
-        final value = numericalResults[key]?.toString() ?? '-';
-        final range = normalRanges[key] ?? '-';
-
-        bool isAbnormal = false;
-        if (normalRanges.containsKey(key) &&
-            numericalResults.containsKey(key)) {
-          // Simple range check for numerical values
-          if (range.contains('-')) {
-            try {
-              final rangeParts = range.split('-');
-              if (rangeParts.length == 2) {
-                final minValue = double.tryParse(
-                    rangeParts[0].replaceAll(RegExp(r'[^\d.]'), ''));
-                final maxValue = double.tryParse(
-                    rangeParts[1].replaceAll(RegExp(r'[^\d.]'), ''));
-                final actualValue = numericalResults[key] is num
-                    ? (numericalResults[key] as num).toDouble()
-                    : double.tryParse(value);
-
-                if (minValue != null &&
-                    maxValue != null &&
-                    actualValue != null) {
-                  isAbnormal = actualValue < minValue || actualValue > maxValue;
-                }
-              }
-            } catch (e) {
-              // Ignore parsing errors
-            }
-          }
-        }
-
-        return TableRow(
           children: [
             Padding(
               padding: const EdgeInsets.all(8.0),
-              child: Text(key),
+              child: Text(
+                'Parameter',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: HospitalTheme.textDark,
+                ),
+              ),
             ),
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Text(
-                value,
+                'Value',
                 style: TextStyle(
-                  color:
-                      isAbnormal ? HospitalTheme.error : HospitalTheme.textDark,
-                  fontWeight: isAbnormal ? FontWeight.bold : FontWeight.normal,
+                  fontWeight: FontWeight.bold,
+                  color: HospitalTheme.textDark,
                 ),
               ),
             ),
             Padding(
               padding: const EdgeInsets.all(8.0),
-              child: Text(range),
+              child: Text(
+                'Normal Range',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: HospitalTheme.textDark,
+                ),
+              ),
             ),
           ],
-        );
-      }).toList(),
-    ],
-  );
-}
+        ),
+        // Data rows
+        ...allKeys.map((key) {
+          final value = numericalResults[key]?.toString() ?? '-';
+          final range = normalRanges[key] ?? '-';
 
-Widget _buildAttachmentsCard(Investigation1 investigation) {
-  if (investigation.attachments == null || investigation.attachments!.isEmpty) {
-    return Container();
-  }
+          bool isAbnormal = false;
+          if (normalRanges.containsKey(key) &&
+              numericalResults.containsKey(key)) {
+            // Simple range check for numerical values
+            if (range.contains('-')) {
+              try {
+                final rangeParts = range.split('-');
+                if (rangeParts.length == 2) {
+                  final minValue = double.tryParse(
+                      rangeParts[0].replaceAll(RegExp(r'[^\d.]'), ''));
+                  final maxValue = double.tryParse(
+                      rangeParts[1].replaceAll(RegExp(r'[^\d.]'), ''));
+                  final actualValue = numericalResults[key] is num
+                      ? (numericalResults[key] as num).toDouble()
+                      : double.tryParse(value);
 
-  return _buildDetailCard(
-    title: 'Attachments',
-    icon: Icons.attach_file,
-    content: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: investigation.attachments!.map((attachment) {
-        return Container(
-          margin: EdgeInsets.only(bottom: 12),
-          padding: EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: HospitalTheme.surfaceLight.withOpacity(0.5),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: HospitalTheme.border),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+                  if (minValue != null &&
+                      maxValue != null &&
+                      actualValue != null) {
+                    isAbnormal =
+                        actualValue < minValue || actualValue > maxValue;
+                  }
+                }
+              } catch (e) {
+                // Ignore parsing errors
+              }
+            }
+          }
+
+          return TableRow(
             children: [
-              Row(
-                children: [
-                  Icon(
-                    _getFileIcon(attachment.fileType ?? ''),
-                    color: HospitalTheme.primary,
-                    size: 20,
-                  ),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      attachment.fileName ?? 'Unnamed File',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: HospitalTheme.textDark,
-                      ),
-                    ),
-                  ),
-                ],
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Text(key),
               ),
-              if (attachment.description != null) ...[
-                SizedBox(height: 8),
-                Text(
-                  attachment.description!,
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Text(
+                  value,
                   style: TextStyle(
-                    fontStyle: FontStyle.italic,
-                    color: HospitalTheme.textMedium,
-                    fontSize: 13,
+                    color: isAbnormal
+                        ? HospitalTheme.error
+                        : HospitalTheme.textDark,
+                    fontWeight:
+                        isAbnormal ? FontWeight.bold : FontWeight.normal,
                   ),
                 ),
-              ],
-              SizedBox(height: 8),
-              Row(
-                children: [
-                  Text(
-                    'Uploaded: ${_formatDate(attachment.uploadDate!)}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: HospitalTheme.textMedium,
-                    ),
-                  ),
-                  Spacer(),
-                  ElevatedButton.icon(
-                    icon: Icon(Icons.visibility, size: 16),
-                    label: Text('View'),
-                    style: ElevatedButton.styleFrom(
-                      foregroundColor: HospitalTheme.textOnPrimary,
-                      backgroundColor: HospitalTheme.primary,
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      textStyle: TextStyle(fontSize: 12),
-                      minimumSize: Size(100, 36),
-                    ),
-                    onPressed: () {
-                      if (attachment.fileUrl != null) {
-                        Methods().openPdf(attachment.fileUrl!);
-                      } else {
-                        // ScaffoldMessenger.of(context).showSnackBar(
-                        //   SnackBar(content: Text('No viewable file available')),
-                        // );
-                      }
-                    },
-                  ),
-                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Text(range),
               ),
             ],
-          ),
-        );
-      }).toList(),
-    ),
-  );
-}
-
-IconData _getFileIcon(String fileType) {
-  switch (fileType.toUpperCase()) {
-    case 'PDF':
-      return Icons.picture_as_pdf;
-    case 'JPEG':
-    case 'JPG':
-    case 'PNG':
-    case 'GIF':
-      return Icons.image;
-    case 'DOC':
-    case 'DOCX':
-      return Icons.description;
-    case 'XLS':
-    case 'XLSX':
-      return Icons.table_chart;
-    default:
-      return Icons.insert_drive_file;
-  }
-}
-
-Widget _buildNotesCard(Investigation1 investigation) {
-  if (investigation.notes == null || investigation.notes!.isEmpty) {
-    return Container();
+          );
+        }).toList(),
+      ],
+    );
   }
 
-  return _buildDetailCard(
-    title: 'Notes',
-    icon: Icons.note,
-    content: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: investigation.notes!.map((note) {
-        return Container(
-          margin: EdgeInsets.only(bottom: 12),
-          padding: EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: HospitalTheme.border),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                note.text ?? '',
-                style: TextStyle(color: HospitalTheme.textDark),
-              ),
-              SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
+  Widget _buildAttachmentsCard(Investigation1 investigation) {
+    if (investigation.attachments == null ||
+        investigation.attachments!.isEmpty) {
+      return Container();
+    }
+
+    return _buildDetailCard(
+      title: 'Attachments',
+      icon: Icons.attach_file,
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: investigation.attachments!.map((attachment) {
+          return Container(
+            margin: EdgeInsets.only(bottom: 12),
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: HospitalTheme.surfaceLight.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: HospitalTheme.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      _getFileIcon(attachment.fileType ?? ''),
+                      color: HospitalTheme.primary,
+                      size: 20,
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        attachment.fileName ?? 'Unnamed File',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: HospitalTheme.textDark,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (attachment.description != null) ...[
+                  SizedBox(height: 8),
                   Text(
-                    'Added by: ${note.addedBy?.name ?? 'Unknown'} (${note.addedBy?.userType ?? 'Staff'})',
+                    attachment.description!,
                     style: TextStyle(
-                      fontSize: 12,
                       fontStyle: FontStyle.italic,
                       color: HospitalTheme.textMedium,
-                    ),
-                  ),
-                  Spacer(),
-                  Text(
-                    _formatDate(note.dateAdded!),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: HospitalTheme.textMedium,
+                      fontSize: 13,
                     ),
                   ),
                 ],
-              ),
-            ],
-          ),
-        );
-      }).toList(),
-    ),
-  );
-}
-
-Widget _buildTagsCard(Investigation1 investigation) {
-  return _buildDetailCard(
-    title: 'Tags',
-    icon: Icons.local_offer_outlined,
-    content: Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: investigation.tags!.map((tag) {
-        return Container(
-          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: HospitalTheme.surfaceLight,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: HospitalTheme.primary.withOpacity(0.3)),
-          ),
-          child: Text(
-            tag,
-            style: TextStyle(
-              color: HospitalTheme.primary,
-              fontWeight: FontWeight.w500,
+                SizedBox(height: 8),
+                Row(
+                  children: [
+                    Text(
+                      'Uploaded: ${_formatDate(attachment.uploadDate!)}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: HospitalTheme.textMedium,
+                      ),
+                    ),
+                    Spacer(),
+                    ElevatedButton.icon(
+                      icon: Icon(Icons.visibility, size: 16),
+                      label: Text('View'),
+                      style: ElevatedButton.styleFrom(
+                        foregroundColor: HospitalTheme.textOnPrimary,
+                        backgroundColor: HospitalTheme.primary,
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        textStyle: TextStyle(fontSize: 12),
+                        minimumSize: Size(100, 36),
+                      ),
+                      onPressed: () {
+                        if (attachment.fileUrl != null) {
+                          Methods().openPdf(attachment.fileUrl!);
+                        } else {
+                          // ScaffoldMessenger.of(context).showSnackBar(
+                          //   SnackBar(content: Text('No viewable file available')),
+                          // );
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ),
-        );
-      }).toList(),
-    ),
-  );
-}
-
-String _formatDate(String dateString) {
-  try {
-    final date = DateTime.parse(dateString);
-    return DateFormat('MMM dd, yyyy • hh:mm a').format(date);
-  } catch (e) {
-    return dateString;
-  }
-}
-
-String _formatInvestigationDetails(Map<String, dynamic> details) {
-  if (details.isEmpty) return 'No details available';
-
-  String result = '';
-
-  if (details.containsKey('parameters') && details['parameters'] is List) {
-    List<dynamic> parameters = details['parameters'];
-    result += 'Parameters: ${parameters.join(', ')}';
+          );
+        }).toList(),
+      ),
+    );
   }
 
-  if (details.containsKey('bodySite')) {
-    if (result.isNotEmpty) result += '\n';
-    result += 'Body Site: ${details['bodySite']}';
-  }
-
-  // If there are other fields in the details that are not handled, add them
-  details.forEach((key, value) {
-    if (key != 'parameters' && key != 'bodySite') {
-      if (result.isNotEmpty) result += '\n';
-      if (value is List) {
-        result += '$key: ${value.join(', ')}';
-      } else {
-        result += '$key: $value';
-      }
+  IconData _getFileIcon(String fileType) {
+    switch (fileType.toUpperCase()) {
+      case 'PDF':
+        return Icons.picture_as_pdf;
+      case 'JPEG':
+      case 'JPG':
+      case 'PNG':
+      case 'GIF':
+        return Icons.image;
+      case 'DOC':
+      case 'DOCX':
+        return Icons.description;
+      case 'XLS':
+      case 'XLSX':
+        return Icons.table_chart;
+      default:
+        return Icons.insert_drive_file;
     }
-  });
+  }
 
-  return result;
+  Widget _buildNotesCard(Investigation1 investigation) {
+    if (investigation.notes == null || investigation.notes!.isEmpty) {
+      return Container();
+    }
+
+    return _buildDetailCard(
+      title: 'Notes',
+      icon: Icons.note,
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: investigation.notes!.map((note) {
+          return Container(
+            margin: EdgeInsets.only(bottom: 12),
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: HospitalTheme.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  note.text ?? '',
+                  style: TextStyle(color: HospitalTheme.textDark),
+                ),
+                SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Added by: ${note.addedBy?.name ?? 'Unknown'} (${note.addedBy?.userType ?? 'Staff'})',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                        color: HospitalTheme.textMedium,
+                      ),
+                    ),
+                    Spacer(),
+                    Text(
+                      _formatDate(note.dateAdded!),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: HospitalTheme.textMedium,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildTagsCard(Investigation1 investigation) {
+    return _buildDetailCard(
+      title: 'Tags',
+      icon: Icons.local_offer_outlined,
+      content: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: investigation.tags!.map((tag) {
+          return Container(
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: HospitalTheme.surfaceLight,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: HospitalTheme.primary.withOpacity(0.3)),
+            ),
+            child: Text(
+              tag,
+              style: TextStyle(
+                color: HospitalTheme.primary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  String _formatDate(dynamic dateInput) {
+    try {
+      DateTime date;
+      if (dateInput is String) {
+        date = DateTime.parse(dateInput);
+      } else if (dateInput is DateTime) {
+        date = dateInput;
+      } else {
+        return dateInput.toString();
+      }
+      return DateFormat('MMM dd, yyyy • hh:mm a').format(date);
+    } catch (e) {
+      return dateInput.toString();
+    }
+  }
 }
 
-// Data models for investigation
-
+// You would also need to copy the Investigation1 class and all its related models as they are the same// Fixed model for Doctor investigation results
 class Investigation1 {
   final String id;
+  final Patient? patient; // Changed to include full patient object
   final String patientIdNumber;
-  final String patientName;
-  final String doctorId;
+  final Doctor? doctor; // Changed to include doctor object
   final String doctorName;
   final String investigationType;
   final String status;
-  final String orderDate;
+  final DateTime orderDate;
   final String reasonForInvestigation;
   final String priority;
-  final Map<String, dynamic>? investigationDetails;
+  final Map<String, dynamic> investigationDetails;
   final String admissionRecordId;
-  final Billing? billing;
-  final List<String>? tags;
-  final List<Attachment>? attachments;
-  final List<Note>? notes;
-  final String? scheduledDate;
+  final Billing billing;
+  final List<String> tags;
+  final List<Attachment> attachments;
+  final List<Note> notes;
+  final DateTime? scheduledDate;
+  final DateTime? completionDate;
   final String? clinicalHistory;
-  final String? completionDate;
   final PerformedBy? performedBy;
   final InvestigationResults? results;
-  final int daysSinceOrdered;
-  final bool isOverdue;
   final bool hasAttachments;
   final bool hasResults;
+  final bool isOverdue;
+  final int daysSinceOrdered;
   final bool patientDischarged;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final int? version;
+
+  // Add getters for backward compatibility
+  String? get patientName => patient?.name;
+  String? get patientId => patient?.id;
+  String? get doctorId => doctor?.id;
 
   Investigation1({
     required this.id,
+    this.patient,
     required this.patientIdNumber,
-    required this.patientName,
-    required this.doctorId,
+    this.doctor,
     required this.doctorName,
     required this.investigationType,
     required this.status,
     required this.orderDate,
     required this.reasonForInvestigation,
     required this.priority,
-    this.investigationDetails,
+    required this.investigationDetails,
     required this.admissionRecordId,
-    this.billing,
-    this.tags,
-    this.attachments,
-    this.notes,
+    required this.billing,
+    required this.tags,
+    required this.attachments,
+    required this.notes,
     this.scheduledDate,
-    this.clinicalHistory,
     this.completionDate,
+    this.clinicalHistory,
     this.performedBy,
     this.results,
-    required this.daysSinceOrdered,
-    required this.isOverdue,
-    required this.hasAttachments,
-    required this.hasResults,
-    required this.patientDischarged,
+    this.hasAttachments = false,
+    this.hasResults = false,
+    this.isOverdue = false,
+    this.daysSinceOrdered = 0,
+    this.patientDischarged = false,
+    this.createdAt,
+    this.updatedAt,
+    this.version,
   });
 
   factory Investigation1.fromJson(Map<String, dynamic> json) {
     return Investigation1(
       id: json['_id'] ?? '',
+      patient:
+          json['patientId'] != null && json['patientId'] is Map<String, dynamic>
+              ? Patient.fromJson(json['patientId'])
+              : null,
       patientIdNumber: json['patientIdNumber'] ?? '',
-      patientName: json['patientId']?['name'] ?? 'Unknown Patient',
-      doctorId: json['doctorId'] ?? '',
-      doctorName: json['doctorName'] ?? 'Unknown Doctor',
-      investigationType: json['investigationType'] ?? 'Unknown Test',
-      status: json['status'] ?? 'Pending',
-      orderDate: json['orderDate'] ?? '',
-      reasonForInvestigation: json['reasonForInvestigation'] ?? 'Not specified',
-      priority: json['priority'] ?? 'Routine',
-      investigationDetails: json['investigationDetails'],
+      doctor:
+          json['doctorId'] != null && json['doctorId'] is Map<String, dynamic>
+              ? Doctor.fromJson(json['doctorId'])
+              : null,
+      doctorName: json['doctorName'] ?? '',
+      investigationType: json['investigationType'] ?? '',
+      status: json['status'] ?? '',
+      orderDate:
+          DateTime.parse(json['orderDate'] ?? DateTime.now().toIso8601String()),
+      reasonForInvestigation: json['reasonForInvestigation'] ?? '',
+      priority: json['priority'] ?? '',
+      investigationDetails: json['investigationDetails'] ?? {},
       admissionRecordId: json['admissionRecordId'] ?? '',
-      billing:
-          json['billing'] != null ? Billing.fromJson(json['billing']) : null,
-      tags: json['tags'] != null ? List<String>.from(json['tags']) : null,
-      attachments: json['attachments'] != null
-          ? (json['attachments'] as List)
-              .map((attachment) => Attachment.fromJson(attachment))
-              .toList()
+      billing: Billing.fromJson(json['billing'] ?? {}),
+      tags: List<String>.from(json['tags'] ?? []),
+      attachments: (json['attachments'] as List<dynamic>?)
+              ?.map((item) => Attachment.fromJson(item as Map<String, dynamic>))
+              .toList() ??
+          [],
+      notes: (json['notes'] as List<dynamic>?)
+              ?.map((item) => Note.fromJson(item as Map<String, dynamic>))
+              .toList() ??
+          [],
+      scheduledDate: json['scheduledDate'] != null
+          ? DateTime.parse(json['scheduledDate'])
           : null,
-      notes: json['notes'] != null
-          ? (json['notes'] as List).map((note) => Note.fromJson(note)).toList()
+      completionDate: json['completionDate'] != null
+          ? DateTime.parse(json['completionDate'])
           : null,
-      scheduledDate: json['scheduledDate'],
       clinicalHistory: json['clinicalHistory'],
-      completionDate: json['completionDate'],
       performedBy: json['performedBy'] != null
           ? PerformedBy.fromJson(json['performedBy'])
           : null,
       results: json['results'] != null
           ? InvestigationResults.fromJson(json['results'])
           : null,
-      daysSinceOrdered: json['daysSinceOrdered'] ?? 0,
-      isOverdue: json['isOverdue'] ?? false,
       hasAttachments: json['hasAttachments'] ?? false,
       hasResults: json['hasResults'] ?? false,
-      patientDischarged: json['patientId']?['discharged'] ?? false,
+      isOverdue: json['isOverdue'] ?? false,
+      daysSinceOrdered: json['daysSinceOrdered'] ?? 0,
+      patientDischarged: json['patientDischarged'] ?? false,
+      createdAt:
+          json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
+      updatedAt:
+          json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
+      version: json['__v'],
+    );
+  }
+}
+
+// Add these new models for Patient and Doctor
+class Patient {
+  final String id;
+  final String name;
+  final int age;
+  final String gender;
+  final String contact;
+  final bool discharged;
+
+  Patient({
+    required this.id,
+    required this.name,
+    required this.age,
+    required this.gender,
+    required this.contact,
+    required this.discharged,
+  });
+
+  factory Patient.fromJson(Map<String, dynamic> json) {
+    return Patient(
+      id: json['_id'] ?? '',
+      name: json['name'] ?? '',
+      age: json['age'] ?? 0,
+      gender: json['gender'] ?? '',
+      contact: json['contact'] ?? '',
+      discharged: json['discharged'] ?? false,
+    );
+  }
+}
+
+class Doctor {
+  final String id;
+
+  Doctor({
+    required this.id,
+  });
+
+  factory Doctor.fromJson(Map<String, dynamic> json) {
+    return Doctor(
+      id: json['_id'] ?? '',
     );
   }
 }
@@ -1703,6 +1693,7 @@ class Billing {
 }
 
 class Attachment {
+  final String? id; // Add this
   final String? fileName;
   final String? fileType;
   final String? fileUrl;
@@ -1710,6 +1701,7 @@ class Attachment {
   final String? description;
 
   Attachment({
+    this.id,
     this.fileName,
     this.fileType,
     this.fileUrl,
@@ -1719,6 +1711,7 @@ class Attachment {
 
   factory Attachment.fromJson(Map<String, dynamic> json) {
     return Attachment(
+      id: json['_id'], // Add this
       fileName: json['fileName'],
       fileType: json['fileType'],
       fileUrl: json['fileUrl'],
@@ -1749,11 +1742,13 @@ class AddedBy {
 }
 
 class Note {
+  final String? id; // Add this
   final String? text;
   final AddedBy? addedBy;
   final String? dateAdded;
 
   Note({
+    this.id,
     this.text,
     this.addedBy,
     this.dateAdded,
@@ -1761,6 +1756,7 @@ class Note {
 
   factory Note.fromJson(Map<String, dynamic> json) {
     return Note(
+      id: json['_id'], // Add this
       text: json['text'],
       addedBy:
           json['addedBy'] != null ? AddedBy.fromJson(json['addedBy']) : null,

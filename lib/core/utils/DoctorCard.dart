@@ -1,4 +1,5 @@
 import 'package:doctordesktop/authProvider/auth_provider.dart';
+import 'package:doctordesktop/screens/login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -178,7 +179,12 @@ class DoctorCard extends ConsumerWidget {
             TextButton(
               onPressed: () async {
                 await authController.logout();
-                Navigator.pop(context); // Close dialog
+                // Navigate back to LoginScreen and clear navigation history
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen1()),
+                  (route) => false,
+                );
               },
               child: const Text("Logout"),
             ),

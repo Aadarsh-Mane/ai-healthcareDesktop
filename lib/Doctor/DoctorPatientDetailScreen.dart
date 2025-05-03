@@ -1,4 +1,3 @@
-import 'dart:ffi';
 import 'dart:math';
 import 'dart:ui';
 
@@ -15,10 +14,12 @@ import 'package:doctordesktop/Doctor/DoctorMainScreen.dart';
 import 'package:doctordesktop/Doctor/DoctorProfile.dart';
 import 'package:doctordesktop/Doctor/PatientHistoryDetailScreen.dart';
 import 'package:doctordesktop/Doctor/Tabs/AdmissionLabReportScreen.dart';
+import 'package:doctordesktop/Doctor/Tabs/CreateInvestigstion.dart';
 import 'package:doctordesktop/Doctor/Tabs/DiagnosisScreen.dart';
 import 'package:doctordesktop/Doctor/Tabs/GetInvestigation.dart';
 import 'package:doctordesktop/Doctor/Tabs/InvestigationScreen.dart';
 import 'package:doctordesktop/Doctor/Tabs/PatientCheck.dart';
+import 'package:doctordesktop/Doctor/Tabs/PatientInvestigation.dart';
 import 'package:doctordesktop/Doctor/Tabs/PatientProfileScreen.dart';
 import 'package:doctordesktop/Doctor/Tabs/PrescriptionScreen.dart';
 import 'package:doctordesktop/Doctor/Tabs/SymptomsLayout.dart';
@@ -1125,39 +1126,46 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                                     hasSubmenu: true,
                                     submenuItems: [
                                       SubmenuItem(
-                                        label: 'Investigation Results',
+                                        label:
+                                            'Investigation Results ${widget.patient.name}',
                                         icon: Icons.science,
                                         onTap: () {
                                           Navigator.push(
                                             context,
                                             MaterialPageRoute(
                                               builder: (context) =>
-                                                  DoctorInvestigationScreen(
+                                                  PatientInvestigationScreen(
                                                 patientId:
                                                     widget.patient.patientId,
                                                 admissionId: widget.patient
                                                     .admissionRecords.first.id,
                                               ),
+                                              //     DoctorInvestigationScreen(
+                                              //   patientId:
+                                              //       widget.patient.patientId,
+                                              //   admissionId: widget.patient
+                                              //       .admissionRecords.first.id,
+                                              // ),
                                             ),
                                           );
                                         },
                                       ),
-                                      SubmenuItem(
-                                        label: 'Investigation lab',
-                                        icon: Icons.image,
-                                        onTap: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                                  InvestigationScreen1(),
-                                            ),
-                                          );
-                                        },
-                                      ),
+                                      // SubmenuItem(
+                                      //   label: 'Investigation lab',
+                                      //   icon: Icons.image,
+                                      //   onTap: () {
+                                      //     Navigator.push(
+                                      //       context,
+                                      //       MaterialPageRoute(
+                                      //         builder: (context) =>
+                                      //             InvestigationScreen1(),
+                                      //       ),
+                                      //     );
+                                      //   },
+                                      // ),
                                       SubmenuItem(
                                         label:
-                                            'Laboratory Patient ${widget.patient.name}',
+                                            'Laboratory Results ${widget.patient.name}',
                                         icon: Icons.assignment,
                                         onTap: () {
                                           Navigator.push(
@@ -4026,177 +4034,89 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
         final double fixedHeight =
             isMediumScreen && !isLargeScreen ? 300 : double.infinity;
 
-        return Container(
-          decoration: BoxDecoration(
-            color: Color(0xFFF8FBFD), // Light background
-          ),
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // First row: Overview and Prescription - side by side for medium and large screens
-                  isMediumScreen
-                      ? Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Patient Overview - Left column (45%)
-                            Expanded(
-                              flex: 45,
-                              child: _buildStyledSectionContainer(
-                                context,
-                                child: _buildOverviewSection1(context, ref),
-                                title: 'Patient Overview',
-                                icon: Icons.person_outline,
-                                maxHeight: fixedHeight,
-                              ),
-                            ),
-                            SizedBox(width: 16),
-                            // Prescription - Right column (55%) with fixed height and scrolling
-                            Expanded(
-                              flex: 45,
-                              child: _buildStyledSectionContainer(
-                                context,
-                                child: _buildPrescriptionLayout(),
-                                title: 'Prescription Management',
-                                icon: Icons.medication_outlined,
-                                maxHeight: fixedHeight,
-                              ),
-                            ),
-                          ],
-                        )
-                      : // For smaller screens, stack them vertically
-                      Column(
-                          children: [
-                            _buildStyledSectionContainer(
-                              context,
-                              child: _buildOverviewSection1(context, ref),
-                              title: 'Patient Overview',
-                              icon: Icons.person_outline,
-                            ),
-                            SizedBox(height: 16),
-                            _buildStyledSectionContainer(
-                              context,
-                              child: _buildPrescriptionLayout(),
-                              title: 'Prescription Management',
-                              icon: Icons.medication_outlined,
-                            ),
-                          ],
-                        ),
-
-                  SizedBox(height: 16),
-
-                  // Second row: Vitals, Symptoms and Diagnosis
-                  isLargeScreen
-                      ? // Three columns on large screens
-                      Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Vitals
-                            Expanded(
-                              child: _buildStyledSectionContainer(
-                                context,
-                                child: _buildVitalsLayout(),
-                                title: 'Vitals Monitoring',
-                                icon: Icons.monitor_heart_outlined,
-                              ),
-                            ),
-                            SizedBox(width: 16),
-                            // Symptoms
-                            Expanded(
-                                child: _buildStyledSectionContainer(
-                              context,
-                              child: SymptomsLayout(
-                                patientId: widget.patient.patientId,
-                                admissionId:
-                                    widget.patient.admissionRecords.first.id,
-                                addSymptomsByDoctor: doctor.addSymptomsByDoctor,
-                              ),
-                              title: 'Symptoms',
-                              icon: Icons.medical_services_outlined,
-                            )),
-                            SizedBox(width: 16),
-                            // Diagnosis
-                            Expanded(
-                              child: _buildStyledSectionContainer(
-                                context,
-                                child: buildDiagnosisLayout(
-                                  admissionId: admissionId,
-                                  patientId: patientId,
-                                  addDoctorDiagnosis: doctor.addDoctorDiagnosis,
-                                  fetchDoctorDiagnosis:
-                                      doctor.fetchDoctorDiagnosis,
-                                ),
-                                title: 'Diagnosis',
-                                icon: Icons.description_outlined,
-                              ),
-                            ),
-                          ],
-                        )
-                      : // Stack in one or two columns for medium/small screens
+        return Stack(
+          children: [
+            // Main content area
+            Container(
+              decoration: BoxDecoration(
+                color: Color(0xFFF8FBFD), // Light background
+              ),
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // First row: Overview and Prescription - side by side for medium and large screens
                       isMediumScreen
-                          ? // Two columns for medium screens (Mac/laptop)
-                          Column(
+                          ? Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // Vitals
-                                    Expanded(
-                                      child: _buildStyledSectionContainer(
-                                        context,
-                                        child: _buildVitalsLayout(),
-                                        title: 'Vitals Monitoring',
-                                        icon: Icons.monitor_heart_outlined,
-                                      ),
-                                    ),
-                                    SizedBox(width: 16),
-                                    // Symptoms
-                                    Expanded(
-                                      child: _buildStyledSectionContainer(
-                                        context,
-                                        child: SymptomsLayout(
-                                          patientId: widget.patient.patientId,
-                                          admissionId: widget.patient
-                                              .admissionRecords.first.id,
-                                          addSymptomsByDoctor:
-                                              doctor.addSymptomsByDoctor,
-                                        ),
-                                        title: 'Symptoms',
-                                        icon: Icons.medical_services_outlined,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                SizedBox(height: 16),
-                                // Diagnosis full width
-                                _buildStyledSectionContainer(
-                                  context,
-                                  child: buildDiagnosisLayout(
-                                    admissionId: admissionId,
-                                    patientId: patientId,
-                                    addDoctorDiagnosis:
-                                        doctor.addDoctorDiagnosis,
-                                    fetchDoctorDiagnosis:
-                                        doctor.fetchDoctorDiagnosis,
+                                // Patient Overview - Left column (45%)
+                                Expanded(
+                                  flex: 45,
+                                  child: _buildStyledSectionContainer(
+                                    context,
+                                    child: _buildOverviewSection1(context, ref),
+                                    title: 'Patient Overview',
+                                    icon: Icons.person_outline,
+                                    maxHeight: fixedHeight,
                                   ),
-                                  title: 'Diagnosis',
-                                  icon: Icons.description_outlined,
+                                ),
+                                SizedBox(width: 16),
+                                // Prescription - Right column (55%) with fixed height and scrolling
+                                Expanded(
+                                  flex: 45,
+                                  child: _buildStyledSectionContainer(
+                                    context,
+                                    child: _buildPrescriptionLayout(),
+                                    title: 'Prescription Management',
+                                    icon: Icons.medication_outlined,
+                                    maxHeight: fixedHeight,
+                                  ),
                                 ),
                               ],
                             )
-                          : // Single column for small screens (mobile)
+                          : // For smaller screens, stack them vertically
                           Column(
                               children: [
                                 _buildStyledSectionContainer(
                                   context,
-                                  child: _buildVitalsLayout(),
-                                  title: 'Vitals Monitoring',
-                                  icon: Icons.monitor_heart_outlined,
+                                  child: _buildOverviewSection1(context, ref),
+                                  title: 'Patient Overview',
+                                  icon: Icons.person_outline,
                                 ),
                                 SizedBox(height: 16),
                                 _buildStyledSectionContainer(
+                                  context,
+                                  child: _buildPrescriptionLayout(),
+                                  title: 'Prescription Management',
+                                  icon: Icons.medication_outlined,
+                                ),
+                              ],
+                            ),
+
+                      SizedBox(height: 16),
+
+                      // Second row: Vitals, Symptoms and Diagnosis
+                      isLargeScreen
+                          ? // Three columns on large screens
+                          Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Vitals
+                                Expanded(
+                                  child: _buildStyledSectionContainer(
+                                    context,
+                                    child: _buildVitalsLayout(),
+                                    title: 'Vitals Monitoring',
+                                    icon: Icons.monitor_heart_outlined,
+                                  ),
+                                ),
+                                SizedBox(width: 16),
+                                // Symptoms
+                                Expanded(
+                                    child: _buildStyledSectionContainer(
                                   context,
                                   child: SymptomsLayout(
                                     patientId: widget.patient.patientId,
@@ -4207,27 +4127,453 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                                   ),
                                   title: 'Symptoms',
                                   icon: Icons.medical_services_outlined,
-                                ),
-                                SizedBox(height: 16),
-                                _buildStyledSectionContainer(
-                                  context,
-                                  child: buildDiagnosisLayout(
-                                    admissionId: admissionId,
-                                    patientId: patientId,
-                                    addDoctorDiagnosis:
-                                        doctor.addDoctorDiagnosis,
-                                    fetchDoctorDiagnosis:
-                                        doctor.fetchDoctorDiagnosis,
+                                )),
+                                SizedBox(width: 16),
+                                // Diagnosis
+                                Expanded(
+                                  child: _buildStyledSectionContainer(
+                                    context,
+                                    child: buildDiagnosisLayout(
+                                      admissionId: admissionId,
+                                      patientId: patientId,
+                                      addDoctorDiagnosis:
+                                          doctor.addDoctorDiagnosis,
+                                      fetchDoctorDiagnosis:
+                                          doctor.fetchDoctorDiagnosis,
+                                    ),
+                                    title: 'Diagnosis',
+                                    icon: Icons.description_outlined,
                                   ),
-                                  title: 'Diagnosis',
-                                  icon: Icons.description_outlined,
+                                ),
+                              ],
+                            )
+                          : // Stack in one or two columns for medium/small screens
+                          isMediumScreen
+                              ? // Two columns for medium screens (Mac/laptop)
+                              Column(
+                                  children: [
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        // Vitals
+                                        Expanded(
+                                          child: _buildStyledSectionContainer(
+                                            context,
+                                            child: _buildVitalsLayout(),
+                                            title: 'Vitals Monitoring',
+                                            icon: Icons.monitor_heart_outlined,
+                                          ),
+                                        ),
+                                        SizedBox(width: 16),
+                                        // Symptoms
+                                        Expanded(
+                                          child: _buildStyledSectionContainer(
+                                            context,
+                                            child: SymptomsLayout(
+                                              patientId:
+                                                  widget.patient.patientId,
+                                              admissionId: widget.patient
+                                                  .admissionRecords.first.id,
+                                              addSymptomsByDoctor:
+                                                  doctor.addSymptomsByDoctor,
+                                            ),
+                                            title: 'Symptoms',
+                                            icon:
+                                                Icons.medical_services_outlined,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    SizedBox(height: 16),
+                                    // Diagnosis full width
+                                    _buildStyledSectionContainer(
+                                      context,
+                                      child: buildDiagnosisLayout(
+                                        admissionId: admissionId,
+                                        patientId: patientId,
+                                        addDoctorDiagnosis:
+                                            doctor.addDoctorDiagnosis,
+                                        fetchDoctorDiagnosis:
+                                            doctor.fetchDoctorDiagnosis,
+                                      ),
+                                      title: 'Diagnosis',
+                                      icon: Icons.description_outlined,
+                                    ),
+                                  ],
+                                )
+                              : // Single column for small screens (mobile)
+                              Column(
+                                  children: [
+                                    _buildStyledSectionContainer(
+                                      context,
+                                      child: _buildVitalsLayout(),
+                                      title: 'Vitals Monitoring',
+                                      icon: Icons.monitor_heart_outlined,
+                                    ),
+                                    SizedBox(height: 16),
+                                    _buildStyledSectionContainer(
+                                      context,
+                                      child: SymptomsLayout(
+                                        patientId: widget.patient.patientId,
+                                        admissionId: widget
+                                            .patient.admissionRecords.first.id,
+                                        addSymptomsByDoctor:
+                                            doctor.addSymptomsByDoctor,
+                                      ),
+                                      title: 'Symptoms',
+                                      icon: Icons.medical_services_outlined,
+                                    ),
+                                    SizedBox(height: 16),
+                                    _buildStyledSectionContainer(
+                                      context,
+                                      child: buildDiagnosisLayout(
+                                        admissionId: admissionId,
+                                        patientId: patientId,
+                                        addDoctorDiagnosis:
+                                            doctor.addDoctorDiagnosis,
+                                        fetchDoctorDiagnosis:
+                                            doctor.fetchDoctorDiagnosis,
+                                      ),
+                                      title: 'Diagnosis',
+                                      icon: Icons.description_outlined,
+                                    ),
+                                  ],
+                                ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // Interactive Doctor Notes Button
+            Positioned(
+              right: 20,
+              top: 20,
+              child: Container(
+                key: _notesButtonKey,
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      _showFloatingNotes = !_showFloatingNotes;
+                    });
+                  },
+                  child: AnimatedContainer(
+                    duration: Duration(milliseconds: 300),
+                    width: _showFloatingNotes ? 150 : 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF1E2843), Color(0xFF2C3E50)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(25),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 10,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.note_alt_outlined,
+                          color: Colors.white,
+                        ),
+                        if (_showFloatingNotes)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 8.0),
+                            child: Text(
+                              "Doctor Notes",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // Floating Doctor Notes Panel
+            AnimatedPositioned(
+              duration: Duration(milliseconds: 400),
+              curve: Curves.easeOutQuad,
+              right: _showFloatingNotes ? 30 : -350,
+              top: 80,
+              child: AnimatedOpacity(
+                duration: Duration(milliseconds: 300),
+                opacity: _showFloatingNotes ? 1.0 : 0.0,
+                child: GestureDetector(
+                  onHorizontalDragEnd: (details) {
+                    if (details.primaryVelocity! > 0) {
+                      // Swiped right
+                      setState(() {
+                        _showFloatingNotes = false;
+                      });
+                    }
+                  },
+                  child: Container(
+                    width: 320,
+                    height: MediaQuery.of(context).size.height * 0.7,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 20,
+                          spreadRadius: 5,
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.95),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Colors.grey.shade200,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              // Doctor Notes Header
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                    vertical: 16, horizontal: 20),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Color(0xFF1E2843),
+                                      Color(0xFF2C3E50),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: Radius.circular(20),
+                                    topRight: Radius.circular(20),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.note_alt_outlined,
+                                          color: Colors.white,
+                                        ),
+                                        SizedBox(width: 12),
+                                        Text(
+                                          "Doctor Notes",
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 18,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Row(
+                                      children: [
+                                        IconButton(
+                                          icon: Icon(
+                                            Icons.minimize,
+                                            color: Colors.white,
+                                          ),
+                                          onPressed: () {
+                                            setState(() {
+                                              _isNotesExpanded = false;
+                                            });
+                                          },
+                                        ),
+                                        IconButton(
+                                          icon: Icon(
+                                            _isNotesExpanded
+                                                ? Icons.fullscreen_exit
+                                                : Icons.fullscreen,
+                                            color: Colors.white,
+                                          ),
+                                          onPressed: () {
+                                            setState(() {
+                                              _isNotesExpanded =
+                                                  !_isNotesExpanded;
+                                            });
+                                          },
+                                        ),
+                                        IconButton(
+                                          icon: Icon(
+                                            Icons.close,
+                                            color: Colors.white,
+                                          ),
+                                          onPressed: () {
+                                            setState(() {
+                                              _showFloatingNotes = false;
+                                            });
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              // Doctor Notes Content
+                              Expanded(
+                                child: _buildDoctorNotes(
+                                  context,
+                                  patientId,
+                                  admissionId,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // Expanded Doctor Notes Panel
+            if (_isNotesExpanded && _showFloatingNotes)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black54,
+                  child: Center(
+                    child: Container(
+                      width: MediaQuery.of(context).size.width * 0.85,
+                      height: MediaQuery.of(context).size.height * 0.85,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 20,
+                            spreadRadius: 5,
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          // Expanded Notes Header
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                                vertical: 16, horizontal: 20),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Color(0xFF1E2843),
+                                  Color(0xFF2C3E50),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(20),
+                                topRight: Radius.circular(20),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.note_alt_outlined,
+                                      color: Colors.white,
+                                    ),
+                                    SizedBox(width: 12),
+                                    Text(
+                                      "Doctor Notes - Full View",
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Row(
+                                  children: [
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.fullscreen_exit,
+                                        color: Colors.white,
+                                      ),
+                                      onPressed: () {
+                                        setState(() {
+                                          _isNotesExpanded = false;
+                                        });
+                                      },
+                                    ),
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.close,
+                                        color: Colors.white,
+                                      ),
+                                      onPressed: () {
+                                        setState(() {
+                                          _showFloatingNotes = false;
+                                          _isNotesExpanded = false;
+                                        });
+                                      },
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
-                ],
+                          ),
+
+                          // Expanded Notes Content
+                          Expanded(
+                            child: _buildDoctorNotes(
+                              context,
+                              patientId,
+                              admissionId,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+            // Quick Add Note Floating Action Button
+            Positioned(
+              right: 30,
+              bottom: 100,
+              child: AnimatedOpacity(
+                duration: Duration(milliseconds: 300),
+                opacity: _showFloatingNotes ? 1.0 : 0.0,
+                child: FloatingActionButton(
+                  backgroundColor: Color(0xFF005F9E),
+                  child: Icon(Icons.add, color: Colors.white),
+                  onPressed: () {
+                    _showAddNoteDialog(context, patientId, admissionId);
+                  },
+                  tooltip: 'Quick Add Note',
+                ),
               ),
             ),
-          ),
+          ],
         );
       },
     );
@@ -4904,6 +5250,18 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                 onPressed: () async =>
                     await _handleAssignLab(context, widget.patient, ref),
               ),
+              _buildActionButton(
+                  icon: Icons.science,
+                  label: 'Investigation',
+                  color: Colors.orange,
+                  onPressed: () async {
+                    Navigator.of(context).push(MaterialPageRoute(
+                      builder: (context) => CreateInvestigationScreen(
+                        patientId: widget.patient.patientId,
+                        admissionId: widget.patient.admissionRecords.first.id,
+                      ),
+                    ));
+                  }),
             ],
           ),
 
@@ -6085,144 +6443,6 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
 
   // Doctor notes widget
   // Build doctor notes section
-  // Widget _buildDoctorNotes(
-  //     BuildContext context, String patientId, String admissionId) {
-  //   // Create a state variable to hold the notes
-  //   return FutureBuilder(
-  //     key:
-  //         _futureBuilderKey, // Make sure to add this line if not already present
-  //     future: _fetchDoctorNotes(patientId, admissionId),
-  //     builder: (context, AsyncSnapshot<List<dynamic>> snapshot) {
-  //       if (snapshot.connectionState == ConnectionState.waiting) {
-  //         return Center(child: CircularProgressIndicator());
-  //       } else if (snapshot.hasError) {
-  //         return Text('Error: ${snapshot.error}');
-  //       } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-  //         return Column(
-  //           crossAxisAlignment: CrossAxisAlignment.start,
-  //           children: [
-  //             Text(
-  //               'Doctor Notes',
-  //               style: TextStyle(
-  //                 fontSize: 16,
-  //                 fontWeight: FontWeight.bold,
-  //               ),
-  //             ),
-  //             SizedBox(height: 12),
-  //             Text('No notes available'),
-  //             SizedBox(height: 12),
-  //             _buildGradientButton(
-  //               icon: Icons.add,
-  //               text: 'Add Note',
-  //               onPressed: () =>
-  //                   _showAddNoteDialog(context, patientId, admissionId),
-  //             ),
-  //           ],
-  //         );
-  //       }
-
-  //       // If we have data, display the notes
-  //       return Column(
-  //         crossAxisAlignment: CrossAxisAlignment.start,
-  //         children: [
-  //           Text(
-  //             'Doctor Notes',
-  //             style: TextStyle(
-  //               fontSize: 16,
-  //               fontWeight: FontWeight.bold,
-  //             ),
-  //           ),
-  //           SizedBox(height: 12),
-  //           // Display all notes from the API
-  //           ...snapshot.data!.map((note) => Column(
-  //                 children: [
-  //                   _buildNoteItem(
-  //                     date: note['date'],
-  //                     note: note['text'],
-  //                     doctor: note['doctorName'],
-  //                     noteId: note['_id'],
-  //                     onDelete: () => _showDeleteConfirmation(
-  //                         context, patientId, admissionId, note['_id']),
-  //                   ),
-  //                   SizedBox(height: 8),
-  //                 ],
-  //               )),
-  //           SizedBox(height: 12),
-  //           // Add note button
-  //           _buildGradientButton(
-  //             icon: Icons.add,
-  //             text: 'Add Note',
-  //             onPressed: () =>
-  //                 _showAddNoteDialog(context, patientId, admissionId),
-  //           ),
-  //         ],
-  //       );
-  //     },
-  //   );
-  // }
-
-// Modified to include delete option
-  Widget _buildNoteItem({
-    required String date,
-    required String note,
-    required String doctor,
-    required String noteId,
-    required Function onDelete,
-  }) {
-    return Container(
-      padding: EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                date,
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                  color: Colors.grey.shade700,
-                ),
-              ),
-              Row(
-                children: [
-                  Text(
-                    doctor,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                      color: Colors.blue.shade700,
-                    ),
-                  ),
-                  SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () => onDelete(),
-                    child: Icon(
-                      Icons.delete_outline,
-                      size: 18,
-                      color: Colors.red.shade400,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          SizedBox(height: 6),
-          Text(
-            note,
-            style: TextStyle(
-              fontSize: 14,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
 // Add this method for delete confirmation
 //   void _showDeleteConfirmation(BuildContext context, String patientId,
