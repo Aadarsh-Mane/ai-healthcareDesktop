@@ -1,7 +1,9 @@
 import 'package:doctordesktop/Admin/BedManagement.dart';
+import 'package:doctordesktop/Check.dart';
 import 'package:doctordesktop/Doctor/Dashboard/HomeScreen.dart';
 import 'package:doctordesktop/Doctor/SeeNurseAttendace.dart';
 import 'package:doctordesktop/Doctor/fetchDoctor.dart';
+import 'package:doctordesktop/External/ExternalSidebar.dart';
 import 'package:doctordesktop/Patient/fetchPatient.dart';
 import 'package:doctordesktop/constants/Assets.dart';
 import 'package:doctordesktop/main.dart';
@@ -12,6 +14,7 @@ import 'package:doctordesktop/reception/PatientRegister.dart';
 import 'package:doctordesktop/reception/ReceptionAdmitted.dart';
 import 'package:doctordesktop/reception/ReceptionMainScreen.dart';
 import 'package:doctordesktop/reception/RegistrationDashboard.dart';
+import 'package:doctordesktop/reception/RegistrationSideBar.dart';
 import 'package:doctordesktop/screens/DoctorRegister.dart';
 import 'package:doctordesktop/screens/ListPatienAssignToDoctor.dart';
 import 'package:doctordesktop/screens/NurseRegister.dart';
@@ -52,13 +55,13 @@ class _MainLayoutState extends State<MainLayout> {
 
   final List<Widget> _screens = [
     // Your existing screens
-    const PatientRegistrationScreen(),
+    const RegistrationSideBar(),
     const DischargedPatientsScreen1(),
     PatientAssignmentScreen(),
     DoctorListScreen(),
     PatientListScreen(),
     ReceptionBedManagementScreen(),
-    ExternalDoctorRegister(),
+    ExternalSideBar(),
     const ReceptionMainScreen(),
     RegistrationDashboard(),
   ];
@@ -133,15 +136,22 @@ class SidebarWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Further reduced width when collapsed
+    final double collapsedWidth = 50; // Even narrower width
+    final double expandedWidth = 260;
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
-      width: isCollapsed ? 70 : 260, // Width changes based on collapse state
+      width: isCollapsed ? collapsedWidth : expandedWidth,
       color: const Color(0xFF1E2843),
       child: Column(
         children: [
-          // App Logo and Brand Name with toggle button
+          // App Logo and toggle button - ultra-compact
           Container(
-            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+            height: isCollapsed ? 50 : 70, // Fixed height
+            padding: EdgeInsets.symmetric(
+                vertical: isCollapsed ? 8 : 18,
+                horizontal: isCollapsed ? 0 : 16),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0xFF2C3E50), Color(0xFF34495E)],
@@ -156,72 +166,79 @@ class SidebarWidget extends StatelessWidget {
                 ),
               ],
             ),
-            child: Row(
-              mainAxisAlignment: isCollapsed
-                  ? MainAxisAlignment.center
-                  : MainAxisAlignment.spaceBetween,
-              children: [
-                if (!isCollapsed) ...[
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
+            child: isCollapsed
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Just a small hospital icon
+                        Icon(
                           Icons.local_hospital_outlined,
                           color: Colors.white,
-                          size: 20,
+                          size: 16,
                         ),
+                        SizedBox(height: 4),
+                        // Toggle button beneath
+                        GestureDetector(
+                          onTap: onToggle,
+                          child: Icon(
+                            Icons.arrow_forward_ios,
+                            color: Colors.white70,
+                            size: 10,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.local_hospital_outlined,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'HMS',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'HMS',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: 1.2,
+                      GestureDetector(
+                        onTap: onToggle,
+                        child: const Icon(
+                          Icons.arrow_back_ios,
+                          color: Colors.white70,
+                          size: 14,
                         ),
                       ),
                     ],
                   ),
-                ] else ...[
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.local_hospital_outlined,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                ],
-
-                // Toggle button
-                IconButton(
-                  onPressed: onToggle,
-                  icon: Icon(
-                    isCollapsed
-                        ? Icons.arrow_forward_ios
-                        : Icons.arrow_back_ios,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                  tooltip: isCollapsed ? 'Expand' : 'Collapse',
-                ),
-              ],
-            ),
           ),
 
-          const SizedBox(height: 16),
+          // Minimal divider
+          if (!isCollapsed) ...[
+            const SizedBox(height: 8),
+          ] else ...[
+            const SizedBox(height: 4),
+          ],
 
-          // User Profile Section - Only show fully when expanded
+          // User Profile Section - only when expanded
           if (!isCollapsed) ...[
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -263,35 +280,31 @@ class SidebarWidget extends StatelessWidget {
               ),
             ),
           ] else ...[
-            // Simplified avatar for collapsed state
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(25),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  color: Colors.blue.shade200,
-                  child: const Center(
-                    child: Icon(
-                      Icons.person,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                ),
+            // Tiny dot instead of avatar when collapsed
+            Container(
+              width: 8,
+              height: 8,
+              margin: EdgeInsets.symmetric(vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade400,
+                shape: BoxShape.circle,
               ),
             ),
           ],
 
-          const SizedBox(height: 16),
-          const Divider(color: Colors.white24, height: 1),
-          const SizedBox(height: 16),
+          // Minimal divider
+          Container(
+            height: 1,
+            color: Colors.white24,
+            margin: EdgeInsets.symmetric(
+                horizontal: isCollapsed ? 4 : 16,
+                vertical: isCollapsed ? 4 : 8),
+          ),
 
-          // Navigation Items
+          // Navigation Items - main content
           Expanded(
             child: ListView(
-              padding: EdgeInsets.zero,
+              padding: EdgeInsets.zero, // No padding at all
               children: [
                 _buildNavItem(
                   index: 0,
@@ -349,8 +362,7 @@ class SidebarWidget extends StatelessWidget {
                 ),
                 _buildNavItem(
                   index: 5,
-                  icon: Icons
-                      .person_add_outlined, // Changed icon to be more specific
+                  icon: Icons.person_add_outlined,
                   label: 'Bed Assignment',
                   isSelected: selectedIndex == 5,
                   isCollapsed: isCollapsed,
@@ -358,8 +370,7 @@ class SidebarWidget extends StatelessWidget {
                 ),
                 _buildNavItem(
                   index: 6,
-                  icon: Icons
-                      .health_and_safety_outlined, // Changed icon to be more specific
+                  icon: Icons.health_and_safety_outlined,
                   label: 'External Doctor',
                   isSelected: selectedIndex == 6,
                   isCollapsed: isCollapsed,
@@ -367,8 +378,7 @@ class SidebarWidget extends StatelessWidget {
                 ),
                 _buildNavItem(
                   index: 7,
-                  icon: Icons
-                      .health_and_safety_outlined, // Changed icon to be more specific
+                  icon: Icons.medical_services,
                   label: 'Create Appointment',
                   isSelected: selectedIndex == 7,
                   isCollapsed: isCollapsed,
@@ -376,9 +386,8 @@ class SidebarWidget extends StatelessWidget {
                 ),
                 _buildNavItem(
                   index: 8,
-                  icon: Icons
-                      .health_and_safety_outlined, // Changed icon to be more specific
-                  label: 'Register',
+                  icon: Icons.app_registration,
+                  label: 'Bed Management',
                   isSelected: selectedIndex == 8,
                   isCollapsed: isCollapsed,
                   onTap: () => onItemSelected(8),
@@ -387,46 +396,59 @@ class SidebarWidget extends StatelessWidget {
             ),
           ),
 
-          // Logout Button - adapted for collapsed state
-          Padding(
-            padding: EdgeInsets.all(isCollapsed ? 8 : 16),
-            child: isCollapsed
-                ? IconButton(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => HomeScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.logout,
-                        color: Colors.white70, size: 24),
-                    tooltip: 'Back',
-                  )
-                : OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => HomeScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.logout, color: Colors.white70),
-                    label: const Text(
-                      'Back',
-                      style: TextStyle(color: Colors.white70),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.white24),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
+          // Logout Button - ultra minimal in collapsed state
+          if (isCollapsed) ...[
+            // Just a tiny icon
+            IconButton(
+              onPressed: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => HomePage(),
                   ),
-          ),
+                );
+              },
+              icon: const Icon(
+                Icons.logout,
+                color: Colors.white70,
+                size: 14,
+              ),
+              padding: EdgeInsets.zero,
+              constraints: BoxConstraints(
+                minWidth: 24,
+                minHeight: 24,
+              ),
+              visualDensity: VisualDensity.compact,
+            ),
+            SizedBox(height: 8),
+          ] else ...[
+            // Full button in expanded mode
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => HomePage(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.logout, color: Colors.white70),
+                label: const Text(
+                  'Back',
+                  style: TextStyle(color: Colors.white70),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.white24),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -440,10 +462,33 @@ class SidebarWidget extends StatelessWidget {
     required bool isCollapsed,
     required VoidCallback onTap,
   }) {
+    if (isCollapsed) {
+      // Ultra-minimal icon-only version for collapsed state
+      return InkWell(
+        onTap: onTap,
+        child: Container(
+          height: 30, // Smaller fixed height
+          width: 30, // Smaller fixed width
+          margin: const EdgeInsets.symmetric(vertical: 2), // Minimal margin
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.blue.shade600 : Colors.transparent,
+            shape: BoxShape.circle, // Use circle for more compact look
+          ),
+          child: Center(
+            child: Icon(
+              icon,
+              color: isSelected ? Colors.white : Colors.white70,
+              size: 14, // Even smaller icon
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Original expanded version (unchanged)
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
-      margin:
-          EdgeInsets.symmetric(horizontal: isCollapsed ? 8 : 16, vertical: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
         gradient: isSelected
             ? const LinearGradient(
@@ -460,22 +505,20 @@ class SidebarWidget extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(8),
           child: Padding(
-            padding: EdgeInsets.symmetric(
-                vertical: 12, horizontal: isCollapsed ? 8 : 16),
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
             child: Row(
-              mainAxisAlignment: isCollapsed
-                  ? MainAxisAlignment.center
-                  : MainAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 Icon(
                   icon,
                   color: isSelected ? Colors.white : Colors.white70,
                   size: 22,
                 ),
-                if (!isCollapsed) ...[
-                  const SizedBox(width: 12),
-                  Text(
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
                     label,
+                    overflow: TextOverflow.ellipsis, // Handle long text
                     style: TextStyle(
                       color: isSelected ? Colors.white : Colors.white70,
                       fontWeight:
@@ -483,17 +526,16 @@ class SidebarWidget extends StatelessWidget {
                       fontSize: 14,
                     ),
                   ),
-                  if (isSelected) ...[
-                    const Spacer(),
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
+                ),
+                if (isSelected) ...[
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
                     ),
-                  ],
+                  ),
                 ],
               ],
             ),

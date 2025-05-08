@@ -1,3 +1,4 @@
+import 'package:doctordesktop/Check.dart';
 import 'package:doctordesktop/Doctor/DoctorMainScreen.dart';
 import 'package:doctordesktop/authProvider/auth_provider.dart';
 import 'package:doctordesktop/constants/Assets.dart';
@@ -40,7 +41,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen1> {
             onPressed: () {
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => HomeScreen()),
+                MaterialPageRoute(builder: (context) => HomePage()),
               );
             },
           ),

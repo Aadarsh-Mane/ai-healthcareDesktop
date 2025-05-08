@@ -4027,12 +4027,21 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
       builder: (context, constraints) {
         // Determine layout based on screen width
         final bool isLargeScreen = constraints.maxWidth > 1400;
-        final bool isMediumScreen =
-            constraints.maxWidth >= 768; // Mac/laptop screens
+        final bool isMediumScreen = constraints.maxWidth >= 768 &&
+            constraints.maxWidth <= 1400; // Laptop screens
+        final bool isSmallScreen = constraints.maxWidth < 768;
 
-        // Define fixed heights for Mac/laptop screens
-        final double fixedHeight =
-            isMediumScreen && !isLargeScreen ? 300 : double.infinity;
+        // Define fixed heights for sections on laptop screens
+        // INCREASED HEIGHT for left column sections (was 200)
+        final double leftColumnSectionHeight = isMediumScreen
+            ? 350
+            : double.infinity; // Increased height for left sections
+        final double rightColumnHeight = isMediumScreen
+            ? 750
+            : double.infinity; // Taller height for prescription
+        final double diagnosisHeight = isMediumScreen
+            ? 350
+            : double.infinity; // Height for diagnosis section
 
         return Stack(
           children: [
@@ -4047,12 +4056,74 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // First row: Overview and Prescription - side by side for medium and large screens
-                      isMediumScreen
-                          ? Row(
+                      // Special laptop layout - Overview, Vitals, Symptoms on left, Prescription on right
+                      if (isMediumScreen)
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // LEFT COLUMN: Overview, Vitals, Symptoms stacked vertically
+                            Expanded(
+                              flex: 55,
+                              child: Column(
+                                children: [
+                                  // Overview
+                                  _buildStyledSectionContainer(
+                                    context,
+                                    child: _buildOverviewSection1(context, ref),
+                                    title: 'Patient Overview',
+                                    icon: Icons.person_outline,
+                                    maxHeight: leftColumnSectionHeight,
+                                  ),
+                                  SizedBox(height: 16),
+
+                                  // Vitals
+                                  _buildStyledSectionContainer(
+                                    context,
+                                    child: _buildVitalsLayout(),
+                                    title: 'Vitals Monitoring',
+                                    icon: Icons.monitor_heart_outlined,
+                                    maxHeight: leftColumnSectionHeight,
+                                  ),
+                                  SizedBox(height: 16),
+
+                                  // Symptoms
+                                  _buildStyledSectionContainer(
+                                    context,
+                                    child: _buildSymptomsLayout(
+                                        context, ref, patientId, admissionId),
+                                    title: 'Symptoms',
+                                    icon: Icons.medical_services_outlined,
+                                    maxHeight: leftColumnSectionHeight,
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            SizedBox(width: 16),
+
+                            // RIGHT COLUMN: Prescription with increased height
+                            Expanded(
+                              flex: 55,
+                              child: _buildStyledSectionContainer(
+                                context,
+                                child: _buildPrescriptionLayout(),
+                                title: 'Prescription Management',
+                                icon: Icons.medication_outlined,
+                                maxHeight:
+                                    rightColumnHeight, // Taller height for prescription
+                              ),
+                            ),
+                          ],
+                        )
+                      else if (isLargeScreen)
+                        // Original large screen layout with three columns
+                        Column(
+                          children: [
+                            // First row: Overview and Prescription
+                            Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Patient Overview - Left column (45%)
+                                // Patient Overview
                                 Expanded(
                                   flex: 45,
                                   child: _buildStyledSectionContainer(
@@ -4060,48 +4131,24 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                                     child: _buildOverviewSection1(context, ref),
                                     title: 'Patient Overview',
                                     icon: Icons.person_outline,
-                                    maxHeight: fixedHeight,
                                   ),
                                 ),
                                 SizedBox(width: 16),
-                                // Prescription - Right column (55%) with fixed height and scrolling
+                                // Prescription
                                 Expanded(
-                                  flex: 45,
+                                  flex: 55,
                                   child: _buildStyledSectionContainer(
                                     context,
                                     child: _buildPrescriptionLayout(),
                                     title: 'Prescription Management',
                                     icon: Icons.medication_outlined,
-                                    maxHeight: fixedHeight,
                                   ),
                                 ),
                               ],
-                            )
-                          : // For smaller screens, stack them vertically
-                          Column(
-                              children: [
-                                _buildStyledSectionContainer(
-                                  context,
-                                  child: _buildOverviewSection1(context, ref),
-                                  title: 'Patient Overview',
-                                  icon: Icons.person_outline,
-                                ),
-                                SizedBox(height: 16),
-                                _buildStyledSectionContainer(
-                                  context,
-                                  child: _buildPrescriptionLayout(),
-                                  title: 'Prescription Management',
-                                  icon: Icons.medication_outlined,
-                                ),
-                              ],
                             ),
-
-                      SizedBox(height: 16),
-
-                      // Second row: Vitals, Symptoms and Diagnosis
-                      isLargeScreen
-                          ? // Three columns on large screens
-                          Row(
+                            SizedBox(height: 16),
+                            // Second row: Vitals, Symptoms, Diagnosis
+                            Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 // Vitals
@@ -4116,18 +4163,14 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                                 SizedBox(width: 16),
                                 // Symptoms
                                 Expanded(
-                                    child: _buildStyledSectionContainer(
-                                  context,
-                                  child: SymptomsLayout(
-                                    patientId: widget.patient.patientId,
-                                    admissionId: widget
-                                        .patient.admissionRecords.first.id,
-                                    addSymptomsByDoctor:
-                                        doctor.addSymptomsByDoctor,
+                                  child: _buildStyledSectionContainer(
+                                    context,
+                                    child: _buildSymptomsLayout(
+                                        context, ref, patientId, admissionId),
+                                    title: 'Symptoms',
+                                    icon: Icons.medical_services_outlined,
                                   ),
-                                  title: 'Symptoms',
-                                  icon: Icons.medical_services_outlined,
-                                )),
+                                ),
                                 SizedBox(width: 16),
                                 // Diagnosis
                                 Expanded(
@@ -4146,100 +4189,74 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                                   ),
                                 ),
                               ],
-                            )
-                          : // Stack in one or two columns for medium/small screens
-                          isMediumScreen
-                              ? // Two columns for medium screens (Mac/laptop)
-                              Column(
-                                  children: [
-                                    Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        // Vitals
-                                        Expanded(
-                                          child: _buildStyledSectionContainer(
-                                            context,
-                                            child: _buildVitalsLayout(),
-                                            title: 'Vitals Monitoring',
-                                            icon: Icons.monitor_heart_outlined,
-                                          ),
-                                        ),
-                                        SizedBox(width: 16),
-                                        // Symptoms
-                                        Expanded(
-                                          child: _buildStyledSectionContainer(
-                                            context,
-                                            child: SymptomsLayout(
-                                              patientId:
-                                                  widget.patient.patientId,
-                                              admissionId: widget.patient
-                                                  .admissionRecords.first.id,
-                                              addSymptomsByDoctor:
-                                                  doctor.addSymptomsByDoctor,
-                                            ),
-                                            title: 'Symptoms',
-                                            icon:
-                                                Icons.medical_services_outlined,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    SizedBox(height: 16),
-                                    // Diagnosis full width
-                                    _buildStyledSectionContainer(
-                                      context,
-                                      child: buildDiagnosisLayout(
-                                        admissionId: admissionId,
-                                        patientId: patientId,
-                                        addDoctorDiagnosis:
-                                            doctor.addDoctorDiagnosis,
-                                        fetchDoctorDiagnosis:
-                                            doctor.fetchDoctorDiagnosis,
-                                      ),
-                                      title: 'Diagnosis',
-                                      icon: Icons.description_outlined,
-                                    ),
-                                  ],
-                                )
-                              : // Single column for small screens (mobile)
-                              Column(
-                                  children: [
-                                    _buildStyledSectionContainer(
-                                      context,
-                                      child: _buildVitalsLayout(),
-                                      title: 'Vitals Monitoring',
-                                      icon: Icons.monitor_heart_outlined,
-                                    ),
-                                    SizedBox(height: 16),
-                                    _buildStyledSectionContainer(
-                                      context,
-                                      child: SymptomsLayout(
-                                        patientId: widget.patient.patientId,
-                                        admissionId: widget
-                                            .patient.admissionRecords.first.id,
-                                        addSymptomsByDoctor:
-                                            doctor.addSymptomsByDoctor,
-                                      ),
-                                      title: 'Symptoms',
-                                      icon: Icons.medical_services_outlined,
-                                    ),
-                                    SizedBox(height: 16),
-                                    _buildStyledSectionContainer(
-                                      context,
-                                      child: buildDiagnosisLayout(
-                                        admissionId: admissionId,
-                                        patientId: patientId,
-                                        addDoctorDiagnosis:
-                                            doctor.addDoctorDiagnosis,
-                                        fetchDoctorDiagnosis:
-                                            doctor.fetchDoctorDiagnosis,
-                                      ),
-                                      title: 'Diagnosis',
-                                      icon: Icons.description_outlined,
-                                    ),
-                                  ],
-                                ),
+                            ),
+                          ],
+                        )
+                      else
+                        // Single column layout for small screens
+                        Column(
+                          children: [
+                            _buildStyledSectionContainer(
+                              context,
+                              child: _buildOverviewSection1(context, ref),
+                              title: 'Patient Overview',
+                              icon: Icons.person_outline,
+                            ),
+                            SizedBox(height: 16),
+                            _buildStyledSectionContainer(
+                              context,
+                              child: _buildPrescriptionLayout(),
+                              title: 'Prescription Management',
+                              icon: Icons.medication_outlined,
+                            ),
+                            SizedBox(height: 16),
+                            _buildStyledSectionContainer(
+                              context,
+                              child: _buildVitalsLayout(),
+                              title: 'Vitals Monitoring',
+                              icon: Icons.monitor_heart_outlined,
+                            ),
+                            SizedBox(height: 16),
+                            _buildStyledSectionContainer(
+                              context,
+                              child: _buildSymptomsLayout(
+                                  context, ref, patientId, admissionId),
+                              title: 'Symptoms',
+                              icon: Icons.medical_services_outlined,
+                            ),
+                            SizedBox(height: 16),
+                            _buildStyledSectionContainer(
+                              context,
+                              child: buildDiagnosisLayout(
+                                admissionId: admissionId,
+                                patientId: patientId,
+                                addDoctorDiagnosis: doctor.addDoctorDiagnosis,
+                                fetchDoctorDiagnosis:
+                                    doctor.fetchDoctorDiagnosis,
+                              ),
+                              title: 'Diagnosis',
+                              icon: Icons.description_outlined,
+                            ),
+                          ],
+                        ),
+
+                      // Full width diagnosis section for laptop layout only
+                      if (isMediumScreen)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 16.0),
+                          child: _buildStyledSectionContainer(
+                            context,
+                            child: buildDiagnosisLayout(
+                              admissionId: admissionId,
+                              patientId: patientId,
+                              addDoctorDiagnosis: doctor.addDoctorDiagnosis,
+                              fetchDoctorDiagnosis: doctor.fetchDoctorDiagnosis,
+                            ),
+                            title: 'Diagnosis',
+                            icon: Icons.description_outlined,
+                            maxHeight: diagnosisHeight,
+                          ),
+                        ),
                     ],
                   ),
                 ),

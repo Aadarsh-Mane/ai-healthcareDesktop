@@ -1,4 +1,5 @@
 import 'package:doctordesktop/Admin/BedManagement.dart';
+import 'package:doctordesktop/Check.dart';
 import 'package:doctordesktop/Doctor/Dashboard/HomeScreen.dart';
 import 'package:doctordesktop/Doctor/SeeNurseAttendace.dart';
 import 'package:doctordesktop/Doctor/fetchDoctor.dart';
@@ -285,7 +286,7 @@ class SidebarWidget extends StatelessWidget {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => HomeScreen(),
+                    builder: (context) => HomePage(),
                   ),
                 );
                 // Handle logout

@@ -46,7 +46,8 @@ class _ImprovedSidebarState extends State<ImprovedSidebar> {
   Widget build(BuildContext context) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
-      width: _isExpanded ? 280 : 90,
+      width:
+          _isExpanded ? 280 : 70, // Reduced collapsed width to prevent overflow
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
@@ -63,26 +64,44 @@ class _ImprovedSidebarState extends State<ImprovedSidebar> {
           // Hospital logo and name area
           Container(
             padding: EdgeInsets.symmetric(
-              horizontal: _isExpanded ? 24 : 10,
-              vertical: 24,
+              horizontal: _isExpanded
+                  ? 24
+                  : 8, // Smaller horizontal padding when collapsed
+              vertical: _isExpanded
+                  ? 24
+                  : 16, // Smaller vertical padding when collapsed
             ),
             child: Row(
               mainAxisAlignment: _isExpanded
                   ? MainAxisAlignment.start
                   : MainAxisAlignment.center,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: HospitalTheme.radiusMedium,
+                if (_isExpanded)
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: HospitalTheme.radiusMedium,
+                    ),
+                    child: Icon(
+                      Icons.local_hospital,
+                      color: HospitalTheme.primary,
+                      size: 32,
+                    ),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.all(6), // Smaller padding
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: HospitalTheme.radiusSmall, // Smaller radius
+                    ),
+                    child: Icon(
+                      Icons.local_hospital,
+                      color: HospitalTheme.primary,
+                      size: 18, // Smaller icon
+                    ),
                   ),
-                  child: Icon(
-                    Icons.local_hospital,
-                    color: HospitalTheme.primary,
-                    size: _isExpanded ? 32 : 24,
-                  ),
-                ),
                 if (_isExpanded) ...[
                   const SizedBox(width: 16),
                   Expanded(
@@ -107,41 +126,60 @@ class _ImprovedSidebarState extends State<ImprovedSidebar> {
                       ],
                     ),
                   ),
-                ],
-                IconButton(
-                  onPressed: () {
-                    setState(() {
-                      _isExpanded = !_isExpanded;
-                    });
-                  },
-                  icon: Icon(
-                    _isExpanded
-                        ? Icons.keyboard_double_arrow_left
-                        : Icons.keyboard_double_arrow_right,
-                    color: HospitalTheme.textOnPrimary.withOpacity(0.7),
+                  IconButton(
+                    onPressed: () {
+                      setState(() {
+                        _isExpanded = !_isExpanded;
+                      });
+                    },
+                    icon: Icon(
+                      Icons.keyboard_double_arrow_left,
+                      color: HospitalTheme.textOnPrimary.withOpacity(0.7),
+                      size: 20,
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: BoxConstraints(),
+                    visualDensity: VisualDensity.compact,
                   ),
-                ),
+                ] else
+                  IconButton(
+                    onPressed: () {
+                      setState(() {
+                        _isExpanded = !_isExpanded;
+                      });
+                    },
+                    icon: Icon(
+                      Icons.keyboard_double_arrow_right,
+                      color: HospitalTheme.textOnPrimary.withOpacity(0.7),
+                      size: 16, // Smaller icon
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: BoxConstraints(),
+                    visualDensity: VisualDensity.compact,
+                  ),
               ],
             ),
           ),
 
           // Divider
           Container(
-            margin: EdgeInsets.symmetric(horizontal: _isExpanded ? 24 : 10),
+            margin: EdgeInsets.symmetric(horizontal: _isExpanded ? 24 : 8),
             height: 1,
             color: HospitalTheme.textOnPrimary.withOpacity(0.1),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12), // Reduced height
 
           // Navigation items
           Expanded(
             child: ListView.builder(
-              padding: EdgeInsets.symmetric(horizontal: _isExpanded ? 18 : 8),
+              padding: EdgeInsets.symmetric(
+                  horizontal:
+                      _isExpanded ? 18 : 5), // Smaller padding when collapsed
               itemCount: widget.navigationItems.length,
               itemBuilder: (context, index) {
                 final item = widget.navigationItems[index];
 
-                // If it's a section title
+                // If it's a section title and sidebar is expanded
                 if (item.isSection && _isExpanded) {
                   return Padding(
                     padding:
@@ -156,6 +194,11 @@ class _ImprovedSidebarState extends State<ImprovedSidebar> {
                       ),
                     ),
                   );
+                }
+
+                // Skip section items when collapsed
+                if (item.isSection && !_isExpanded) {
+                  return SizedBox.shrink();
                 }
 
                 return _buildNavItem(
@@ -176,106 +219,82 @@ class _ImprovedSidebarState extends State<ImprovedSidebar> {
   }
 
   Widget _buildDefaultUserProfile() {
+    if (!_isExpanded) {
+      // Ultra-simplified profile for collapsed state
+      return Container(
+        margin: EdgeInsets.all(6),
+        padding: EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: HospitalTheme.textOnPrimary.withOpacity(0.1),
+          borderRadius: HospitalTheme.radiusSmall,
+        ),
+        child: Center(
+          child: Icon(
+            Icons.person,
+            color: HospitalTheme.textOnPrimary,
+            size: 18,
+          ),
+        ),
+      );
+    }
+
+    // Full profile for expanded state
     return Container(
-      margin: EdgeInsets.all(_isExpanded ? 16 : 8),
-      padding: EdgeInsets.all(_isExpanded ? 16 : 8),
+      margin: EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: HospitalTheme.textOnPrimary.withOpacity(0.1),
         borderRadius: HospitalTheme.radiusMedium,
       ),
-      child: _isExpanded
-          ? Row(
-              children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: HospitalTheme.textOnPrimary.withOpacity(0.2),
-                  child: Icon(
-                    Icons.local_hospital,
-                    color: HospitalTheme.textOnPrimary,
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'DocNex.Care',
-                        style: TextStyle(
-                          color: HospitalTheme.textOnPrimary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: HospitalTheme.success,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '20s Developers',
-                            style: TextStyle(
-                              color:
-                                  HospitalTheme.textOnPrimary.withOpacity(0.8),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                // PopupMenuButton(
-                //   icon: Icon(
-                //     Icons.more_vert,
-                //     color: HospitalTheme.textOnPrimary,
-                //   ),
-                //   color: HospitalTheme.cardBackground,
-                //   itemBuilder: (context) => [
-                //     PopupMenuItem(
-                //       value: 'profile',
-                //       child: Row(
-                //         children: [
-                //           Icon(Icons.person_outline,
-                //               color: HospitalTheme.primary, size: 20),
-                //           const SizedBox(width: 8),
-                //           Text('My Profile'),
-                //         ],
-                //       ),
-                //     ),
-                //     PopupMenuItem(
-                //       value: 'logout',
-                //       child: Row(
-                //         children: [
-                //           Icon(Icons.logout,
-                //               color: HospitalTheme.error, size: 20),
-                //           const SizedBox(width: 8),
-                //           Text('Logout'),
-                //         ],
-                //       ),
-                //     ),
-                //   ],
-                // ),
-              ],
-            )
-          : Center(
-              child: CircleAvatar(
-                radius: 24,
-                backgroundColor: HospitalTheme.textOnPrimary.withOpacity(0.2),
-                child: Icon(
-                  Icons.person,
-                  color: HospitalTheme.textOnPrimary,
-                  size: 28,
-                ),
-              ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: HospitalTheme.textOnPrimary.withOpacity(0.2),
+            child: Icon(
+              Icons.local_hospital,
+              color: HospitalTheme.textOnPrimary,
+              size: 28,
             ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'DocNex.Care',
+                  style: TextStyle(
+                    color: HospitalTheme.textOnPrimary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: HospitalTheme.success,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '20s Developers',
+                      style: TextStyle(
+                        color: HospitalTheme.textOnPrimary.withOpacity(0.8),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -285,13 +304,44 @@ class _ImprovedSidebarState extends State<ImprovedSidebar> {
     String label,
     bool isSelected,
   ) {
+    // For collapsed sidebar - bare minimum layout
+    if (!_isExpanded) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: InkWell(
+          onTap: () => widget.onDestinationSelected(index),
+          borderRadius: BorderRadius.circular(6), // Smaller radius
+          child: Container(
+            width: 40, // Fixed width to prevent overflow
+            height: 40, // Fixed height for consistency
+            padding: const EdgeInsets.all(0), // No padding
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? HospitalTheme.textOnPrimary.withOpacity(0.2)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(6), // Smaller radius
+            ),
+            child: Center(
+              child: Icon(
+                icon,
+                color: isSelected
+                    ? HospitalTheme.textOnPrimary
+                    : HospitalTheme.textOnPrimary.withOpacity(0.7),
+                size: 16, // Smaller icon size
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // For expanded sidebar - original version with more details
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: InkWell(
         onTap: () => widget.onDestinationSelected(index),
         borderRadius: HospitalTheme.radiusMedium,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+        child: Container(
           padding: const EdgeInsets.symmetric(
             horizontal: 16,
             vertical: 12,
@@ -328,28 +378,25 @@ class _ImprovedSidebarState extends State<ImprovedSidebar> {
                   size: 22,
                 ),
               ),
-              if (_isExpanded) ...[
-                const SizedBox(width: 16),
-                Text(
-                  label,
-                  style: TextStyle(
+              const SizedBox(width: 16),
+              Text(
+                label,
+                style: TextStyle(
+                  color: HospitalTheme.textOnPrimary,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+              const Spacer(),
+              if (isSelected)
+                Container(
+                  width: 6,
+                  height: 6,
+                  margin: const EdgeInsets.only(left: 8),
+                  decoration: BoxDecoration(
                     color: HospitalTheme.textOnPrimary,
-                    fontWeight:
-                        isSelected ? FontWeight.bold : FontWeight.normal,
+                    shape: BoxShape.circle,
                   ),
                 ),
-                const Spacer(),
-                if (isSelected)
-                  Container(
-                    width: 6,
-                    height: 6,
-                    margin: const EdgeInsets.only(left: 8),
-                    decoration: BoxDecoration(
-                      color: HospitalTheme.textOnPrimary,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-              ],
             ],
           ),
         ),

@@ -607,6 +607,16 @@ class _AppointmentCreationScreenState extends State<AppointmentCreationScreen> {
         body: Row(
           children: [
             // ImprovedSidebar(
+            //   navigationItems: [],
+            //   selectedIndex: _selectedNavIndex,
+            //   onDestinationSelected: (index) {
+            //     setState(() {
+            //       _selectedNavIndex = index;
+            //     });
+            //   },
+            // ),
+            // ImprovedSidebar(
+            //   navigationItems: [],
             //   selectedIndex: _selectedNavIndex,
             //   onDestinationSelected: (index) {
             //     setState(() {

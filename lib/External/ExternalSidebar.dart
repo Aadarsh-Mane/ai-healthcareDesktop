@@ -1,16 +1,18 @@
 import 'package:doctordesktop/External/DoctorCalendarView.dart';
+import 'package:doctordesktop/External/ExternalDoctorlist.dart';
 import 'package:doctordesktop/reception/CreateAppointment.dart';
+import 'package:doctordesktop/reception/ExternalDoctorRegistration.dart';
 import 'package:doctordesktop/reception/Sidebar.dart';
 import 'package:flutter/material.dart';
 
-class ReceptionMainScreen extends StatefulWidget {
-  const ReceptionMainScreen({Key? key}) : super(key: key);
+class ExternalSideBar extends StatefulWidget {
+  const ExternalSideBar({Key? key}) : super(key: key);
 
   @override
-  State<ReceptionMainScreen> createState() => _ReceptionMainScreenState();
+  State<ExternalSideBar> createState() => _ExternalSideBarState();
 }
 
-class _ReceptionMainScreenState extends State<ReceptionMainScreen> {
+class _ExternalSideBarState extends State<ExternalSideBar> {
   int _selectedNavIndex = 0;
 
   // Map of screen widgets indexed by their navigation index
@@ -22,8 +24,18 @@ class _ReceptionMainScreenState extends State<ReceptionMainScreen> {
 
     // Initialize all screens
     _screens = {
-      0: const AppointmentCreationScreen(),
-      1: const DoctorAppointmentsListView(),
+      0: const ExternalDoctorListScreen(),
+      1: const ExternalDoctorRegister(),
+      2: const Center(
+        child: AboutDialog(
+          applicationName: 'Doctor Desktop',
+          applicationVersion: '1.0.0',
+          applicationIcon: Icon(Icons.medical_services),
+          children: [
+            Text('This is a sample about dialog for Doctor Desktop.'),
+          ],
+        ),
+      ),
     };
   }
 
@@ -44,12 +56,17 @@ class _ReceptionMainScreenState extends State<ReceptionMainScreen> {
               NavigationItem(
                 index: 0,
                 icon: Icons.person,
-                label: 'Create Appointment',
+                label: 'External Doctors',
               ),
               NavigationItem(
                 index: 1,
                 icon: Icons.calendar_month,
-                label: 'Appointments',
+                label: 'Registration',
+              ),
+              NavigationItem(
+                index: 2,
+                icon: Icons.meeting_room,
+                label: 'Licenses',
               ),
             ],
           ),

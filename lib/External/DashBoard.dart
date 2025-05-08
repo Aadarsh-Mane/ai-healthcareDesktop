@@ -3,6 +3,7 @@ import 'package:doctordesktop/External/AppointMentScreen.dart';
 import 'package:doctordesktop/External/CommonScreen.dart';
 import 'package:doctordesktop/constants/HospitalTheme.dart';
 import 'package:doctordesktop/constants/Url.dart';
+import 'package:doctordesktop/reception/Sidebar.dart';
 // import 'package:doctordesktop/reception/Sidebar.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -57,7 +58,7 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
           'Authorization': 'Bearer $token',
         },
       );
-
+      print(response.body);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final List<dynamic> allAppointments = data['doctorAppointments'] ?? [];
@@ -150,10 +151,11 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
       body: Row(
         children: [
           // Left side: Improved Sidebar
-          // ImprovedSidebar(
-          //   selectedIndex: _selectedIndex,
-          //   onDestinationSelected: _onNavItemTapped,
-          // ),
+          ImprovedSidebar(
+            navigationItems: [],
+            selectedIndex: _selectedIndex,
+            onDestinationSelected: _onNavItemTapped,
+          ),
 
           // Right side: Main content
           Expanded(

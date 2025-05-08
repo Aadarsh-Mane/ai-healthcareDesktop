@@ -1,3 +1,4 @@
+import 'package:doctordesktop/Check.dart';
 import 'package:doctordesktop/Doctor/AssignedLabScreen.dart';
 import 'package:doctordesktop/Doctor/AssignedPatientScreen.dart';
 import 'package:doctordesktop/LogoutScreen.dart';
@@ -59,7 +60,7 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
     {
       'title': 'Home',
       'imagePath': 'assets/images/lists.png',
-      'screen': HomeScreen(),
+      'screen': HomePage(),
     },
     {
       'title': 'Logout',

@@ -8,6 +8,7 @@ import 'package:doctordesktop/Admin/ReceptionAuthDialog.dart';
 import 'package:doctordesktop/Check.dart';
 import 'package:doctordesktop/Doctor/AddMedicine.dart';
 import 'package:doctordesktop/Doctor/DoctorMainScreen.dart';
+import 'package:doctordesktop/Doctor/pa.dart';
 import 'package:doctordesktop/External/CommonScreen.dart';
 import 'package:doctordesktop/External/DashBoard.dart';
 import 'package:doctordesktop/Lab/LabAuthDialog.dart';
@@ -51,7 +52,7 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           title: 'Flutter Windows App',
           theme: AppTheme.lightTheme,
-          home: HomeScreen(),
+          home: HomePage(),
         );
       },
     );

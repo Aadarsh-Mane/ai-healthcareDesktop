@@ -58,7 +58,7 @@ class DoctorNotesService {
       String doctorName) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/addNotes'),
+        Uri.parse('${KVM_URL}/addNotes'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'patientId': patientId,
@@ -81,7 +81,7 @@ class DoctorNotesService {
       String patientId, String admissionId, String noteId) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/deleteNote'),
+        Uri.parse('${KVM_URL}/deleteNote'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'patientId': patientId,

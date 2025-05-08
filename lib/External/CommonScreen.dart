@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:doctordesktop/Check.dart';
 import 'package:doctordesktop/External/AppointMentScreen.dart';
 import 'package:doctordesktop/External/DashBoard.dart';
 import 'package:doctordesktop/ExternalDoctor/AppointmentDashboardScreen.dart';
@@ -136,7 +137,7 @@ class _LoginScreenState extends State<LoginScreen> {
             // Navigate back to home screen
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (context) => HomeScreen(),
+                builder: (context) => HomePage(),
               ),
             );
           },
