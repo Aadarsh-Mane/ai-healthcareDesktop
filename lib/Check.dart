@@ -8,6 +8,7 @@ import 'package:doctordesktop/Lab/LabScreen.dart';
 import 'package:doctordesktop/Patient/fetchPatient.dart';
 import 'package:doctordesktop/authProvider/auth_provider.dart';
 import 'package:doctordesktop/constants/Methods.dart';
+import 'package:doctordesktop/pharmacy/PharmacyDashboard.dart';
 import 'package:doctordesktop/reception/ReceptionDashboard.dart';
 import 'package:doctordesktop/screens/login_screen.dart';
 import 'package:flutter/material.dart';
@@ -1711,9 +1712,14 @@ class _HomePageState extends ConsumerState<HomePage>
                   );
                   break;
                 case 'PharmacyScreen':
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Pharmacy module coming soon')),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => PharmacyDashBoard()),
                   );
+                  // ScaffoldMessenger.of(context).showSnackBar(
+                  //   SnackBar(content: Text('Pharmacy module coming soon')),
+                  // );
                   break;
                 case 'LabScreen':
                   Navigator.push(

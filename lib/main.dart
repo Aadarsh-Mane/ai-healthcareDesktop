@@ -20,6 +20,8 @@ import 'package:doctordesktop/constants/AppTheme.dart';
 import 'package:doctordesktop/constants/Assets.dart';
 import 'package:doctordesktop/gamm.dart';
 import 'package:doctordesktop/model/getPatientHistory.dart';
+import 'package:doctordesktop/pharmacy/CreateSalesScreen.dart';
+import 'package:doctordesktop/pharmacy/PrescriptionScreen.dart';
 import 'package:doctordesktop/reception/PatientDischarge.dart';
 import 'package:doctordesktop/reception/ReceptionAdmitted.dart';
 import 'package:doctordesktop/reception/ReceptionDashboard.dart';
@@ -52,6 +54,8 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           title: 'Flutter Windows App',
           theme: AppTheme.lightTheme,
+          // home: CreateSaleScreen(),
+          // home: PrescriptionToSaleScreen(),
           home: HomePage(),
         );
       },
