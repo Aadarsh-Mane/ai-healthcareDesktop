@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:doctordesktop/constants/Url.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
@@ -61,7 +62,7 @@ class _PrescriptionToSaleScreenState extends State<PrescriptionToSaleScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:5001/pharma/getAllPrescriptions'),
+        Uri.parse('${BASE_URL}/pharma/getAllPrescriptions'),
       );
 
       if (response.statusCode == 200) {
@@ -112,7 +113,7 @@ class _PrescriptionToSaleScreenState extends State<PrescriptionToSaleScreen> {
       }
 
       // Create URI with query parameters
-      final uri = Uri.parse('http://localhost:5001/pharma/getInventory')
+      final uri = Uri.parse('${BASE_URL}/pharma/getInventory')
           .replace(queryParameters: queryParams);
 
       final response = await http.get(uri);
@@ -280,8 +281,7 @@ class _PrescriptionToSaleScreenState extends State<PrescriptionToSaleScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse(
-            'http://localhost:5001/pharma/createSaleFromPatientPrescription'),
+        Uri.parse('${BASE_URL}/pharma/createSaleFromPatientPrescription'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(requestBody),
       );
@@ -1815,6 +1815,7 @@ class _PrescriptionToSaleScreenState extends State<PrescriptionToSaleScreen> {
     if (_selectedPatient == null) return SizedBox();
 
     return Card(
+      color: Colors.white,
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
@@ -1979,6 +1980,7 @@ class _PrescriptionToSaleScreenState extends State<PrescriptionToSaleScreen> {
     if (_selectedPatient == null) return SizedBox();
 
     return Card(
+      color: Colors.white,
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
@@ -2162,6 +2164,7 @@ class _PrescriptionToSaleScreenState extends State<PrescriptionToSaleScreen> {
         currentNight != originalNight;
 
     return Card(
+      color: Colors.white,
       margin: EdgeInsets.only(bottom: 16),
       elevation: isSelected ? 3 : 1,
       shape: RoundedRectangleBorder(
@@ -3289,6 +3292,7 @@ class _PrescriptionToSaleScreenState extends State<PrescriptionToSaleScreen> {
     if (_selectedPatient == null) return SizedBox();
 
     return Card(
+      color: Colors.white,
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),

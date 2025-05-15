@@ -1,3 +1,4 @@
+import 'package:doctordesktop/constants/Url.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -235,7 +236,7 @@ class _CreateReturnScreenState extends State<CreateReturnScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:5001/pharma/getCustomers'),
+        Uri.parse('${KVM_URL}/pharma/getCustomers'),
       );
 
       if (response.statusCode == 200) {
@@ -312,8 +313,7 @@ class _CreateReturnScreenState extends State<CreateReturnScreen> {
     });
 
     try {
-      final Uri uri =
-          Uri.parse('http://localhost:5001/pharma/getSales').replace(
+      final Uri uri = Uri.parse('${BASE_URL}/pharma/getSales').replace(
         queryParameters: {
           'startDate': _startDateController.text,
           'endDate': _endDateController.text,
@@ -462,7 +462,7 @@ class _CreateReturnScreenState extends State<CreateReturnScreen> {
         };
 
         final response = await http.post(
-          Uri.parse('http://localhost:5001/pharma/createReturn'),
+          Uri.parse('${BASE_URL}/pharma/createReturn'),
           headers: {'Content-Type': 'application/json'},
           body: json.encode(body),
         );

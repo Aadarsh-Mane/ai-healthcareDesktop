@@ -1,14 +1,13 @@
+import 'package:doctordesktop/constants/Url.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class ApiService {
-  static const String baseUrl = 'http://localhost:5001';
-
   // Generic GET method
   static Future<Map<String, dynamic>> get(String endpoint,
       {Map<String, String>? queryParams}) async {
     try {
-      final uri = Uri.parse('$baseUrl/$endpoint').replace(
+      final uri = Uri.parse('$KVM_URL/$endpoint').replace(
         queryParameters: queryParams,
       );
 
@@ -28,7 +27,7 @@ class ApiService {
   static Future<Map<String, dynamic>> post(
       String endpoint, Map<String, dynamic> data) async {
     try {
-      final uri = Uri.parse('$baseUrl/$endpoint');
+      final uri = Uri.parse('$KVM_URL/$endpoint');
 
       final response = await http.post(
         uri,
@@ -50,7 +49,7 @@ class ApiService {
   static Future<Map<String, dynamic>> put(
       String endpoint, String id, Map<String, dynamic> data) async {
     try {
-      final uri = Uri.parse('$baseUrl/$endpoint/$id');
+      final uri = Uri.parse('$KVM_URL/$endpoint/$id');
 
       final response = await http.put(
         uri,
@@ -71,7 +70,7 @@ class ApiService {
   // Generic DELETE method
   static Future<Map<String, dynamic>> delete(String endpoint, String id) async {
     try {
-      final uri = Uri.parse('$baseUrl/$endpoint/$id');
+      final uri = Uri.parse('$KVM_URL/$endpoint/$id');
 
       final response = await http.delete(uri);
 

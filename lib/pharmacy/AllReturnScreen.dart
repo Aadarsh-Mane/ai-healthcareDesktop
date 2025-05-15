@@ -1,11 +1,15 @@
 import 'dart:async';
 
+import 'package:doctordesktop/constants/Url.dart';
+import 'package:doctordesktop/pharmacy/pharmaTheme.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
 
-// Reusing model classes from CreateReturnScreen
+// Model classes from paste.txt are reused
 class Return {
   final String id;
   final String returnNumber;
@@ -333,20 +337,285 @@ class Customer {
   }
 }
 
-class FilterOptions {
-  String? startDate;
-  String? endDate;
-  String? customerId;
-  String? returnNumber;
-  String? saleId;
+// Adding the providers for better state management
+final returnsProvider =
+    StateNotifierProvider<ReturnsNotifier, ReturnsState>((ref) {
+  return ReturnsNotifier();
+});
 
-  FilterOptions({
+class ReturnsState {
+  final List<Return> returns;
+  final List<Return> filteredReturns;
+  final bool isLoading;
+  final int totalReturns;
+  final int currentPage;
+  final int pageSize;
+  final bool hasMorePages;
+  final bool hasAppliedFilters;
+  final FilterOptions filterOptions;
+  final Return? selectedReturn;
+  final bool showReturnDetail;
+
+  ReturnsState({
+    this.returns = const [],
+    this.filteredReturns = const [],
+    this.isLoading = false,
+    this.totalReturns = 0,
+    this.currentPage = 1,
+    this.pageSize = 10,
+    this.hasMorePages = false,
+    this.hasAppliedFilters = false,
+    this.filterOptions = const FilterOptions(),
+    this.selectedReturn,
+    this.showReturnDetail = false,
+  });
+
+  ReturnsState copyWith({
+    List<Return>? returns,
+    List<Return>? filteredReturns,
+    bool? isLoading,
+    int? totalReturns,
+    int? currentPage,
+    int? pageSize,
+    bool? hasMorePages,
+    bool? hasAppliedFilters,
+    FilterOptions? filterOptions,
+    Return? selectedReturn,
+    bool? showReturnDetail,
+  }) {
+    return ReturnsState(
+      returns: returns ?? this.returns,
+      filteredReturns: filteredReturns ?? this.filteredReturns,
+      isLoading: isLoading ?? this.isLoading,
+      totalReturns: totalReturns ?? this.totalReturns,
+      currentPage: currentPage ?? this.currentPage,
+      pageSize: pageSize ?? this.pageSize,
+      hasMorePages: hasMorePages ?? this.hasMorePages,
+      hasAppliedFilters: hasAppliedFilters ?? this.hasAppliedFilters,
+      filterOptions: filterOptions ?? this.filterOptions,
+      selectedReturn: selectedReturn ?? this.selectedReturn,
+      showReturnDetail: showReturnDetail ?? this.showReturnDetail,
+    );
+  }
+}
+
+class ReturnsNotifier extends StateNotifier<ReturnsState> {
+  ReturnsNotifier() : super(ReturnsState());
+
+  Future<void> loadReturns({bool resetPage = true}) async {
+    if (resetPage) {
+      state = state.copyWith(
+        currentPage: 1,
+        isLoading: true,
+        returns: [],
+        filteredReturns: [],
+      );
+    } else {
+      state = state.copyWith(isLoading: true);
+    }
+
+    try {
+      // Build query parameters
+      Map<String, String> queryParams = state.filterOptions.toQueryParameters();
+
+      // Add pagination parameters
+      queryParams['page'] = state.currentPage.toString();
+      queryParams['limit'] = state.pageSize.toString();
+
+      final Uri uri = Uri.parse('${KVM_URL}/pharma/getReturns')
+          .replace(queryParameters: queryParams);
+
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          final newReturns = List<Return>.from(
+              data['data'].map((returnData) => Return.fromJson(returnData)));
+
+          final updatedReturns =
+              resetPage ? newReturns : [...state.returns, ...newReturns];
+
+          state = state.copyWith(
+            returns: updatedReturns,
+            filteredReturns: updatedReturns,
+            totalReturns: data['count'],
+            hasMorePages: updatedReturns.length < data['count'],
+            hasAppliedFilters: state.filterOptions.customerId != null ||
+                state.filterOptions.returnNumber != null ||
+                state.filterOptions.saleId != null,
+            isLoading: false,
+          );
+        }
+      }
+    } catch (e) {
+      print('Error loading returns: $e');
+    } finally {
+      if (state.isLoading) {
+        state = state.copyWith(isLoading: false);
+      }
+    }
+  }
+
+  void loadNextPage() {
+    if (state.hasMorePages && !state.isLoading) {
+      state = state.copyWith(currentPage: state.currentPage + 1);
+      loadReturns(resetPage: false);
+    }
+  }
+
+  void applyFilters(FilterOptions filterOptions) {
+    state = state.copyWith(filterOptions: filterOptions);
+    loadReturns();
+  }
+
+  void selectReturn(Return returnData) {
+    state = state.copyWith(
+      selectedReturn: returnData,
+      showReturnDetail: true,
+    );
+  }
+
+  void closeReturnDetail() {
+    state = state.copyWith(
+      showReturnDetail: false,
+      selectedReturn: null,
+    );
+  }
+}
+
+// Customers provider
+final customersProvider =
+    StateNotifierProvider<CustomersNotifier, CustomersState>((ref) {
+  return CustomersNotifier();
+});
+
+class CustomersState {
+  final List<Customer> customers;
+  final List<Customer> filteredCustomers;
+  final bool isLoading;
+  final Customer? selectedCustomer;
+
+  CustomersState({
+    this.customers = const [],
+    this.filteredCustomers = const [],
+    this.isLoading = false,
+    this.selectedCustomer,
+  });
+
+  CustomersState copyWith({
+    List<Customer>? customers,
+    List<Customer>? filteredCustomers,
+    bool? isLoading,
+    Customer? selectedCustomer,
+  }) {
+    return CustomersState(
+      customers: customers ?? this.customers,
+      filteredCustomers: filteredCustomers ?? this.filteredCustomers,
+      isLoading: isLoading ?? this.isLoading,
+      selectedCustomer: selectedCustomer ?? this.selectedCustomer,
+    );
+  }
+}
+
+class CustomersNotifier extends StateNotifier<CustomersState> {
+  CustomersNotifier() : super(CustomersState());
+
+  Future<void> loadCustomers() async {
+    state = state.copyWith(isLoading: true);
+
+    try {
+      final response = await http.get(
+        Uri.parse('${BASE_URL}/pharma/getCustomers'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          final customers = List<Customer>.from(
+              data['data'].map((customer) => Customer.fromJson(customer)));
+
+          state = state.copyWith(
+            customers: customers,
+            filteredCustomers: customers,
+            isLoading: false,
+          );
+        }
+      }
+    } catch (e) {
+      print('Error loading customers: $e');
+    } finally {
+      if (state.isLoading) {
+        state = state.copyWith(isLoading: false);
+      }
+    }
+  }
+
+  void filterCustomers(String query) {
+    if (query.isEmpty) {
+      state = state.copyWith(filteredCustomers: state.customers);
+    } else {
+      final filtered = state.customers
+          .where((customer) =>
+              customer.name.toLowerCase().contains(query.toLowerCase()) ||
+              customer.contactNumber.contains(query))
+          .toList();
+
+      state = state.copyWith(filteredCustomers: filtered);
+    }
+  }
+
+  void selectCustomer(Customer? customer) {
+    state = state.copyWith(selectedCustomer: customer);
+  }
+}
+
+// UI states provider for mobile layout
+final uiStateProvider = StateProvider<UIState>((ref) {
+  return UIState(
+    showFilterPanel: true,
+  );
+});
+
+class UIState {
+  final bool showFilterPanel;
+
+  const UIState({
+    required this.showFilterPanel,
+  });
+}
+
+// Update FilterOptions to be immutable
+class FilterOptions {
+  final String? startDate;
+  final String? endDate;
+  final String? customerId;
+  final String? returnNumber;
+  final String? saleId;
+
+  const FilterOptions({
     this.startDate,
     this.endDate,
     this.customerId,
     this.returnNumber,
     this.saleId,
   });
+
+  FilterOptions copyWith({
+    String? startDate,
+    String? endDate,
+    String? customerId,
+    String? returnNumber,
+    String? saleId,
+  }) {
+    return FilterOptions(
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      customerId: customerId ?? this.customerId,
+      returnNumber: returnNumber ?? this.returnNumber,
+      saleId: saleId ?? this.saleId,
+    );
+  }
 
   Map<String, String> toQueryParameters() {
     Map<String, String> params = {};
@@ -362,61 +631,28 @@ class FilterOptions {
   }
 }
 
-class AllReturnsScreen extends StatefulWidget {
+class AllReturnsScreen extends ConsumerStatefulWidget {
   const AllReturnsScreen({Key? key}) : super(key: key);
 
   @override
-  _AllReturnsScreenState createState() => _AllReturnsScreenState();
+  ConsumerState<AllReturnsScreen> createState() => _AllReturnsScreenState();
 }
 
-class _AllReturnsScreenState extends State<AllReturnsScreen> {
-  // Colors
-  final Color primaryColor = const Color(0xFF2D5AB9);
-  final Color accentColor = const Color(0xFF4ECDC4);
-  final Color backgroundColor = const Color(0xFFF7F9FB);
-  final Color cardColor = Colors.white;
-  final Color textColorPrimary = const Color(0xFF333333);
-  final Color textColorSecondary = const Color(0xFF7A869A);
-  final Color borderColor = const Color(0xFFEAECF0);
-  final Color errorColor = const Color(0xFFE53935);
-  final Color successColor = const Color(0xFF43A047);
-
+class _AllReturnsScreenState extends ConsumerState<AllReturnsScreen> {
   // Controllers
   final TextEditingController _startDateController = TextEditingController();
   final TextEditingController _endDateController = TextEditingController();
   final TextEditingController _returnNumberController = TextEditingController();
   final TextEditingController _customerSearchController =
       TextEditingController();
+
   Timer? _debounceTimer;
-  // Data state
-  List<Return> _returns = [];
-  List<Return> _filteredReturns = [];
-  List<Customer> _customers = [];
-  List<Customer> _filteredCustomers = [];
-
-  // UI state
-  bool _isLoading = false;
-  bool _isLoadingCustomers = false;
   bool _isMobile = false;
-  bool _showFilterPanel = true;
-  bool _hasAppliedFilters = false;
 
-  // Selected data
-  Customer? _selectedCustomer;
-  Return? _selectedReturn;
+  // Key handler subscription
+  late FocusNode _mainFocusNode;
 
-  // Pagination
-  int _currentPage = 1;
-  int _pageSize = 10;
-  int _totalReturns = 0;
-  bool _hasMorePages = false;
-
-  // Filter options
-  FilterOptions _filterOptions = FilterOptions();
-
-  // Return detail view
-  bool _showReturnDetail = false;
-
+  @override
   void initState() {
     super.initState();
 
@@ -427,15 +663,63 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
     _startDateController.text = DateFormat('yyyy-MM-dd').format(thirtyDaysAgo);
     _endDateController.text = DateFormat('yyyy-MM-dd').format(now);
 
-    _filterOptions.startDate = _startDateController.text;
-    _filterOptions.endDate = _endDateController.text;
-
     // Add listener to return number controller for auto-filtering
     _returnNumberController.addListener(_onReturnNumberChanged);
 
-    // Load initial data
-    _loadCustomers();
-    _loadReturns();
+    // Initialize the providers with default filter options
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(returnsProvider.notifier).applyFilters(
+            FilterOptions(
+              startDate: _startDateController.text,
+              endDate: _endDateController.text,
+            ),
+          );
+
+      // Load customers
+      ref.read(customersProvider.notifier).loadCustomers();
+    });
+
+    // Initialize focus node for keyboard shortcuts
+    _mainFocusNode = FocusNode();
+
+    // Setup keyboard shortcuts
+    _setupKeyboardShortcuts();
+  }
+
+  void _setupKeyboardShortcuts() {
+    _mainFocusNode.onKeyEvent = (node, event) {
+      if (event is KeyDownEvent) {
+        // Ctrl/Cmd + R = Refresh data
+        if ((event.logicalKey == LogicalKeyboardKey.keyR) &&
+            (HardwareKeyboard.instance.isControlPressed ||
+                HardwareKeyboard.instance.isMetaPressed)) {
+          _refreshData();
+          return KeyEventResult.handled;
+        }
+
+        // Ctrl/Cmd + F = Focus on filter/search
+        if ((event.logicalKey == LogicalKeyboardKey.keyF) &&
+            (HardwareKeyboard.instance.isControlPressed ||
+                HardwareKeyboard.instance.isMetaPressed)) {
+          _returnNumberController.selection = TextSelection(
+            baseOffset: 0,
+            extentOffset: _returnNumberController.text.length,
+          );
+          FocusScope.of(context).requestFocus(FocusNode()..requestFocus());
+          return KeyEventResult.handled;
+        }
+
+        // Escape = Close detail view or clear selection
+        if (event.logicalKey == LogicalKeyboardKey.escape) {
+          final returnsState = ref.read(returnsProvider);
+          if (returnsState.showReturnDetail) {
+            ref.read(returnsProvider.notifier).closeReturnDetail();
+            return KeyEventResult.handled;
+          }
+        }
+      }
+      return KeyEventResult.ignored;
+    };
   }
 
   void _showSuccessSnackBar(String message) {
@@ -448,12 +732,12 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
             Text(message),
           ],
         ),
-        backgroundColor: successColor,
+        backgroundColor: PharmaTheme.success,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(PharmaTheme.radiusS),
         ),
-        duration: const Duration(seconds: 3),
+        duration: PharmaTheme.transitionMedium,
       ),
     );
   }
@@ -462,202 +746,66 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: errorColor,
+        backgroundColor: PharmaTheme.error,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(PharmaTheme.radiusS),
         ),
       ),
     );
   }
 
-  Future<void> _loadCustomers() async {
-    setState(() {
-      _isLoadingCustomers = true;
-    });
-
-    try {
-      final response = await http.get(
-        Uri.parse('http://localhost:5001/pharma/getCustomers'),
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['success'] == true) {
-          setState(() {
-            _customers = List<Customer>.from(
-                data['data'].map((customer) => Customer.fromJson(customer)));
-            _filteredCustomers = _customers;
-          });
-        } else {
-          _showErrorSnackBar('Failed to load customers: ${data['message']}');
-        }
-      } else {
-        _showErrorSnackBar('Failed to load customers: ${response.statusCode}');
-      }
-    } catch (e) {
-      _showErrorSnackBar('Error loading customers: $e');
-    } finally {
-      setState(() {
-        _isLoadingCustomers = false;
-      });
-    }
-  }
-
-  Future<void> _loadReturns({bool resetPage = true}) async {
-    if (resetPage) {
-      _currentPage = 1;
-    }
-
-    setState(() {
-      _isLoading = true;
-      if (resetPage) {
-        _returns = [];
-        _filteredReturns = [];
-      }
-    });
-
-    try {
-      // Build query parameters
-      Map<String, String> queryParams = _filterOptions.toQueryParameters();
-
-      // Add pagination parameters
-      queryParams['page'] = _currentPage.toString();
-      queryParams['limit'] = _pageSize.toString();
-
-      final Uri uri = Uri.parse('http://localhost:5001/pharma/getReturns')
-          .replace(queryParameters: queryParams);
-
-      final response = await http.get(uri);
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['success'] == true) {
-          final newReturns = List<Return>.from(
-              data['data'].map((returnData) => Return.fromJson(returnData)));
-
-          setState(() {
-            if (resetPage) {
-              _returns = newReturns;
-            } else {
-              _returns.addAll(newReturns);
-            }
-
-            _filteredReturns = List.from(_returns);
-            _totalReturns = data['count'];
-            _hasMorePages = _returns.length < _totalReturns;
-            _hasAppliedFilters = _filterOptions.customerId != null ||
-                _filterOptions.returnNumber != null ||
-                _filterOptions.saleId != null;
-          });
-        } else {
-          _showErrorSnackBar('Failed to load returns: ${data['message']}');
-        }
-      } else {
-        _showErrorSnackBar('Failed to load returns: ${response.statusCode}');
-      }
-    } catch (e) {
-      _showErrorSnackBar('Error loading returns: $e');
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  void _loadNextPage() {
-    if (_hasMorePages && !_isLoading) {
-      _currentPage++;
-      _loadReturns(resetPage: false);
-    }
-  }
-
   void _refreshData() {
-    _loadReturns();
+    ref.read(returnsProvider.notifier).loadReturns();
     _showSuccessSnackBar('Data refreshed');
   }
 
   void _resetFilters() {
-    setState(() {
-      // Reset date to last 30 days
-      final now = DateTime.now();
-      final thirtyDaysAgo = now.subtract(const Duration(days: 30));
+    // Reset date to last 30 days
+    final now = DateTime.now();
+    final thirtyDaysAgo = now.subtract(const Duration(days: 30));
 
-      _startDateController.text =
-          DateFormat('yyyy-MM-dd').format(thirtyDaysAgo);
-      _endDateController.text = DateFormat('yyyy-MM-dd').format(now);
+    _startDateController.text = DateFormat('yyyy-MM-dd').format(thirtyDaysAgo);
+    _endDateController.text = DateFormat('yyyy-MM-dd').format(now);
 
-      // Reset other controllers
-      _returnNumberController.clear();
-      _customerSearchController.clear();
+    // Reset other controllers
+    _returnNumberController.clear();
+    _customerSearchController.clear();
 
-      // Reset selected customer
-      _selectedCustomer = null;
+    // Reset selected customer
+    ref.read(customersProvider.notifier).selectCustomer(null);
 
-      // Reset filter options
-      _filterOptions = FilterOptions(
-        startDate: _startDateController.text,
-        endDate: _endDateController.text,
-      );
+    // Reset filter options and load returns
+    ref.read(returnsProvider.notifier).applyFilters(
+          FilterOptions(
+            startDate: _startDateController.text,
+            endDate: _endDateController.text,
+          ),
+        );
 
-      // Reset filtered customers
-      _filteredCustomers = _customers;
-
-      _hasAppliedFilters = false;
-    });
-
-    // Load returns with reset filters
-    _loadReturns();
+    // Reset filtered customers
+    ref.read(customersProvider.notifier).filterCustomers('');
   }
 
   void _applyFilters() {
-    setState(() {
-      _filterOptions = FilterOptions(
-        startDate: _startDateController.text,
-        endDate: _endDateController.text,
-        customerId: _selectedCustomer?.id,
-        returnNumber: _returnNumberController.text.isEmpty
-            ? null
-            : _returnNumberController.text,
-      );
-    });
+    final customersState = ref.read(customersProvider);
 
-    _loadReturns();
+    ref.read(returnsProvider.notifier).applyFilters(
+          FilterOptions(
+            startDate: _startDateController.text,
+            endDate: _endDateController.text,
+            customerId: customersState.selectedCustomer?.id,
+            returnNumber: _returnNumberController.text.isEmpty
+                ? null
+                : _returnNumberController.text,
+          ),
+        );
 
     // Switch to returns list view on mobile
     if (_isMobile) {
-      setState(() {
-        _showFilterPanel = false;
-      });
+      ref.read(uiStateProvider.notifier).state =
+          UIState(showFilterPanel: false);
     }
-  }
-
-  void _filterCustomers(String query) {
-    setState(() {
-      if (query.isEmpty) {
-        _filteredCustomers = _customers;
-      } else {
-        _filteredCustomers = _customers
-            .where((customer) =>
-                customer.name.toLowerCase().contains(query.toLowerCase()) ||
-                customer.contactNumber.contains(query))
-            .toList();
-      }
-    });
-  }
-
-  void _selectReturn(Return returnData) {
-    setState(() {
-      _selectedReturn = returnData;
-      _showReturnDetail = true;
-    });
-  }
-
-  void _closeReturnDetail() {
-    setState(() {
-      _showReturnDetail = false;
-      _selectedReturn = null;
-    });
   }
 
   void _exportReturns() {
@@ -683,89 +831,120 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
     }
   }
 
+  void _onReturnNumberChanged() {
+    // Debounce the filtering to avoid too many API calls
+    if (_debounceTimer?.isActive ?? false) {
+      _debounceTimer!.cancel();
+    }
+
+    _debounceTimer = Timer(PharmaTheme.transitionFast, () {
+      final customersState = ref.read(customersProvider);
+
+      ref.read(returnsProvider.notifier).applyFilters(
+            FilterOptions(
+              startDate: _startDateController.text,
+              endDate: _endDateController.text,
+              customerId: customersState.selectedCustomer?.id,
+              returnNumber: _returnNumberController.text.isEmpty
+                  ? null
+                  : _returnNumberController.text,
+            ),
+          );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Determine if we're on a mobile device
-    _isMobile = MediaQuery.of(context).size.width < 900;
+    // Determine if we're on a mobile device using PharmaTheme helper
+    _isMobile = PharmaTheme.isMobile(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'All Returns',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 22,
-          ),
-        ),
-        actions: [
-          if (_isMobile)
-            IconButton(
-              icon:
-                  Icon(_showFilterPanel ? Icons.view_list : Icons.filter_list),
-              onPressed: () {
-                setState(() {
-                  _showFilterPanel = !_showFilterPanel;
-                  if (_showReturnDetail) {
-                    _showReturnDetail = false;
+    final returnsState = ref.watch(returnsProvider);
+    final uiState = ref.watch(uiStateProvider);
+
+    return Focus(
+      focusNode: _mainFocusNode,
+      autofocus: true,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('All Returns'),
+          actions: [
+            if (_isMobile)
+              IconButton(
+                icon: Icon(uiState.showFilterPanel
+                    ? Icons.view_list
+                    : Icons.filter_list),
+                onPressed: () {
+                  final currentState = ref.read(uiStateProvider);
+                  ref.read(uiStateProvider.notifier).state = UIState(
+                    showFilterPanel: !currentState.showFilterPanel,
+                  );
+
+                  // Close detail view if open when switching to filters
+                  if (returnsState.showReturnDetail &&
+                      !currentState.showFilterPanel) {
+                    ref.read(returnsProvider.notifier).closeReturnDetail();
                   }
-                });
-              },
-              tooltip: _showFilterPanel ? 'Show Returns' : 'Show Filters',
+                },
+                tooltip:
+                    uiState.showFilterPanel ? 'Show Returns' : 'Show Filters',
+              ),
+            IconButton(
+              icon: const Icon(Icons.file_download),
+              onPressed: _exportReturns,
+              tooltip: 'Export Returns',
             ),
-          IconButton(
-            icon: const Icon(Icons.file_download),
-            onPressed: _exportReturns,
-            tooltip: 'Export Returns',
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _refreshData,
-            tooltip: 'Refresh Data',
-          ),
-        ],
-        elevation: 0,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [primaryColor, primaryColor.withOpacity(0.7)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _refreshData,
+              tooltip: 'Refresh Data',
+            ),
+          ],
+          flexibleSpace: Container(
+            decoration: BoxDecoration(
+              gradient: PharmaTheme.primaryGradient,
             ),
           ),
         ),
-      ),
-      floatingActionButton: _showReturnDetail || (_isMobile && _showFilterPanel)
-          ? null
-          : FloatingActionButton(
-              backgroundColor: accentColor,
-              foregroundColor: Colors.white,
-              onPressed: () {
-                // Navigate to create return screen
-                Navigator.pushNamed(context, '/create-return').then((_) {
-                  // Refresh data when returning from create screen
-                  _refreshData();
-                });
-              },
-              child: const Icon(Icons.add),
-              tooltip: 'Create New Return',
-            ),
-      body: Container(
-        color: backgroundColor,
-        child: _isMobile ? _buildMobileLayout() : _buildDesktopLayout(),
+        floatingActionButton: returnsState.showReturnDetail ||
+                (_isMobile && uiState.showFilterPanel)
+            ? null
+            : FloatingActionButton(
+                backgroundColor: PharmaTheme.accent,
+                foregroundColor: PharmaTheme.textLight,
+                onPressed: () {
+                  // Navigate to create return screen
+                  Navigator.pushNamed(context, '/create-return').then((_) {
+                    // Refresh data when returning from create screen
+                    _refreshData();
+                  });
+                },
+                child: const Icon(Icons.add),
+                tooltip: 'Create New Return',
+              ),
+        body: Container(
+          color: PharmaTheme.background,
+          child: _isMobile ? _buildMobileLayout() : _buildDesktopLayout(),
+        ),
       ),
     );
   }
 
   Widget _buildMobileLayout() {
-    if (_showReturnDetail && _selectedReturn != null) {
+    final returnsState = ref.watch(returnsProvider);
+    final uiState = ref.watch(uiStateProvider);
+
+    if (returnsState.showReturnDetail && returnsState.selectedReturn != null) {
       return _buildReturnDetailPanel();
     }
 
-    return _showFilterPanel ? _buildFilterPanel() : _buildReturnsListPanel();
+    return uiState.showFilterPanel
+        ? _buildFilterPanel()
+        : _buildReturnsListPanel();
   }
 
   Widget _buildDesktopLayout() {
+    final returnsState = ref.watch(returnsProvider);
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -777,7 +956,8 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
 
         // Right panel - Returns list or Return detail
         Expanded(
-          child: _showReturnDetail && _selectedReturn != null
+          child: returnsState.showReturnDetail &&
+                  returnsState.selectedReturn != null
               ? _buildReturnDetailPanel()
               : _buildReturnsListPanel(),
         ),
@@ -786,22 +966,18 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
   }
 
   Widget _buildReturnsListPanel() {
+    final returnsState = ref.watch(returnsProvider);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Header with stats and actions
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(PharmaTheme.spacingM),
           decoration: BoxDecoration(
-            color: cardColor,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                offset: const Offset(0, 2),
-                blurRadius: 5,
-              ),
-            ],
+            color: PharmaTheme.surface,
+            boxShadow: PharmaTheme.shadowSmall,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -814,56 +990,53 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
                     children: [
                       Text(
                         'All Returns',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: primaryColor,
+                        style: PharmaTheme.headingSmall.copyWith(
+                          color: PharmaTheme.primary,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: PharmaTheme.spacingXxs),
                       Text(
-                        'Showing ${_returns.length} of $_totalReturns returns',
-                        style: TextStyle(
-                          color: textColorSecondary,
-                        ),
+                        'Showing ${returnsState.returns.length} of ${returnsState.totalReturns} returns',
+                        style: PharmaTheme.bodySmall,
                       ),
                     ],
                   ),
-                  if (_hasAppliedFilters)
+                  if (returnsState.hasAppliedFilters)
                     OutlinedButton.icon(
                       onPressed: _resetFilters,
                       icon: const Icon(Icons.filter_alt_off),
                       label: const Text('Clear Filters'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: accentColor,
-                        side: BorderSide(color: accentColor),
+                        foregroundColor: PharmaTheme.accent,
+                        side: BorderSide(color: PharmaTheme.accent),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius:
+                              BorderRadius.circular(PharmaTheme.radiusCircular),
                         ),
                       ),
                     ),
                 ],
               ),
-              if (_hasAppliedFilters) ...[
-                const SizedBox(height: 16),
+              if (returnsState.hasAppliedFilters) ...[
+                SizedBox(height: PharmaTheme.spacingM),
                 Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                  spacing: PharmaTheme.spacingXs,
+                  runSpacing: PharmaTheme.spacingXs,
                   children: [
-                    if (_filterOptions.startDate != null &&
-                        _filterOptions.endDate != null)
+                    if (returnsState.filterOptions.startDate != null &&
+                        returnsState.filterOptions.endDate != null)
                       _buildFilterChip(
-                        'Date: ${DateFormat('dd/MM/yyyy').format(DateFormat('yyyy-MM-dd').parse(_filterOptions.startDate!))} - ${DateFormat('dd/MM/yyyy').format(DateFormat('yyyy-MM-dd').parse(_filterOptions.endDate!))}',
+                        'Date: ${DateFormat('dd/MM/yyyy').format(DateFormat('yyyy-MM-dd').parse(returnsState.filterOptions.startDate!))} - ${DateFormat('dd/MM/yyyy').format(DateFormat('yyyy-MM-dd').parse(returnsState.filterOptions.endDate!))}',
                         Icons.calendar_today,
                       ),
-                    if (_selectedCustomer != null)
+                    if (ref.read(customersProvider).selectedCustomer != null)
                       _buildFilterChip(
-                        'Customer: ${_selectedCustomer!.name}',
+                        'Customer: ${ref.read(customersProvider).selectedCustomer!.name}',
                         Icons.person,
                       ),
-                    if (_filterOptions.returnNumber != null)
+                    if (returnsState.filterOptions.returnNumber != null)
                       _buildFilterChip(
-                        'Return #: ${_filterOptions.returnNumber}',
+                        'Return #: ${returnsState.filterOptions.returnNumber}',
                         Icons.receipt,
                       ),
                   ],
@@ -875,23 +1048,23 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
 
         // Returns list
         Expanded(
-          child: _isLoading && _returns.isEmpty
+          child: returnsState.isLoading && returnsState.returns.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      CircularProgressIndicator(color: primaryColor),
-                      const SizedBox(height: 16),
+                      CircularProgressIndicator(color: PharmaTheme.primary),
+                      SizedBox(height: PharmaTheme.spacingM),
                       Text(
                         'Loading returns...',
-                        style: TextStyle(
-                          color: textColorSecondary,
+                        style: PharmaTheme.bodyMedium.copyWith(
+                          color: PharmaTheme.textSecondary,
                         ),
                       ),
                     ],
                   ),
                 )
-              : _returns.isEmpty
+              : returnsState.returns.isEmpty
                   ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -899,39 +1072,38 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
                           Icon(
                             Icons.assignment_return,
                             size: 64,
-                            color: textColorSecondary.withOpacity(0.5),
+                            color: PharmaTheme.textSecondary.withOpacity(0.5),
                           ),
-                          const SizedBox(height: 16),
+                          SizedBox(height: PharmaTheme.spacingM),
                           Text(
                             'No returns found',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: textColorSecondary,
+                            style: PharmaTheme.headingSmall.copyWith(
+                              color: PharmaTheme.textSecondary,
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          SizedBox(height: PharmaTheme.spacingXs),
                           Text(
                             'Try adjusting your filters or create a new return',
-                            style: TextStyle(
-                              color: textColorSecondary,
+                            style: PharmaTheme.bodyMedium.copyWith(
+                              color: PharmaTheme.textSecondary,
                             ),
                             textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 24),
+                          SizedBox(height: PharmaTheme.spacingL),
                           OutlinedButton.icon(
                             onPressed: _resetFilters,
                             icon: const Icon(Icons.refresh),
                             label: const Text('Reset Filters'),
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: primaryColor,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 12,
+                              foregroundColor: PharmaTheme.primary,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: PharmaTheme.spacingL,
+                                vertical: PharmaTheme.spacingM,
                               ),
-                              side: BorderSide(color: primaryColor),
+                              side: BorderSide(color: PharmaTheme.primary),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius:
+                                    BorderRadius.circular(PharmaTheme.radiusS),
                               ),
                             ),
                           ),
@@ -942,29 +1114,30 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
                       onNotification: (ScrollNotification scrollInfo) {
                         if (scrollInfo.metrics.pixels ==
                                 scrollInfo.metrics.maxScrollExtent &&
-                            _hasMorePages &&
-                            !_isLoading) {
-                          _loadNextPage();
+                            returnsState.hasMorePages &&
+                            !returnsState.isLoading) {
+                          ref.read(returnsProvider.notifier).loadNextPage();
                         }
                         return false;
                       },
                       child: ListView.separated(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _returns.length + (_hasMorePages ? 1 : 0),
+                        padding: EdgeInsets.all(PharmaTheme.spacingM),
+                        itemCount: returnsState.returns.length +
+                            (returnsState.hasMorePages ? 1 : 0),
                         separatorBuilder: (context, index) =>
-                            const SizedBox(height: 12),
+                            SizedBox(height: PharmaTheme.spacingM),
                         itemBuilder: (context, index) {
-                          if (index == _returns.length) {
+                          if (index == returnsState.returns.length) {
                             return Center(
                               child: Padding(
-                                padding: const EdgeInsets.all(16.0),
+                                padding: EdgeInsets.all(PharmaTheme.spacingM),
                                 child: CircularProgressIndicator(
-                                    color: primaryColor),
+                                    color: PharmaTheme.primary),
                               ),
                             );
                           }
 
-                          final returnData = _returns[index];
+                          final returnData = returnsState.returns[index];
                           return _buildReturnCard(returnData);
                         },
                       ),
@@ -975,16 +1148,17 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
   }
 
   Widget _buildReturnDetailPanel() {
-    if (_selectedReturn == null) return const SizedBox.shrink();
+    final returnsState = ref.watch(returnsProvider);
+    if (returnsState.selectedReturn == null) return const SizedBox.shrink();
 
-    final returnData = _selectedReturn!;
+    final returnData = returnsState.selectedReturn!;
     final formattedDate = DateFormat('dd MMM yyyy, hh:mm a')
         .format(DateTime.parse(returnData.createdAt));
     final originalSaleDate = DateFormat('dd MMM yyyy')
         .format(DateTime.parse(returnData.originalSale.createdAt));
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(PharmaTheme.spacingL),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -992,14 +1166,15 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
           Row(
             children: [
               OutlinedButton.icon(
-                onPressed: _closeReturnDetail,
+                onPressed: () =>
+                    ref.read(returnsProvider.notifier).closeReturnDetail(),
                 icon: const Icon(Icons.arrow_back),
                 label: const Text('Back to List'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: textColorPrimary,
-                  side: BorderSide(color: borderColor),
+                  foregroundColor: PharmaTheme.textPrimary,
+                  side: BorderSide(color: PharmaTheme.border),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(PharmaTheme.radiusS),
                   ),
                 ),
               ),
@@ -1010,14 +1185,14 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
                   icon: const Icon(Icons.picture_as_pdf),
                   label: const Text('View PDF'),
                   style: ElevatedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    backgroundColor: Colors.orange,
+                    foregroundColor: PharmaTheme.textLight,
+                    backgroundColor: PharmaTheme.warning,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(PharmaTheme.radiusS),
                     ),
                   ),
                 ),
-              const SizedBox(width: 12),
+              SizedBox(width: PharmaTheme.spacingM),
               ElevatedButton.icon(
                 onPressed: () {
                   // Navigate to print receipt page
@@ -1025,35 +1200,25 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
                 icon: const Icon(Icons.print),
                 label: const Text('Print'),
                 style: ElevatedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  backgroundColor: accentColor,
+                  foregroundColor: PharmaTheme.textLight,
+                  backgroundColor: PharmaTheme.accent,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(PharmaTheme.radiusS),
                   ),
                 ),
               ),
             ],
           ),
 
-          const SizedBox(height: 24),
+          SizedBox(height: PharmaTheme.spacingL),
 
           // Return header
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(PharmaTheme.spacingL),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [primaryColor, accentColor],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: primaryColor.withOpacity(0.3),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              gradient: PharmaTheme.primaryAccentGradient,
+              borderRadius: BorderRadius.circular(PharmaTheme.radiusL),
+              boxShadow: PharmaTheme.shadowMedium,
             ),
             child: Row(
               children: [
@@ -1066,37 +1231,33 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
                   ),
                   child: const Icon(
                     Icons.assignment_return,
-                    color: Colors.white,
+                    color: PharmaTheme.textLight,
                     size: 36,
                   ),
                 ),
-                const SizedBox(width: 20),
+                SizedBox(width: PharmaTheme.spacingL),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         returnData.returnNumber,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 24,
+                        style: PharmaTheme.headingLarge.copyWith(
+                          color: PharmaTheme.textLight,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: PharmaTheme.spacingXs),
                       Text(
                         'Total Amount: ₹${returnData.totalAmount.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
+                        style: PharmaTheme.headingSmall.copyWith(
+                          color: PharmaTheme.textLight,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: PharmaTheme.spacingXxs),
                       Text(
                         'Date: $formattedDate',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
-                          fontSize: 16,
+                        style: PharmaTheme.bodyMedium.copyWith(
+                          color: PharmaTheme.textLight.withOpacity(0.9),
                         ),
                       ),
                     ],
@@ -1106,41 +1267,40 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
             ),
           ),
 
-          const SizedBox(height: 24),
+          SizedBox(height: PharmaTheme.spacingL),
 
           // Information cards
           Wrap(
-            spacing: 20,
-            runSpacing: 20,
+            spacing: PharmaTheme.spacingL,
+            runSpacing: PharmaTheme.spacingL,
             children: [
               // Customer details card
               SizedBox(
                 width: _isMobile ? double.infinity : 320,
                 child: Card(
+                  color: PharmaTheme.surface,
                   elevation: 2,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(PharmaTheme.radiusL),
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(20),
+                    padding: EdgeInsets.all(PharmaTheme.spacingL),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.person, color: primaryColor),
-                            const SizedBox(width: 8),
+                            Icon(Icons.person, color: PharmaTheme.primary),
+                            SizedBox(width: PharmaTheme.spacingXs),
                             Text(
                               'Customer Details',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                                color: primaryColor,
+                              style: PharmaTheme.headingSmall.copyWith(
+                                color: PharmaTheme.primary,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 16),
+                        SizedBox(height: PharmaTheme.spacingM),
                         _buildInfoItem('Name', returnData.customer.name),
                         _buildInfoItem(
                             'Contact', returnData.customer.contactNumber),
@@ -1159,50 +1319,50 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
               SizedBox(
                 width: _isMobile ? double.infinity : 320,
                 child: Card(
+                  color: PharmaTheme.surface,
                   elevation: 2,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(PharmaTheme.radiusL),
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(20),
+                    padding: EdgeInsets.all(PharmaTheme.spacingL),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.receipt_long, color: primaryColor),
-                            const SizedBox(width: 8),
+                            Icon(Icons.receipt_long,
+                                color: PharmaTheme.primary),
+                            SizedBox(width: PharmaTheme.spacingXs),
                             Text(
                               'Original Sale',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                                color: primaryColor,
+                              style: PharmaTheme.headingSmall.copyWith(
+                                color: PharmaTheme.primary,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 16),
+                        SizedBox(height: PharmaTheme.spacingM),
                         _buildInfoItem(
                             'Bill Number', returnData.originalSale.billNumber),
                         _buildInfoItem('Date', originalSaleDate),
                         _buildInfoItem(
                           'Total Amount',
                           '₹${returnData.originalSale.total.toStringAsFixed(2)}',
-                          valueColor: primaryColor,
+                          valueColor: PharmaTheme.primary,
                           valueFontWeight: FontWeight.bold,
                         ),
-                        const SizedBox(height: 8),
+                        SizedBox(height: PharmaTheme.spacingXs),
                         if (returnData.originalSale.pdfLink != null)
                           TextButton.icon(
                             onPressed: () =>
                                 _launchPDF(returnData.originalSale.pdfLink),
                             icon: Icon(Icons.picture_as_pdf,
-                                color: accentColor, size: 18),
+                                color: PharmaTheme.accent, size: 18),
                             label: Text(
                               'View Original Invoice',
-                              style: TextStyle(
-                                color: accentColor,
+                              style: PharmaTheme.bodyMedium.copyWith(
+                                color: PharmaTheme.accent,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -1219,29 +1379,27 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
             ],
           ),
 
-          const SizedBox(height: 24),
+          SizedBox(height: PharmaTheme.spacingL),
 
           // Returned items
           Card(
             elevation: 2,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(PharmaTheme.radiusL),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: const EdgeInsets.all(20),
+                  padding: EdgeInsets.all(PharmaTheme.spacingL),
                   child: Row(
                     children: [
-                      Icon(Icons.inventory_2, color: primaryColor),
-                      const SizedBox(width: 8),
+                      Icon(Icons.inventory_2, color: PharmaTheme.primary),
+                      SizedBox(width: PharmaTheme.spacingXs),
                       Text(
                         'Returned Items',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: primaryColor,
+                        style: PharmaTheme.headingSmall.copyWith(
+                          color: PharmaTheme.primary,
                         ),
                       ),
                     ],
@@ -1252,54 +1410,51 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: returnData.items.length,
-                  separatorBuilder: (context, index) => Divider(height: 1),
+                  separatorBuilder: (context, index) =>
+                      const Divider(height: 1),
                   itemBuilder: (context, index) {
                     final item = returnData.items[index];
                     return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: PharmaTheme.spacingL,
+                        vertical: PharmaTheme.spacingM,
                       ),
                       leading: Container(
                         width: 48,
                         height: 48,
                         decoration: BoxDecoration(
-                          color: accentColor.withOpacity(0.1),
+                          color: PharmaTheme.accent.withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
                         child: Center(
                           child: Text(
                             '${index + 1}',
-                            style: TextStyle(
-                              fontSize: 16,
+                            style: PharmaTheme.bodyLarge.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: accentColor,
+                              color: PharmaTheme.accent,
                             ),
                           ),
                         ),
                       ),
                       title: Text(
                         item.medicine.name,
-                        style: TextStyle(
+                        style: PharmaTheme.bodyLarge.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: textColorPrimary,
-                          fontSize: 16,
                         ),
                       ),
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const SizedBox(height: 4),
+                          SizedBox(height: PharmaTheme.spacingXxs),
                           Text(
                             'Batch: ${item.batchNumber}',
-                            style: TextStyle(color: textColorSecondary),
+                            style: PharmaTheme.bodySmall,
                           ),
-                          const SizedBox(height: 2),
+                          SizedBox(height: PharmaTheme.spacingXxs),
                           Text(
                             'Reason: ${item.reason}',
-                            style: TextStyle(
+                            style: PharmaTheme.bodySmall.copyWith(
                               fontStyle: FontStyle.italic,
-                              color: textColorSecondary,
                             ),
                           ),
                         ],
@@ -1309,28 +1464,28 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: PharmaTheme.spacingM,
+                              vertical: PharmaTheme.spacingXs,
                             ),
                             decoration: BoxDecoration(
-                              color: primaryColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(16),
+                              color: PharmaTheme.primary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(
+                                  PharmaTheme.radiusCircular),
                             ),
                             child: Text(
                               'Qty: ${item.quantity}',
-                              style: TextStyle(
+                              style: PharmaTheme.bodyMedium.copyWith(
                                 fontWeight: FontWeight.bold,
-                                color: primaryColor,
+                                color: PharmaTheme.primary,
                               ),
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          SizedBox(height: PharmaTheme.spacingXxs),
                           Text(
                             '₹${item.totalAmount.toStringAsFixed(2)}',
-                            style: TextStyle(
+                            style: PharmaTheme.bodyMedium.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: textColorPrimary,
                             ),
                           ),
                         ],
@@ -1354,16 +1509,17 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
         DateFormat('hh:mm a').format(DateTime.parse(returnData.createdAt));
 
     return Card(
-      color: Colors.white,
+      color: PharmaTheme.surface,
       elevation: 2,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
       ),
       child: InkWell(
-        onTap: () => _selectReturn(returnData),
-        borderRadius: BorderRadius.circular(12),
+        onTap: () =>
+            ref.read(returnsProvider.notifier).selectReturn(returnData),
+        borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(PharmaTheme.spacingM),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1374,24 +1530,24 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(8),
+                        padding: EdgeInsets.all(PharmaTheme.spacingXs),
                         decoration: BoxDecoration(
-                          color: primaryColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
+                          color: PharmaTheme.primary.withOpacity(0.1),
+                          borderRadius:
+                              BorderRadius.circular(PharmaTheme.radiusS),
                         ),
                         child: Icon(
                           Icons.assignment_return,
-                          color: primaryColor,
+                          color: PharmaTheme.primary,
                           size: 20,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      SizedBox(width: PharmaTheme.spacingM),
                       Text(
                         returnData.returnNumber,
-                        style: TextStyle(
-                          fontSize: 16,
+                        style: PharmaTheme.bodyLarge.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: primaryColor,
+                          color: PharmaTheme.primary,
                         ),
                       ),
                     ],
@@ -1401,17 +1557,16 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
                     children: [
                       Text(
                         formattedDate,
-                        style: TextStyle(
-                          color: textColorSecondary,
+                        style: PharmaTheme.bodyMedium.copyWith(
+                          color: PharmaTheme.textSecondary,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      SizedBox(height: PharmaTheme.spacingXxs),
                       Text(
                         formattedTime,
-                        style: TextStyle(
-                          color: textColorSecondary,
-                          fontSize: 12,
+                        style: PharmaTheme.caption.copyWith(
+                          color: PharmaTheme.textSecondary,
                         ),
                       ),
                     ],
@@ -1419,9 +1574,9 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
                 ],
               ),
 
-              const SizedBox(height: 16),
+              SizedBox(height: PharmaTheme.spacingM),
               const Divider(height: 1),
-              const SizedBox(height: 16),
+              SizedBox(height: PharmaTheme.spacingM),
 
               // Middle section with customer and original sale info
               Row(
@@ -1434,47 +1589,40 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
                       children: [
                         Text(
                           'Customer',
-                          style: TextStyle(
-                            color: textColorSecondary,
-                            fontSize: 12,
-                          ),
+                          style: PharmaTheme.caption,
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: PharmaTheme.spacingXxs),
                         Row(
                           children: [
                             Icon(
                               Icons.person,
-                              color: accentColor,
+                              color: PharmaTheme.accent,
                               size: 16,
                             ),
-                            const SizedBox(width: 8),
+                            SizedBox(width: PharmaTheme.spacingXs),
                             Flexible(
                               child: Text(
                                 returnData.customer.name,
-                                style: TextStyle(
+                                style: PharmaTheme.bodyMedium.copyWith(
                                   fontWeight: FontWeight.bold,
-                                  color: textColorPrimary,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: PharmaTheme.spacingXxs),
                         Row(
                           children: [
                             Icon(
                               Icons.phone,
-                              color: textColorSecondary,
+                              color: PharmaTheme.textSecondary,
                               size: 16,
                             ),
-                            const SizedBox(width: 8),
+                            SizedBox(width: PharmaTheme.spacingXs),
                             Text(
                               returnData.customer.contactNumber,
-                              style: TextStyle(
-                                color: textColorSecondary,
-                                fontSize: 13,
-                              ),
+                              style: PharmaTheme.bodySmall,
                             ),
                           ],
                         ),
@@ -1486,8 +1634,9 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
                   Container(
                     height: 60,
                     width: 1,
-                    color: borderColor,
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    color: PharmaTheme.border,
+                    margin:
+                        EdgeInsets.symmetric(horizontal: PharmaTheme.spacingM),
                   ),
 
                   // Original sale info
@@ -1497,36 +1646,29 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
                       children: [
                         Text(
                           'Original Sale',
-                          style: TextStyle(
-                            color: textColorSecondary,
-                            fontSize: 12,
-                          ),
+                          style: PharmaTheme.caption,
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: PharmaTheme.spacingXxs),
                         Row(
                           children: [
                             Icon(
                               Icons.receipt,
-                              color: accentColor,
+                              color: PharmaTheme.accent,
                               size: 16,
                             ),
-                            const SizedBox(width: 8),
+                            SizedBox(width: PharmaTheme.spacingXs),
                             Text(
                               returnData.originalSale.billNumber,
-                              style: TextStyle(
+                              style: PharmaTheme.bodyMedium.copyWith(
                                 fontWeight: FontWeight.bold,
-                                color: textColorPrimary,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: PharmaTheme.spacingXxs),
                         Text(
                           'Original Amount: ₹${returnData.originalSale.total.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            color: textColorSecondary,
-                            fontSize: 13,
-                          ),
+                          style: PharmaTheme.bodySmall,
                         ),
                       ],
                     ),
@@ -1534,9 +1676,9 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
                 ],
               ),
 
-              const SizedBox(height: 16),
+              SizedBox(height: PharmaTheme.spacingM),
               const Divider(height: 1),
-              const SizedBox(height: 16),
+              SizedBox(height: PharmaTheme.spacingM),
 
               // Bottom section with returned items summary and actions
               Row(
@@ -1548,25 +1690,26 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
                     children: [
                       Text(
                         '${returnData.items.length} ${returnData.items.length == 1 ? 'item' : 'items'} returned',
-                        style: TextStyle(
-                          color: textColorSecondary,
+                        style: PharmaTheme.bodyMedium.copyWith(
+                          color: PharmaTheme.textSecondary,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: PharmaTheme.spacingXxs),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: PharmaTheme.spacingM,
+                          vertical: PharmaTheme.spacingXs,
                         ),
                         decoration: BoxDecoration(
-                          color: accentColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(16),
+                          color: PharmaTheme.accent.withOpacity(0.1),
+                          borderRadius:
+                              BorderRadius.circular(PharmaTheme.radiusCircular),
                         ),
                         child: Text(
                           'Return Amount: ₹${returnData.totalAmount.toStringAsFixed(2)}',
-                          style: TextStyle(
+                          style: PharmaTheme.bodyMedium.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: accentColor,
+                            color: PharmaTheme.accent,
                           ),
                         ),
                       ),
@@ -1581,7 +1724,7 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
                           onPressed: () => _launchPDF(returnData.pdfLink),
                           icon: Icon(
                             Icons.picture_as_pdf,
-                            color: Colors.orange,
+                            color: PharmaTheme.warning,
                           ),
                           tooltip: 'View PDF',
                         ),
@@ -1591,15 +1734,17 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
                         },
                         icon: Icon(
                           Icons.print,
-                          color: primaryColor,
+                          color: PharmaTheme.primary,
                         ),
                         tooltip: 'Print',
                       ),
                       IconButton(
-                        onPressed: () => _selectReturn(returnData),
+                        onPressed: () => ref
+                            .read(returnsProvider.notifier)
+                            .selectReturn(returnData),
                         icon: Icon(
                           Icons.visibility,
-                          color: accentColor,
+                          color: PharmaTheme.accent,
                         ),
                         tooltip: 'View Details',
                       ),
@@ -1616,14 +1761,14 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
 
   Widget _buildFilterChip(String label, IconData icon) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 6,
+      padding: EdgeInsets.symmetric(
+        horizontal: PharmaTheme.spacingM,
+        vertical: PharmaTheme.spacingXs,
       ),
       decoration: BoxDecoration(
-        color: accentColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: accentColor.withOpacity(0.3)),
+        color: PharmaTheme.accent.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(PharmaTheme.radiusCircular),
+        border: Border.all(color: PharmaTheme.accent.withOpacity(0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1631,15 +1776,14 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
           Icon(
             icon,
             size: 16,
-            color: accentColor,
+            color: PharmaTheme.accent,
           ),
-          const SizedBox(width: 6),
+          SizedBox(width: PharmaTheme.spacingXs),
           Text(
             label,
-            style: TextStyle(
-              color: accentColor,
+            style: PharmaTheme.bodySmall.copyWith(
+              color: PharmaTheme.accent,
               fontWeight: FontWeight.w500,
-              fontSize: 13,
             ),
           ),
         ],
@@ -1648,41 +1792,34 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
   }
 
   Widget _buildFilterPanel() {
+    final customersState = ref.watch(customersProvider);
+
     return Container(
       height: double.infinity,
       decoration: BoxDecoration(
-        color: cardColor,
-        boxShadow: [
-          if (!_isMobile)
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
-            ),
-        ],
+        color: PharmaTheme.surface,
+        boxShadow: _isMobile ? null : PharmaTheme.shadowSmall,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(PharmaTheme.spacingM),
             decoration: BoxDecoration(
-              color: primaryColor.withOpacity(0.05),
+              color: PharmaTheme.primary.withOpacity(0.05),
               border: Border(
-                bottom: BorderSide(color: borderColor),
+                bottom: BorderSide(color: PharmaTheme.border),
               ),
             ),
             child: Row(
               children: [
-                Icon(Icons.filter_list, color: primaryColor),
-                const SizedBox(width: 8),
+                Icon(Icons.filter_list, color: PharmaTheme.primary),
+                SizedBox(width: PharmaTheme.spacingXs),
                 Text(
                   'Filters',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: primaryColor,
+                  style: PharmaTheme.headingSmall.copyWith(
+                    color: PharmaTheme.primary,
                   ),
                 ),
               ],
@@ -1692,178 +1829,192 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
           // Filter form
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(PharmaTheme.spacingM),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Date Range
                   Text(
                     'Date Range',
-                    style: TextStyle(
+                    style: PharmaTheme.bodyLarge.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: textColorPrimary,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: PharmaTheme.spacingXs),
                   Row(
                     children: [
                       Expanded(
                         child: _buildDateField(_startDateController, 'From'),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: PharmaTheme.spacingXs),
                       Expanded(
                         child: _buildDateField(_endDateController, 'To'),
                       ),
                     ],
                   ),
 
-                  const SizedBox(height: 24),
+                  SizedBox(height: PharmaTheme.spacingL),
 
                   // Return Number
                   Text(
                     'Return Number',
-                    style: TextStyle(
+                    style: PharmaTheme.bodyLarge.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: textColorPrimary,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: PharmaTheme.spacingXs),
                   TextFormField(
                     controller: _returnNumberController,
                     decoration: InputDecoration(
                       hintText: 'Enter return number',
                       prefixIcon:
-                          Icon(Icons.receipt, color: textColorSecondary),
-                      fillColor: Colors.white,
+                          Icon(Icons.receipt, color: PharmaTheme.textSecondary),
+                      fillColor: PharmaTheme.surface,
                       filled: true,
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: borderColor),
+                        borderRadius:
+                            BorderRadius.circular(PharmaTheme.radiusM),
+                        borderSide: BorderSide(color: PharmaTheme.border),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: borderColor),
+                        borderRadius:
+                            BorderRadius.circular(PharmaTheme.radiusM),
+                        borderSide: BorderSide(color: PharmaTheme.border),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: primaryColor),
+                        borderRadius:
+                            BorderRadius.circular(PharmaTheme.radiusM),
+                        borderSide: BorderSide(color: PharmaTheme.primary),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(
-                          vertical: 12, horizontal: 16),
+                      contentPadding: EdgeInsets.symmetric(
+                        vertical: PharmaTheme.spacingM,
+                        horizontal: PharmaTheme.spacingM,
+                      ),
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  SizedBox(height: PharmaTheme.spacingL),
 
                   // Customer
                   Text(
                     'Customer',
-                    style: TextStyle(
+                    style: PharmaTheme.bodyLarge.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: textColorPrimary,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: PharmaTheme.spacingXs),
                   TextFormField(
                     controller: _customerSearchController,
                     decoration: InputDecoration(
                       hintText: 'Search customers...',
-                      prefixIcon: Icon(Icons.search, color: textColorSecondary),
-                      fillColor: Colors.white,
+                      prefixIcon:
+                          Icon(Icons.search, color: PharmaTheme.textSecondary),
+                      fillColor: PharmaTheme.surface,
                       filled: true,
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: borderColor),
+                        borderRadius:
+                            BorderRadius.circular(PharmaTheme.radiusM),
+                        borderSide: BorderSide(color: PharmaTheme.border),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: borderColor),
+                        borderRadius:
+                            BorderRadius.circular(PharmaTheme.radiusM),
+                        borderSide: BorderSide(color: PharmaTheme.border),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: primaryColor),
+                        borderRadius:
+                            BorderRadius.circular(PharmaTheme.radiusM),
+                        borderSide: BorderSide(color: PharmaTheme.primary),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(
-                          vertical: 12, horizontal: 16),
+                      contentPadding: EdgeInsets.symmetric(
+                        vertical: PharmaTheme.spacingM,
+                        horizontal: PharmaTheme.spacingM,
+                      ),
                     ),
-                    onChanged: _filterCustomers,
+                    onChanged: (query) => ref
+                        .read(customersProvider.notifier)
+                        .filterCustomers(query),
                   ),
-                  const SizedBox(height: 12),
+                  SizedBox(height: PharmaTheme.spacingM),
 
                   // Customer list
                   Container(
                     decoration: BoxDecoration(
-                      border: Border.all(color: borderColor),
-                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: PharmaTheme.border),
+                      borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
                     ),
                     height: 200,
-                    child: _isLoadingCustomers
+                    child: customersState.isLoading
                         ? Center(
                             child: CircularProgressIndicator(
-                              color: primaryColor,
+                              color: PharmaTheme.primary,
                             ),
                           )
-                        : _filteredCustomers.isEmpty
+                        : customersState.filteredCustomers.isEmpty
                             ? Center(
                                 child: Text(
                                   'No customers found',
-                                  style: TextStyle(
-                                    color: textColorSecondary,
+                                  style: PharmaTheme.bodyMedium.copyWith(
+                                    color: PharmaTheme.textSecondary,
                                   ),
                                 ),
                               )
                             : ListView.separated(
-                                padding: const EdgeInsets.all(0),
-                                itemCount: _filteredCustomers.length,
+                                padding: EdgeInsets.zero,
+                                itemCount:
+                                    customersState.filteredCustomers.length,
                                 separatorBuilder: (context, index) => Divider(
                                   height: 1,
-                                  color: borderColor,
+                                  color: PharmaTheme.border,
                                 ),
                                 itemBuilder: (context, index) {
-                                  final customer = _filteredCustomers[index];
+                                  final customer =
+                                      customersState.filteredCustomers[index];
                                   final isSelected =
-                                      _selectedCustomer?.id == customer.id;
+                                      customersState.selectedCustomer?.id ==
+                                          customer.id;
 
                                   return Material(
                                     color: isSelected
-                                        ? primaryColor.withOpacity(0.1)
-                                        : cardColor,
+                                        ? PharmaTheme.primary.withOpacity(
+                                            PharmaTheme.selectedOpacity)
+                                        : PharmaTheme.surface,
                                     child: InkWell(
                                       onTap: () {
-                                        setState(() {
-                                          _selectedCustomer =
-                                              isSelected ? null : customer;
+                                        ref
+                                            .read(customersProvider.notifier)
+                                            .selectCustomer(
+                                              isSelected ? null : customer,
+                                            );
 
-                                          // Auto-filter when customer is selected or deselected
-                                          _filterOptions = FilterOptions(
-                                            startDate:
-                                                _startDateController.text,
-                                            endDate: _endDateController.text,
-                                            customerId:
-                                                isSelected ? null : customer.id,
-                                            returnNumber:
-                                                _returnNumberController
-                                                        .text.isEmpty
-                                                    ? null
-                                                    : _returnNumberController
-                                                        .text,
-                                          );
-                                        });
+                                        // Auto-filter when customer is selected or deselected
+                                        final filterOptions = FilterOptions(
+                                          startDate: _startDateController.text,
+                                          endDate: _endDateController.text,
+                                          customerId:
+                                              isSelected ? null : customer.id,
+                                          returnNumber: _returnNumberController
+                                                  .text.isEmpty
+                                              ? null
+                                              : _returnNumberController.text,
+                                        );
 
-                                        // Load returns automatically
-                                        _loadReturns();
+                                        ref
+                                            .read(returnsProvider.notifier)
+                                            .applyFilters(filterOptions);
 
                                         // Switch to returns list view on mobile
                                         if (_isMobile) {
-                                          setState(() {
-                                            _showFilterPanel = false;
-                                          });
+                                          ref
+                                                  .read(uiStateProvider.notifier)
+                                                  .state =
+                                              UIState(showFilterPanel: false);
                                         }
                                       },
                                       child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 12,
-                                          horizontal: 16,
+                                        padding: EdgeInsets.symmetric(
+                                          vertical: PharmaTheme.spacingM,
+                                          horizontal: PharmaTheme.spacingM,
                                         ),
                                         child: Row(
                                           children: [
@@ -1873,8 +2024,8 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
                                               decoration: BoxDecoration(
                                                 shape: BoxShape.circle,
                                                 color: isSelected
-                                                    ? primaryColor
-                                                    : accentColor
+                                                    ? PharmaTheme.primary
+                                                    : PharmaTheme.accent
                                                         .withOpacity(0.2),
                                               ),
                                               child: Center(
@@ -1883,13 +2034,14 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
                                                       ? Icons.personal_injury
                                                       : Icons.person,
                                                   color: isSelected
-                                                      ? Colors.white
-                                                      : accentColor,
+                                                      ? PharmaTheme.textLight
+                                                      : PharmaTheme.accent,
                                                   size: 18,
                                                 ),
                                               ),
                                             ),
-                                            const SizedBox(width: 12),
+                                            SizedBox(
+                                                width: PharmaTheme.spacingM),
                                             Expanded(
                                               child: Column(
                                                 crossAxisAlignment:
@@ -1897,22 +2049,21 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
                                                 children: [
                                                   Text(
                                                     customer.name,
-                                                    style: TextStyle(
+                                                    style: PharmaTheme
+                                                        .bodyMedium
+                                                        .copyWith(
                                                       fontWeight:
                                                           FontWeight.bold,
-                                                      color: textColorPrimary,
-                                                      fontSize: 14,
                                                     ),
                                                     overflow:
                                                         TextOverflow.ellipsis,
                                                   ),
-                                                  const SizedBox(height: 2),
+                                                  SizedBox(
+                                                      height: PharmaTheme
+                                                          .spacingXxs),
                                                   Text(
                                                     customer.contactNumber,
-                                                    style: TextStyle(
-                                                      color: textColorSecondary,
-                                                      fontSize: 12,
-                                                    ),
+                                                    style: PharmaTheme.caption,
                                                   ),
                                                 ],
                                               ),
@@ -1920,7 +2071,7 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
                                             if (isSelected)
                                               Icon(
                                                 Icons.check_circle,
-                                                color: primaryColor,
+                                                color: PharmaTheme.primary,
                                                 size: 20,
                                               ),
                                           ],
@@ -1938,11 +2089,11 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
 
           // Action buttons
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(PharmaTheme.spacingM),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: PharmaTheme.surface,
               border: Border(
-                top: BorderSide(color: borderColor),
+                top: BorderSide(color: PharmaTheme.border),
               ),
               boxShadow: [
                 BoxShadow(
@@ -1958,27 +2109,31 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
                   child: OutlinedButton(
                     onPressed: _resetFilters,
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: textColorPrimary,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      side: BorderSide(color: borderColor),
+                      foregroundColor: PharmaTheme.textPrimary,
+                      padding:
+                          EdgeInsets.symmetric(vertical: PharmaTheme.spacingM),
+                      side: BorderSide(color: PharmaTheme.border),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius:
+                            BorderRadius.circular(PharmaTheme.radiusS),
                       ),
                     ),
                     child: const Text('Reset'),
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: PharmaTheme.spacingM),
                 Expanded(
                   child: ElevatedButton(
                     onPressed: _applyFilters,
                     style: ElevatedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      backgroundColor: primaryColor,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      foregroundColor: PharmaTheme.textLight,
+                      backgroundColor: PharmaTheme.primary,
+                      padding:
+                          EdgeInsets.symmetric(vertical: PharmaTheme.spacingM),
                       elevation: 2,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius:
+                            BorderRadius.circular(PharmaTheme.radiusS),
                       ),
                     ),
                     child: const Text('Apply'),
@@ -1992,29 +2147,31 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
     );
   }
 
-// Modify the date field selection to also trigger auto-update
   Widget _buildDateField(TextEditingController controller, String label) {
     return TextFormField(
       controller: controller,
       decoration: InputDecoration(
         labelText: label,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: borderColor),
+          borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
+          borderSide: BorderSide(color: PharmaTheme.border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: borderColor),
+          borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
+          borderSide: BorderSide(color: PharmaTheme.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: primaryColor),
+          borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
+          borderSide: BorderSide(color: PharmaTheme.primary),
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        suffixIcon: Icon(Icons.calendar_today, color: textColorSecondary),
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: PharmaTheme.spacingM,
+          vertical: PharmaTheme.spacingS,
+        ),
+        suffixIcon:
+            Icon(Icons.calendar_today, color: PharmaTheme.textSecondary),
         isDense: true,
-        fillColor: Colors.white,
+        fillColor: PharmaTheme.surface,
         filled: true,
       ),
       readOnly: true,
@@ -2022,24 +2179,22 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
         await _selectDate(context, controller);
 
         // After date selection, update filter options and load returns
-        setState(() {
-          _filterOptions = FilterOptions(
-            startDate: _startDateController.text,
-            endDate: _endDateController.text,
-            customerId: _selectedCustomer?.id,
-            returnNumber: _returnNumberController.text.isEmpty
-                ? null
-                : _returnNumberController.text,
-          );
-        });
+        final customersState = ref.read(customersProvider);
 
-        // Load returns automatically
-        _loadReturns();
+        ref.read(returnsProvider.notifier).applyFilters(
+              FilterOptions(
+                startDate: _startDateController.text,
+                endDate: _endDateController.text,
+                customerId: customersState.selectedCustomer?.id,
+                returnNumber: _returnNumberController.text.isEmpty
+                    ? null
+                    : _returnNumberController.text,
+              ),
+            );
       },
     );
   }
 
-// Modify the _selectDate method to return the selected date
   Future<void> _selectDate(
       BuildContext context, TextEditingController controller) async {
     final DateTime? picked = await showDatePicker(
@@ -2053,11 +2208,11 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: ColorScheme.light(
-              primary: primaryColor,
-              onPrimary: Colors.white,
-              onSurface: textColorPrimary,
+              primary: PharmaTheme.primary,
+              onPrimary: PharmaTheme.textLight,
+              onSurface: PharmaTheme.textPrimary,
             ),
-            dialogBackgroundColor: cardColor,
+            dialogBackgroundColor: PharmaTheme.surface,
           ),
           child: child!,
         );
@@ -2069,42 +2224,6 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
     }
   }
 
-// Add auto-filtering for the return number input
-
-// Dispose listeners when the widget is disposed
-  @override
-  void dispose() {
-    _returnNumberController.removeListener(_onReturnNumberChanged);
-    _returnNumberController.dispose();
-    _startDateController.dispose();
-    _endDateController.dispose();
-    _customerSearchController.dispose();
-    super.dispose();
-  }
-
-// Method to handle return number changes
-  void _onReturnNumberChanged() {
-    // Debounce the filtering to avoid too many API calls
-    if (_debounceTimer?.isActive ?? false) {
-      _debounceTimer!.cancel();
-    }
-    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
-      setState(() {
-        _filterOptions = FilterOptions(
-          startDate: _startDateController.text,
-          endDate: _endDateController.text,
-          customerId: _selectedCustomer?.id,
-          returnNumber: _returnNumberController.text.isEmpty
-              ? null
-              : _returnNumberController.text,
-        );
-      });
-
-      // Load returns automatically
-      _loadReturns();
-    });
-  }
-
   Widget _buildInfoItem(
     String label,
     String value, {
@@ -2113,22 +2232,19 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
     double valueSize = 14,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.only(bottom: PharmaTheme.spacingM),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
-            style: TextStyle(
-              color: textColorSecondary,
-              fontSize: 12,
-            ),
+            style: PharmaTheme.caption,
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: PharmaTheme.spacingXxs),
           Text(
             value,
             style: TextStyle(
-              color: valueColor ?? textColorPrimary,
+              color: valueColor ?? PharmaTheme.textPrimary,
               fontWeight: valueFontWeight,
               fontSize: valueSize,
             ),
@@ -2136,5 +2252,17 @@ class _AllReturnsScreenState extends State<AllReturnsScreen> {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _returnNumberController.removeListener(_onReturnNumberChanged);
+    _returnNumberController.dispose();
+    _startDateController.dispose();
+    _endDateController.dispose();
+    _customerSearchController.dispose();
+    _mainFocusNode.dispose();
+    _debounceTimer?.cancel();
+    super.dispose();
   }
 }

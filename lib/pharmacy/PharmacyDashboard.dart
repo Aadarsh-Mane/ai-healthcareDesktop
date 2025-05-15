@@ -10,6 +10,7 @@ import 'package:doctordesktop/main.dart';
 import 'package:doctordesktop/pharmacy/AllReturnScreen.dart';
 import 'package:doctordesktop/pharmacy/CreateReturn.dart';
 import 'package:doctordesktop/pharmacy/CreateSalesScreen.dart';
+import 'package:doctordesktop/pharmacy/InventoryListScreen.dart';
 import 'package:doctordesktop/pharmacy/PrescriptionScreen.dart';
 import 'package:doctordesktop/pharmacy/SalesHistoryScreen.dart';
 import 'package:doctordesktop/reception/CreateAppointment.dart';
@@ -65,7 +66,7 @@ class _MainLayoutState extends State<MainLayout> {
     CreateReturnScreen(),
     AllReturnsScreen(),
     SalesHistoryScreen(),
-    ReceptionBedManagementScreen(),
+    InventoryListScreen(),
     ExternalSideBar(),
     const ReceptionMainScreen(),
     RegistrationDashboard(),
@@ -142,7 +143,7 @@ class SidebarWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Further reduced width when collapsed
-    final double collapsedWidth = 50; // Even narrower width
+    final double collapsedWidth = 100; // Even narrower width
     final double expandedWidth = 260;
 
     return AnimatedContainer(
@@ -368,7 +369,7 @@ class SidebarWidget extends StatelessWidget {
                 _buildNavItem(
                   index: 5,
                   icon: Icons.person_add_outlined,
-                  label: 'Bed Assignment',
+                  label: 'Inventory',
                   isSelected: selectedIndex == 5,
                   isCollapsed: isCollapsed,
                   onTap: () => onItemSelected(5),
