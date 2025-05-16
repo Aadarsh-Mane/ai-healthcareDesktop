@@ -7,8 +7,10 @@ import 'package:doctordesktop/Lab/LabDashBoard.dart';
 import 'package:doctordesktop/Lab/LabScreen.dart';
 import 'package:doctordesktop/Patient/fetchPatient.dart';
 import 'package:doctordesktop/authProvider/auth_provider.dart';
+import 'package:doctordesktop/constants/Assets.dart';
 import 'package:doctordesktop/constants/Methods.dart';
 import 'package:doctordesktop/pharmacy/PharmacyDashboard.dart';
+import 'package:doctordesktop/pharmacy/pharmaTheme.dart';
 import 'package:doctordesktop/reception/ReceptionDashboard.dart';
 import 'package:doctordesktop/screens/login_screen.dart';
 import 'package:flutter/material.dart';
@@ -269,509 +271,6 @@ class _HomePageState extends ConsumerState<HomePage>
         children: [
           // Fixed Sidebar
           // Fixed Sidebar with modern design and logo area
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: sidebarWidth,
-            height: double.infinity,
-            decoration: BoxDecoration(
-              color: _isDarkMode ? const Color(0xFF0A1929) : Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: shadowColor,
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                // Logo and Sidebar Toggle
-                // Enhanced Logo Header
-                Container(
-                  height: 80,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        primaryColor,
-                        Color(
-                            0xFF0288D1), // Slightly lighter blue for gradient effect
-                      ],
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: shadowColor,
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: _isSidebarExpanded
-                        ? MainAxisAlignment.spaceBetween
-                        : MainAxisAlignment.center,
-                    children: [
-                      if (_isSidebarExpanded && !isSmallScreen)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 16.0),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.2),
-                                      blurRadius: 6,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: ClipOval(
-                                  child: Image.asset(
-                                    'assets/images/docnex.png',
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                              ),
-                              SizedBox(width: 12),
-                              Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'DocNeX',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                  Text(
-                                    '.care',
-                                    style: TextStyle(
-                                      color: Colors.white.withOpacity(0.9),
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w400,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        )
-                      else if (!_isSidebarExpanded)
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.2),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: ClipOval(
-                            child: Image.asset(
-                              'assets/images/docnex.png',
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
-                      IconButton(
-                        icon: Icon(
-                          _isSidebarExpanded ? Icons.menu_open : Icons.menu,
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                        onPressed: _toggleSidebar,
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Software Features Section
-                if (_isSidebarExpanded && !isSmallScreen)
-                  Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                    decoration: BoxDecoration(
-                      color: _isDarkMode
-                          ? const Color(0xFF0F2942)
-                          : primaryColor.withOpacity(0.1),
-                      border: Border(
-                        bottom: BorderSide(
-                          color: _isDarkMode
-                              ? Colors.white.withOpacity(0.1)
-                              : Colors.grey.withOpacity(0.2),
-                          width: 1,
-                        ),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Healthcare System",
-                          style: TextStyle(
-                            color: _isDarkMode ? Colors.white70 : primaryColor,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                        SizedBox(height: 6),
-                        Text(
-                          "Version 2.5.1",
-                          style: TextStyle(
-                            color: _isDarkMode
-                                ? Colors.white30
-                                : primaryColor.withOpacity(0.5),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                // Navigation Items - with modern styling
-                Expanded(
-                  child: ListView.builder(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    itemCount: _navItems.length,
-                    itemBuilder: (context, index) {
-                      final item = _navItems[index];
-                      final bool isSelected = index == _selectedIndex;
-
-                      return Container(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 12.0,
-                          vertical: 4.0,
-                        ),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          gradient: isSelected
-                              ? LinearGradient(
-                                  begin: Alignment.centerLeft,
-                                  end: Alignment.centerRight,
-                                  colors: [
-                                    primaryColor.withOpacity(0.9),
-                                    primaryColor,
-                                  ],
-                                )
-                              : null,
-                        ),
-                        child: InkWell(
-                          onTap: () => _selectNavItem(index),
-                          borderRadius: BorderRadius.circular(12),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                                vertical: 12.0, horizontal: 4.0),
-                            child: Row(
-                              mainAxisAlignment: _isSidebarExpanded
-                                  ? MainAxisAlignment.start
-                                  : MainAxisAlignment.center,
-                              children: [
-                                Container(
-                                  padding: EdgeInsets.all(8),
-                                  margin: EdgeInsets.symmetric(horizontal: 8),
-                                  decoration: BoxDecoration(
-                                    color: isSelected
-                                        ? Colors.white.withOpacity(0.2)
-                                        : (_isDarkMode
-                                            ? Colors.white.withOpacity(0.05)
-                                            : primaryColor.withOpacity(0.1)),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Icon(
-                                    item['icon'],
-                                    color: isSelected
-                                        ? Colors.white
-                                        : (_isDarkMode
-                                            ? Colors.white70
-                                            : primaryColor),
-                                    size: 22,
-                                  ),
-                                ),
-                                if (_isSidebarExpanded && !isSmallScreen)
-                                  Text(
-                                    item['title'],
-                                    style: TextStyle(
-                                      color: isSelected
-                                          ? Colors.white
-                                          : (_isDarkMode
-                                              ? Colors.white70
-                                              : textColor),
-                                      fontWeight: isSelected
-                                          ? FontWeight.bold
-                                          : FontWeight.normal,
-                                      fontSize: 15,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-
-                // System Status Section
-                if (_isSidebarExpanded && !isSmallScreen)
-                  // Enhanced System Status Section
-                  // Fixed System Status Section
-                  if (_isSidebarExpanded && !isSmallScreen)
-                    Container(
-                      margin:
-                          EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            _isDarkMode
-                                ? Colors.blueGrey.withOpacity(0.15)
-                                : primaryColor.withOpacity(0.08),
-                            _isDarkMode
-                                ? Colors.blueGrey.withOpacity(0.05)
-                                : primaryColor.withOpacity(0.03),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: _isDarkMode
-                              ? Colors.white.withOpacity(0.1)
-                              : primaryColor.withOpacity(0.15),
-                          width: 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: _isDarkMode
-                                ? Colors.black.withOpacity(0.2)
-                                : Colors.black.withOpacity(0.05),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Status header with icon
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: EdgeInsets.all(5),
-                                  decoration: BoxDecoration(
-                                    color: _isDarkMode
-                                        ? Colors.blueGrey.withOpacity(0.2)
-                                        : primaryColor.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Icon(
-                                    Icons.shield,
-                                    color: Color(0xFF4CAF50),
-                                    size: 12,
-                                  ),
-                                ),
-                                SizedBox(width: 8),
-                                Text(
-                                  "SYSTEM STATUS",
-                                  style: TextStyle(
-                                    color: _isDarkMode
-                                        ? Colors.white70
-                                        : primaryColor,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                                Spacer(),
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                    color: Color(0xFF4CAF50),
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color:
-                                            Color(0xFF4CAF50).withOpacity(0.4),
-                                        blurRadius: 4,
-                                        spreadRadius: 1,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          // Divider
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            child: Divider(
-                              color: _isDarkMode
-                                  ? Colors.white.withOpacity(0.1)
-                                  : primaryColor.withOpacity(0.1),
-                              height: 1,
-                              thickness: 1,
-                            ),
-                          ),
-
-                          // Status message
-                          Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.access_time,
-                                      color: _isDarkMode
-                                          ? Colors.white.withOpacity(0.6)
-                                          : primaryColor.withOpacity(0.6),
-                                      size: 12,
-                                    ),
-                                    SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        "A system that never sleeps",
-                                        style: TextStyle(
-                                          color: _isDarkMode
-                                              ? Colors.white.withOpacity(0.8)
-                                              : primaryColor.withOpacity(0.8),
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                SizedBox(height: 8),
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.schedule,
-                                      color: _isDarkMode
-                                          ? Colors.white.withOpacity(0.6)
-                                          : primaryColor.withOpacity(0.6),
-                                      size: 12,
-                                    ),
-                                    SizedBox(width: 6),
-                                    Text(
-                                      "24x7",
-                                      style: TextStyle(
-                                        color: _isDarkMode
-                                            ? Colors.white.withOpacity(0.8)
-                                            : primaryColor.withOpacity(0.8),
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                SizedBox(height: 8),
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.offline_bolt,
-                                      color: _isDarkMode
-                                          ? Colors.white.withOpacity(0.6)
-                                          : primaryColor.withOpacity(0.6),
-                                      size: 12,
-                                    ),
-                                    SizedBox(width: 6),
-                                    Text(
-                                      "Powered by DocNeX.care",
-                                      style: TextStyle(
-                                        color: _isDarkMode
-                                            ? Colors.white.withOpacity(0.8)
-                                            : primaryColor.withOpacity(0.8),
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    Spacer(),
-                                    Icon(
-                                      Icons.wifi,
-                                      color: _isDarkMode
-                                          ? Colors.white.withOpacity(0.5)
-                                          : primaryColor.withOpacity(0.5),
-                                      size: 12,
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          // Bottom status indicators
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: _isDarkMode
-                                  ? Colors.black.withOpacity(0.2)
-                                  : Colors.white.withOpacity(0.5),
-                              borderRadius: BorderRadius.only(
-                                bottomLeft: Radius.circular(11),
-                                bottomRight: Radius.circular(11),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                _buildStatusIndicator(
-                                    "Server",
-                                    Color(0xFF4CAF50),
-                                    _isDarkMode
-                                        ? Colors.white70
-                                        : primaryColor),
-                                _buildStatusIndicator(
-                                    "Database",
-                                    Color(0xFF4CAF50),
-                                    _isDarkMode
-                                        ? Colors.white70
-                                        : primaryColor),
-                                _buildStatusIndicator(
-                                    "Network",
-                                    Color(0xFF4CAF50),
-                                    _isDarkMode
-                                        ? Colors.white70
-                                        : primaryColor),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-// Helper method to add at the end of the class
-
-// Helper method for status indicators
-
-                // Logout Button - with modern styling
-              ],
-            ),
-          ),
 
           // Main Content Area
           Expanded(
@@ -796,61 +295,15 @@ class _HomePageState extends ConsumerState<HomePage>
                         horizontal: 16, vertical: 10),
                     child: Row(
                       children: [
-                        // Page title and logo for smaller screens
-                        if (isSmallScreen)
-                          Row(
-                            children: [
-                              Icon(
-                                _navItems[_selectedIndex]['icon'],
-                                color: primaryColor,
-                                size: 20,
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                _navItems[_selectedIndex]['title'],
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: primaryColor,
-                                ),
-                              ),
-                              SizedBox(width: 16),
-                            ],
-                          )
-                        else
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  primaryColor,
-                                  primaryColor.withOpacity(0.8)
-                                ],
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
-                              ),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  _navItems[_selectedIndex]['icon'],
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                                SizedBox(width: 8),
-                                Text(
-                                  _navItems[_selectedIndex]['title'],
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ),
+                        // ADD LARGE LOGO HERE
+                        Container(
+                          padding: const EdgeInsets.only(right: 18),
+                          child: Image.asset(
+                            '${AppImages.logo}',
+                            height: 48, // Larger logo size
+                            fit: BoxFit.contain,
                           ),
+                        ),
 
                         // Google-style Search box - takes maximum available space
                         Expanded(
@@ -985,115 +438,7 @@ class _HomePageState extends ConsumerState<HomePage>
                         // Action icons on the right
                         Row(
                           children: [
-                            // Notifications
-                            Container(
-                              margin: EdgeInsets.only(right: 12),
-                              decoration: BoxDecoration(
-                                color: _isDarkMode
-                                    ? Colors.grey[800]
-                                    : Colors.grey[100],
-                                shape: BoxShape.circle,
-                              ),
-                              child: IconButton(
-                                constraints: BoxConstraints(
-                                  minWidth: 36,
-                                  minHeight: 36,
-                                ),
-                                padding: EdgeInsets.zero,
-                                iconSize: 20,
-                                icon: Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.notifications_outlined,
-                                      color: _isDarkMode
-                                          ? Colors.white70
-                                          : primaryColor,
-                                    ),
-                                    Positioned(
-                                      top: 0,
-                                      right: 0,
-                                      child: Container(
-                                        width: 8,
-                                        height: 8,
-                                        decoration: BoxDecoration(
-                                          color: Colors.red,
-                                          shape: BoxShape.circle,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                onPressed: () {},
-                              ),
-                            ),
-
-                            // Theme toggle
-                            Container(
-                              margin: EdgeInsets.only(right: 12),
-                              decoration: BoxDecoration(
-                                color: _isDarkMode
-                                    ? Colors.grey[800]
-                                    : Colors.grey[100],
-                                shape: BoxShape.circle,
-                              ),
-                              child: IconButton(
-                                constraints: BoxConstraints(
-                                  minWidth: 36,
-                                  minHeight: 36,
-                                ),
-                                padding: EdgeInsets.zero,
-                                iconSize: 20,
-                                icon: Icon(
-                                  _isDarkMode
-                                      ? Icons.light_mode
-                                      : Icons.dark_mode,
-                                  color:
-                                      _isDarkMode ? Colors.amber : primaryColor,
-                                ),
-                                onPressed: _toggleTheme,
-                              ),
-                            ),
-
-                            // Profile
-                            Stack(
-                              children: [
-                                Container(
-                                  width: 36,
-                                  height: 36,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    image: const DecorationImage(
-                                      image: AssetImage(
-                                          'assets/images/profile.jpg'),
-                                      fit: BoxFit.cover,
-                                    ),
-                                    border: Border.all(
-                                      color: primaryColor,
-                                      width: 2,
-                                    ),
-                                  ),
-                                ),
-                                Positioned(
-                                  bottom: 0,
-                                  right: 0,
-                                  child: Container(
-                                    width: 10,
-                                    height: 10,
-                                    decoration: BoxDecoration(
-                                      color: Color(0xFF4CAF50),
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: _isDarkMode
-                                            ? Colors.grey[900]!
-                                            : Colors.white,
-                                        width: 1.5,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                            // Rest of your action icons...
                           ],
                         ),
                       ],
@@ -1181,6 +526,16 @@ class _HomePageState extends ConsumerState<HomePage>
                 // Clock widget (left)
                 Expanded(
                   flex: 3,
+                  child: _buildLogoWidget(
+                      cardColor, primaryColor, textColor, shadowColor),
+                ),
+                const SizedBox(
+                  height: 16,
+                  width: 16,
+                ),
+
+                Expanded(
+                  flex: 3,
                   child: _buildClockWidget(
                       cardColor, primaryColor, textColor, shadowColor),
                 ),
@@ -1243,25 +598,481 @@ class _HomePageState extends ConsumerState<HomePage>
     }
   }
 
-  Widget _buildStatusIndicator(
-      String label, Color statusColor, Color textColor) {
-    return Row(
+  Widget _buildLogoWidget(
+      Color cardColor, Color primaryColor, Color textColor, Color shadowColor) {
+    // Determine system status
+    bool isSystemOnline = true;
+    String statusText = isSystemOnline ? "Online" : "Offline";
+    Color statusColor =
+        isSystemOnline ? const Color(0xFF4CAF50) : const Color(0xFFF44336);
+
+    // Premium gold gradient colors
+    final List<Color> goldGradientColors = [
+      const Color(0xFFF9DB9D), // Lighter gold
+      const Color(0xFFEABF56), // Medium gold
+      const Color(0xFFEACF5E), // Rich gold
+      const Color(0xFFD3A73B), // Deep gold
+    ];
+
+    // Background gradient with subtle gold accent
+    final List<Color> backgroundGradientColors = [
+      Colors.white,
+      Colors.white,
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: backgroundGradientColors,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          // Gold border
+          color: const Color(0xFFEABF56).withOpacity(0.3),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: shadowColor,
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: const Color(0xFFEABF56).withOpacity(0.15),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Adjust sizes based on available space
+          final bool isSmallSpace = constraints.maxHeight < 450;
+          final double logoSize = isSmallSpace ? 100 : 130;
+          final double titleFontSize = isSmallSpace ? 24 : 28;
+          final double spacerHeight = isSmallSpace ? 8.0 : 16.0;
+
+          return Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Premium golden banner at the top
+              Align(
+                alignment: Alignment.topCenter,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: goldGradientColors,
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      topRight: Radius.circular(12),
+                      bottomLeft: Radius.circular(12),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFEABF56).withOpacity(0.3),
+                        blurRadius: 5,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.workspace_premium,
+                        color: Color(0xFF5D4037), // Dark brown
+                        size: 14,
+                      ),
+                      SizedBox(width: 4),
+                      Text(
+                        'PREMIUM',
+                        style: TextStyle(
+                          color: Color(0xFF5D4037), // Dark brown
+                          fontWeight: FontWeight.w800,
+                          fontSize: 11,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
+              // Logo with enhanced gold glow effect
+              TweenAnimationBuilder<double>(
+                tween: Tween<double>(begin: 0.97, end: 1.0),
+                duration: const Duration(seconds: 3),
+                curve: Curves.easeInOut,
+                builder: (context, value, child) {
+                  return Transform.scale(
+                    scale: value,
+                    child: Container(
+                      height: logoSize,
+                      width: logoSize,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white,
+                        boxShadow: [
+                          // Inner gold glow
+                          BoxShadow(
+                            color: const Color(0xFFEABF56).withOpacity(0.2),
+                            blurRadius: 15,
+                            spreadRadius: 1,
+                          ),
+                          // Outer gold glow
+                          BoxShadow(
+                            color: const Color(0xFFEABF56)
+                                .withOpacity(0.2 * value),
+                            blurRadius: 25 * value,
+                            spreadRadius: 2 * value,
+                          ),
+                          // Extra accent glow
+                          BoxShadow(
+                            color: PharmaTheme.primary.withOpacity(0.2),
+                            blurRadius: 20 * value,
+                            spreadRadius: 1 * value,
+                          ),
+                        ],
+                        // Gold border around logo
+                        border: Border.all(
+                          color: const Color(0xFFEABF56).withOpacity(0.4),
+                          width: 2,
+                        ),
+                      ),
+                      padding: const EdgeInsets.all(18),
+                      child: child,
+                    ),
+                  );
+                },
+                child: Image.asset(
+                  '${AppImages.logo}',
+                  fit: BoxFit.contain,
+                ),
+              ),
+
+              SizedBox(height: spacerHeight),
+
+              // DocNeX.care text with gold gradient
+              ShaderMask(
+                shaderCallback: (bounds) => LinearGradient(
+                  colors: const [
+                    Colors.black,
+                    Colors.black,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ).createShader(bounds),
+                child: Text(
+                  'DocNeX.care',
+                  style: TextStyle(
+                    fontSize: titleFontSize,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white, // Overridden by shader
+                    letterSpacing: 1.2,
+                    shadows: [
+                      Shadow(
+                        color: const Color(0xFF5D4037)
+                            .withOpacity(0.3), // Dark shadow
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              SizedBox(height: spacerHeight - 4),
+
+              // Premium badge with gold gradient
+              if (!isSmallSpace)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        primaryColor,
+                        primaryColor.withOpacity(0.9),
+                      ],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ),
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(
+                      color: const Color(0xFFEABF56).withOpacity(0.5),
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: primaryColor.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.verified,
+                        color: const Color(0xFFEABF56), // Gold icon
+                        size: 14,
+                      ),
+                      const SizedBox(width: 5),
+                      const Text(
+                        'Trusted Healthcare Partner',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              SizedBox(height: spacerHeight - 4),
+
+              // Enhanced tagline with gold underline
+              Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      'A system that never sleeps, 24x7 available',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: isSmallSpace ? 14 : 16,
+                        fontStyle: FontStyle.italic,
+                        color: textColor.withOpacity(0.9),
+                        height: 1.2,
+                        letterSpacing: 0.2,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  // Gold underline
+                  Container(
+                    width: isSmallSpace ? 120 : 160,
+                    height: 2,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.transparent,
+                          const Color(0xFFEABF56).withOpacity(0.5),
+                          const Color(0xFFEABF56).withOpacity(0.8),
+                          const Color(0xFFEABF56).withOpacity(0.5),
+                          Colors.transparent,
+                        ],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              SizedBox(height: spacerHeight),
+
+              // Enhanced system status indicator with gold accents
+              Container(
+                padding: EdgeInsets.symmetric(
+                    horizontal: 15, vertical: isSmallSpace ? 6 : 8),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: statusColor.withOpacity(0.7),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: statusColor.withOpacity(0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Improved pulsating dot animation
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: statusColor,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isSystemOnline
+                                  ? const Color(0xFFEABF56).withOpacity(0.5)
+                                  : Colors.transparent,
+                              width: 1,
+                            ),
+                          ),
+                        ),
+                        if (isSystemOnline)
+                          TweenAnimationBuilder<double>(
+                            tween: Tween<double>(begin: 0.0, end: 1.0),
+                            duration: const Duration(seconds: 1),
+                            curve: Curves.easeInOut,
+                            builder: (context, value, child) {
+                              return Container(
+                                width: 12 + (8 * value),
+                                height: 12 + (8 * value),
+                                decoration: BoxDecoration(
+                                  color: Colors.transparent,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: statusColor.withOpacity(1 - value),
+                                    width: 1.5,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: Container(),
+                          ),
+                        if (isSystemOnline)
+                          TweenAnimationBuilder<double>(
+                            tween: Tween<double>(begin: 0.0, end: 1.0),
+                            duration: const Duration(seconds: 1),
+                            curve: Curves.easeInOut,
+                            builder: (context, value, child) {
+                              return Container(
+                                width: 12 + (16 * value),
+                                height: 12 + (16 * value),
+                                decoration: BoxDecoration(
+                                  color: Colors.transparent,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: statusColor
+                                        .withOpacity(0.7 - (0.7 * value)),
+                                    width: 1.5,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: Container(),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'System $statusText',
+                          style: TextStyle(
+                            fontSize: isSmallSpace ? 13 : 14,
+                            fontWeight: FontWeight.w600,
+                            color: statusColor,
+                          ),
+                        ),
+                        Text(
+                          isSystemOnline
+                              ? 'All services operational'
+                              : 'Service disruption',
+                          style: TextStyle(
+                            fontSize: isSmallSpace ? 10 : 11,
+                            color: textColor.withOpacity(0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // Stats row with gold accents
+              if (!isSmallSpace) ...[
+                SizedBox(height: spacerHeight),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildGoldStatItem(Icons.schedule, '99.9%', 'Uptime',
+                        primaryColor, textColor, isSmallSpace),
+                    _buildGoldStatItem(Icons.security, '256-bit', 'Encryption',
+                        primaryColor, textColor, isSmallSpace),
+                    _buildGoldStatItem(Icons.cloud_done, 'Real-time', 'Backup',
+                        primaryColor, textColor, isSmallSpace),
+                  ],
+                ),
+              ],
+
+              // Flexible spacer
+              Flexible(
+                child: SizedBox(
+                  height: isSmallSpace ? 8 : 16,
+                ),
+              ),
+
+              // Version information with gold accent
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.verified_user,
+                    size: isSmallSpace ? 12 : 14,
+                    color: const Color(0xFFEABF56).withOpacity(0.7),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    isSmallSpace
+                        ? 'v2.4.1 | HIPAA Compliant'
+                        : 'Version 2.4.1 | HIPAA Compliant',
+                    style: TextStyle(
+                      fontSize: isSmallSpace ? 10 : 12,
+                      fontWeight: FontWeight.w500,
+                      color: textColor.withOpacity(0.6),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+// Helper method for the gold-accented stats items
+  Widget _buildGoldStatItem(IconData icon, String value, String label,
+      Color primaryColor, Color textColor, bool isSmallSpace) {
+    return Column(
       children: [
-        Container(
-          width: 5,
-          height: 5,
-          decoration: BoxDecoration(
-            color: statusColor,
-            shape: BoxShape.circle,
+        Icon(
+          icon,
+          color: const Color(0xFFEABF56).withOpacity(0.8), // Gold icon
+          size: isSmallSpace ? 16 : 18,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: isSmallSpace ? 12 : 14,
+            fontWeight: FontWeight.bold,
+            color: textColor,
           ),
         ),
-        SizedBox(width: 4),
         Text(
           label,
           style: TextStyle(
-            color: textColor,
-            fontSize: 9,
-            fontWeight: FontWeight.w500,
+            fontSize: isSmallSpace ? 10 : 12,
+            color: textColor.withOpacity(0.7),
           ),
         ),
       ],

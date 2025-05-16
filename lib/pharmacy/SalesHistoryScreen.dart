@@ -141,7 +141,7 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse('${BASE_URL}/pharma/getSales'),
+        Uri.parse('${KVM_URL}/pharma/getSales'),
       );
 
       if (response.statusCode == 200) {

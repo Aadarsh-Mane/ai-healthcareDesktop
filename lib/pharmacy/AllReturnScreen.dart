@@ -526,7 +526,7 @@ class CustomersNotifier extends StateNotifier<CustomersState> {
 
     try {
       final response = await http.get(
-        Uri.parse('${BASE_URL}/pharma/getCustomers'),
+        Uri.parse('${KVM_URL}/pharma/getCustomers'),
       );
 
       if (response.statusCode == 200) {

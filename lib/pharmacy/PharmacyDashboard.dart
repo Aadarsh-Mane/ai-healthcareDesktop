@@ -6,13 +6,18 @@ import 'package:doctordesktop/Doctor/fetchDoctor.dart';
 import 'package:doctordesktop/External/ExternalSidebar.dart';
 import 'package:doctordesktop/Patient/fetchPatient.dart';
 import 'package:doctordesktop/constants/Assets.dart';
+import 'package:doctordesktop/constants/HospitalTheme.dart';
 import 'package:doctordesktop/main.dart';
+import 'package:doctordesktop/pharmacy/AllMedicineScreen.dart';
 import 'package:doctordesktop/pharmacy/AllReturnScreen.dart';
+import 'package:doctordesktop/pharmacy/CreateMedicineScreen.dart';
 import 'package:doctordesktop/pharmacy/CreateReturn.dart';
 import 'package:doctordesktop/pharmacy/CreateSalesScreen.dart';
+import 'package:doctordesktop/pharmacy/DistributorScreen.dart';
 import 'package:doctordesktop/pharmacy/InventoryListScreen.dart';
 import 'package:doctordesktop/pharmacy/PrescriptionScreen.dart';
 import 'package:doctordesktop/pharmacy/SalesHistoryScreen.dart';
+import 'package:doctordesktop/pharmacy/pharmaTheme.dart';
 import 'package:doctordesktop/reception/CreateAppointment.dart';
 import 'package:doctordesktop/reception/ExternalDoctorRegistration.dart';
 import 'package:doctordesktop/reception/PatientAllDischargedScreen.dart';
@@ -25,6 +30,7 @@ import 'package:doctordesktop/screens/DoctorRegister.dart';
 import 'package:doctordesktop/screens/ListPatienAssignToDoctor.dart';
 import 'package:doctordesktop/screens/NurseRegister.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class PharmacyDashBoard extends StatelessWidget {
   const PharmacyDashBoard({Key? key}) : super(key: key);
@@ -45,7 +51,6 @@ class PharmacyDashBoard extends StatelessWidget {
 }
 
 class MainLayout extends StatefulWidget {
-  // Add this static GlobalKey
   static final GlobalKey<_MainLayoutState> globalKey =
       GlobalKey<_MainLayoutState>();
 
@@ -57,29 +62,95 @@ class MainLayout extends StatefulWidget {
 
 class _MainLayoutState extends State<MainLayout> {
   int _selectedIndex = 0;
-  bool _isSidebarCollapsed = false; // Add this state variable
+  bool _isSidebarCollapsed = false;
+
+  // For keyboard shortcut handling
+  final Set<LogicalKeyboardKey> _pressedKeys = <LogicalKeyboardKey>{};
 
   final List<Widget> _screens = [
-    // Your existing screens
     const CreateSaleScreen(),
     const PrescriptionToSaleScreen(),
     CreateReturnScreen(),
     AllReturnsScreen(),
     SalesHistoryScreen(),
     InventoryListScreen(),
-    ExternalSideBar(),
-    const ReceptionMainScreen(),
-    RegistrationDashboard(),
+    DistributorScreen(),
+    const MedicineScreen(),
+    AllMedicineScreen(),
   ];
 
-  // Add this new public method
+  @override
+  void initState() {
+    super.initState();
+    _setupKeyboardShortcuts();
+  }
+
+  // Improved keyboard shortcut setup
+  void _setupKeyboardShortcuts() {
+    // Add keyboard listeners for global shortcuts
+    ServicesBinding.instance.keyboard.addHandler((KeyEvent event) {
+      // Handle key down events
+      if (event is KeyDownEvent) {
+        // Avoid duplicate KeyDown events for the same key
+        if (_pressedKeys.contains(event.logicalKey)) {
+          return false;
+        }
+
+        // Add key to pressed keys set
+        _pressedKeys.add(event.logicalKey);
+
+        // Toggle sidebar with Cmd/Ctrl + B
+        if (event.logicalKey == LogicalKeyboardKey.keyB &&
+            (HardwareKeyboard.instance.isControlPressed ||
+                HardwareKeyboard.instance.isMetaPressed)) {
+          _toggleSidebar();
+          return true;
+        }
+
+        // Navigation shortcuts with Cmd/Ctrl + [1-9]
+        if (HardwareKeyboard.instance.isControlPressed ||
+            HardwareKeyboard.instance.isMetaPressed) {
+          // Define digit keys
+          final digitKeys = [
+            LogicalKeyboardKey.digit1,
+            LogicalKeyboardKey.digit2,
+            LogicalKeyboardKey.digit3,
+            LogicalKeyboardKey.digit4,
+            LogicalKeyboardKey.digit5,
+            LogicalKeyboardKey.digit6,
+            LogicalKeyboardKey.digit7,
+            LogicalKeyboardKey.digit8,
+            LogicalKeyboardKey.digit9,
+          ];
+
+          // Check for digit key presses
+          for (int i = 0; i < digitKeys.length; i++) {
+            if (event.logicalKey == digitKeys[i] && i < _screens.length) {
+              navigateTo(i);
+              return true;
+            }
+          }
+        }
+      }
+
+      // Handle key up events to properly track key states
+      else if (event is KeyUpEvent) {
+        // Remove the key from pressed keys set
+        _pressedKeys.remove(event.logicalKey);
+      }
+
+      // Let other handlers process the event
+      return false;
+    });
+  }
+
   void navigateTo(int index) {
+    if (index < 0 || index >= _screens.length) return;
     setState(() {
       _selectedIndex = index;
     });
   }
 
-  // Add toggle method for sidebar
   void _toggleSidebar() {
     setState(() {
       _isSidebarCollapsed = !_isSidebarCollapsed;
@@ -88,33 +159,54 @@ class _MainLayoutState extends State<MainLayout> {
 
   @override
   Widget build(BuildContext context) {
+    // Use MediaQuery to get screen dimensions for responsive design
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
+
+    // For very small screens, automatically collapse the sidebar
+    if (isSmallScreen && !_isSidebarCollapsed) {
+      // Use Future.microtask to avoid changing state during build
+      Future.microtask(() => setState(() => _isSidebarCollapsed = true));
+    }
+
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FBFD),
+      drawer: isSmallScreen ? _buildDrawer() : null,
       body: Row(
         children: [
-          // Sidebar
-          SidebarWidget(
-            selectedIndex: _selectedIndex,
-            isCollapsed: _isSidebarCollapsed, // Pass the collapsed state
-            onItemSelected: (index) {
-              setState(() {
-                _selectedIndex = index;
-              });
-            },
-            onToggle: _toggleSidebar, // Pass the toggle function
-          ),
+          // Sidebar - invisible on small screens (handled by drawer)
+          if (!isSmallScreen)
+            SidebarWidget(
+              selectedIndex: _selectedIndex,
+              isCollapsed: _isSidebarCollapsed,
+              onItemSelected: (index) {
+                setState(() {
+                  _selectedIndex = index;
+                });
+              },
+              onToggle: _toggleSidebar,
+            ),
 
-          // Main Content Area (includes Navbar and Screen Content)
+          // Main Content Area
           Expanded(
             child: Column(
               children: [
-                // Navbar at the top
+                // Navbar with menu toggle
                 NavbarWidget(
-                  onMenuTap: _toggleSidebar, // Allow toggling from navbar too
+                  onMenuTap: isSmallScreen
+                      ? () => Scaffold.of(context).openDrawer()
+                      : _toggleSidebar,
                 ),
 
                 // Screen Content
                 Expanded(
-                  child: _screens[_selectedIndex],
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: KeyedSubtree(
+                      key: ValueKey<int>(_selectedIndex),
+                      child: _screens[_selectedIndex],
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -123,9 +215,28 @@ class _MainLayoutState extends State<MainLayout> {
       ),
     );
   }
+
+  // Build drawer for small screens
+  Widget _buildDrawer() {
+    return Drawer(
+      backgroundColor: PharmaTheme.primaryDark,
+      child: SidebarWidget(
+        selectedIndex: _selectedIndex,
+        isCollapsed: false, // Always expanded in drawer mode
+        onItemSelected: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+          // Auto-close drawer when item is selected on small screens
+          Navigator.pop(context);
+        },
+        onToggle: () => Navigator.pop(context), // Close drawer on toggle
+      ),
+    );
+  }
 }
 
-// Updated Sidebar Widget
+// Enhanced Sidebar Widget
 class SidebarWidget extends StatelessWidget {
   final int selectedIndex;
   final bool isCollapsed;
@@ -142,208 +253,82 @@ class SidebarWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Further reduced width when collapsed
-    final double collapsedWidth = 100; // Even narrower width
+    // Improved widths for better visibility and usability
+    final double collapsedWidth = 80; // Increased for better visibility
     final double expandedWidth = 260;
 
+    // Using AnimatedContainer for smooth transitions
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 200),
       width: isCollapsed ? collapsedWidth : expandedWidth,
-      color: const Color(0xFF1E2843),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF003366), Color(0xFF1E5799)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
       child: Column(
         children: [
-          // App Logo and toggle button - ultra-compact
-          Container(
-            height: isCollapsed ? 50 : 70, // Fixed height
-            padding: EdgeInsets.symmetric(
-                vertical: isCollapsed ? 8 : 18,
-                horizontal: isCollapsed ? 0 : 16),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF2C3E50), Color(0xFF34495E)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: isCollapsed
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Just a small hospital icon
-                        Icon(
-                          Icons.local_hospital_outlined,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                        SizedBox(height: 4),
-                        // Toggle button beneath
-                        GestureDetector(
-                          onTap: onToggle,
-                          child: Icon(
-                            Icons.arrow_forward_ios,
-                            color: Colors.white70,
-                            size: 10,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(
-                              Icons.local_hospital_outlined,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'HMS',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                        ],
-                      ),
-                      GestureDetector(
-                        onTap: onToggle,
-                        child: const Icon(
-                          Icons.arrow_back_ios,
-                          color: Colors.white70,
-                          size: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
-
-          // Minimal divider
-          if (!isCollapsed) ...[
-            const SizedBox(height: 8),
-          ] else ...[
-            const SizedBox(height: 4),
-          ],
-
-          // User Profile Section - only when expanded
-          if (!isCollapsed) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(25),
-                    child: Container(
-                      width: 50,
-                      height: 50,
-                      color: Colors.blue.shade200,
-                      child: const Center(
-                        child: Image(image: AssetImage('${AppImages.logo}')),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "${AppStrings.hospitalName}",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      Text(
-                        'Reception',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ] else ...[
-            // Tiny dot instead of avatar when collapsed
-            Container(
-              width: 8,
-              height: 8,
-              margin: EdgeInsets.symmetric(vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade400,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ],
+          // App Logo and toggle button - better proportions
+          _buildSidebarHeader(context),
 
           // Minimal divider
           Container(
             height: 1,
             color: Colors.white24,
             margin: EdgeInsets.symmetric(
-                horizontal: isCollapsed ? 4 : 16,
-                vertical: isCollapsed ? 4 : 8),
+              horizontal: isCollapsed ? 8 : 16,
+              vertical: 8,
+            ),
           ),
 
-          // Navigation Items - main content
+          // User Profile Section - only when expanded
+          if (!isCollapsed) _buildUserProfile(),
+
+          // Minimal divider when profile is shown
+          if (!isCollapsed)
+            Container(
+              height: 1,
+              color: Colors.white24,
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            ),
+
+          // Navigation Items - main content with improved visibility
           Expanded(
             child: ListView(
-              padding: EdgeInsets.zero, // No padding at all
+              padding: EdgeInsets.zero,
               children: [
-                _buildNavItem(
+                _buildNavItemWithLabel(
                   index: 0,
                   icon: Icons.dashboard_outlined,
                   label: 'Create Sale',
                   isSelected: selectedIndex == 0,
-                  isCollapsed: isCollapsed,
                   onTap: () => onItemSelected(0),
                 ),
-                _buildNavItem(
+                _buildNavItemWithLabel(
                   index: 1,
                   icon: Icons.people_outline,
                   label: 'Hospital Sale',
                   isSelected: selectedIndex == 1,
-                  isCollapsed: isCollapsed,
                   onTap: () => onItemSelected(1),
                 ),
-                _buildNavItem(
+                _buildNavItemWithLabel(
                   index: 2,
                   icon: Icons.calendar_today_outlined,
                   label: 'Return Sale',
                   isSelected: selectedIndex == 2,
-                  isCollapsed: isCollapsed,
                   onTap: () => onItemSelected(2),
                 ),
-                _buildNavItem(
+                _buildNavItemWithLabel(
                   index: 3,
                   icon: Icons.medical_services_outlined,
                   label: 'All Returns',
                   isSelected: selectedIndex == 3,
-                  isCollapsed: isCollapsed,
                   onTap: () => onItemSelected(3),
                 ),
+
+                // System section header - only when expanded
                 if (!isCollapsed) ...[
                   const SizedBox(height: 16),
                   const Padding(
@@ -358,182 +343,305 @@ class SidebarWidget extends StatelessWidget {
                     ),
                   ),
                 ],
-                _buildNavItem(
+
+                _buildNavItemWithLabel(
                   index: 4,
                   icon: Icons.settings_outlined,
                   label: 'History',
                   isSelected: selectedIndex == 4,
-                  isCollapsed: isCollapsed,
                   onTap: () => onItemSelected(4),
                 ),
-                _buildNavItem(
+                _buildNavItemWithLabel(
                   index: 5,
-                  icon: Icons.person_add_outlined,
+                  icon: Icons.inventory_2_outlined,
                   label: 'Inventory',
                   isSelected: selectedIndex == 5,
-                  isCollapsed: isCollapsed,
                   onTap: () => onItemSelected(5),
                 ),
-                _buildNavItem(
+                _buildNavItemWithLabel(
                   index: 6,
-                  icon: Icons.health_and_safety_outlined,
-                  label: 'External Doctor',
+                  icon: Icons.local_shipping_outlined,
+                  label: 'Distributors',
                   isSelected: selectedIndex == 6,
-                  isCollapsed: isCollapsed,
                   onTap: () => onItemSelected(6),
                 ),
-                _buildNavItem(
+                _buildNavItemWithLabel(
                   index: 7,
                   icon: Icons.medical_services,
-                  label: 'Create Appointment',
+                  label: 'Batch Medicine',
                   isSelected: selectedIndex == 7,
-                  isCollapsed: isCollapsed,
                   onTap: () => onItemSelected(7),
                 ),
-                _buildNavItem(
+                _buildNavItemWithLabel(
                   index: 8,
-                  icon: Icons.app_registration,
-                  label: 'Bed Management',
+                  icon: Icons.medication_outlined,
+                  label: 'All Medicines',
                   isSelected: selectedIndex == 8,
-                  isCollapsed: isCollapsed,
                   onTap: () => onItemSelected(8),
                 ),
               ],
             ),
           ),
 
-          // Logout Button - ultra minimal in collapsed state
-          if (isCollapsed) ...[
-            // Just a tiny icon
-            IconButton(
-              onPressed: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => HomePage(),
-                  ),
-                );
-              },
-              icon: const Icon(
-                Icons.logout,
-                color: Colors.white70,
-                size: 14,
-              ),
-              padding: EdgeInsets.zero,
-              constraints: BoxConstraints(
-                minWidth: 24,
-                minHeight: 24,
-              ),
-              visualDensity: VisualDensity.compact,
-            ),
-            SizedBox(height: 8),
-          ] else ...[
-            // Full button in expanded mode
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => HomePage(),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.logout, color: Colors.white70),
-                label: const Text(
-                  'Back',
-                  style: TextStyle(color: Colors.white70),
-                ),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Colors.white24),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-            ),
-          ],
+          // Optimized logout button
+          _buildLogoutButton(context),
         ],
       ),
     );
   }
 
-  Widget _buildNavItem({
+  // Enhanced sidebar header with larger toggle button target area
+  Widget _buildSidebarHeader(BuildContext context) {
+    return Container(
+      height: 70,
+      padding: EdgeInsets.symmetric(
+        horizontal: isCollapsed ? 8 : 16,
+        vertical: 12,
+      ),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            HospitalTheme.primary,
+            PharmaTheme.accent,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: PharmaTheme.shadowSmall,
+      ),
+      child: isCollapsed
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Logo with good visibility
+                  // const Icon(
+                  //   Icons.local_hospital_outlined,
+                  //   color: Colors.white,
+                  //   size: 26,
+                  // ),
+                  const SizedBox(height: 8),
+                  // Toggle button with larger tap target
+                  GestureDetector(
+                    onTap: onToggle,
+                    behavior: HitTestBehavior.opaque,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius:
+                            BorderRadius.circular(PharmaTheme.radiusXs),
+                      ),
+                      child: const Icon(
+                        Icons.arrow_forward_ios,
+                        color: Colors.white,
+                        size: 14,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius:
+                            BorderRadius.circular(PharmaTheme.radiusS),
+                      ),
+                      child: const Icon(
+                        Icons.local_hospital_outlined,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'HMS',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ],
+                ),
+                // Toggle button with improved tap area
+                GestureDetector(
+                  onTap: onToggle,
+                  behavior: HitTestBehavior.opaque,
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(PharmaTheme.radiusXs),
+                    ),
+                    child: const Icon(
+                      Icons.arrow_back_ios,
+                      color: Colors.white,
+                      size: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  // User profile section - unchanged
+  Widget _buildUserProfile() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(25),
+            child: Container(
+              width: 42,
+              height: 42,
+              color: PharmaTheme.primary.withOpacity(0.2),
+              child: const Center(
+                child: Image(image: AssetImage('${AppImages.logo}')),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "${AppStrings.hospitalName}",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Text(
+                  'Pharmacy',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Improved navigation item with small label in collapsed mode for better usability
+  Widget _buildNavItemWithLabel({
     required int index,
     required IconData icon,
     required String label,
     required bool isSelected,
-    required bool isCollapsed,
     required VoidCallback onTap,
   }) {
+    final Color activeColor = HospitalTheme.primary;
+    final Color inactiveColor = Colors.white;
+
     if (isCollapsed) {
-      // Ultra-minimal icon-only version for collapsed state
-      return InkWell(
-        onTap: onTap,
-        child: Container(
-          height: 30, // Smaller fixed height
-          width: 30, // Smaller fixed width
-          margin: const EdgeInsets.symmetric(vertical: 2), // Minimal margin
-          decoration: BoxDecoration(
-            color: isSelected ? Colors.blue.shade600 : Colors.transparent,
-            shape: BoxShape.circle, // Use circle for more compact look
-          ),
-          child: Center(
-            child: Icon(
-              icon,
-              color: isSelected ? Colors.white : Colors.white70,
-              size: 14, // Even smaller icon
+      // Enhanced collapsed view WITH mini labels for better usability
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
+          child: Container(
+            height: 70, // Taller to accommodate both icon and text
+            margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? PharmaTheme.primary.withOpacity(0.2)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
+              border: isSelected
+                  ? Border.all(
+                      color: PharmaTheme.primary.withOpacity(0.5), width: 1.5)
+                  : null,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Icon
+                Icon(
+                  icon,
+                  color: isSelected ? Colors.white : inactiveColor,
+                  size: 24,
+                ),
+                const SizedBox(height: 4),
+                // Mini label - truncated if needed
+                Text(
+                  // Show abbreviated version of label
+                  label.length > 10 ? label.substring(0, 7) + '...' : label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : inactiveColor,
+                    fontSize: 10,
+                    fontWeight:
+                        isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
       );
     }
 
-    // Original expanded version (unchanged)
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(
-        gradient: isSelected
-            ? const LinearGradient(
-                colors: [Color(0xFF005F9E), Color(0xFF00B8D4)],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              )
-            : null,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(8),
+    // Normal expanded view - no longer using Focus widget
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+          decoration: BoxDecoration(
+            gradient: isSelected
+                ? LinearGradient(
+                    colors: [PharmaTheme.primary, PharmaTheme.primaryLight],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  )
+                : null,
+            borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
+          ),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 Icon(
                   icon,
-                  color: isSelected ? Colors.white : Colors.white70,
+                  color: isSelected ? Colors.white : inactiveColor,
                   size: 22,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     label,
-                    overflow: TextOverflow.ellipsis, // Handle long text
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: isSelected ? Colors.white : Colors.white70,
+                      color: isSelected ? Colors.white : inactiveColor,
                       fontWeight:
                           isSelected ? FontWeight.bold : FontWeight.normal,
                       fontSize: 14,
                     ),
                   ),
                 ),
-                if (isSelected) ...[
+                if (isSelected)
                   Container(
                     width: 6,
                     height: 6,
@@ -542,7 +650,22 @@ class SidebarWidget extends StatelessWidget {
                       shape: BoxShape.circle,
                     ),
                   ),
-                ],
+
+                // Show keyboard shortcut hint
+                if (isSelected && index < 9)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Opacity(
+                      opacity: 0.7,
+                      child: Text(
+                        '⌘${index + 1}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -550,9 +673,80 @@ class SidebarWidget extends StatelessWidget {
       ),
     );
   }
+
+  // Improved logout button
+  Widget _buildLogoutButton(BuildContext context) {
+    if (isCollapsed) {
+      // Better logout button with text label
+      return Padding(
+        padding: const EdgeInsets.all(8),
+        child: GestureDetector(
+          onTap: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => HomePage(),
+              ),
+            );
+          },
+          child: Container(
+            height: 50,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.logout,
+                  color: Colors.white,
+                  size: 20,
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'Back',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: OutlinedButton.icon(
+        onPressed: () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => HomePage(),
+            ),
+          );
+        },
+        icon: const Icon(Icons.logout, color: Colors.white),
+        label: const Text(
+          'Back',
+          style: TextStyle(color: Colors.white),
+        ),
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(color: Colors.white.withOpacity(0.3)),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-// Updated Navbar Widget with menu toggle
+// Updated Navbar Widget with improved menu toggle
 class NavbarWidget extends StatelessWidget {
   final VoidCallback onMenuTap;
 
@@ -563,6 +757,8 @@ class NavbarWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isSmallScreen = MediaQuery.of(context).size.width < 600;
+
     return Container(
       height: 70,
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -582,11 +778,11 @@ class NavbarWidget extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.menu),
             onPressed: onMenuTap,
-            tooltip: 'Toggle sidebar',
+            tooltip: isSmallScreen ? 'Open menu' : 'Toggle sidebar',
             color: const Color(0xFF1E2843),
           ),
 
-          // Search Bar
+          // Search Bar with responsive width
           Expanded(
             child: Container(
               height: 40,
@@ -602,7 +798,7 @@ class NavbarWidget extends StatelessWidget {
                       color: Colors.grey.shade500, size: 20),
                   const SizedBox(width: 8),
                   Text(
-                    'Welcome to HMS',
+                    'Welcome to HMS Pharmacy',
                     style: TextStyle(
                       color: Colors.grey.shade500,
                       fontSize: 14,
@@ -613,7 +809,7 @@ class NavbarWidget extends StatelessWidget {
             ),
           ),
 
-          // Remaining navbar items (unchanged)
+          // Notification button
           const SizedBox(width: 16),
           Container(
             padding: const EdgeInsets.all(8),
@@ -642,17 +838,21 @@ class NavbarWidget extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(width: 12),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF5F7FA),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade200),
+          // Email button - hide on small screens
+          if (!isSmallScreen) ...[
+            const SizedBox(width: 12),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F7FA),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: const Icon(Icons.email_outlined, color: Color(0xFF1E2843)),
             ),
-            child: const Icon(Icons.email_outlined, color: Color(0xFF1E2843)),
-          ),
+          ],
 
+          // Profile button
           const SizedBox(width: 12),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -678,20 +878,22 @@ class NavbarWidget extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Admin',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w500,
+                if (!isSmallScreen) ...[
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Admin',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF1E2843),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(
+                    Icons.keyboard_arrow_down,
+                    size: 16,
                     color: Color(0xFF1E2843),
                   ),
-                ),
-                const SizedBox(width: 4),
-                const Icon(
-                  Icons.keyboard_arrow_down,
-                  size: 16,
-                  color: Color(0xFF1E2843),
-                ),
+                ],
               ],
             ),
           ),

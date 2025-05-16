@@ -313,7 +313,7 @@ class _CreateReturnScreenState extends State<CreateReturnScreen> {
     });
 
     try {
-      final Uri uri = Uri.parse('${BASE_URL}/pharma/getSales').replace(
+      final Uri uri = Uri.parse('${KVM_URL}/pharma/getSales').replace(
         queryParameters: {
           'startDate': _startDateController.text,
           'endDate': _endDateController.text,
@@ -462,7 +462,7 @@ class _CreateReturnScreenState extends State<CreateReturnScreen> {
         };
 
         final response = await http.post(
-          Uri.parse('${BASE_URL}/pharma/createReturn'),
+          Uri.parse('${KVM_URL}/pharma/createReturn'),
           headers: {'Content-Type': 'application/json'},
           body: json.encode(body),
         );

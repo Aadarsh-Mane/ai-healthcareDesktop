@@ -121,7 +121,7 @@ class CreateSaleNotifier extends StateNotifier<CreateSaleState> {
 
     try {
       final response = await http.get(
-        Uri.parse('${BASE_URL}/pharma/getInventory'),
+        Uri.parse('${KVM_URL}/pharma/getInventory'),
       );
 
       if (response.statusCode == 200) {
@@ -352,7 +352,7 @@ class CreateSaleNotifier extends StateNotifier<CreateSaleState> {
 
     try {
       final response = await http.post(
-        Uri.parse('${BASE_URL}/pharma/createSale'),
+        Uri.parse('${KVM_URL}/pharma/createSale'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(requestBody),
       );

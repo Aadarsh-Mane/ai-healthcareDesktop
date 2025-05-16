@@ -1,5 +1,5 @@
 class AppImages {
-  static const String logo = 'assets/images/saideep.ico';
+  static const String logo = 'assets/images/docnex2.png';
   static const String logoLight = 'assets/images/logo-light.png';
   static const String admin = 'assets/images/reception.png';
   static const String reception = 'assets/images/reception.png';
