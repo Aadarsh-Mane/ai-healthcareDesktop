@@ -10,6 +10,7 @@ import 'package:doctordesktop/constants/HospitalTheme.dart';
 import 'package:doctordesktop/main.dart';
 import 'package:doctordesktop/pharmacy/AllMedicineScreen.dart';
 import 'package:doctordesktop/pharmacy/AllReturnScreen.dart';
+import 'package:doctordesktop/pharmacy/CreateCustomerScreen.dart';
 import 'package:doctordesktop/pharmacy/CreateMedicineScreen.dart';
 import 'package:doctordesktop/pharmacy/CreateReturn.dart';
 import 'package:doctordesktop/pharmacy/CreateSalesScreen.dart';
@@ -77,6 +78,7 @@ class _MainLayoutState extends State<MainLayout> {
     DistributorScreen(),
     const MedicineScreen(),
     AllMedicineScreen(),
+    CreateCustomerScreen(),
   ];
 
   @override
@@ -378,6 +380,13 @@ class SidebarWidget extends StatelessWidget {
                   label: 'All Medicines',
                   isSelected: selectedIndex == 8,
                   onTap: () => onItemSelected(8),
+                ),
+                _buildNavItemWithLabel(
+                  index: 9,
+                  icon: Icons.medication_outlined,
+                  label: 'Customer',
+                  isSelected: selectedIndex == 9,
+                  onTap: () => onItemSelected(9),
                 ),
               ],
             ),

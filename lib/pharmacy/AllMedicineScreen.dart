@@ -1,3 +1,4 @@
+import 'package:doctordesktop/constants/Url.dart';
 import 'package:doctordesktop/pharmacy/pharmaTheme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -88,12 +89,11 @@ class Medicine {
 
 // API Service for Medicines
 class MedicineService {
-  static const String baseUrl = 'http://localhost:5001/pharma';
-
   // Get all medicines
   Future<List<Medicine>> getMedicines() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/getMedicines'));
+      final response =
+          await http.get(Uri.parse('$KVM_URL/pharma/getMedicines'));
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
         if (jsonData['success'] == true && jsonData['data'] != null) {
@@ -113,7 +113,7 @@ class MedicineService {
   Future<bool> createMedicine(Medicine medicine) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/createMedicine'),
+        Uri.parse('$KVM_URL/pharma/createMedicine'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode([medicine.toJson()]), // API expects an array
       );
@@ -128,7 +128,7 @@ class MedicineService {
   Future<bool> updateMedicine(String id, Medicine medicine) async {
     try {
       final response = await http.patch(
-        Uri.parse('$baseUrl/updateMedicine/$id'),
+        Uri.parse('$KVM_URL/pharma/updateMedicine/$id'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(medicine.toJson()),
       );
@@ -143,7 +143,7 @@ class MedicineService {
   Future<bool> deleteMedicine(String id) async {
     try {
       final response = await http.delete(
-        Uri.parse('$baseUrl/deleteMedicine/$id'),
+        Uri.parse('$KVM_URL/pharma/deleteMedicine/$id'),
       );
       return response.statusCode == 200;
     } catch (e) {

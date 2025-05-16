@@ -1,7 +1,9 @@
 import 'dart:convert';
 
+import 'package:doctordesktop/Check.dart';
 import 'package:doctordesktop/constants/Methods.dart';
 import 'package:doctordesktop/constants/Url.dart';
+import 'package:doctordesktop/pharmacy/PharmacyDashboard.dart';
 import 'package:doctordesktop/pharmacy/SalesHistoryScreen.dart';
 import 'package:doctordesktop/pharmacy/pharmaTheme.dart';
 import 'package:flutter/material.dart';
@@ -538,6 +540,14 @@ class _CreateSaleScreenState extends ConsumerState<CreateSaleScreen> {
       autofocus: true,
       child: Scaffold(
         appBar: AppBar(
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => HomePage()),
+              );
+            },
+          ),
           title: Text('Create Sale'),
           backgroundColor: PharmaTheme.primary,
           foregroundColor: PharmaTheme.textLight,

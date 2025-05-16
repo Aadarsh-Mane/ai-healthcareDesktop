@@ -1,3 +1,4 @@
+import 'package:doctordesktop/constants/Url.dart';
 import 'package:doctordesktop/pharmacy/pharmaTheme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -68,12 +69,11 @@ class Distributor {
 
 // API Service for Distributors
 class DistributorService {
-  static const String baseUrl = 'http://localhost:5001/pharma';
-
   // Get all distributors
   Future<List<Distributor>> getDistributors() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/getDistributors'));
+      final response =
+          await http.get(Uri.parse('$KVM_URL/pharma/getDistributors'));
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
         if (jsonData['success'] == true && jsonData['data'] != null) {
@@ -93,7 +93,7 @@ class DistributorService {
   Future<bool> createDistributor(Distributor distributor) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/createDistributor'),
+        Uri.parse('$KVM_URL/pharma/createDistributor'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(distributor.toJson()),
       );
@@ -108,7 +108,7 @@ class DistributorService {
   Future<bool> updateDistributor(String id, Distributor distributor) async {
     try {
       final response = await http.patch(
-        Uri.parse('$baseUrl/updateDistributor/$id'),
+        Uri.parse('$KVM_URL/pharma/updateDistributor/$id'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(distributor.toJson()),
       );
@@ -123,7 +123,7 @@ class DistributorService {
   Future<bool> deleteDistributor(String id) async {
     try {
       final response = await http.delete(
-        Uri.parse('$baseUrl/deleteDistributor/$id'),
+        Uri.parse('$KVM_URL/pharma/deleteDistributor/$id'),
       );
       return response.statusCode == 200;
     } catch (e) {
@@ -142,7 +142,7 @@ class DistributorService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/addToInventory'),
+        Uri.parse('$KVM_URL/pharma/addToInventory'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'medicineId': medicineId,
@@ -162,7 +162,8 @@ class DistributorService {
 // Also add this method to fetch available medicines
   Future<List<Map<String, dynamic>>> getMedicines() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/getMedicines'));
+      final response =
+          await http.get(Uri.parse('$KVM_URL/pharma/getMedicines'));
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
         if (jsonData['success'] == true && jsonData['data'] != null) {
@@ -180,7 +181,7 @@ class DistributorService {
   Future<List<Map<String, dynamic>>> getDistributorMedicines(String id) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/getDistributorMedicines/$id'),
+        Uri.parse('$KVM_URL/pharma/getDistributorMedicines/$id'),
       );
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
