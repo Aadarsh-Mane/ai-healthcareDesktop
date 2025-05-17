@@ -156,6 +156,7 @@ class MedicineService {
         headers: {'Content-Type': 'application/json'},
         body: json.encode([medicine.toJson()]), // API expects an array
       );
+      print(response.body);
       return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
       debugPrint('Error creating medicine: $e');

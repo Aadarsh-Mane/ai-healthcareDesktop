@@ -1,4 +1,5 @@
 import 'package:doctordesktop/constants/Url.dart';
+import 'package:doctordesktop/pharmacy/getInventoryModel.dart';
 import 'package:doctordesktop/pharmacy/pharmaTheme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +8,42 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
+
+class InventoryItem {
+  final String id;
+  final Medicine medicine;
+  final String batchNumber;
+  final DateTime expiryDate;
+  final int quantity;
+  final Distributor distributor;
+  final DateTime addedOn;
+
+  InventoryItem({
+    required this.id,
+    required this.medicine,
+    required this.batchNumber,
+    required this.expiryDate,
+    required this.quantity,
+    required this.distributor,
+    required this.addedOn,
+  });
+
+  factory InventoryItem.fromJson(Map<String, dynamic> json) {
+    return InventoryItem(
+      id: json['_id'] ?? '',
+      medicine: Medicine.fromJson(json['medicine'] ?? {}),
+      batchNumber: json['batchNumber'] ?? '',
+      expiryDate: json['expiryDate'] != null
+          ? DateTime.parse(json['expiryDate'])
+          : DateTime.now(),
+      quantity: json['quantity'] ?? 0,
+      distributor: Distributor.fromJson(json['distributor'] ?? {}),
+      addedOn: json['addedOn'] != null
+          ? DateTime.parse(json['addedOn'])
+          : DateTime.now(),
+    );
+  }
+}
 
 // Model class for Medicine
 class Medicine {
@@ -124,6 +161,25 @@ class MedicineService {
     }
   }
 
+  Future<List<Distributor>> getDistributors() async {
+    try {
+      final response =
+          await http.get(Uri.parse('$KVM_URL/pharma/getDistributors'));
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        if (jsonData['success'] == true && jsonData['data'] != null) {
+          return (jsonData['data'] as List)
+              .map((item) => Distributor.fromJson(item))
+              .toList();
+        }
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error fetching distributors: $e');
+      return [];
+    }
+  }
+
   // Update a medicine
   Future<bool> updateMedicine(String id, Medicine medicine) async {
     try {
@@ -151,6 +207,77 @@ class MedicineService {
       return false;
     }
   }
+
+  Future<bool> addToInventory(String medicineId, String distributorId,
+      String batchNumber, int quantity, DateTime expiryDate) async {
+    try {
+      // Print out the medicine ID for debugging
+      debugPrint('Medicine ID being used: "$medicineId"');
+
+      // Format the data exactly as Postman would send it
+      final data = {
+        'medicineId':
+            medicineId.trim(), // Ensure no leading/trailing whitespace
+        'distributorId': distributorId.trim(),
+        'batchNumber': batchNumber,
+        'quantity': quantity,
+        'expiryDate': expiryDate.toIso8601String(),
+      };
+
+      debugPrint('Adding to inventory: ${json.encode(data)}');
+
+      // Use the exact same headers as Postman
+      final response = await http.post(
+        Uri.parse('$KVM_URL/pharma/addToInventory'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: json.encode(data),
+      );
+
+      debugPrint('Server response status: ${response.statusCode}');
+      debugPrint('Server response body: ${response.body}');
+
+      // Parse the response to get more detailed error
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        try {
+          final errorData = json.decode(response.body);
+          debugPrint(
+              'Detailed error: ${errorData['message'] ?? 'Unknown error'}');
+        } catch (e) {
+          debugPrint('Failed to parse error response');
+        }
+      }
+
+      return response.statusCode == 200 || response.statusCode == 201;
+    } catch (e) {
+      debugPrint('Exception in addToInventory: $e');
+      return false;
+    }
+  }
+
+  Future<List<InventoryItem>> getInventory() async {
+    try {
+      final response =
+          await http.get(Uri.parse('$KVM_URL/pharma/getInventory'));
+      print("HELLO WORLD");
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        if (jsonData['success'] == true && jsonData['data'] != null) {
+          return (jsonData['data'] as List)
+              .map((item) => InventoryItem.fromJson(item))
+              .toList();
+        }
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error fetching inventory: $e');
+      return [];
+    }
+  }
+
+  // Add to your MedicineService class if not already there
 }
 
 // Providers for state management
@@ -162,9 +289,15 @@ final medicinesProvider = FutureProvider<List<Medicine>>((ref) async {
   final medicineService = ref.watch(medicineServiceProvider);
   return await medicineService.getMedicines();
 });
-
+final distributorsProvider = FutureProvider<List<Distributor>>((ref) async {
+  final medicineService = ref.watch(medicineServiceProvider);
+  return await medicineService.getDistributors();
+});
 final selectedMedicineProvider = StateProvider<Medicine?>((ref) => null);
-
+final inventoryProvider = FutureProvider<List<InventoryItem>>((ref) async {
+  final medicineService = ref.watch(medicineServiceProvider);
+  return await medicineService.getInventory();
+});
 // Screen for Medicine Management
 
 // Model class remains the same
@@ -450,6 +583,454 @@ class _AllMedicineScreenState extends ConsumerState<AllMedicineScreen> {
     );
   }
 
+// Inside _AllMedicineScreenState class, add this method to show Add to Inventory dialog
+  Future<void> _showAddToInventoryDialog(
+      BuildContext context, Medicine medicine) async {
+    final medicineService = ref.read(medicineServiceProvider);
+    final quantityController = TextEditingController();
+    final batchNumberController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    DateTime selectedExpiryDate = DateTime.now().add(const Duration(days: 365));
+    Distributor? selectedDistributor;
+    String? errorMessage;
+
+    // Pre-fetch distributors to check if we have any
+    try {
+      final distributors = await medicineService.getDistributors();
+      if (distributors.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'No distributors available. Please add distributors first.'),
+            backgroundColor: PharmaTheme.error,
+          ),
+        );
+        return; // Exit early if no distributors
+      }
+    } catch (e) {
+      debugPrint('Error pre-fetching distributors: $e');
+      // Continue to show dialog anyway, will display error there
+    }
+
+    if (!context.mounted) return;
+
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Consumer(
+              builder: (context, ref, child) {
+                final distributorsAsync = ref.watch(distributorsProvider);
+
+                return AlertDialog(
+                  title: const Text('Add to Inventory'),
+                  content: SingleChildScrollView(
+                    child: Form(
+                      key: formKey,
+                      child: ListBody(
+                        children: <Widget>[
+                          // Medicine info
+                          Container(
+                            padding: const EdgeInsets.all(PharmaTheme.spacingS),
+                            decoration: BoxDecoration(
+                              color: PharmaTheme.primary.withOpacity(0.1),
+                              borderRadius:
+                                  BorderRadius.circular(PharmaTheme.radiusM),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.medication,
+                                  color: PharmaTheme.primary,
+                                ),
+                                const SizedBox(width: PharmaTheme.spacingS),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        medicine.name,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      Text(
+                                        medicine.manufacturer,
+                                        style: PharmaTheme.bodySmall,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: PharmaTheme.spacingM),
+
+                          // Display error message if any
+                          if (errorMessage != null) ...[
+                            Container(
+                              padding:
+                                  const EdgeInsets.all(PharmaTheme.spacingS),
+                              decoration: BoxDecoration(
+                                color: PharmaTheme.error.withOpacity(0.1),
+                                borderRadius:
+                                    BorderRadius.circular(PharmaTheme.radiusM),
+                                border: Border.all(
+                                    color: PharmaTheme.error.withOpacity(0.3)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.error_outline,
+                                      color: PharmaTheme.error, size: 18),
+                                  const SizedBox(width: PharmaTheme.spacingS),
+                                  Expanded(
+                                    child: Text(
+                                      errorMessage!,
+                                      style: PharmaTheme.bodySmall
+                                          .copyWith(color: PharmaTheme.error),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: PharmaTheme.spacingM),
+                          ],
+
+                          // Batch Number
+                          TextFormField(
+                            controller: batchNumberController,
+                            decoration: const InputDecoration(
+                              labelText: 'Batch Number',
+                              hintText: 'Enter batch number',
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter batch number';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: PharmaTheme.spacingM),
+
+                          // Quantity
+                          TextFormField(
+                            controller: quantityController,
+                            decoration: const InputDecoration(
+                              labelText: 'Quantity',
+                              hintText: 'Enter quantity',
+                            ),
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter quantity';
+                              }
+                              if (int.tryParse(value) == null ||
+                                  int.parse(value) <= 0) {
+                                return 'Please enter a valid quantity';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: PharmaTheme.spacingM),
+
+                          // Expiry Date
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Expiry Date',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: PharmaTheme.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: PharmaTheme.spacingXs),
+                              InkWell(
+                                onTap: () async {
+                                  final DateTime? picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: selectedExpiryDate,
+                                    firstDate: DateTime.now(),
+                                    lastDate: DateTime.now()
+                                        .add(const Duration(days: 3650)),
+                                  );
+                                  if (picked != null &&
+                                      picked != selectedExpiryDate) {
+                                    setState(() {
+                                      selectedExpiryDate = picked;
+                                    });
+                                  }
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: PharmaTheme.spacingM,
+                                    vertical: PharmaTheme.spacingS,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    border:
+                                        Border.all(color: PharmaTheme.border),
+                                    borderRadius: BorderRadius.circular(
+                                        PharmaTheme.radiusM),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        DateFormat('dd MMM, yyyy')
+                                            .format(selectedExpiryDate),
+                                        style: PharmaTheme.bodyMedium,
+                                      ),
+                                      const Icon(
+                                        Icons.calendar_today,
+                                        size: 18,
+                                        color: PharmaTheme.textSecondary,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: PharmaTheme.spacingM),
+
+                          // Distributor Dropdown
+                          distributorsAsync.when(
+                            data: (distributors) {
+                              if (distributors.isEmpty) {
+                                return Container(
+                                  padding: const EdgeInsets.all(
+                                      PharmaTheme.spacingS),
+                                  decoration: BoxDecoration(
+                                    color: PharmaTheme.error.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(
+                                        PharmaTheme.radiusM),
+                                    border: Border.all(
+                                        color:
+                                            PharmaTheme.error.withOpacity(0.3)),
+                                  ),
+                                  child: const Row(
+                                    children: [
+                                      Icon(Icons.error_outline,
+                                          color: PharmaTheme.error, size: 18),
+                                      SizedBox(width: PharmaTheme.spacingS),
+                                      Expanded(
+                                        child: Text(
+                                          'No distributors available. Please add distributors first.',
+                                          style: TextStyle(
+                                              color: PharmaTheme.error),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
+
+                              // Initialize selectedDistributor if it's null
+                              if (selectedDistributor == null &&
+                                  distributors.isNotEmpty) {
+                                selectedDistributor = distributors.first;
+                              }
+
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Distributor',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: PharmaTheme.textSecondary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: PharmaTheme.spacingXs),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: PharmaTheme.spacingS,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      border:
+                                          Border.all(color: PharmaTheme.border),
+                                      borderRadius: BorderRadius.circular(
+                                          PharmaTheme.radiusM),
+                                    ),
+                                    child: DropdownButtonHideUnderline(
+                                      child: DropdownButton<Distributor>(
+                                        isExpanded: true,
+                                        value: selectedDistributor,
+                                        items: distributors.map((distributor) {
+                                          return DropdownMenuItem<Distributor>(
+                                            value: distributor,
+                                            child: Text(distributor.name),
+                                          );
+                                        }).toList(),
+                                        onChanged: (Distributor? value) {
+                                          if (value != null) {
+                                            setState(() {
+                                              selectedDistributor = value;
+                                            });
+                                          }
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                            loading: () => Center(
+                              child: Column(
+                                children: [
+                                  const CircularProgressIndicator(),
+                                  const SizedBox(height: PharmaTheme.spacingS),
+                                  Text(
+                                    'Loading distributors...',
+                                    style: PharmaTheme.bodySmall.copyWith(
+                                      color: PharmaTheme.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            error: (error, _) => Container(
+                              padding:
+                                  const EdgeInsets.all(PharmaTheme.spacingS),
+                              decoration: BoxDecoration(
+                                color: PharmaTheme.error.withOpacity(0.1),
+                                borderRadius:
+                                    BorderRadius.circular(PharmaTheme.radiusM),
+                                border: Border.all(
+                                    color: PharmaTheme.error.withOpacity(0.3)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.error_outline,
+                                      color: PharmaTheme.error, size: 18),
+                                  const SizedBox(width: PharmaTheme.spacingS),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Failed to load distributors',
+                                          style: TextStyle(
+                                              color: PharmaTheme.error),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          error.toString(),
+                                          style: PharmaTheme.bodySmall.copyWith(
+                                              color: PharmaTheme.error),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  actions: <Widget>[
+                    TextButton(
+                      child: const Text('Cancel'),
+                      onPressed: () {
+                        Navigator.of(dialogContext).pop();
+                      },
+                    ),
+                    distributorsAsync.when(
+                      data: (distributors) {
+                        if (distributors.isEmpty) {
+                          return TextButton(
+                            onPressed: null,
+                            child: const Text('Save'),
+                          );
+                        }
+
+                        return ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: PharmaTheme.accent,
+                          ),
+                          child: const Text('Save'),
+                          onPressed: () async {
+                            if (formKey.currentState!.validate() &&
+                                selectedDistributor != null) {
+                              // Reset error message
+                              setState(() {
+                                errorMessage = null;
+                              });
+
+                              try {
+                                final success =
+                                    await medicineService.addToInventory(
+                                  medicine.id,
+                                  selectedDistributor!.id,
+                                  batchNumberController.text,
+                                  int.parse(quantityController.text),
+                                  selectedExpiryDate,
+                                );
+
+                                if (success) {
+                                  // Refresh inventory data
+                                  ref.invalidate(inventoryProvider);
+                                  if (context.mounted) {
+                                    Navigator.of(dialogContext).pop();
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                            'Added to inventory successfully'),
+                                        backgroundColor: PharmaTheme.success,
+                                      ),
+                                    );
+                                  }
+                                } else {
+                                  setState(() {
+                                    errorMessage =
+                                        'Failed to add to inventory. Please check that the medicine still exists in the database.';
+                                  });
+                                }
+                              } catch (e) {
+                                setState(() {
+                                  errorMessage = 'Error: ${e.toString()}';
+                                });
+                              }
+                            }
+                          },
+                        );
+                      },
+                      loading: () => const SizedBox(
+                        height: 36,
+                        width: 36,
+                        child: Padding(
+                          padding: EdgeInsets.all(4.0),
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                      error: (_, __) => OutlinedButton(
+                        onPressed: () {
+                          // Retry loading distributors
+                          ref.invalidate(distributorsProvider);
+                        },
+                        child: const Text('Retry Loading'),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
   // Rest of the methods remain the same
   void _searchMedicines(String query) {
     ref.watch(medicinesProvider).whenData((medicines) {
@@ -647,9 +1228,10 @@ class _AllMedicineScreenState extends ConsumerState<AllMedicineScreen> {
               _filteredMedicines = List.from(medicines);
               _sortMedicines(_sortColumn, _sortAscending);
             }
-
             if (medicines.isEmpty) {
-              return const _EmptyMedicineList();
+              return _EmptyMedicineList(
+                onAdd: () => _showMedicineDialog(context),
+              );
             }
 
             // Responsive layout
@@ -670,41 +1252,51 @@ class _AllMedicineScreenState extends ConsumerState<AllMedicineScreen> {
   // Extracted layouts for better organization
   Widget _buildDesktopLayout(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    final tableWidth = size.width * ((_selectedMedicine == null) ? 0.9 : 0.65);
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Left panel - Medicine table (Master)
-        SizedBox(
-          width: tableWidth,
-          child: _MedicineTable(
-            filteredMedicines: _filteredMedicines,
-            searchController: _searchController,
-            selectedMedicine: _selectedMedicine,
-            onSearch: _searchMedicines,
-            onSort: _sortMedicines,
-            onSelect: _selectMedicine,
-            onAdd: () => _showMedicineDialog(context),
-            onEdit: (medicine) =>
-                _showMedicineDialog(context, medicine: medicine),
-            onDelete: (medicine) => _deleteMedicine(context, medicine),
-          ),
-        ),
+    // Use a more flexible width calculation that adapts to the available space
+    final tableWidth = _selectedMedicine == null
+        ? size.width * 0.95 // Almost full width when no medicine is selected
+        : size.width * 0.6; // 60% width when medicine is selected
 
-        // Right panel - Medicine details (Detail)
-        if (_selectedMedicine != null)
-          Expanded(
-            child: _MedicineDetail(
-              medicine: _selectedMedicine!,
-              onEdit: () =>
-                  _showMedicineDialog(context, medicine: _selectedMedicine),
-              onDelete: () => _deleteMedicine(context, _selectedMedicine!),
-              onAddToInventory: (medicine) =>
-                  _showAddToInventoryDialog(context, medicine),
+    return Padding(
+      padding: const EdgeInsets.all(8.0), // Add padding to avoid overflow
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Left panel - Medicine table (Master)
+          SizedBox(
+            width: tableWidth,
+            child: _MedicineTable(
+              filteredMedicines: _filteredMedicines,
+              searchController: _searchController,
+              selectedMedicine: _selectedMedicine,
+              onSearch: _searchMedicines,
+              onSort: _sortMedicines,
+              onSelect: _selectMedicine,
+              onAdd: () => _showMedicineDialog(context),
+              onEdit: (medicine) =>
+                  _showMedicineDialog(context, medicine: medicine),
+              onDelete: (medicine) => _deleteMedicine(context, medicine),
             ),
           ),
-      ],
+
+          // Right panel - Medicine details (Detail)
+          if (_selectedMedicine != null)
+            Expanded(
+              child: SingleChildScrollView(
+                // Wrap in SingleChildScrollView to prevent overflow
+                child: _MedicineDetail(
+                  medicine: _selectedMedicine!,
+                  onEdit: () =>
+                      _showMedicineDialog(context, medicine: _selectedMedicine),
+                  onDelete: () => _deleteMedicine(context, _selectedMedicine!),
+                  onAddToInventory: (medicine) =>
+                      _showAddToInventoryDialog(context, medicine),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -811,23 +1403,6 @@ class _AllMedicineScreenState extends ConsumerState<AllMedicineScreen> {
       ),
     );
   }
-
-  void _showAddToInventoryDialog(BuildContext context, Medicine medicine) {
-    // Implementation for future inventory feature
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Add ${medicine.name} to Inventory'),
-        content: const Text('Inventory management feature coming soon!'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 // Extracted widgets for better composition and reusability
@@ -874,7 +1449,9 @@ class _SearchBar extends StatelessWidget {
 }
 
 class _EmptyMedicineList extends StatelessWidget {
-  const _EmptyMedicineList();
+  final VoidCallback onAdd;
+
+  const _EmptyMedicineList({required this.onAdd});
 
   @override
   Widget build(BuildContext context) {
@@ -898,7 +1475,7 @@ class _EmptyMedicineList extends StatelessWidget {
           ElevatedButton.icon(
             icon: const Icon(Icons.add),
             label: const Text('Add Medicine'),
-            onPressed: () {}, // Will be connected in parent widget
+            onPressed: onAdd,
           ),
         ],
       ),
@@ -1319,6 +1896,382 @@ class _MedicineDetail extends StatelessWidget {
     );
   }
 
+// Update the _buildInventorySection to display actual inventory data
+  Widget _buildInventorySection(BuildContext context) {
+    return Consumer(
+      builder: (context, ref, _) {
+        final inventoryAsync = ref.watch(inventoryProvider);
+
+        return Container(
+          constraints: BoxConstraints(
+            minHeight: 200,
+            maxHeight: 500, // Add max height
+          ),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
+            boxShadow: PharmaTheme.shadowSmall,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  vertical: PharmaTheme.spacingS,
+                  horizontal: PharmaTheme.spacingM,
+                ),
+                decoration: BoxDecoration(
+                  color: PharmaTheme.primary,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(PharmaTheme.radiusM),
+                    topRight: Radius.circular(PharmaTheme.radiusM),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Icon(
+                            Icons.inventory_2,
+                            size: 16,
+                            color: PharmaTheme.textLight,
+                          ),
+                        ),
+                        const SizedBox(width: PharmaTheme.spacingS),
+                        Text(
+                          'Inventory Management',
+                          style: PharmaTheme.headingSmall.copyWith(
+                            color: PharmaTheme.textLight,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                    // Add to Inventory button
+                    ElevatedButton.icon(
+                      icon: const Icon(
+                        Icons.add_shopping_cart,
+                        size: 16,
+                        color: PharmaTheme.primary,
+                      ),
+                      label: const Text(
+                        'Add to Inventory',
+                        style: TextStyle(
+                          color: PharmaTheme.primary,
+                          fontSize: 13,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: PharmaTheme.spacingM,
+                          vertical: PharmaTheme.spacingXs,
+                        ),
+                        minimumSize: const Size(0, 32),
+                      ),
+                      onPressed: () => onAddToInventory(medicine),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Inventory Stats
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.all(PharmaTheme.spacingM),
+                    child: inventoryAsync.when(
+                      data: (inventory) {
+                        // Filter inventory items for this medicine
+                        final medicineInventory = inventory
+                            .where((item) => item.medicine.id == medicine.id)
+                            .toList();
+
+                        // Calculate stats
+                        final totalStock = medicineInventory.fold(
+                            0, (sum, item) => sum + item.quantity);
+
+                        final totalBatches = medicineInventory.length;
+
+                        DateTime? nearestExpiry;
+                        if (medicineInventory.isNotEmpty) {
+                          nearestExpiry = medicineInventory
+                              .map((item) => item.expiryDate)
+                              .reduce((a, b) => a.isBefore(b) ? a : b);
+                        }
+
+                        return Padding(
+                          padding: const EdgeInsets.all(PharmaTheme.spacingM),
+                          child: _buildInventoryStatsRow(
+                            totalStock: totalStock,
+                            totalBatches: totalBatches,
+                            nearestExpiry: nearestExpiry,
+                          ),
+                        );
+                      },
+                      loading: () => const Padding(
+                        padding: EdgeInsets.all(PharmaTheme.spacingM),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                      error: (_, __) => _buildInventoryStatsRow(
+                        totalStock: 0,
+                        totalBatches: 0,
+                        nearestExpiry: null,
+                        hasError: true,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Inventory items list
+              Padding(
+                padding: const EdgeInsets.all(PharmaTheme.spacingM),
+                child: inventoryAsync.when(
+                  data: (inventory) {
+                    // Filter inventory items for this medicine
+                    final medicineInventory = inventory
+                        .where((item) => item.medicine.id == medicine.id)
+                        .toList();
+
+                    if (medicineInventory.isEmpty) {
+                      return _buildInventoryPlaceholder();
+                    }
+
+                    return _buildInventoryItemsList(
+                        medicineInventory.cast<InventoryItem>());
+                  },
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (_, __) => _buildInventoryPlaceholder(hasError: true),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildInventoryStatsRow({
+    required int totalStock,
+    required int totalBatches,
+    DateTime? nearestExpiry,
+    bool hasError = false,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Determine layout based on available width
+        final isNarrow = constraints.maxWidth < 600;
+
+        final stats = [
+          _InventoryStat(
+            title: 'Total Stock',
+            value: hasError ? '?' : totalStock.toString(),
+            icon: hasError ? Icons.error_outline : Icons.inventory,
+            color: hasError ? PharmaTheme.error : PharmaTheme.primary,
+          ),
+          _InventoryStat(
+            title: 'Total Batches',
+            value: hasError ? '?' : totalBatches.toString(),
+            icon: hasError ? Icons.error_outline : Icons.layers,
+            color: hasError ? PharmaTheme.error : PharmaTheme.accent,
+          ),
+          _InventoryStat(
+            title: 'Nearest Expiry',
+            value: hasError
+                ? '?'
+                : (nearestExpiry != null
+                    ? DateFormat('dd MMM, yyyy').format(nearestExpiry)
+                    : 'None'),
+            icon: hasError ? Icons.error_outline : Icons.event,
+            color: hasError ? PharmaTheme.error : PharmaTheme.warning,
+          ),
+        ];
+
+        if (isNarrow) {
+          // Vertical layout for narrow screens
+          return Column(
+            children: stats.map((stat) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: PharmaTheme.spacingM),
+                child: _buildCompactStatCard(
+                  title: stat.title,
+                  value: stat.value,
+                  icon: stat.icon,
+                  color: stat.color,
+                ),
+              );
+            }).toList(),
+          );
+        } else {
+          // Horizontal layout for wider screens
+          return Row(
+            children: stats.map((stat) {
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    right: stat != stats.last ? PharmaTheme.spacingM : 0,
+                  ),
+                  child: _buildCompactStatCard(
+                    title: stat.title,
+                    value: stat.value,
+                    icon: stat.icon,
+                    color: stat.color,
+                  ),
+                ),
+              );
+            }).toList(),
+          );
+        }
+      },
+    );
+  }
+
+  Widget _buildInventoryItemsList(List<InventoryItem> items) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Inventory Batches',
+          style: PharmaTheme.bodyMedium.copyWith(
+            fontWeight: FontWeight.bold,
+            color: PharmaTheme.textSecondary,
+          ),
+        ),
+        const SizedBox(height: PharmaTheme.spacingM),
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: PharmaTheme.border),
+            borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
+          ),
+          child: ListView.separated(
+            physics: const NeverScrollableScrollPhysics(),
+            shrinkWrap: true,
+            itemCount: items.length,
+            separatorBuilder: (context, index) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final item = items[index];
+              final daysUntilExpiry =
+                  item.expiryDate.difference(DateTime.now()).inDays;
+
+              // Determine text color based on expiry
+              Color expiryColor = PharmaTheme.textPrimary;
+              if (daysUntilExpiry < 0) {
+                expiryColor = PharmaTheme.error;
+              } else if (daysUntilExpiry < 30) {
+                expiryColor = PharmaTheme.warning;
+              } else if (daysUntilExpiry < 90) {
+                expiryColor = PharmaTheme.info;
+              }
+
+              return ListTile(
+                dense: true,
+                leading: CircleAvatar(
+                  backgroundColor: PharmaTheme.primary.withOpacity(0.1),
+                  child: Text(
+                    item.quantity.toString(),
+                    style: TextStyle(
+                      color: PharmaTheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                title: Text(
+                  'Batch: ${item.batchNumber}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text('From: ${item.distributor.name}'),
+                trailing: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Expires: ${DateFormat('dd MMM, yyyy').format(item.expiryDate)}',
+                      style: TextStyle(
+                        color: expiryColor,
+                        fontWeight: daysUntilExpiry < 30
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      ),
+                    ),
+                    Text(
+                      'Added: ${DateFormat('dd MMM, yyyy').format(item.addedOn)}',
+                      style: PharmaTheme.bodySmall.copyWith(
+                        color: PharmaTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInventoryPlaceholder({bool hasError = false}) {
+    return Container(
+      height: 200, // Fixed height to prevent overflow
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              hasError ? Icons.error_outline : Icons.inventory_2_outlined,
+              size: 48,
+              color: hasError
+                  ? PharmaTheme.error.withOpacity(0.5)
+                  : PharmaTheme.textSecondary.withOpacity(0.3),
+            ),
+            const SizedBox(height: PharmaTheme.spacingS),
+            Text(
+              hasError
+                  ? 'Failed to load inventory data'
+                  : 'No inventory data available',
+              style: PharmaTheme.bodyMedium.copyWith(
+                color: hasError ? PharmaTheme.error : PharmaTheme.textSecondary,
+              ),
+            ),
+            const SizedBox(height: PharmaTheme.spacingXs),
+            Text(
+              hasError
+                  ? 'Please refresh and try again'
+                  : 'Add this medicine to inventory using the button above',
+              style: PharmaTheme.bodySmall.copyWith(
+                color: PharmaTheme.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (hasError) ...[
+              const SizedBox(height: PharmaTheme.spacingM),
+              Consumer(
+                builder: (context, ref, _) {
+                  return OutlinedButton.icon(
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Refresh'),
+                    onPressed: () {
+                      ref.invalidate(inventoryProvider);
+                    },
+                  );
+                },
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildMedicineInfoCard(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(PharmaTheme.spacingM),
@@ -1648,94 +2601,6 @@ class _MedicineDetail extends StatelessWidget {
     );
   }
 
-  Widget _buildInventorySection(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
-        boxShadow: PharmaTheme.shadowSmall,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.symmetric(
-              vertical: PharmaTheme.spacingS,
-              horizontal: PharmaTheme.spacingM,
-            ),
-            decoration: BoxDecoration(
-              color: PharmaTheme.primary,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(PharmaTheme.radiusM),
-                topRight: Radius.circular(PharmaTheme.radiusM),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Icon(
-                        Icons.inventory_2,
-                        size: 16,
-                        color: PharmaTheme.textLight,
-                      ),
-                    ),
-                    const SizedBox(width: PharmaTheme.spacingS),
-                    Text(
-                      'Inventory Management',
-                      style: PharmaTheme.headingSmall.copyWith(
-                        color: PharmaTheme.textLight,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ],
-                ),
-                // Add to Inventory button
-                ElevatedButton.icon(
-                  icon: const Icon(
-                    Icons.add_shopping_cart,
-                    size: 16,
-                    color: PharmaTheme.primary,
-                  ),
-                  label: const Text(
-                    'Add to Inventory',
-                    style: TextStyle(
-                      color: PharmaTheme.primary,
-                      fontSize: 13,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: PharmaTheme.spacingM,
-                      vertical: PharmaTheme.spacingXs,
-                    ),
-                    minimumSize: const Size(0, 32),
-                  ),
-                  onPressed: () => onAddToInventory(medicine),
-                ),
-              ],
-            ),
-          ),
-
-          // Inventory Stats
-          _buildInventoryStats(context),
-
-          // Placeholder for inventory table
-          _buildInventoryPlaceholder(),
-        ],
-      ),
-    );
-  }
-
   Widget _buildInventoryStats(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -1805,40 +2670,6 @@ class _MedicineDetail extends StatelessWidget {
           );
         }
       },
-    );
-  }
-
-  Widget _buildInventoryPlaceholder() {
-    return Container(
-      height: 200, // Fixed height to prevent overflow
-      padding: const EdgeInsets.all(PharmaTheme.spacingM),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.inventory_2_outlined,
-              size: 48,
-              color: PharmaTheme.textSecondary.withOpacity(0.3),
-            ),
-            const SizedBox(height: PharmaTheme.spacingS),
-            Text(
-              'No inventory data available',
-              style: PharmaTheme.bodyMedium.copyWith(
-                color: PharmaTheme.textSecondary,
-              ),
-            ),
-            const SizedBox(height: PharmaTheme.spacingXs),
-            Text(
-              'Add this medicine to inventory using the button above',
-              style: PharmaTheme.bodySmall.copyWith(
-                color: PharmaTheme.textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
     );
   }
 

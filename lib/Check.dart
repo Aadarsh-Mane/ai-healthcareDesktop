@@ -76,7 +76,6 @@ class _HomePageState extends ConsumerState<HomePage>
   bool _isSidebarExpanded = true;
 
   late VideoPlayerController _videoPlayerController;
-  bool _videoInitialized = false;
   final List<Map<String, dynamic>> _todoItems = [
     {'text': 'Track appointments with Docnex Scheduler', 'done': false},
     {'text': 'Access digital prescriptions in one tap', 'done': false},
@@ -86,32 +85,6 @@ class _HomePageState extends ConsumerState<HomePage>
   ];
 
   // Navigation items for the sidebar
-  final List<Map<String, dynamic>> _navItems = [
-    {'icon': Icons.home, 'title': 'Home', 'screen': 'HomeScreen'},
-    {
-      'icon': Icons.dashboard,
-      'title': 'External Dashboard',
-      'screen': 'DashboardScreen'
-    },
-    {'icon': Icons.people, 'title': 'Patients', 'screen': 'PatientListScreen'},
-    {
-      'icon': Icons.medical_services,
-      'title': 'Doctor Panel',
-      'screen': 'DoctorListScreen'
-    },
-    {'icon': Icons.receipt_long, 'title': 'Reports', 'screen': 'ReportsScreen'},
-    {
-      'icon': Icons.biotech,
-      'title': 'Lab Login',
-      'screen': 'LabPatientsScreen'
-    },
-    {
-      'icon': Icons.admin_panel_settings,
-      'title': 'Admin',
-      'screen': 'AdminScreen'
-    },
-    {'icon': Icons.settings, 'title': 'Settings', 'screen': 'SettingsScreen'},
-  ];
 
   @override
   void initState() {
@@ -121,23 +94,6 @@ class _HomePageState extends ConsumerState<HomePage>
       setState(() {
         _currentTime = DateTime.now();
       });
-    });
-    _initializeVideoPlayer();
-  }
-
-  void _initializeVideoPlayer() async {
-    // Change this path to your video file
-    _videoPlayerController = VideoPlayerController.asset(
-      'assets/videos/.mp4',
-    );
-
-    await _videoPlayerController.initialize();
-    _videoPlayerController.setLooping(true);
-    _videoPlayerController.setVolume(0.0); // Mute the video
-    _videoPlayerController.play();
-
-    setState(() {
-      _videoInitialized = true;
     });
   }
 
@@ -160,65 +116,6 @@ class _HomePageState extends ConsumerState<HomePage>
     });
   }
 // This code should be integrated into your _HomePageState class
-
-  void _selectNavItem(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-
-    // Get the selected screen name
-    final screenName = _navItems[index]['screen'];
-
-    // Handle navigation based on screen name
-    switch (screenName) {
-      case 'HomeScreen':
-        // Already on home screen, do nothing or refresh
-        break;
-      case 'DashboardScreen':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => SplashScreen1()),
-        );
-        break;
-      case 'PatientListScreen':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => PatientListScreen()),
-        );
-        break;
-      case 'DoctorListScreen':
-        _navigateToDoctorScreen();
-        break;
-      case 'ReportsScreen':
-        // Navigate to reports screen when implemented
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Reports module coming soon')),
-        );
-        break;
-      case 'LabPatientsScreen':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => LabDashBoardScreen()),
-        );
-        break;
-      case 'AdminScreen':
-        showDialog(
-          context: context,
-          builder: (context) => AdminAuthDialog(),
-        );
-        break;
-      case 'SettingsScreen':
-        // Navigate to settings screen when implemented
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Settings module coming soon')),
-        );
-        break;
-      default:
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Navigating to ${_navItems[index]['title']}')),
-        );
-    }
-  }
 
   void _navigateToDoctorScreen() {
     // Check if already logged in first
@@ -951,9 +848,9 @@ class _HomePageState extends ConsumerState<HomePage>
         'isPremium': true, // Premium feature
       },
       {
-        'name': 'Reports',
+        'name': 'Admin',
         'icon': Icons.description,
-        'screen': 'ReportsScreen',
+        'screen': 'Admin',
         'color': const Color(0xFF3F51B5),
         'isPremium': true, // Premium feature
       },
@@ -1155,9 +1052,10 @@ class _HomePageState extends ConsumerState<HomePage>
                         builder: (context) => LabDashBoardScreen()),
                   );
                   break;
-                case 'ReportsScreen':
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Reports module coming soon')),
+                case 'Admin':
+                  showDialog(
+                    context: context,
+                    builder: (context) => AdminAuthDialog(),
                   );
                   break;
                 case 'SettingsScreen':
