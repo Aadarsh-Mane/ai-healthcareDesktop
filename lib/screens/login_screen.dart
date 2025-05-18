@@ -551,24 +551,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen1>
           passwordController.text.trim(),
         );
 
-        // Login successful, check user type
-        final usertype = await authController.getUsertype();
-        print("User type: $usertype");
+        if (token != null) {
+          // Login successful, check user type
+          final usertype = await authController.getUsertype();
+          print("User type: $usertype");
 
-        if (usertype == 'doctor' || usertype == 'external') {
-          // Show success message
-          SnackbarService.showSuccessSnackbar("Login successful!");
+          if (usertype == 'doctor' || usertype == 'external') {
+            // Show success message
+            SnackbarService.showSuccessSnackbar("Login successful!");
 
-          // Navigate to DoctorMainScreen after a short delay for better UX
-          Future.delayed(Duration(milliseconds: 500), () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => DoctorMainScreen()),
-            );
-          });
+            // Navigate to DoctorMainScreen after a short delay for better UX
+            Future.delayed(Duration(milliseconds: 500), () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => DoctorMainScreen()),
+              );
+            });
+          } else {
+            // Handle invalid user type
+            SnackbarService.showErrorSnackbar(
+                "Access denied: Invalid user type");
+          }
         } else {
-          // Handle invalid user type
-          SnackbarService.showErrorSnackbar("Access denied: Invalid user type");
+          // Login failed - could be invalid credentials or server error
+          // No need to show message here as it should be handled in the repository
         }
       } catch (e) {
         print("Login error: $e");

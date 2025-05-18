@@ -590,7 +590,7 @@ class _ReceptionBedManagementScreenState
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Hospital Bed Management'),
+          title: const Text('Hospital Be Management'),
           elevation: 0,
           actions: [
             IconButton(
@@ -2046,58 +2046,84 @@ class _ReceptionBedManagementScreenState
     }
   }
 
+  // Improved Patient Details Dialog function
   Widget _buildPatientDetailsDialog(Section section, OccupiedBed patientInfo) {
-    return AlertDialog(
-      title: const Text('Patient Details'),
-      content: SizedBox(
-        width: 400,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildPatientDetailRow('Section', section.name),
-            _buildPatientDetailRow(
-                'Bed Number', patientInfo.bedNumber.toString()),
-            _buildPatientDetailRow('Patient ID', patientInfo.patientId),
-            _buildPatientDetailRow('Patient Name', patientInfo.patientName),
-            _buildPatientDetailRow('Admission Date',
-                '${patientInfo.admissionDate.day}/${patientInfo.admissionDate.month}/${patientInfo.admissionDate.year}'),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Close'),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            // Option to change bed
-            Navigator.pop(context);
-
-            // Find the patient in the admitted list and select for bed transfer
-            final patients = ref.read(admittedPatientsProvider);
-            try {
-              final patient = patients
-                  .firstWhere((p) => p.patientId == patientInfo.patientId);
-
-              // Select this patient for bed transfer
-              ref.read(selectionProvider.notifier).selectPatient(patient);
-
-              // Show a snackbar with instructions
-              showSuccessSnackBar(
-                  'Select a new bed for ${patientInfo.patientName}');
-            } catch (e) {
-              showErrorSnackBar('Patient data not found in admitted list');
-            }
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: HospitalTheme.warning,
+    // Use Builder to get the correct context for navigation
+    return Builder(builder: (BuildContext dialogContext) {
+      return AlertDialog(
+        title: const Text('Patient Details'),
+        content: SizedBox(
+          width: 400,
+          child: SingleChildScrollView(
+            // Added for responsiveness
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildPatientDetailRow('Section', section.name),
+                _buildPatientDetailRow(
+                    'Bed Number', patientInfo.bedNumber.toString()),
+                _buildPatientDetailRow('Patient ID', patientInfo.patientId),
+                _buildPatientDetailRow('Patient Name', patientInfo.patientName),
+                _buildPatientDetailRow(
+                  'Admission Date',
+                  '${patientInfo.admissionDate.day}/${patientInfo.admissionDate.month}/${patientInfo.admissionDate.year}',
+                ),
+              ],
+            ),
           ),
-          child: const Text('Change Bed'),
         ),
-      ],
-    );
+        actions: [
+          TextButton(
+            onPressed: () {
+              // Use the correct context to pop the dialog
+              Navigator.of(dialogContext).pop();
+            },
+            child: const Text('Close'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // Pop the dialog first to remove it from the navigation stack
+              Navigator.of(dialogContext).pop();
+
+              // Find the patient in the admitted list and select for bed transfer
+              final patients = ref.read(admittedPatientsProvider);
+              try {
+                final patient = patients.firstWhere(
+                  (p) => p.patientId == patientInfo.patientId,
+                );
+
+                // Select this patient for bed transfer
+                ref.read(selectionProvider.notifier).selectPatient(patient);
+
+                // Show a snackbar with instructions
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content:
+                        Text('Select a new bed for ${patientInfo.patientName}'),
+                    backgroundColor: HospitalTheme.success,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content:
+                        const Text('Patient data not found in admitted list'),
+                    backgroundColor: HospitalTheme.error,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: HospitalTheme.warning,
+            ),
+            child: const Text('Change Bed'),
+          ),
+        ],
+      );
+    });
   }
 
   // Model classes with null safety

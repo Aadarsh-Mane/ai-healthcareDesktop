@@ -1,11 +1,13 @@
 import 'package:doctordesktop/Admin/AdminAuthDialod.dart';
 import 'package:doctordesktop/Admin/ReceptionAuthDialog.dart';
+import 'package:doctordesktop/AuthSplash.dart';
 import 'package:doctordesktop/Doctor/DoctorMainScreen.dart';
 import 'package:doctordesktop/Doctor/fetchDoctor.dart';
 import 'package:doctordesktop/External/CommonScreen.dart';
 import 'package:doctordesktop/Lab/LabDashBoard.dart';
 import 'package:doctordesktop/Lab/LabScreen.dart';
 import 'package:doctordesktop/Patient/fetchPatient.dart';
+import 'package:doctordesktop/Provider.dart';
 import 'package:doctordesktop/authProvider/auth_provider.dart';
 import 'package:doctordesktop/constants/Assets.dart';
 import 'package:doctordesktop/constants/Methods.dart';
@@ -115,25 +117,21 @@ class _HomePageState extends ConsumerState<HomePage>
   }
 // This code should be integrated into your _HomePageState class
 
-  void _navigateToDoctorScreen() {
-    // Check if already logged in first
-    final isLoggedIn = ref.read(authControllerProvider);
-    if (isLoggedIn) {
-      // If already logged in, check user type
-      ref.read(authControllerProvider.notifier).getUsertype().then((userType) {
-        if (userType == 'doctor') {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => DoctorMainScreen()),
-          );
-        } else {
-          // Not a doctor, go to login
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => LoginScreen1()),
-          );
-        }
-      });
+  void _navigateToDoctorScreen() async {
+    // Check token directly from repository
+    final authRepository = ref.read(authRepositoryProvider);
+    final token = await authRepository.getToken();
+    final userType = await authRepository.getUsertype();
+
+    print(
+        "Navigation check - Token: ${token != null ? 'exists' : 'null'}, UserType: $userType");
+
+    if (token != null && (userType == 'doctor' || userType == 'external')) {
+      // Navigate directly to doctor main screen
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => DoctorMainScreen()),
+      );
     } else {
       // Not logged in, go to login
       Navigator.push(
@@ -153,7 +151,10 @@ class _HomePageState extends ConsumerState<HomePage>
     // Calculate sidebar width based on expansion state and screen size
     final double sidebarWidth =
         _isSidebarExpanded ? (isSmallScreen ? 70 : 250) : 70;
+    final isLoggedIn = ref.watch(authControllerProvider);
+    final userType = ref.watch(userTypeProvider);
 
+    print("HomePage build - LoggedIn: $isLoggedIn, UserType: $userType");
     // Main theme colors
     final Color primaryColor = const Color(0xFF005F9E);
     final Color backgroundColor =
@@ -1029,7 +1030,11 @@ class _HomePageState extends ConsumerState<HomePage>
                   );
                   break;
                 case 'DoctorsScreen':
-                  _navigateToDoctorScreen();
+                  // _navigateToDoctorScreen();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => AuthSplashScreen()),
+                  );
                   break;
                 case 'NursesScreen':
                   ScaffoldMessenger.of(context).showSnackBar(

@@ -18,17 +18,20 @@ class AuthController extends StateNotifier<bool> {
   final Ref ref;
   Future<void> _loadToken() async {
     final authRepository = ref.read(authRepositoryProvider);
-    final token = await authRepository
-        .getToken(); // Retrieve token from SharedPreferences
-    print(
-        "Retrieved token from SharedPreferences: $token"); // Debugging token retrieval
+    final token = await authRepository.getToken();
+    final userType = await authRepository.getUsertype();
+
+    print("Retrieved token from SharedPreferences: $token");
+    print("Retrieved usertype from SharedPreferences: $userType");
+
     if (token != null) {
-      ref.read(userTokenProvider.notifier).state =
-          token; // Update the provider state
+      ref.read(userTokenProvider.notifier).state = token;
+      ref.read(userTypeProvider.notifier).state = userType;
       state = true;
-      print("Token loaded from SharedPreferences: $token");
+      print("Token and usertype loaded successfully");
     } else {
       print("No token found in SharedPreferences.");
+      state = false;
     }
   }
 
