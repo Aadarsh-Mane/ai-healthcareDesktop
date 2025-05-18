@@ -75,7 +75,6 @@ class _HomePageState extends ConsumerState<HomePage>
   bool _isDarkMode = false;
   bool _isSidebarExpanded = true;
 
-  late VideoPlayerController _videoPlayerController;
   final List<Map<String, dynamic>> _todoItems = [
     {'text': 'Track appointments with Docnex Scheduler', 'done': false},
     {'text': 'Access digital prescriptions in one tap', 'done': false},
@@ -100,7 +99,6 @@ class _HomePageState extends ConsumerState<HomePage>
   @override
   void dispose() {
     _timer.cancel();
-    _videoPlayerController.dispose();
     super.dispose();
   }
 

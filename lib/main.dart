@@ -35,6 +35,7 @@ import 'package:doctordesktop/Patient/fetchPatient.dart';
 import 'package:doctordesktop/reception/PatientRegister.dart';
 import 'package:doctordesktop/screens/login_screen.dart';
 import 'package:doctordesktop/services/motion_control.dart';
+import 'package:doctordesktop/services/snackbar_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -52,11 +53,13 @@ class MyApp extends StatelessWidget {
       designSize: Size(1920, 1080),
       builder: (context, child) {
         return MaterialApp(
+          scaffoldMessengerKey: SnackbarService.rootScaffoldMessengerKey,
+
           title: 'Flutter Windows App',
           theme: AppTheme.lightTheme,
           // home: CreateSaleScreen(),
           // home: PrescriptionToSaleScreen(),
-          home: HomePage(),
+          home: HomeScreen(),
         );
       },
     );
@@ -70,12 +73,9 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen>
     with SingleTickerProviderStateMixin {
-  TabController? _tabController;
-
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
 
     // Check authentication status on app start
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -85,42 +85,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   @override
   void dispose() {
-    _tabController?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Color(0xFFeff7f8),
-        title: Text(
-          '${AppStrings.hospitalName}',
-          style: TextStyle(
-            color: Colors.cyan,
-          ),
-        ),
-        bottom: TabBar(
-          labelColor: Colors.deepPurpleAccent,
-          unselectedLabelColor: Colors.grey,
-          controller: _tabController,
-          tabs: [
-            Tab(text: 'Home'),
-            Tab(text: 'Admin'),
-            Tab(text: 'Settings'),
-          ],
-        ),
-      ),
-      drawer: _buildDrawer(context),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _homeTab(),
-          _screensTab(),
-          _settingsTab(),
-        ],
-      ),
-    );
+    return HomePage();
   }
 
   // Drawer widget

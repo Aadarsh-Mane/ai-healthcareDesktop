@@ -133,11 +133,26 @@ class CreateSaleNotifier extends StateNotifier<CreateSaleState> {
 
           // Convert numeric values to proper types
           final processedInventory = inventoryData.map((item) {
+            // Handle potentially null medicine
+            if (item['medicine'] == null) {
+              return {
+                ...item,
+                'medicine': {
+                  'name': 'Unknown Medicine',
+                  'manufacturer': 'Unknown Manufacturer',
+                  'category': 'Uncategorized',
+                  'mrp': 0.0,
+                }
+              };
+            }
+
             final medicine = item['medicine'] as Map<String, dynamic>;
 
             // Convert mrp to double if it's an int
             if (medicine['mrp'] is int) {
               medicine['mrp'] = (medicine['mrp'] as int).toDouble();
+            } else if (medicine['mrp'] == null) {
+              medicine['mrp'] = 0.0;
             }
 
             // Return the updated item
@@ -173,10 +188,20 @@ class CreateSaleNotifier extends StateNotifier<CreateSaleState> {
     }
 
     final filtered = state.inventory.where((item) {
-      final medicine = item['medicine'] as Map<String, dynamic>;
-      final name = medicine['name'].toString().toLowerCase();
-      final manufacturer = medicine['manufacturer'].toString().toLowerCase();
-      final category = medicine['category'].toString().toLowerCase();
+      // Handle potentially null medicine
+      final medicine = item['medicine'] as Map<String, dynamic>?;
+
+      // If medicine is null, only search by batch number
+      if (medicine == null) {
+        final batchNumber = item['batchNumber'].toString().toLowerCase();
+        return batchNumber.contains(searchTerm.toLowerCase());
+      }
+
+      // Otherwise search all fields
+      final name = medicine['name']?.toString().toLowerCase() ?? '';
+      final manufacturer =
+          medicine['manufacturer']?.toString().toLowerCase() ?? '';
+      final category = medicine['category']?.toString().toLowerCase() ?? '';
       final batchNumber = item['batchNumber'].toString().toLowerCase();
 
       return name.contains(searchTerm.toLowerCase()) ||
@@ -218,22 +243,31 @@ class CreateSaleNotifier extends StateNotifier<CreateSaleState> {
               (1 - (discount / 100));
     } else {
       // Add as new item if not in cart
-      final medicine = item['medicine'] as Map<String, dynamic>;
+      final medicine = item['medicine'] as Map<String, dynamic>?;
+
+      // Handle null medicine by creating a placeholder
+      final Map<String, dynamic> medicineData = medicine ??
+          {
+            'name': 'Unknown Medicine',
+            'manufacturer': 'Unknown Manufacturer',
+            'category': 'Uncategorized',
+            'mrp': 0.0,
+          };
+
+      // Ensure mrp is a double
+      final double mrp = medicineData['mrp'] is int
+          ? (medicineData['mrp'] as int).toDouble()
+          : (medicineData['mrp'] as double? ?? 0.0);
 
       currentItems.add({
         'inventoryId': item['_id'],
-        'medicine': medicine,
+        'medicine': medicineData,
         'batchNumber': item['batchNumber'],
         'expiryDate': item['expiryDate'],
-        'mrp': medicine['mrp'] is int
-            ? (medicine['mrp'] as int).toDouble()
-            : medicine['mrp'],
+        'mrp': mrp,
         'quantity': 1,
         'discount': 0.0,
-        'totalAmount': (medicine['mrp'] is int
-                ? (medicine['mrp'] as int).toDouble()
-                : medicine['mrp']) *
-            1,
+        'totalAmount': mrp * 1,
         'availableQuantity': item['quantity'],
       });
     }
@@ -762,7 +796,10 @@ class _CreateSaleScreenState extends ConsumerState<CreateSaleScreen> {
       separatorBuilder: (context, index) => Divider(color: PharmaTheme.border),
       itemBuilder: (context, index) {
         final item = state.selectedItems[index];
-        final medicine = item['medicine'];
+        final medicine = item['medicine'] as Map<String, dynamic>;
+        final name = medicine['name'] ?? 'Unknown Medicine';
+        final manufacturer = medicine['manufacturer'] ?? 'Unknown Manufacturer';
+        final category = medicine['category'] ?? 'Uncategorized';
         final quantity = item['quantity'];
         final mrp = item['mrp'];
         final discount = item['discount'];
@@ -795,14 +832,14 @@ class _CreateSaleScreenState extends ConsumerState<CreateSaleScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      medicine['name'],
+                      name,
                       style: PharmaTheme.bodyLarge.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     SizedBox(height: PharmaTheme.spacingXxs),
                     Text(
-                      '${medicine['manufacturer']} • ${medicine['category']}',
+                      '$manufacturer • $category',
                       style: PharmaTheme.caption.copyWith(
                         color: PharmaTheme.textSecondary,
                       ),
@@ -1243,11 +1280,14 @@ class _CreateSaleScreenState extends ConsumerState<CreateSaleScreen> {
       itemCount: state.filteredInventory.length,
       itemBuilder: (context, index) {
         final item = state.filteredInventory[index];
-        final medicine = item['medicine'] as Map<String, dynamic>;
-        final name = medicine['name'];
-        final manufacturer = medicine['manufacturer'];
-        final category = medicine['category'];
-        final mrp = medicine['mrp'];
+        final medicine = item['medicine'] as Map<String, dynamic>?;
+
+        // Handle null medicine with default values
+        final name = medicine?['name'] ?? 'Unknown Medicine';
+        final manufacturer =
+            medicine?['manufacturer'] ?? 'Unknown Manufacturer';
+        final category = medicine?['category'] ?? 'Uncategorized';
+        final mrp = _convertToDouble(medicine?['mrp'] ?? 0.0);
         final batchNumber = item['batchNumber'];
         final expiryDate = _formatDate(item['expiryDate']);
         final quantity = item['quantity'];
@@ -1632,6 +1672,7 @@ class _CreateSaleScreenState extends ConsumerState<CreateSaleScreen> {
   }
 
   // Add this helper method to handle conversion between int and double
+
   double _convertToDouble(dynamic value) {
     if (value is int) {
       return value.toDouble();

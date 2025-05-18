@@ -5,12 +5,22 @@ import 'package:doctordesktop/constants/Url.dart';
 import 'package:doctordesktop/model/getDoctorProfile.dart';
 import 'package:doctordesktop/model/getLabPatient.dart';
 import 'package:doctordesktop/model/getNewPatientModel.dart';
+import 'package:doctordesktop/services/network_service.dart';
+import 'package:doctordesktop/services/snackbar_service.dart';
+import 'package:flutter/material.dart';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthRepository {
   Future<String?> login(String email, String password) async {
+    bool isConnected = await NetworkService.instance.isConnected();
+    print("this is the connection $isConnected");
+    if (!isConnected) {
+      SnackbarService.showErrorSnackbar(
+          'No internet connection. Please check your network settings and try again.');
+      return null;
+    }
     try {
       final response = await http.post(
         Uri.parse('${KVM_URL}/users/signin'),

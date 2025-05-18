@@ -81,7 +81,7 @@ class Distributor {
 
 class InventoryItem {
   final String id;
-  final Medicine medicine;
+  final Medicine? medicine; // Changed to nullable
   final String batchNumber;
   final DateTime expiryDate;
   final int quantity;
@@ -90,7 +90,7 @@ class InventoryItem {
 
   InventoryItem({
     required this.id,
-    required this.medicine,
+    required this.medicine, // This will accept null values now
     required this.batchNumber,
     required this.expiryDate,
     required this.quantity,
@@ -101,7 +101,9 @@ class InventoryItem {
   factory InventoryItem.fromJson(Map<String, dynamic> json) {
     return InventoryItem(
       id: json['_id'],
-      medicine: Medicine.fromJson(json['medicine']),
+      // Handle null medicine
+      medicine:
+          json['medicine'] != null ? Medicine.fromJson(json['medicine']) : null,
       batchNumber: json['batchNumber'],
       expiryDate: DateTime.parse(json['expiryDate']),
       quantity: json['quantity'],
@@ -293,7 +295,9 @@ final uniqueCategoriesProvider = FutureProvider<List<String>>((ref) async {
   final Set<String> categories = {};
 
   for (var item in inventoryResponse.data) {
-    categories.add(item.medicine.category);
+    if (item.medicine != null && item.medicine!.category.isNotEmpty) {
+      categories.add(item.medicine!.category);
+    }
   }
 
   return categories.toList()..sort();
@@ -335,23 +339,23 @@ final filteredInventoryProvider =
       return false;
     }
 
-    // Apply category filter
+    // Apply category filter - handle null medicine
     if (selectedCategory != null &&
         selectedCategory.isNotEmpty &&
-        item.medicine.category != selectedCategory) {
+        item.medicine?.category != selectedCategory) {
       return false;
     }
 
     return true;
   }).toList();
 
-  // Apply sorting
+// Update the sorting logic to handle null medicine
   items.sort((a, b) {
     int comparison = 0;
 
     switch (sortBy) {
       case 'name':
-        comparison = a.medicine.name.compareTo(b.medicine.name);
+        comparison = (a.medicine?.name ?? '').compareTo(b.medicine?.name ?? '');
         break;
       case 'expiry':
         comparison = a.expiryDate.compareTo(b.expiryDate);
@@ -363,7 +367,7 @@ final filteredInventoryProvider =
         comparison = a.batchNumber.compareTo(b.batchNumber);
         break;
       default:
-        comparison = a.medicine.name.compareTo(b.medicine.name);
+        comparison = (a.medicine?.name ?? '').compareTo(b.medicine?.name ?? '');
     }
 
     return sortAscending ? comparison : -comparison;
@@ -432,7 +436,6 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
     ref.read(sortDirectionProvider.notifier).state = true;
   }
 
-  // View details card instead of dialog
   Widget _buildDetailsCard(InventoryItem item) {
     return Card(
       color: Colors.white,
@@ -471,12 +474,22 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
               style: PharmaTheme.headingSmall,
             ),
             const SizedBox(height: 8),
-            _buildInfoRow('Name', item.medicine.name),
-            _buildInfoRow('Manufacturer', item.medicine.manufacturer),
-            _buildInfoRow('Category', item.medicine.category),
-            _buildInfoRow('MRP', '₹${item.medicine.mrp.toStringAsFixed(2)}'),
-            _buildInfoRow('Purchase Price',
-                '₹${item.medicine.purchasePrice.toStringAsFixed(2)}'),
+            if (item.medicine != null) ...[
+              // Display medicine details if available
+              _buildInfoRow('Name', item.medicine!.name),
+              _buildInfoRow('Manufacturer', item.medicine!.manufacturer),
+              _buildInfoRow('Category', item.medicine!.category),
+              _buildInfoRow('MRP', '₹${item.medicine!.mrp.toStringAsFixed(2)}'),
+              _buildInfoRow('Purchase Price',
+                  '₹${item.medicine!.purchasePrice.toStringAsFixed(2)}'),
+            ] else ...[
+              // Display placeholder text if medicine is null
+              _buildInfoRow('Name', 'Unknown Medicine'),
+              _buildInfoRow('Manufacturer', 'Unknown Manufacturer'),
+              _buildInfoRow('Category', 'Uncategorized'),
+              _buildInfoRow('MRP', 'N/A'),
+              _buildInfoRow('Purchase Price', 'N/A'),
+            ],
             const SizedBox(height: 16),
 
             // Inventory info
@@ -921,7 +934,7 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    item.medicine.name,
+                    item.medicine?.name ?? 'Unknown Medicine',
                     style: PharmaTheme.bodyMedium
                         .copyWith(fontWeight: FontWeight.bold),
                   ),
@@ -1638,14 +1651,16 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
                                                 CrossAxisAlignment.start,
                                             children: [
                                               Text(
-                                                item.medicine.name,
+                                                item.medicine?.name ??
+                                                    'Unknown Medicine',
                                                 style: const TextStyle(
                                                     fontWeight:
                                                         FontWeight.bold),
                                               ),
                                               if (!isMobile)
                                                 Text(
-                                                  item.medicine.manufacturer,
+                                                  item.medicine?.manufacturer ??
+                                                      'Unknown Manufacturer',
                                                   style: PharmaTheme.caption,
                                                 ),
                                             ],

@@ -176,11 +176,13 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
     // Apply search query filter
     if (_searchQuery.isNotEmpty) {
       filtered = filtered.where((sale) {
-        final billNumber = sale['billNumber'].toString().toLowerCase();
-        final customerName = sale['customer']['name'].toString().toLowerCase();
+        final billNumber = (sale['billNumber'] ?? '').toString().toLowerCase();
+        final customer = sale['customer'] as Map<String, dynamic>?;
+        final customerName = customer?['name'] ?? '';
         final query = _searchQuery.toLowerCase();
 
-        return billNumber.contains(query) || customerName.contains(query);
+        return billNumber.contains(query) ||
+            customerName.toLowerCase().contains(query);
       }).toList();
     }
 
@@ -207,30 +209,56 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
       }
 
       filtered = filtered.where((sale) {
-        final saleDate = DateTime.parse(sale['createdAt']);
-        return saleDate.isAfter(startDate);
+        if (sale['createdAt'] == null) return false;
+
+        try {
+          final saleDate = DateTime.parse(sale['createdAt']);
+          return saleDate.isAfter(startDate);
+        } catch (e) {
+          return false;
+        }
       }).toList();
     }
 
     // Apply customer filter
     if (_selectedCustomerFilter != 'All') {
       filtered = filtered.where((sale) {
-        return sale['customer']['name'] == _selectedCustomerFilter;
+        final customer = sale['customer'] as Map<String, dynamic>?;
+        return customer?['name'] == _selectedCustomerFilter;
       }).toList();
     }
 
     // Apply sorting
     switch (_selectedSortOption) {
       case 'Date (Newest First)':
-        filtered.sort((a, b) => DateTime.parse(b['createdAt'])
-            .compareTo(DateTime.parse(a['createdAt'])));
+        filtered.sort((a, b) {
+          if (a['createdAt'] == null) return 1;
+          if (b['createdAt'] == null) return -1;
+
+          try {
+            return DateTime.parse(b['createdAt'])
+                .compareTo(DateTime.parse(a['createdAt']));
+          } catch (e) {
+            return 0;
+          }
+        });
         break;
       case 'Date (Oldest First)':
-        filtered.sort((a, b) => DateTime.parse(a['createdAt'])
-            .compareTo(DateTime.parse(b['createdAt'])));
+        filtered.sort((a, b) {
+          if (a['createdAt'] == null) return 1;
+          if (b['createdAt'] == null) return -1;
+
+          try {
+            return DateTime.parse(a['createdAt'])
+                .compareTo(DateTime.parse(b['createdAt']));
+          } catch (e) {
+            return 0;
+          }
+        });
         break;
       case 'Bill Number':
-        filtered.sort((a, b) => a['billNumber'].compareTo(b['billNumber']));
+        filtered.sort(
+            (a, b) => (a['billNumber'] ?? '').compareTo(b['billNumber'] ?? ''));
         break;
       case 'Amount (High to Low)':
         filtered.sort((a, b) => _convertToDouble(b['total'])
@@ -250,8 +278,11 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
         _selectedSale = null;
       } else if (_selectedSale != null) {
         // Make sure the selected sale is still in the filtered list
-        final stillExists =
-            _filteredSales.any((sale) => sale['_id'] == _selectedSale!['_id']);
+        final stillExists = _filteredSales.any((sale) =>
+            sale['_id'] != null &&
+            _selectedSale!['_id'] != null &&
+            sale['_id'] == _selectedSale!['_id']);
+
         if (!stillExists) {
           _selectedSale = _filteredSales.first;
         }
@@ -262,7 +293,11 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
   // Get a list of all unique customers
   List<String> _getUniqueCustomers() {
     final customers = _sales
-        .map((sale) => sale['customer']['name'] as String)
+        .map((sale) {
+          final customer = sale['customer'] as Map<String, dynamic>?;
+          return customer?['name'] as String? ?? 'Unknown';
+        })
+        .where((name) => name.isNotEmpty)
         .toSet()
         .toList();
     customers.sort();
@@ -287,15 +322,29 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
   }
 
   // Format date
-  String _formatDate(String dateString) {
-    final date = DateTime.parse(dateString);
-    return DateFormat('MMM dd, yyyy h:mm a').format(date);
+  String _formatDate(String? dateString) {
+    if (dateString == null) return 'No date';
+
+    try {
+      final date = DateTime.parse(dateString);
+      return DateFormat('MMM dd, yyyy h:mm a').format(date);
+    } catch (e) {
+      print('Error parsing date: $e');
+      return 'Invalid date';
+    }
   }
 
   // Format date (short)
-  String _formatShortDate(String dateString) {
-    final date = DateTime.parse(dateString);
-    return DateFormat('MMM dd, yyyy').format(date);
+  String _formatShortDate(String? dateString) {
+    if (dateString == null) return 'No date';
+
+    try {
+      final date = DateTime.parse(dateString);
+      return DateFormat('MMM dd, yyyy').format(date);
+    } catch (e) {
+      print('Error parsing date: $e');
+      return 'Invalid date';
+    }
   }
 
   // Show error message
@@ -948,7 +997,9 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
   // Build a single sale row based on screen size
   Widget _buildSaleRow(
       BuildContext context, Map<String, dynamic> sale, bool isSelected) {
-    final customer = sale['customer'] as Map<String, dynamic>;
+    // Handle potentially null customer with defaults
+    final customer = sale['customer'] as Map<String, dynamic>? ??
+        {'name': 'Unknown Customer', 'isPatient': false};
 
     if (PharmaTheme.isMobile(context)) {
       // Mobile view with fewer columns
@@ -961,7 +1012,7 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  sale['billNumber'],
+                  sale['billNumber'] ?? 'No ID',
                   style: TextStyle(
                     fontWeight:
                         isSelected ? FontWeight.bold : FontWeight.normal,
@@ -973,7 +1024,9 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _formatShortDate(sale['createdAt']),
+                  sale['createdAt'] != null
+                      ? _formatShortDate(sale['createdAt'])
+                      : 'No date',
                   style: TextStyle(
                     fontSize: 12,
                     color: PharmaTheme.textSecondary,
@@ -1009,7 +1062,7 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    customer['name'],
+                    customer['name'] ?? 'Unknown',
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontWeight:
@@ -1028,7 +1081,7 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
           Expanded(
             flex: 2,
             child: Text(
-              _formatCurrency(sale['total']),
+              _formatCurrency(sale['total'] ?? 0),
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 15,
@@ -1048,7 +1101,7 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
           Expanded(
             flex: 2,
             child: Text(
-              sale['billNumber'],
+              sale['billNumber'] ?? 'No ID',
               style: TextStyle(
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 color:
@@ -1083,7 +1136,7 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    customer['name'],
+                    customer['name'] ?? 'Unknown',
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontWeight:
@@ -1102,7 +1155,9 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
           Expanded(
             flex: 2,
             child: Text(
-              _formatShortDate(sale['createdAt']),
+              sale['createdAt'] != null
+                  ? _formatShortDate(sale['createdAt'])
+                  : 'No date',
               style: TextStyle(
                 color: isSelected
                     ? PharmaTheme.primary.withOpacity(0.8)
@@ -1124,7 +1179,9 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
                 borderRadius: BorderRadius.circular(PharmaTheme.radiusXs),
               ),
               child: Text(
-                '${(sale['items'] as List).length}',
+                sale['items'] != null
+                    ? '${(sale['items'] as List).length}'
+                    : '0',
                 style: TextStyle(
                   fontWeight: FontWeight.w500,
                   fontSize: 13,
@@ -1141,7 +1198,7 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
           Expanded(
             flex: 2,
             child: Text(
-              _formatCurrency(sale['total']),
+              _formatCurrency(sale['total'] ?? 0),
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 15,
@@ -1303,7 +1360,24 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
   }
 
   // Customer information section
-  Widget _buildCustomerInfo(Map<String, dynamic> customer) {
+  Widget _buildCustomerInfo(Map<String, dynamic>? customer) {
+    // Handle the case where customer might be null
+    if (customer == null) {
+      return Container(
+        padding: const EdgeInsets.all(PharmaTheme.spacingM),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
+        ),
+        child: const Center(
+          child: Text(
+            'Customer information not available',
+            style: TextStyle(color: PharmaTheme.textSecondary),
+          ),
+        ),
+      );
+    }
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1533,7 +1607,25 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
 
   // Items table
   // Items table with improved responsive alignment
-  Widget _buildItemsTable(List<Map<String, dynamic>> items) {
+  Widget _buildItemsTable(List<Map<String, dynamic>>? items) {
+    // If items is null or empty, show a message
+    if (items == null || items.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(PharmaTheme.spacingM),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(PharmaTheme.radiusS),
+          border: Border.all(color: Colors.grey[300]!),
+        ),
+        child: const Center(
+          child: Text(
+            'No items available',
+            style: TextStyle(color: PharmaTheme.textSecondary),
+          ),
+        ),
+      );
+    }
+
     return Column(
       children: [
         // Items table header with better alignment
@@ -1684,7 +1776,7 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
                   borderRadius: BorderRadius.circular(PharmaTheme.radiusXs),
                 ),
                 child: Text(
-                  'Total Quantity: ${items.fold(0, (sum, item) => sum + (item['quantity'] as int))}',
+                  'Total Quantity: ${items.fold(0, (sum, item) => sum + ((item['quantity'] as int?) ?? 0))}',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     color: PharmaTheme.primary,
@@ -1701,13 +1793,19 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
 
 // Single item row with improved responsive alignment
   Widget _buildItemRow(Map<String, dynamic> item, int index) {
-    final medicine = item['medicine'] as Map<String, dynamic>;
+    // Handle potentially null medicine with defaults
+    final medicine = item['medicine'] as Map<String, dynamic>? ??
+        {
+          'name': 'Unknown Medicine',
+          'manufacturer': 'Unknown',
+          'category': 'Uncategorized'
+        };
     final hasDiscount = _convertToDouble(item['discount']) > 0;
 
     // Check for expiry info
     bool isExpired = false;
     String expiryStatus = '';
-    if (item.containsKey('expiryDate')) {
+    if (item.containsKey('expiryDate') && item['expiryDate'] != null) {
       try {
         final expiry = DateTime.parse(item['expiryDate']);
         final now = DateTime.now();
@@ -1761,7 +1859,7 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        medicine['name'],
+                        medicine['name'] ?? 'Unknown Medicine',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
@@ -1769,7 +1867,7 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${medicine['manufacturer']} • ${medicine['category']}',
+                        '${medicine['manufacturer'] ?? 'Unknown'} • ${medicine['category'] ?? 'Uncategorized'}',
                         style: TextStyle(
                           fontSize: 12,
                           color: PharmaTheme.textSecondary,
@@ -1792,7 +1890,7 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
                                   BorderRadius.circular(PharmaTheme.radiusXs),
                             ),
                             child: Text(
-                              'Batch: ${item['batchNumber']}',
+                              'Batch: ${item['batchNumber'] ?? 'Unknown'}',
                               style: TextStyle(
                                 fontSize: 11,
                                 color: PharmaTheme.textPrimary,
@@ -1859,7 +1957,7 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
                   borderRadius: BorderRadius.circular(PharmaTheme.radiusXs),
                 ),
                 child: Text(
-                  item['quantity'].toString(),
+                  (item['quantity'] ?? 0).toString(),
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     color: PharmaTheme.primary,
@@ -1874,7 +1972,7 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
           Expanded(
             flex: 2,
             child: Text(
-              _formatCurrency(item['mrp']),
+              _formatCurrency(item['mrp'] ?? 0),
               style: const TextStyle(
                 fontWeight: FontWeight.w500,
               ),
@@ -1893,7 +1991,7 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
                   borderRadius: BorderRadius.circular(PharmaTheme.radiusXs),
                 ),
                 child: Text(
-                  '${item['discount']}%',
+                  '${item['discount'] ?? 0}%',
                   style: TextStyle(
                     color: hasDiscount
                         ? Colors.green[700]
@@ -1911,7 +2009,7 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
           Expanded(
             flex: 2,
             child: Text(
-              _formatCurrency(item['totalAmount']),
+              _formatCurrency(item['totalAmount'] ?? 0),
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 color: PharmaTheme.primary,

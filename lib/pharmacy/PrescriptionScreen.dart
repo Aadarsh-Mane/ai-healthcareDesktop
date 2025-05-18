@@ -127,8 +127,14 @@ class _PrescriptionToSaleScreenState extends State<PrescriptionToSaleScreen> {
             // Group inventory by medicine name for easy lookup
             _medicineInventoryMap = {};
             for (final item in _inventory) {
-              final medicine = item['medicine'] as Map<String, dynamic>;
+              // Handle null medicine
+              final medicine = item['medicine'] as Map<String, dynamic>?;
+
+              // Skip items with null medicine or null name
+              if (medicine == null) continue;
+
               final medicineName = medicine['name'];
+              if (medicineName == null) continue;
 
               if (!_medicineInventoryMap.containsKey(medicineName)) {
                 _medicineInventoryMap[medicineName] = [];
@@ -1360,7 +1366,6 @@ class _PrescriptionToSaleScreenState extends State<PrescriptionToSaleScreen> {
                 headingRowColor: MaterialStateProperty.all(Colors.grey[100]),
                 dataRowColor: MaterialStateProperty.resolveWith<Color?>(
                   (Set<MaterialState> states) {
-                    // Return grey background for even rows
                     if (states.contains(MaterialState.selected)) {
                       return primaryColor.withOpacity(0.1);
                     }
@@ -1406,9 +1411,21 @@ class _PrescriptionToSaleScreenState extends State<PrescriptionToSaleScreen> {
                   ),
                 ],
                 rows: _inventory.map((item) {
-                  final medicine = item['medicine'] as Map<String, dynamic>;
+                  // Safely handle null medicine
+                  final medicine = item['medicine'] as Map<String, dynamic>?;
                   final distributor =
-                      item['distributor'] as Map<String, dynamic>;
+                      item['distributor'] as Map<String, dynamic>?;
+
+                  // Default values for null cases
+                  final medicineName = medicine?['name'] ?? 'Unknown Medicine';
+                  final manufacturer =
+                      medicine?['manufacturer'] ?? 'Unknown Manufacturer';
+                  final mrp = medicine?['mrp'] ?? 0.0;
+
+                  // Default values for null distributor
+                  final distributorName =
+                      distributor?['name'] ?? 'Unknown Supplier';
+
                   final isExpiringSoon = _isExpiringSoon(item['expiryDate']);
                   final isExpired = _isExpired(item['expiryDate']);
                   final isLowStock = (item['quantity'] as int) < 10;
@@ -1421,11 +1438,11 @@ class _PrescriptionToSaleScreenState extends State<PrescriptionToSaleScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              medicine['name'],
+                              medicineName,
                               style: TextStyle(fontWeight: FontWeight.w500),
                             ),
                             Text(
-                              medicine['manufacturer'],
+                              manufacturer,
                               style: TextStyle(
                                 color: Colors.grey[600],
                                 fontSize: 12,
@@ -1435,7 +1452,7 @@ class _PrescriptionToSaleScreenState extends State<PrescriptionToSaleScreen> {
                         ),
                       ),
                       DataCell(
-                        Text(item['batchNumber']),
+                        Text(item['batchNumber'] ?? ''),
                       ),
                       DataCell(
                         Container(
@@ -1448,7 +1465,7 @@ class _PrescriptionToSaleScreenState extends State<PrescriptionToSaleScreen> {
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
-                            '${item['quantity']}',
+                            '${item['quantity'] ?? 0}',
                             style: TextStyle(
                               color:
                                   isLowStock ? warningColor : Colors.green[700],
@@ -1484,12 +1501,12 @@ class _PrescriptionToSaleScreenState extends State<PrescriptionToSaleScreen> {
                       ),
                       DataCell(
                         Text(
-                          '₹${medicine['mrp']}',
+                          '₹${_convertToDouble(mrp).toStringAsFixed(2)}',
                           style: TextStyle(fontWeight: FontWeight.w500),
                         ),
                       ),
                       DataCell(
-                        Text(distributor['name']),
+                        Text(distributorName),
                       ),
                     ],
                   );
@@ -1556,8 +1573,17 @@ class _PrescriptionToSaleScreenState extends State<PrescriptionToSaleScreen> {
             separatorBuilder: (context, index) => SizedBox(height: 12),
             itemBuilder: (context, index) {
               final item = _inventory[index];
-              final medicine = item['medicine'] as Map<String, dynamic>;
-              final distributor = item['distributor'] as Map<String, dynamic>;
+
+              // Safely handle null medicine and distributor
+              final medicine = item['medicine'] as Map<String, dynamic>?;
+              final distributor = item['distributor'] as Map<String, dynamic>?;
+
+              // Default values for null cases
+              final medicineName = medicine?['name'] ?? 'Unknown Medicine';
+              final manufacturer =
+                  medicine?['manufacturer'] ?? 'Unknown Manufacturer';
+              final mrp = medicine?['mrp'] ?? 0.0;
+
               final isExpiringSoon = _isExpiringSoon(item['expiryDate']);
               final isExpired = _isExpired(item['expiryDate']);
               final isLowStock = (item['quantity'] as int) < 10;
@@ -1581,7 +1607,7 @@ class _PrescriptionToSaleScreenState extends State<PrescriptionToSaleScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  medicine['name'],
+                                  medicineName,
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
@@ -1589,7 +1615,7 @@ class _PrescriptionToSaleScreenState extends State<PrescriptionToSaleScreen> {
                                 ),
                                 SizedBox(height: 4),
                                 Text(
-                                  medicine['manufacturer'],
+                                  manufacturer,
                                   style: TextStyle(
                                     color: Colors.grey[600],
                                   ),
@@ -1628,15 +1654,16 @@ class _PrescriptionToSaleScreenState extends State<PrescriptionToSaleScreen> {
                         children: [
                           _buildDetailItem(
                             label: 'Batch',
-                            value: item['batchNumber'],
+                            value: item['batchNumber'] ?? 'Unknown',
                           ),
                           _buildDetailItem(
                             label: 'MRP',
-                            value: '₹${medicine['mrp']}',
+                            value:
+                                '₹${_convertToDouble(mrp).toStringAsFixed(2)}',
                           ),
                           _buildDetailItem(
                             label: 'Supplier',
-                            value: distributor['name'],
+                            value: distributor?['name'] ?? 'Unknown Supplier',
                           ),
                           _buildDetailItem(
                             label: 'Expiry',
