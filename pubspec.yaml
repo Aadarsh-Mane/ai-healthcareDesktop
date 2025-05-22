@@ -69,6 +69,8 @@ dependencies:
   video_player: ^2.9.5
   flutter_datetime_picker_plus: ^2.2.0
   cached_network_image: ^3.4.1
+  pdf: ^3.11.3
+  printing: ^5.14.2
 
 dev_dependencies:
   flutter_test:
