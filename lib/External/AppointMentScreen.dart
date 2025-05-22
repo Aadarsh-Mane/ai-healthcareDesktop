@@ -388,9 +388,19 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
               surface: HospitalTheme.cardBackground,
               onSurface: HospitalTheme.textDark,
             ),
-            dialogTheme: DialogTheme(
+            dialogTheme: DialogThemeData(
+              backgroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
+              ),
+              titleTextStyle: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+              contentTextStyle: TextStyle(
+                fontSize: 14,
+                color: Colors.black54,
               ),
             ),
           ),
