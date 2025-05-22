@@ -2,6 +2,7 @@
 import 'package:doctordesktop/Check.dart';
 import 'package:doctordesktop/Doctor/DoctorMainScreen.dart';
 import 'package:doctordesktop/constants/Assets.dart';
+import 'package:doctordesktop/constants/HospitalTheme.dart';
 import 'package:doctordesktop/main.dart';
 import 'package:doctordesktop/repositories/auth_repository.dart';
 import 'package:doctordesktop/services/animation_helper.dart';
@@ -223,7 +224,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen1>
         Expanded(
           flex: 5,
           child: Container(
-            color: AppColors.primary,
+            color: HospitalTheme.primary,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
