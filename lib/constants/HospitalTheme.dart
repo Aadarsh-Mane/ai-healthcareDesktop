@@ -95,7 +95,8 @@ class HospitalTheme {
           ),
           iconTheme: IconThemeData(color: primary),
         ),
-        cardTheme: CardTheme(
+        // Fixed: Use CardThemeData instead of CardTheme
+        cardTheme: CardThemeData(
           color: cardBackground,
           elevation: 0,
           shape: RoundedRectangleBorder(
@@ -188,7 +189,8 @@ class HospitalTheme {
             fontSize: 14,
           ),
         ),
-        tabBarTheme: TabBarTheme(
+        // Fixed: Use TabBarThemeData instead of TabBarTheme
+        tabBarTheme: TabBarThemeData(
           labelColor: primary,
           unselectedLabelColor: textMedium,
           indicator: UnderlineTabIndicator(

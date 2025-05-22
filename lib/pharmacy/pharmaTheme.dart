@@ -138,8 +138,8 @@ class PharmaTheme {
         ),
       ),
 
-      // Card
-      cardTheme: CardTheme(
+      // Card - Fixed: Use CardThemeData instead of CardTheme
+      cardTheme: CardThemeData(
         color: card,
         elevation: 2,
         shape: RoundedRectangleBorder(
