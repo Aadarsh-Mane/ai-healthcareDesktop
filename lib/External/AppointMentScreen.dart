@@ -2583,7 +2583,7 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
                                 surface: Colors.white,
                                 onSurface: HospitalTheme.textDark,
                               ),
-                              dialogTheme: DialogTheme(
+                              dialogTheme: DialogThemeData(
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
                                 ),
@@ -2651,7 +2651,7 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
                                 surface: Colors.white,
                                 onSurface: HospitalTheme.textDark,
                               ),
-                              dialogTheme: DialogTheme(
+                              dialogTheme: DialogThemeData(
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
                                 ),
