@@ -109,7 +109,7 @@ class _ImprovedSidebarState extends State<ImprovedSidebar> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          widget.title ?? 'MedCare',
+                          widget.title ?? 'DocNex',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,

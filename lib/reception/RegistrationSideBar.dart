@@ -3,6 +3,7 @@ import 'package:doctordesktop/External/ExternalDoctorlist.dart';
 import 'package:doctordesktop/Patient/fetchPatient.dart';
 import 'package:doctordesktop/reception/CreateAppointment.dart';
 import 'package:doctordesktop/reception/ExternalDoctorRegistration.dart';
+import 'package:doctordesktop/reception/IpdDetailScreen.dart';
 import 'package:doctordesktop/reception/IpdRegistration.dart';
 import 'package:doctordesktop/reception/OpdRegistration.dart';
 import 'package:doctordesktop/reception/PatientRegister.dart';
@@ -29,11 +30,11 @@ class _ExternalSideBarState extends State<RegistrationSideBar> {
 
     // Initialize all screens
     _screens = {
-      0: const PatientRegistrationScreen(),
-      1: const OPDRegistrationScreen(),
-      2: const IPDRegistrationScreen(),
-      3: const PatientListScreen(),
-      4: const ReceptionBedManagementScreen()
+      // 0: const PatientRegistrationScreen(),
+      0: const OPDRegistrationScreen(),
+      1: const IpdDetailScreen(),
+      2: const PatientListScreen(),
+      3: const ReceptionBedManagementScreen()
     };
   }
 
@@ -53,26 +54,21 @@ class _ExternalSideBarState extends State<RegistrationSideBar> {
             navigationItems: [
               NavigationItem(
                 index: 0,
-                icon: Icons.person,
-                label: 'All Registration',
-              ),
-              NavigationItem(
-                index: 1,
                 icon: Icons.medical_information,
                 label: 'OPD',
               ),
               NavigationItem(
-                index: 2,
+                index: 1,
                 icon: Icons.medical_information,
                 label: 'IPD',
               ),
               NavigationItem(
-                index: 3,
+                index: 2,
                 icon: Icons.person_pin,
                 label: 'Patients',
               ),
               NavigationItem(
-                index: 4,
+                index: 3,
                 icon: Icons.meeting_room,
                 label: 'Bed Assignment',
               ),
