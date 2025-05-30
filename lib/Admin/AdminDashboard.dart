@@ -1,4 +1,5 @@
 import 'package:doctordesktop/Admin/BedManagement.dart';
+import 'package:doctordesktop/Admin/PatientBillingScreen.dart';
 import 'package:doctordesktop/Admin/PatientManagement.dart';
 import 'package:doctordesktop/Check.dart';
 import 'package:doctordesktop/Doctor/Dashboard/HomeScreen.dart';
@@ -7,6 +8,7 @@ import 'package:doctordesktop/Doctor/fetchDoctor.dart';
 import 'package:doctordesktop/Patient/fetchPatient.dart';
 import 'package:doctordesktop/constants/Assets.dart';
 import 'package:doctordesktop/main.dart';
+import 'package:doctordesktop/reception/BillingAnalyticsDashboard.dart';
 import 'package:doctordesktop/screens/DoctorRegister.dart';
 import 'package:doctordesktop/screens/ListPatienAssignToDoctor.dart';
 import 'package:doctordesktop/screens/NurseRegister.dart';
@@ -53,6 +55,7 @@ class _MainLayoutState extends State<MainLayout> {
     DoctorRegisterScreen(),
     NurseRegisterScreen(),
     AdmissionManagementScreen(),
+    BillingAnalyticsDashboard(),
   ];
 
   // Add this new public method
@@ -282,6 +285,13 @@ class SidebarWidget extends StatelessWidget {
                   label: 'Patient Management',
                   isSelected: selectedIndex == 7,
                   onTap: () => onItemSelected(7),
+                ),
+                _buildNavItem(
+                  index: 8,
+                  icon: Icons.settings_outlined,
+                  label: 'Analysis',
+                  isSelected: selectedIndex == 8,
+                  onTap: () => onItemSelected(8),
                 ),
               ],
             ),
