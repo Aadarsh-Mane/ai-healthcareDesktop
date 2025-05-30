@@ -1,4 +1,5 @@
 import 'package:doctordesktop/constants/HospitalTheme.dart';
+import 'package:doctordesktop/constants/Url.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -141,7 +142,7 @@ class BillingResponse {
 final billingDataProvider = FutureProvider<BillingResponse>((ref) async {
   try {
     final response = await http.get(
-      Uri.parse('KVM_URL/reception/getAllPatientAmountDetailsWithBilling'),
+      Uri.parse('$KVM_URL/reception/getAllPatientAmountDetailsWithBilling'),
       headers: {'Content-Type': 'application/json'},
     );
 

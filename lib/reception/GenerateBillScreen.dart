@@ -1,5 +1,6 @@
 import 'package:doctordesktop/constants/HospitalTheme.dart';
 import 'package:doctordesktop/constants/Methods.dart';
+import 'package:doctordesktop/constants/Url.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -421,7 +422,7 @@ class IpdBillNotifier extends StateNotifier<IpdBillState> {
       };
 
       final response = await http.post(
-        Uri.parse('KVM_URL/reception/generateIpdBill/${state.patientId}'),
+        Uri.parse('${KVM_URL}/reception/generateIpdBill/${state.patientId}'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(requestBody),
       );
@@ -1658,7 +1659,7 @@ Bill Generated: ${bill.generatedAt.toString().split('.')[0]}
 File: ${bill.fileName}
 
 Best regards,
-Hospital Management System
+Bhosale Hospital Team
                                   ''';
 
                                   Methods().openMail(
