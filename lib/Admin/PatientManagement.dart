@@ -203,10 +203,11 @@ class AdmissionApiService {
       {int page = 1, int limit = 10}) async {
     try {
       final response = await http.get(
-        Uri.parse('$KVM_URL/getPatientsWithAdmissions?page=$page&limit=$limit'),
+        Uri.parse(
+            '$KVM_URL/reception/getPatientsWithAdmissions?page=$page&limit=$limit'),
         headers: {'Content-Type': 'application/json'},
       );
-
+      print(response.body);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return PatientResponse.fromJson(data);
@@ -222,7 +223,7 @@ class AdmissionApiService {
       String patientId, Map<String, dynamic> updates) async {
     try {
       final response = await http.patch(
-        Uri.parse('$KVM_URL/updatePatientInfo/$patientId'),
+        Uri.parse('$KVM_URL/reception/updatePatientInfo/$patientId'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(updates),
       );
@@ -240,7 +241,7 @@ class AdmissionApiService {
 
   static Future<void> deleteAdmissionRecord(
       String patientId, String admissionId) async {
-    print('$KVM_URL/deleteAdmissionRecord/$patientId/$admissionId');
+    print('$KVM_URL/reception/deleteAdmissionRecord/$patientId/$admissionId');
     try {
       final response = await http.delete(
         Uri.parse('$KVM_URL/deleteAdmissionRecord/$patientId/$admissionId'),
