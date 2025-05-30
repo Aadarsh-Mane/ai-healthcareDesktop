@@ -244,7 +244,8 @@ class AdmissionApiService {
     print('$KVM_URL/reception/deleteAdmissionRecord/$patientId/$admissionId');
     try {
       final response = await http.delete(
-        Uri.parse('$KVM_URL/deleteAdmissionRecord/$patientId/$admissionId'),
+        Uri.parse(
+            '$KVM_URL/reception/deleteAdmissionRecord/$patientId/$admissionId'),
         headers: {'Content-Type': 'application/json'},
       );
       print(response.body);
