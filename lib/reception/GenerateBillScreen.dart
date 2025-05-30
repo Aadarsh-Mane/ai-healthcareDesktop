@@ -1,1147 +1,1738 @@
-import 'dart:io';
-
+import 'package:doctordesktop/constants/HospitalTheme.dart';
 import 'package:doctordesktop/constants/Methods.dart';
-import 'package:doctordesktop/constants/Url.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
+import 'dart:convert';
 
-// API URL
+// Data Models
+class ChargeItem {
+  final String key;
+  final String displayName;
+  final double rate;
+  final int days;
+  final bool isActive;
 
-// State Management with Riverpod
-final billProvider =
-    StateNotifierProvider<BillNotifier, AsyncValue<Map<String, dynamic>>>(
-  (ref) => BillNotifier(),
+  const ChargeItem({
+    required this.key,
+    required this.displayName,
+    required this.rate,
+    required this.days,
+    this.isActive = false,
+  });
+
+  ChargeItem copyWith({
+    String? key,
+    String? displayName,
+    double? rate,
+    int? days,
+    bool? isActive,
+  }) {
+    return ChargeItem(
+      key: key ?? this.key,
+      displayName: displayName ?? this.displayName,
+      rate: rate ?? this.rate,
+      days: days ?? this.days,
+      isActive: isActive ?? this.isActive,
+    );
+  }
+
+  double get total => rate * days;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'rate': rate,
+      'days': days,
+    };
+  }
+}
+
+class BillSummary {
+  final double totalCharges;
+  final double discount;
+  final double advance;
+  final double finalAmount;
+
+  const BillSummary({
+    required this.totalCharges,
+    required this.discount,
+    required this.advance,
+    required this.finalAmount,
+  });
+}
+
+class GeneratedBillResponse {
+  final String fileName;
+  final String driveLink;
+  final int pdfSize;
+  final DateTime generatedAt;
+  final Map<String, dynamic> patientInfo;
+  final Map<String, dynamic> admissionDetails;
+  final BillSummary billSummary;
+
+  const GeneratedBillResponse({
+    required this.fileName,
+    required this.driveLink,
+    required this.pdfSize,
+    required this.generatedAt,
+    required this.patientInfo,
+    required this.admissionDetails,
+    required this.billSummary,
+  });
+
+  factory GeneratedBillResponse.fromJson(Map<String, dynamic> json) {
+    final data = json['data'];
+    return GeneratedBillResponse(
+      fileName: data['fileName'] ?? '',
+      driveLink: data['driveLink'] ?? '',
+      pdfSize: data['pdfSize'] ?? 0,
+      generatedAt: DateTime.parse(
+          data['generatedAt'] ?? DateTime.now().toIso8601String()),
+      patientInfo: data['patientInfo'] ?? {},
+      admissionDetails: data['admissionDetails'] ?? {},
+      billSummary: BillSummary(
+        totalCharges: (data['billSummary']['totalCharges'] ?? 0).toDouble(),
+        discount: (data['billSummary']['discount'] ?? 0).toDouble(),
+        advance: (data['billSummary']['advance'] ?? 0).toDouble(),
+        finalAmount: (data['billSummary']['finalAmount'] ?? 0).toDouble(),
+      ),
+    );
+  }
+}
+
+// State Providers
+final ipdBillStateProvider =
+    StateNotifierProvider.family<IpdBillNotifier, IpdBillState, String>(
+  (ref, patientId) => IpdBillNotifier(patientId),
 );
 
-class BillNotifier extends StateNotifier<AsyncValue<Map<String, dynamic>>> {
-  BillNotifier() : super(const AsyncValue.data({}));
+class IpdBillState {
+  final String patientId;
+  final List<ChargeItem> charges;
+  final double discount;
+  final double advance;
+  final bool isLoading;
+  final String? error;
+  final GeneratedBillResponse? generatedBill;
+  final bool showPreview;
 
-  Future<void> generateBill(Map<String, dynamic> billData) async {
-    state = const AsyncValue.loading();
+  const IpdBillState({
+    required this.patientId,
+    required this.charges,
+    this.discount = 0,
+    this.advance = 0,
+    this.isLoading = false,
+    this.error,
+    this.generatedBill,
+    this.showPreview = false,
+  });
+
+  IpdBillState copyWith({
+    String? patientId,
+    List<ChargeItem>? charges,
+    double? discount,
+    double? advance,
+    bool? isLoading,
+    String? error,
+    GeneratedBillResponse? generatedBill,
+    bool? showPreview,
+  }) {
+    return IpdBillState(
+      patientId: patientId ?? this.patientId,
+      charges: charges ?? this.charges,
+      discount: discount ?? this.discount,
+      advance: advance ?? this.advance,
+      isLoading: isLoading ?? this.isLoading,
+      error: error,
+      generatedBill: generatedBill ?? this.generatedBill,
+      showPreview: showPreview ?? this.showPreview,
+    );
+  }
+
+  double get totalCharges =>
+      charges.where((c) => c.isActive).fold(0, (sum, item) => sum + item.total);
+  double get finalAmount => totalCharges - discount - advance;
+}
+
+class IpdBillNotifier extends StateNotifier<IpdBillState> {
+  IpdBillNotifier(String patientId)
+      : super(IpdBillState(
+          patientId: patientId,
+          charges: _getDefaultCharges(),
+        ));
+
+  static List<ChargeItem> _getDefaultCharges() {
+    return [
+      const ChargeItem(
+          key: 'admissionFees',
+          displayName: 'Admission Fees',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'icuCharges', displayName: 'ICU Charges', rate: 0, days: 1),
+      const ChargeItem(
+          key: 'specialCharges',
+          displayName: 'Special Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'generalWardCharges',
+          displayName: 'General Ward Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'surgeonCharges',
+          displayName: 'Surgeon Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'assistantSurgeonCharges',
+          displayName: 'Assistant Surgeon Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'operationTheatreCharges',
+          displayName: 'Operation Theatre Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'operationTheatreMedicines',
+          displayName: 'OT Medicines',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'anaesthesiaCharges',
+          displayName: 'Anaesthesia Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'localAnaesthesiaCharges',
+          displayName: 'Local Anaesthesia Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'o2Charges', displayName: 'Oxygen Charges', rate: 0, days: 1),
+      const ChargeItem(
+          key: 'monitorCharges',
+          displayName: 'Monitor Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'tapping', displayName: 'Tapping', rate: 0, days: 1),
+      const ChargeItem(
+          key: 'ventilatorCharges',
+          displayName: 'Ventilator Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'emergencyCharges',
+          displayName: 'Emergency Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'micCharges', displayName: 'MIC Charges', rate: 0, days: 1),
+      const ChargeItem(
+          key: 'ivFluids', displayName: 'IV Fluids', rate: 0, days: 1),
+      const ChargeItem(
+          key: 'bloodTransfusionCharges',
+          displayName: 'Blood Transfusion Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'physioTherapyCharges',
+          displayName: 'Physiotherapy Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'xrayFilmCharges',
+          displayName: 'X-Ray Film Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'ecgCharges', displayName: 'ECG Charges', rate: 0, days: 1),
+      const ChargeItem(
+          key: 'specialVisitCharges',
+          displayName: 'Special Visit Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'doctorCharges',
+          displayName: 'Doctor Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'nursingCharges',
+          displayName: 'Nursing Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'injMedicines',
+          displayName: 'Injectable Medicines',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'catheterCharges',
+          displayName: 'Catheter Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'rylesTubeCharges',
+          displayName: 'Ryles Tube Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'miscellaneousCharges',
+          displayName: 'Miscellaneous Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'dressingCharges',
+          displayName: 'Dressing Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'professionalCharges',
+          displayName: 'Professional Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'serviceTaxCharges',
+          displayName: 'Service Tax Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'tractionCharges',
+          displayName: 'Traction Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'gastricLavageCharges',
+          displayName: 'Gastric Lavage Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'plateletCharges',
+          displayName: 'Platelet Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'nebulizerCharges',
+          displayName: 'Nebulizer Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'implantCharges',
+          displayName: 'Implant Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'physicianCharges',
+          displayName: 'Physician Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'slabCastCharges',
+          displayName: 'Slab Cast Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'mrfCharges', displayName: 'MRF Charges', rate: 0, days: 1),
+      const ChargeItem(
+          key: 'procCharges',
+          displayName: 'Procedure Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'staplingCharges',
+          displayName: 'Stapling Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'enemaCharges', displayName: 'Enema Charges', rate: 0, days: 1),
+      const ChargeItem(
+          key: 'gastroscopyCharges',
+          displayName: 'Gastroscopy Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'endoscopicCharges',
+          displayName: 'Endoscopic Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'velixCharges', displayName: 'Velix Charges', rate: 0, days: 1),
+      const ChargeItem(
+          key: 'bslCharges', displayName: 'BSL Charges', rate: 0, days: 1),
+      const ChargeItem(
+          key: 'icdtCharges', displayName: 'ICDT Charges', rate: 0, days: 1),
+      const ChargeItem(
+          key: 'ophthalmologistCharges',
+          displayName: 'Ophthalmologist Charges',
+          rate: 0,
+          days: 1),
+    ];
+  }
+
+  void updateCharge(int index, {double? rate, int? days, bool? isActive}) {
+    if (index < 0 || index >= state.charges.length) return;
+
+    final updatedCharges = List<ChargeItem>.from(state.charges);
+    updatedCharges[index] = updatedCharges[index].copyWith(
+      rate: rate,
+      days: days,
+      isActive: isActive,
+    );
+
+    state = state.copyWith(charges: updatedCharges);
+  }
+
+  void updateDiscount(double discount) {
+    state = state.copyWith(discount: discount);
+  }
+
+  void updateAdvance(double advance) {
+    state = state.copyWith(advance: advance);
+  }
+
+  void togglePreview() {
+    state = state.copyWith(showPreview: !state.showPreview);
+  }
+
+  void clearError() {
+    state = state.copyWith(error: null);
+  }
+
+  Future<void> generateBill() async {
+    state = state.copyWith(isLoading: true, error: null);
+
     try {
+      final activeCharges = <String, Map<String, dynamic>>{};
+      for (final charge in state.charges) {
+        if (charge.isActive && charge.total > 0) {
+          activeCharges[charge.key] = charge.toJson();
+        }
+      }
+
+      final requestBody = {
+        'charges': activeCharges,
+        'discount': state.discount,
+        'advance': state.advance,
+      };
+
       final response = await http.post(
-        Uri.parse('${KVM_URL}/reception/bill'),
-        body: json.encode(billData),
+        Uri.parse('KVM_URL/reception/generateIpdBill/${state.patientId}'),
         headers: {'Content-Type': 'application/json'},
+        body: json.encode(requestBody),
       );
-      print(response.body);
+
       if (response.statusCode == 200) {
-        state = AsyncValue.data(json.decode(response.body));
+        final responseData = json.decode(response.body);
+        if (responseData['success'] == true) {
+          final generatedBill = GeneratedBillResponse.fromJson(responseData);
+          state = state.copyWith(
+            isLoading: false,
+            generatedBill: generatedBill,
+          );
+        } else {
+          state = state.copyWith(
+            isLoading: false,
+            error: responseData['message'] ?? 'Failed to generate bill',
+          );
+        }
       } else {
-        throw Exception('Failed to generate bill');
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Failed to generate bill: ${response.statusCode}',
+        );
       }
     } catch (e) {
-      print('Error: $e');
-      // state = AsyncValue.error(e.toString('',''));
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Error generating bill: $e',
+      );
     }
   }
 }
 
-class GenerateBillScreen extends ConsumerStatefulWidget {
+// Main Screen Widget
+class GenerateIpdBillScreen extends ConsumerStatefulWidget {
   final String patientId;
 
-  const GenerateBillScreen({Key? key, required this.patientId})
-      : super(key: key);
+  const GenerateIpdBillScreen({
+    super.key,
+    required this.patientId,
+  });
 
   @override
-  ConsumerState<GenerateBillScreen> createState() => _GenerateBillScreenState();
+  ConsumerState<GenerateIpdBillScreen> createState() =>
+      _GenerateIpdBillScreenState();
 }
 
-class _GenerateBillScreenState extends ConsumerState<GenerateBillScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final TextEditingController _icuRateController = TextEditingController();
-  final TextEditingController _icuQuantityController = TextEditingController();
-  final TextEditingController _icuDateController = TextEditingController();
-  final TextEditingController _singleAcRateController = TextEditingController();
-  final TextEditingController _singleAcQuantityController =
-      TextEditingController();
-  final TextEditingController _singleRoomRateController =
-      TextEditingController();
-  final TextEditingController _singleRoomQuantityController =
-      TextEditingController();
-
-  final TextEditingController _generalWardRateController =
-      TextEditingController();
-  final TextEditingController _generalWardQuantityController =
-      TextEditingController();
-  final TextEditingController _singleAcDateController = TextEditingController();
-
-  final TextEditingController _singleRoomDateController =
-      TextEditingController();
-
-  final TextEditingController _generalWardDateController =
-      TextEditingController();
-
-  final TextEditingController _icuVisitingRateController =
-      TextEditingController();
-  final TextEditingController _icuVisitingVisitsController =
-      TextEditingController();
-  final TextEditingController _icuVisitingDateController = TextEditingController(
-      text:
-          "${DateTime.now().day.toString().padLeft(2, '0')}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().year.toString().substring(2)}");
-  final TextEditingController _generalVisitingRateController =
-      TextEditingController();
-  final TextEditingController _generalVisitingVisitsController =
-      TextEditingController();
-  final TextEditingController _generalVisitingDateController =
-      TextEditingController();
-  final TextEditingController _externalVisitingRateController =
-      TextEditingController();
-  final TextEditingController _externalVisitingVisitsController =
-      TextEditingController();
-  final TextEditingController _externalVisitingDateController =
-      TextEditingController();
-  final TextEditingController _oxygenRateController = TextEditingController();
-  final TextEditingController _oxygenQuantityController =
-      TextEditingController();
-  final TextEditingController _oxygenDateController = TextEditingController();
-  final TextEditingController _ecgRateController = TextEditingController();
-  final TextEditingController _ecgQuantityController = TextEditingController();
-  final TextEditingController _ecgDateController = TextEditingController();
-  final TextEditingController _xrayRateController = TextEditingController();
-  final TextEditingController _xrayQuantityController = TextEditingController();
-  final TextEditingController _xrayDateController = TextEditingController();
-  final TextEditingController _ctScanRateController = TextEditingController();
-  final TextEditingController _ctScanQuantityController =
-      TextEditingController();
-  final TextEditingController _ctScanDateController = TextEditingController();
-  final TextEditingController _sonographyRateController =
-      TextEditingController();
-  final TextEditingController _sonographyQuantityController =
-      TextEditingController();
-  final TextEditingController _sonographyDateController =
-      TextEditingController();
-  final TextEditingController _medicineTotalController =
-      TextEditingController();
+class _GenerateIpdBillScreenState extends ConsumerState<GenerateIpdBillScreen> {
+  final _scrollController = ScrollController();
+  final _discountController = TextEditingController();
+  final _advanceController = TextEditingController();
 
   @override
+  void dispose() {
+    _scrollController.dispose();
+    _discountController.dispose();
+    _advanceController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final billState = ref.watch(billProvider);
+    final size = MediaQuery.of(context).size;
+    final state = ref.watch(ipdBillStateProvider(widget.patientId));
+    final notifier = ref.read(ipdBillStateProvider(widget.patientId).notifier);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Generate Bill'),
+      backgroundColor: HospitalTheme.background,
+      appBar: HospitalTheme.buildAppBar(
+        context: context,
+        title: 'Generate IPD Bill - ${widget.patientId}',
+        actions: [
+          IconButton(
+            icon: Icon(
+              state.showPreview ? Icons.edit : Icons.preview,
+              color: Colors.white,
+            ),
+            onPressed: () => notifier.togglePreview(),
+            tooltip: state.showPreview ? 'Edit Bill' : 'Preview Bill',
+          ),
+          const SizedBox(width: 16),
+        ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: ListView(
+      body: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.keyS, control: true): () =>
+              notifier.generateBill(),
+          const SingleActivator(LogicalKeyboardKey.keyP, control: true): () =>
+              notifier.togglePreview(),
+        },
+        child: Focus(
+          autofocus: true,
+          child: _buildBody(context, size, state, notifier),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context, Size size, IpdBillState state,
+      IpdBillNotifier notifier) {
+    if (state.generatedBill != null) {
+      return _buildGeneratedBillView(context, size, state, notifier);
+    }
+
+    if (state.showPreview) {
+      return _buildPreviewView(context, size, state, notifier);
+    }
+
+    return _buildEditView(context, size, state, notifier);
+  }
+
+  Widget _buildEditView(BuildContext context, Size size, IpdBillState state,
+      IpdBillNotifier notifier) {
+    final isWideScreen = size.width > 1200;
+
+    return Row(
+      children: [
+        // Main content
+        Expanded(
+          flex: isWideScreen ? 3 : 1,
+          child: _buildChargesSection(context, size, state, notifier),
+        ),
+
+        // Sidebar for summary
+        if (isWideScreen) ...[
+          const SizedBox(width: 16),
+          SizedBox(
+            width: 320,
+            child: _buildSummarySection(context, state, notifier),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildChargesSection(BuildContext context, Size size,
+      IpdBillState state, IpdBillNotifier notifier) {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          HospitalTheme.buildSectionHeader(
+            'Medical Charges',
+            trailing: Text(
+              'Active: ${state.charges.where((c) => c.isActive).length}/${state.charges.length}',
+              style: TextStyle(
+                color: HospitalTheme.textMedium,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Card(
+              color: HospitalTheme.background,
+              child: Column(
+                children: [
+                  // Header
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: HospitalTheme.surfaceLight,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(12),
+                        topRight: Radius.circular(12),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 40),
+                        const Expanded(
+                          flex: 3,
+                          child: Text(
+                            'Service',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        const Expanded(
+                          child: Text(
+                            'Rate',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        const Expanded(
+                          child: Text(
+                            'Days',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        const Expanded(
+                          child: Text(
+                            'Total',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.right,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Charges list
+                  Expanded(
+                    child: Scrollbar(
+                      controller: _scrollController,
+                      child: ListView.builder(
+                        controller: _scrollController,
+                        itemCount: state.charges.length,
+                        itemBuilder: (context, index) => _buildChargeRow(
+                          context,
+                          state.charges[index],
+                          index,
+                          notifier,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (MediaQuery.of(context).size.width <= 1200) ...[
+            const SizedBox(height: 16),
+            _buildSummarySection(context, state, notifier),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChargeRow(BuildContext context, ChargeItem charge, int index,
+      IpdBillNotifier notifier) {
+    return Container(
+      decoration: BoxDecoration(
+        color: charge.isActive
+            ? HospitalTheme.surfaceLight.withOpacity(0.3)
+            : null,
+        border: const Border(
+          bottom: BorderSide(color: HospitalTheme.border),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          // Checkbox
+          SizedBox(
+            width: 40,
+            child: Checkbox(
+              value: charge.isActive,
+              onChanged: (value) =>
+                  notifier.updateCharge(index, isActive: value),
+            ),
+          ),
+
+          // Service name
+          Expanded(
+            flex: 3,
+            child: Text(
+              charge.displayName,
+              style: TextStyle(
+                fontWeight:
+                    charge.isActive ? FontWeight.w600 : FontWeight.normal,
+                color: charge.isActive
+                    ? HospitalTheme.textDark
+                    : HospitalTheme.primaryLight,
+              ),
+            ),
+          ),
+
+          // Rate input
+          Expanded(
+            child: _buildNumberInput(
+              value: charge.rate,
+              enabled: charge.isActive,
+              onChanged: (value) => notifier.updateCharge(index, rate: value),
+              prefix: '₹',
+            ),
+          ),
+
+          // Days input
+          Expanded(
+            child: _buildNumberInput(
+              value: charge.days.toDouble(),
+              enabled: charge.isActive,
+              onChanged: (value) =>
+                  notifier.updateCharge(index, days: value.toInt()),
+              isInteger: true,
+            ),
+          ),
+
+          // Total
+          Expanded(
+            child: Text(
+              '₹${charge.total.toStringAsFixed(2)}',
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: charge.isActive
+                    ? HospitalTheme.primary
+                    : HospitalTheme.textLight,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNumberInput({
+    required double value,
+    required bool enabled,
+    required Function(double) onChanged,
+    String? prefix,
+    bool isInteger = false,
+  }) {
+    return Container(
+      width: 80,
+      height: 32,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      child: TextFormField(
+        initialValue: value == 0
+            ? ''
+            : (isInteger ? value.toInt().toString() : value.toString()),
+        enabled: enabled,
+        keyboardType: TextInputType.number,
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 12),
+        decoration: InputDecoration(
+          prefixText: prefix,
+          prefixStyle: const TextStyle(fontSize: 12),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(6),
+            borderSide: BorderSide(color: HospitalTheme.border),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(6),
+            borderSide: BorderSide(color: HospitalTheme.border),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(6),
+            borderSide: BorderSide(color: HospitalTheme.primary),
+          ),
+        ),
+        onChanged: (text) {
+          final parsed = double.tryParse(text) ?? 0.0;
+          onChanged(parsed);
+        },
+      ),
+    );
+  }
+
+  Widget _buildSummarySection(
+      BuildContext context, IpdBillState state, IpdBillNotifier notifier) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          HospitalTheme.buildSectionHeader('Bill Summary'),
+
+          HospitalTheme.buildCard(
+            child: Column(
+              children: [
+                _buildSummaryRow('Total Charges',
+                    '₹${state.totalCharges.toStringAsFixed(2)}'),
+                const Divider(),
+
+                // Discount input
+                Row(
+                  children: [
+                    const Expanded(child: Text('Discount')),
+                    SizedBox(
+                      width: 120,
+                      child: TextFormField(
+                        controller: _discountController,
+                        keyboardType: TextInputType.number,
+                        textAlign: TextAlign.right,
+                        decoration: const InputDecoration(
+                          prefixText: '₹',
+                          contentPadding:
+                              EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                        onChanged: (value) {
+                          final discount = double.tryParse(value) ?? 0.0;
+                          notifier.updateDiscount(discount);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+
+                // Advance input
+                Row(
+                  children: [
+                    const Expanded(child: Text('Advance Paid')),
+                    SizedBox(
+                      width: 120,
+                      child: TextFormField(
+                        controller: _advanceController,
+                        keyboardType: TextInputType.number,
+                        textAlign: TextAlign.right,
+                        decoration: const InputDecoration(
+                          prefixText: '₹',
+                          contentPadding:
+                              EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                        onChanged: (value) {
+                          final advance = double.tryParse(value) ?? 0.0;
+                          notifier.updateAdvance(advance);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+
+                const Divider(),
+                _buildSummaryRow(
+                  'Final Amount',
+                  '₹${state.finalAmount.toStringAsFixed(2)}',
+                  isTotal: true,
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Action buttons
+          Column(
             children: [
-              // Bed Charges Section
-              ExpansionTile(
-                title: _buildSectionTitle('Bed Charges'),
-                children: [
-                  // ICU Section
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildTextField(_icuRateController,
-                            'ICU Rate/Day', TextInputType.number),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () async {
-                            DateTime? selectedDate = await showDatePicker(
-                              context: context,
-                              initialDate: DateTime.now(),
-                              firstDate: DateTime(2000),
-                              lastDate: DateTime(2100),
-                            );
-                            if (selectedDate != null) {
-                              _icuDateController.text =
-                                  "${selectedDate.day.toString().padLeft(2, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.year.toString().substring(2)}";
-                            }
-                          },
-                          child: AbsorbPointer(
-                            child: _buildTextField(_icuDateController,
-                                'ICU Date', TextInputType.datetime),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: DropdownButtonFormField<int>(
-                          value: _icuQuantityController.text.isNotEmpty
-                              ? int.tryParse(_icuQuantityController.text)
-                              : null,
-                          onChanged: (value) {
-                            if (value != null) {
-                              _icuQuantityController.text = value.toString();
-                            }
-                          },
-                          items: List.generate(10, (index) => index)
-                              .map((quantity) => DropdownMenuItem<int>(
-                                    value: quantity,
-                                    child: Text(quantity.toString()),
-                                  ))
-                              .toList(),
-                          decoration:
-                              const InputDecoration(labelText: 'ICU Quantity'),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // Single AC Section
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildTextField(_singleAcRateController,
-                            'Single AC Rate/Day', TextInputType.number),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () async {
-                            DateTime? selectedDate = await showDatePicker(
-                              context: context,
-                              initialDate: DateTime.now(),
-                              firstDate: DateTime(2000),
-                              lastDate: DateTime(2100),
-                            );
-                            if (selectedDate != null) {
-                              _singleAcDateController.text =
-                                  "${selectedDate.day.toString().padLeft(2, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.year.toString().substring(2)}";
-                            }
-                          },
-                          child: AbsorbPointer(
-                            child: _buildTextField(_singleAcDateController,
-                                'Single AC Date', TextInputType.datetime),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: DropdownButtonFormField<int>(
-                          value: _singleAcQuantityController.text.isNotEmpty
-                              ? int.tryParse(_singleAcQuantityController.text)
-                              : null,
-                          onChanged: (value) {
-                            if (value != null) {
-                              _singleAcQuantityController.text =
-                                  value.toString();
-                            }
-                          },
-                          items: List.generate(10, (index) => index)
-                              .map((quantity) => DropdownMenuItem<int>(
-                                    value: quantity,
-                                    child: Text(quantity.toString()),
-                                  ))
-                              .toList(),
-                          decoration: const InputDecoration(
-                              labelText: 'Single AC Quantity'),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // Single Room Section
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildTextField(_singleRoomRateController,
-                            'Single Room Rate/Day', TextInputType.number),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () async {
-                            DateTime? selectedDate = await showDatePicker(
-                              context: context,
-                              initialDate: DateTime.now(),
-                              firstDate: DateTime(2000),
-                              lastDate: DateTime(2100),
-                            );
-                            if (selectedDate != null) {
-                              _singleRoomDateController.text =
-                                  "${selectedDate.day.toString().padLeft(2, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.year.toString().substring(2)}";
-                            }
-                          },
-                          child: AbsorbPointer(
-                            child: _buildTextField(_singleRoomDateController,
-                                'Single Room Date', TextInputType.datetime),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: DropdownButtonFormField<int>(
-                          value: _singleRoomQuantityController.text.isNotEmpty
-                              ? int.tryParse(_singleRoomQuantityController.text)
-                              : null,
-                          onChanged: (value) {
-                            if (value != null) {
-                              _singleRoomQuantityController.text =
-                                  value.toString();
-                            }
-                          },
-                          items: List.generate(10, (index) => index)
-                              .map((quantity) => DropdownMenuItem<int>(
-                                    value: quantity,
-                                    child: Text(quantity.toString()),
-                                  ))
-                              .toList(),
-                          decoration: const InputDecoration(
-                              labelText: 'Single Room Quantity'),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // General Ward Section
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildTextField(_generalWardRateController,
-                            'General Ward Rate/Day', TextInputType.number),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () async {
-                            DateTime? selectedDate = await showDatePicker(
-                              context: context,
-                              initialDate: DateTime.now(),
-                              firstDate: DateTime(2000),
-                              lastDate: DateTime(2100),
-                            );
-                            if (selectedDate != null) {
-                              _generalWardDateController.text =
-                                  "${selectedDate.day.toString().padLeft(2, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.year.toString().substring(2)}";
-                            }
-                          },
-                          child: AbsorbPointer(
-                            child: _buildTextField(_generalWardDateController,
-                                'General Ward Date', TextInputType.datetime),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: DropdownButtonFormField<int>(
-                          value: _generalWardQuantityController.text.isNotEmpty
-                              ? int.tryParse(
-                                  _generalWardQuantityController.text)
-                              : null,
-                          onChanged: (value) {
-                            if (value != null) {
-                              _generalWardQuantityController.text =
-                                  value.toString();
-                            }
-                          },
-                          items: List.generate(10, (index) => index)
-                              .map((quantity) => DropdownMenuItem<int>(
-                                    value: quantity,
-                                    child: Text(quantity.toString()),
-                                  ))
-                              .toList(),
-                          decoration: const InputDecoration(
-                              labelText: 'General Ward Quantity'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: ElevatedButton.icon(
+                  onPressed:
+                      state.isLoading ? null : () => notifier.togglePreview(),
+                  icon: const Icon(Icons.preview),
+                  label: const Text('Preview Bill'),
+                ),
               ),
-
-              // Doctor Charges Section
-              ExpansionTile(
-                title: _buildSectionTitle('Doctor Charges'),
-                children: [
-                  // ICU Visiting Section
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildTextField(_icuVisitingRateController,
-                            'ICU Visiting Rate/Visit', TextInputType.number),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () async {
-                            DateTime? selectedDate = await showDatePicker(
-                              context: context,
-                              initialDate: DateTime.now(),
-                              firstDate: DateTime(2000),
-                              lastDate: DateTime(2100),
-                            );
-                            if (selectedDate != null) {
-                              _icuVisitingDateController.text =
-                                  "${selectedDate.day.toString().padLeft(2, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.year.toString().substring(2)}";
-                            }
-                          },
-                          child: AbsorbPointer(
-                            child: _buildTextField(_icuVisitingDateController,
-                                'ICU Visiting Date', TextInputType.datetime),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: DropdownButtonFormField<int>(
-                          value: _icuVisitingVisitsController.text.isNotEmpty
-                              ? int.tryParse(_icuVisitingVisitsController.text)
-                              : null,
-                          onChanged: (value) {
-                            if (value != null) {
-                              _icuVisitingVisitsController.text =
-                                  value.toString();
-                            }
-                          },
-                          items: List.generate(10, (index) => index)
-                              .map((quantity) => DropdownMenuItem<int>(
-                                    value: quantity,
-                                    child: Text(quantity.toString()),
-                                  ))
-                              .toList(),
-                          decoration:
-                              const InputDecoration(labelText: 'ICU Visits'),
-                        ),
-                      ),
-                    ],
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: ElevatedButton.icon(
+                  onPressed:
+                      state.isLoading ? null : () => notifier.generateBill(),
+                  icon: state.isLoading
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.receipt_long),
+                  label:
+                      Text(state.isLoading ? 'Generating...' : 'Generate Bill'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: HospitalTheme.success,
                   ),
-
-                  // General Visiting Section
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildTextField(
-                            _generalVisitingRateController,
-                            'General Visiting Rate/Visit',
-                            TextInputType.number),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () async {
-                            DateTime? selectedDate = await showDatePicker(
-                              context: context,
-                              initialDate: DateTime.now(),
-                              firstDate: DateTime(2000),
-                              lastDate: DateTime(2100),
-                            );
-                            if (selectedDate != null) {
-                              _generalVisitingDateController.text =
-                                  "${selectedDate.day.toString().padLeft(2, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.year.toString().substring(2)}";
-                            }
-                          },
-                          child: AbsorbPointer(
-                            child: _buildTextField(
-                                _generalVisitingDateController,
-                                'General Visiting Date',
-                                TextInputType.datetime),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: DropdownButtonFormField<int>(
-                          value:
-                              _generalVisitingVisitsController.text.isNotEmpty
-                                  ? int.tryParse(
-                                      _generalVisitingVisitsController.text)
-                                  : null,
-                          onChanged: (value) {
-                            if (value != null) {
-                              _generalVisitingVisitsController.text =
-                                  value.toString();
-                            }
-                          },
-                          items: List.generate(10, (index) => index)
-                              .map((quantity) => DropdownMenuItem<int>(
-                                    value: quantity,
-                                    child: Text(quantity.toString()),
-                                  ))
-                              .toList(),
-                          decoration: const InputDecoration(
-                              labelText: 'General Visits'),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // External Visiting Section
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildTextField(
-                            _externalVisitingRateController,
-                            'External Visiting Rate/Visit',
-                            TextInputType.number),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () async {
-                            DateTime? selectedDate = await showDatePicker(
-                              context: context,
-                              initialDate: DateTime.now(),
-                              firstDate: DateTime(2000),
-                              lastDate: DateTime(2100),
-                            );
-                            if (selectedDate != null) {
-                              _externalVisitingDateController.text =
-                                  "${selectedDate.day.toString().padLeft(2, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.year.toString().substring(2)}";
-                            }
-                          },
-                          child: AbsorbPointer(
-                            child: _buildTextField(
-                                _externalVisitingDateController,
-                                'External Visiting Date',
-                                TextInputType.datetime),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: DropdownButtonFormField<int>(
-                          value:
-                              _externalVisitingVisitsController.text.isNotEmpty
-                                  ? int.tryParse(
-                                      _externalVisitingVisitsController.text)
-                                  : null,
-                          onChanged: (value) {
-                            if (value != null) {
-                              _externalVisitingVisitsController.text =
-                                  value.toString();
-                            }
-                          },
-                          items: List.generate(10, (index) => index)
-                              .map((quantity) => DropdownMenuItem<int>(
-                                    value: quantity,
-                                    child: Text(quantity.toString()),
-                                  ))
-                              .toList(),
-                          decoration: const InputDecoration(
-                              labelText: 'External Visits'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-
-              // Procedure Charges Section
-              ExpansionTile(
-                title: _buildSectionTitle('Procedure Charges'),
-                children: [
-                  _buildTextField(_oxygenRateController, 'Oxygen Rate/Unit',
-                      TextInputType.number),
-                  _buildTextField(_oxygenQuantityController, 'Oxygen Quantity',
-                      TextInputType.number),
-                  _buildTextField(_oxygenDateController, 'Oxygen Date',
-                      TextInputType.datetime),
-                ],
-              ),
-
-              // Investigation Charges Section
-              ExpansionTile(
-                title: _buildSectionTitle('Investigation Charges'),
-                children: [
-                  // ECG Section
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildTextField(_ecgRateController,
-                            'ECG Rate/Test', TextInputType.number),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () async {
-                            DateTime? selectedDate = await showDatePicker(
-                              context: context,
-                              initialDate: DateTime.now(),
-                              firstDate: DateTime(2000),
-                              lastDate: DateTime(2100),
-                            );
-                            if (selectedDate != null) {
-                              _ecgDateController.text =
-                                  "${selectedDate.day.toString().padLeft(2, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.year.toString().substring(2)}";
-                            }
-                          },
-                          child: AbsorbPointer(
-                            child: _buildTextField(_ecgDateController,
-                                'ECG Date', TextInputType.datetime),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: DropdownButtonFormField<int>(
-                          value: _ecgQuantityController.text.isNotEmpty
-                              ? int.tryParse(_ecgQuantityController.text)
-                              : null,
-                          onChanged: (value) {
-                            if (value != null) {
-                              _ecgQuantityController.text = value.toString();
-                            }
-                          },
-                          items: List.generate(10, (index) => index)
-                              .map((quantity) => DropdownMenuItem<int>(
-                                    value: quantity,
-                                    child: Text(quantity.toString()),
-                                  ))
-                              .toList(),
-                          decoration:
-                              const InputDecoration(labelText: 'ECG Quantity'),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // X-Ray Section
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildTextField(_xrayRateController,
-                            'X-Ray Rate/Test', TextInputType.number),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () async {
-                            DateTime? selectedDate = await showDatePicker(
-                              context: context,
-                              initialDate: DateTime.now(),
-                              firstDate: DateTime(2000),
-                              lastDate: DateTime(2100),
-                            );
-                            if (selectedDate != null) {
-                              _xrayDateController.text =
-                                  "${selectedDate.day.toString().padLeft(2, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.year.toString().substring(2)}";
-                            }
-                          },
-                          child: AbsorbPointer(
-                            child: _buildTextField(_xrayDateController,
-                                'X-Ray Date', TextInputType.datetime),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: DropdownButtonFormField<int>(
-                          value: _xrayQuantityController.text.isNotEmpty
-                              ? int.tryParse(_xrayQuantityController.text)
-                              : null,
-                          onChanged: (value) {
-                            if (value != null) {
-                              _xrayQuantityController.text = value.toString();
-                            }
-                          },
-                          items: List.generate(10, (index) => index)
-                              .map((quantity) => DropdownMenuItem<int>(
-                                    value: quantity,
-                                    child: Text(quantity.toString()),
-                                  ))
-                              .toList(),
-                          decoration: const InputDecoration(
-                              labelText: 'X-Ray Quantity'),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // CT Scan Section
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildTextField(_ctScanRateController,
-                            'CT Scan Rate/Test', TextInputType.number),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () async {
-                            DateTime? selectedDate = await showDatePicker(
-                              context: context,
-                              initialDate: DateTime.now(),
-                              firstDate: DateTime(2000),
-                              lastDate: DateTime(2100),
-                            );
-                            if (selectedDate != null) {
-                              _ctScanDateController.text =
-                                  "${selectedDate.day.toString().padLeft(2, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.year.toString().substring(2)}";
-                            }
-                          },
-                          child: AbsorbPointer(
-                            child: _buildTextField(_ctScanDateController,
-                                'CT Scan Date', TextInputType.datetime),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: DropdownButtonFormField<int>(
-                          value: _ctScanQuantityController.text.isNotEmpty
-                              ? int.tryParse(_ctScanQuantityController.text)
-                              : null,
-                          onChanged: (value) {
-                            if (value != null) {
-                              _ctScanQuantityController.text = value.toString();
-                            }
-                          },
-                          items: List.generate(10, (index) => index)
-                              .map((quantity) => DropdownMenuItem<int>(
-                                    value: quantity,
-                                    child: Text(quantity.toString()),
-                                  ))
-                              .toList(),
-                          decoration: const InputDecoration(
-                              labelText: 'CT Scan Quantity'),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // Sonography Section
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildTextField(_sonographyRateController,
-                            'Sonography Rate/Test', TextInputType.number),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () async {
-                            DateTime? selectedDate = await showDatePicker(
-                              context: context,
-                              initialDate: DateTime.now(),
-                              firstDate: DateTime(2000),
-                              lastDate: DateTime(2100),
-                            );
-                            if (selectedDate != null) {
-                              _sonographyDateController.text =
-                                  "${selectedDate.day.toString().padLeft(2, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.year.toString().substring(2)}";
-                            }
-                          },
-                          child: AbsorbPointer(
-                            child: _buildTextField(_sonographyDateController,
-                                'Sonography Date', TextInputType.datetime),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: DropdownButtonFormField<int>(
-                          value: _sonographyQuantityController.text.isNotEmpty
-                              ? int.tryParse(_sonographyQuantityController.text)
-                              : null,
-                          onChanged: (value) {
-                            if (value != null) {
-                              _sonographyQuantityController.text =
-                                  value.toString();
-                            }
-                          },
-                          items: List.generate(10, (index) => index + 1)
-                              .map((quantity) => DropdownMenuItem<int>(
-                                    value: quantity,
-                                    child: Text(quantity.toString()),
-                                  ))
-                              .toList(),
-                          decoration: const InputDecoration(
-                              labelText: 'Sonography Quantity'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-
-              // Medicine Charges Section
-              ExpansionTile(
-                title: _buildSectionTitle('Medicine Charges'),
-                children: [
-                  _buildTextField(_medicineTotalController,
-                      'Medicine Charges Total', TextInputType.number),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  if (_formKey.currentState!.validate()) {
-                    final billData = {
-                      "patientId": widget.patientId,
-                      "bedCharges": {
-                        "icu": {
-                          "ratePerDay": _icuRateController.text.isNotEmpty
-                              ? int.parse(_icuRateController.text)
-                              : 0,
-                          "quantity": _icuQuantityController.text.isNotEmpty
-                              ? int.parse(_icuQuantityController.text)
-                              : 0,
-                          "date": _icuDateController.text,
-                        },
-                        "singleAc": {
-                          "ratePerDay": _singleAcRateController.text.isNotEmpty
-                              ? int.parse(_singleAcRateController.text)
-                              : 0,
-                          "quantity":
-                              _singleAcQuantityController.text.isNotEmpty
-                                  ? int.parse(_singleAcQuantityController.text)
-                                  : 0,
-                          "date": _singleAcDateController.text,
-                        },
-                        "singleRoom": {
-                          "ratePerDay":
-                              _singleRoomRateController.text.isNotEmpty
-                                  ? int.parse(_singleRoomRateController.text)
-                                  : 0,
-                          "quantity": _singleRoomQuantityController
-                                  .text.isNotEmpty
-                              ? int.parse(_singleRoomQuantityController.text)
-                              : 0,
-                          "date": _singleRoomDateController.text,
-                        },
-                        "generalWard": {
-                          "ratePerDay":
-                              _generalWardRateController.text.isNotEmpty
-                                  ? int.parse(_generalWardRateController.text)
-                                  : 0,
-                          "quantity": _generalWardQuantityController
-                                  .text.isNotEmpty
-                              ? int.parse(_generalWardQuantityController.text)
-                              : 0,
-                          "date": _generalWardDateController.text,
-                        },
-                      },
-                      "doctorCharges": {
-                        "icuVisiting": {
-                          "ratePerVisit":
-                              _icuVisitingRateController.text.isNotEmpty
-                                  ? int.parse(_icuVisitingRateController.text)
-                                  : 0,
-                          "visits": _icuVisitingVisitsController.text.isNotEmpty
-                              ? int.parse(_icuVisitingVisitsController.text)
-                              : 0,
-                          "date": _icuVisitingDateController.text,
-                        },
-                        "generalVisiting": {
-                          "ratePerVisit": _generalVisitingRateController
-                                  .text.isNotEmpty
-                              ? int.parse(_generalVisitingRateController.text)
-                              : 0,
-                          "visits": _generalVisitingVisitsController
-                                  .text.isNotEmpty
-                              ? int.parse(_generalVisitingVisitsController.text)
-                              : 0,
-                          "date": _generalVisitingDateController.text,
-                        },
-                        "externalVisiting": {
-                          "ratePerVisit": _externalVisitingRateController
-                                  .text.isNotEmpty
-                              ? int.parse(_externalVisitingRateController.text)
-                              : 0,
-                          "visits":
-                              _externalVisitingVisitsController.text.isNotEmpty
-                                  ? int.parse(
-                                      _externalVisitingVisitsController.text)
-                                  : 0,
-                          "date": _externalVisitingDateController.text,
-                        },
-                      },
-                      "procedureCharges": {
-                        "oxygen": {
-                          "ratePerUnit": _oxygenRateController.text.isNotEmpty
-                              ? int.parse(_oxygenRateController.text)
-                              : 0,
-                          "quantity": _oxygenQuantityController.text.isNotEmpty
-                              ? int.parse(_oxygenQuantityController.text)
-                              : 0,
-                          "date": _oxygenDateController.text,
-                        },
-                      },
-                      "investigationCharges": {
-                        "ecg": {
-                          "ratePerTest": _ecgRateController.text.isNotEmpty
-                              ? int.parse(_ecgRateController.text)
-                              : 0,
-                          "quantity": _ecgQuantityController.text.isNotEmpty
-                              ? int.parse(_ecgQuantityController.text)
-                              : 0,
-                          "date": _ecgDateController.text,
-                        },
-                        "xray": {
-                          "ratePerTest": _xrayRateController.text.isNotEmpty
-                              ? int.parse(_xrayRateController.text)
-                              : 0,
-                          "quantity": _xrayQuantityController.text.isNotEmpty
-                              ? int.parse(_xrayQuantityController.text)
-                              : 0,
-                          "date": _xrayDateController.text,
-                        },
-                        "ctScan": {
-                          "ratePerTest": _ctScanRateController.text.isNotEmpty
-                              ? int.parse(_ctScanRateController.text)
-                              : 0,
-                          "quantity": _ctScanQuantityController.text.isNotEmpty
-                              ? int.parse(_ctScanQuantityController.text)
-                              : 0,
-                          "date": _ctScanDateController.text,
-                        },
-                        "sonography": {
-                          "ratePerTest":
-                              _sonographyRateController.text.isNotEmpty
-                                  ? int.parse(_sonographyRateController.text)
-                                  : 0,
-                          "quantity": _sonographyQuantityController
-                                  .text.isNotEmpty
-                              ? int.parse(_sonographyQuantityController.text)
-                              : 0,
-                          "date": _sonographyDateController.text,
-                        },
-                      },
-                      "medicineCharges": {
-                        "total": _medicineTotalController.text.isNotEmpty
-                            ? int.parse(_medicineTotalController.text)
-                            : 0,
-                      },
-                      "status": "discharged",
-                    };
-                    ref.read(billProvider.notifier).generateBill(billData);
-                  }
-                },
-                child: const Text('Submit'),
-              ),
-              const SizedBox(height: 20),
-              billState.when(
-                data: (response) => _buildBillResponse(response, context),
-                loading: () => const CircularProgressIndicator(),
-                error: (error, stackTrace) => Text('Error: $error'),
+                ),
               ),
             ],
           ),
-        ),
+
+          // Keyboard shortcuts hint
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: HospitalTheme.info.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: HospitalTheme.info.withOpacity(0.3)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Keyboard Shortcuts',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: HospitalTheme.info,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Ctrl+P: Preview\nCtrl+S: Generate Bill',
+                  style: TextStyle(
+                    color: HospitalTheme.textMedium,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          if (state.error != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: HospitalTheme.error.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: HospitalTheme.error),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.error_outline,
+                      color: HospitalTheme.error, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      state.error!,
+                      style: TextStyle(
+                        color: HospitalTheme.error,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => notifier.clearError(),
+                    icon:
+                        Icon(Icons.close, size: 16, color: HospitalTheme.error),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label,
-      TextInputType keyboardType) {
+  Widget _buildSummaryRow(String label, String value, {bool isTotal = false}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: TextFormField(
-        controller: controller,
-        decoration: InputDecoration(labelText: label),
-        keyboardType: keyboardType,
-        // validator: (value) => _validateNumber(value),
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+              fontSize: isTotal ? 16 : 14,
+              color:
+                  isTotal ? HospitalTheme.textDark : HospitalTheme.textMedium,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontWeight: isTotal ? FontWeight.bold : FontWeight.w600,
+              fontSize: isTotal ? 16 : 14,
+              color: isTotal ? HospitalTheme.primary : HospitalTheme.textDark,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildPreviewView(BuildContext context, Size size, IpdBillState state,
+      IpdBillNotifier notifier) {
+    final activeCharges =
+        state.charges.where((c) => c.isActive && c.total > 0).toList();
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12.0),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-        ),
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              HospitalTheme.buildSectionHeader('Bill Preview'),
+              const Spacer(),
+              ElevatedButton.icon(
+                onPressed: () => notifier.togglePreview(),
+                icon: const Icon(Icons.edit),
+                label: const Text('Edit Bill'),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton.icon(
+                onPressed:
+                    state.isLoading ? null : () => notifier.generateBill(),
+                icon: state.isLoading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.receipt_long),
+                label: Text(
+                    state.isLoading ? 'Generating...' : 'Generate Final Bill'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: HospitalTheme.success,
+                ),
+              ),
+            ],
+          ),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Preview content
+                Expanded(
+                  flex: 2,
+                  child: HospitalTheme.buildCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: HospitalTheme.primary.withOpacity(0.1),
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(12),
+                              topRight: Radius.circular(12),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.receipt_long,
+                                      color: HospitalTheme.primary, size: 28),
+                                  const SizedBox(width: 12),
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'IPD Discharge Bill',
+                                        style: TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                          color: HospitalTheme.primary,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Patient ID: ${state.patientId}',
+                                        style: TextStyle(
+                                          color: HospitalTheme.textMedium,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    'Date: ${DateTime.now().toString().split(' ')[0]}',
+                                    style: TextStyle(
+                                      color: HospitalTheme.textMedium,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Charges table
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Medical Charges',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: HospitalTheme.textDark,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Table header
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: HospitalTheme.surfaceLight,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Row(
+                                    children: [
+                                      Expanded(
+                                          flex: 3,
+                                          child: Text('Description',
+                                              style: TextStyle(
+                                                  fontWeight:
+                                                      FontWeight.bold))),
+                                      Expanded(
+                                          child: Text('Rate',
+                                              style: TextStyle(
+                                                  fontWeight: FontWeight.bold),
+                                              textAlign: TextAlign.center)),
+                                      Expanded(
+                                          child: Text('Days',
+                                              style: TextStyle(
+                                                  fontWeight: FontWeight.bold),
+                                              textAlign: TextAlign.center)),
+                                      Expanded(
+                                          child: Text('Amount',
+                                              style: TextStyle(
+                                                  fontWeight: FontWeight.bold),
+                                              textAlign: TextAlign.right)),
+                                    ],
+                                  ),
+                                ),
+
+                                // Table rows
+                                Expanded(
+                                  child: ListView.builder(
+                                    itemCount: activeCharges.length,
+                                    itemBuilder: (context, index) {
+                                      final charge = activeCharges[index];
+                                      return Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: const BoxDecoration(
+                                          border: Border(
+                                              bottom: BorderSide(
+                                                  color: HospitalTheme.border)),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              flex: 3,
+                                              child: Text(charge.displayName,
+                                                  style: const TextStyle(
+                                                      fontSize: 14)),
+                                            ),
+                                            Expanded(
+                                              child: Text(
+                                                '₹${charge.rate.toStringAsFixed(2)}',
+                                                textAlign: TextAlign.center,
+                                                style: const TextStyle(
+                                                    fontSize: 14),
+                                              ),
+                                            ),
+                                            Expanded(
+                                              child: Text(
+                                                '${charge.days}',
+                                                textAlign: TextAlign.center,
+                                                style: const TextStyle(
+                                                    fontSize: 14),
+                                              ),
+                                            ),
+                                            Expanded(
+                                              child: Text(
+                                                '₹${charge.total.toStringAsFixed(2)}',
+                                                textAlign: TextAlign.right,
+                                                style: const TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight:
+                                                        FontWeight.w600),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(width: 16),
+
+                // Summary sidebar
+                SizedBox(
+                  width: 300,
+                  child: Column(
+                    children: [
+                      HospitalTheme.buildCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Bill Summary',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: HospitalTheme.textDark,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            _buildSummaryRow('Subtotal',
+                                '₹${state.totalCharges.toStringAsFixed(2)}'),
+                            _buildSummaryRow('Discount',
+                                '-₹${state.discount.toStringAsFixed(2)}'),
+                            _buildSummaryRow('Advance Paid',
+                                '-₹${state.advance.toStringAsFixed(2)}'),
+                            const Divider(height: 24),
+                            _buildSummaryRow('Final Amount',
+                                '₹${state.finalAmount.toStringAsFixed(2)}',
+                                isTotal: true),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      HospitalTheme.buildCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Charges Summary',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: HospitalTheme.textDark,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Total Items:',
+                                    style: TextStyle(
+                                        color: HospitalTheme.textMedium)),
+                                Text('${activeCharges.length}',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Active Services:',
+                                    style: TextStyle(
+                                        color: HospitalTheme.textMedium)),
+                                Text(
+                                    '${state.charges.where((c) => c.isActive).length}',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (state.error != null) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: HospitalTheme.error.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: HospitalTheme.error),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.error_outline,
+                                  color: HospitalTheme.error, size: 16),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  state.error!,
+                                  style: TextStyle(
+                                    color: HospitalTheme.error,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: () => notifier.clearError(),
+                                icon: Icon(Icons.close,
+                                    size: 16, color: HospitalTheme.error),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  String? _validateNumber(String? value) {
-    if (value == null || value.isEmpty) {
-      return null; // No error for empty input
-    }
-    final number = int.tryParse(value);
-    if (number == null) {
-      return 'Enter a valid number';
-    }
-    return null;
-  }
-}
+  Widget _buildGeneratedBillView(BuildContext context, Size size,
+      IpdBillState state, IpdBillNotifier notifier) {
+    final bill = state.generatedBill!;
 
-Widget _buildBillResponse(Map<String, dynamic> response, BuildContext context) {
-  final billDetails = response['billDetails'] ?? {};
-  final fileLink = response['fileLink'] ?? '';
-  print("this os it $fileLink");
-  if (billDetails.isEmpty) {
-    return const Text(
-      'No bill details available.',
-      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.check_circle, color: HospitalTheme.success, size: 28),
+              const SizedBox(width: 12),
+              Text(
+                'Bill Generated Successfully',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: HospitalTheme.success,
+                ),
+              ),
+              const Spacer(),
+              ElevatedButton.icon(
+                onPressed: () {
+                  // Reset state to start over
+                  ref.invalidate(ipdBillStateProvider(widget.patientId));
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('Generate Another Bill'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Bill details
+                Expanded(
+                  flex: 2,
+                  child: HospitalTheme.buildCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: HospitalTheme.success.withOpacity(0.1),
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(12),
+                              topRight: Radius.circular(12),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.receipt_long,
+                                  color: HospitalTheme.success, size: 32),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Bill Generated',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: HospitalTheme.success,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'File: ${bill.fileName}',
+                                      style: TextStyle(
+                                        color: HospitalTheme.textMedium,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Generated: ${bill.generatedAt.toString().split('.')[0]}',
+                                      style: TextStyle(
+                                        color: HospitalTheme.textMedium,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: HospitalTheme.info.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: HospitalTheme.info),
+                                ),
+                                child: Text(
+                                  '${(bill.pdfSize / 1024).toStringAsFixed(1)} KB',
+                                  style: TextStyle(
+                                    color: HospitalTheme.info,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Patient Info
+                                _buildInfoSection(
+                                  'Patient Information',
+                                  [
+                                    'Name: ${bill.patientInfo['name'] ?? 'N/A'}',
+                                    'Patient ID: ${bill.patientInfo['patientId'] ?? 'N/A'}',
+                                    'Age: ${bill.patientInfo['age'] ?? 'N/A'}',
+                                    'Gender: ${bill.patientInfo['gender'] ?? 'N/A'}',
+                                  ],
+                                ),
+
+                                const SizedBox(height: 20),
+
+                                // Admission Details
+                                _buildInfoSection(
+                                  'Admission Details',
+                                  [
+                                    'Admission ID: ${bill.admissionDetails['admissionId'] ?? 'N/A'}',
+                                    'Admission Date: ${_formatDate(bill.admissionDetails['admissionDate'])}',
+                                    'Discharge Date: ${_formatDate(bill.admissionDetails['dischargeDate'])}',
+                                    'Length of Stay: ${bill.admissionDetails['lengthOfStay'] ?? 'N/A'} days',
+                                    'Attending Doctor: ${bill.admissionDetails['attendingDoctor'] ?? 'N/A'}',
+                                    'Department: ${bill.admissionDetails['department'] ?? 'N/A'}',
+                                  ],
+                                ),
+
+                                const SizedBox(height: 20),
+
+                                // Download Section
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        HospitalTheme.primary.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                        color: HospitalTheme.primary
+                                            .withOpacity(0.3)),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(Icons.cloud_download,
+                                              color: HospitalTheme.primary),
+                                          const SizedBox(width: 12),
+                                          Text(
+                                            'Download Bill',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                              color: HospitalTheme.primary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 12),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        height: 44,
+                                        child: ElevatedButton.icon(
+                                          onPressed: () {
+                                            // Use Methods().pdfUrl(bill.driveLink) as specified
+                                            Methods().openPdf(bill.driveLink);
+                                          },
+                                          icon: const Icon(Icons.open_in_new),
+                                          label: const Text('Open PDF Bill'),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                HospitalTheme.success,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(width: 16),
+
+                // Bill summary sidebar
+                SizedBox(
+                  width: 300,
+                  child: Column(
+                    children: [
+                      HospitalTheme.buildCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.account_balance_wallet,
+                                    color: HospitalTheme.primary, size: 20),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Final Bill Summary',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: HospitalTheme.textDark,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            _buildSummaryRow('Total Charges',
+                                '₹${bill.billSummary.totalCharges.toStringAsFixed(2)}'),
+                            _buildSummaryRow('Discount Applied',
+                                '-₹${bill.billSummary.discount.toStringAsFixed(2)}'),
+                            _buildSummaryRow('Advance Paid',
+                                '-₹${bill.billSummary.advance.toStringAsFixed(2)}'),
+                            const Divider(height: 24),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: HospitalTheme.success.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                    color:
+                                        HospitalTheme.success.withOpacity(0.3)),
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Amount Due',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: HospitalTheme.success,
+                                    ),
+                                  ),
+                                  Text(
+                                    '₹${bill.billSummary.finalAmount.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: HospitalTheme.success,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Actions
+                      HospitalTheme.buildCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Actions',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: HospitalTheme.textDark,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () {
+                                  // Copy link to clipboard
+                                  Clipboard.setData(
+                                      ClipboardData(text: bill.driveLink));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content:
+                                            Text('Link copied to clipboard')),
+                                  );
+                                },
+                                icon: const Icon(Icons.copy),
+                                label: const Text('Copy Link'),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () {
+                                  final emailSubject =
+                                      'IPD Discharge Bill - ${bill.patientInfo['name'] ?? 'Patient'} (${bill.patientInfo['patientId'] ?? 'N/A'})';
+                                  final emailBody = '''
+Dear Recipient,
+
+Please find the IPD Discharge Bill details below:
+
+Patient Information:
+- Name: ${bill.patientInfo['name'] ?? 'N/A'}
+- Patient ID: ${bill.patientInfo['patientId'] ?? 'N/A'}
+- Age: ${bill.patientInfo['age'] ?? 'N/A'}
+- Gender: ${bill.patientInfo['gender'] ?? 'N/A'}
+
+Admission Details:
+- Admission Date: ${_formatDate(bill.admissionDetails['admissionDate'])}
+- Discharge Date: ${_formatDate(bill.admissionDetails['dischargeDate'])}
+- Length of Stay: ${bill.admissionDetails['lengthOfStay'] ?? 'N/A'} days
+- Attending Doctor: ${bill.admissionDetails['attendingDoctor'] ?? 'N/A'}
+
+Bill Summary:
+- Total Charges: ₹${bill.billSummary.totalCharges.toStringAsFixed(2)}
+- Discount: ₹${bill.billSummary.discount.toStringAsFixed(2)}
+- Advance Paid: ₹${bill.billSummary.advance.toStringAsFixed(2)}
+- Final Amount: ₹${bill.billSummary.finalAmount.toStringAsFixed(2)}
+
+You can access the complete PDF bill using the following link:
+${bill.driveLink}
+
+Bill Generated: ${bill.generatedAt.toString().split('.')[0]}
+File: ${bill.fileName}
+
+Best regards,
+Hospital Management System
+                                  ''';
+
+                                  Methods().openMail(
+                                    subject: emailSubject,
+                                    body: emailBody,
+                                  );
+                                },
+                                // Share functionality can be implemented here
+
+                                icon: const Icon(Icons.share),
+                                label: const Text('Share Bill'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
-  return SingleChildScrollView(
-    padding: const EdgeInsets.all(16.0),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      if (response != null) ...[
+
+  Widget _buildInfoSection(String title, List<String> items) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         Text(
-          response['message'] ?? '',
-          style: const TextStyle(
-              fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green),
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: HospitalTheme.textDark,
+          ),
         ),
-        const SizedBox(height: 20),
-        if (response['billDetails'] != null) ...[
-          Text('Patient Details',
-              style:
-                  const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const Divider(),
-          Text('Name: ${response['billDetails']['name']}'),
-          Text('Patient ID: ${response['billDetails']['patientId']}'),
-          Text('Gender: ${response['billDetails']['gender']}'),
-          Text('Contact: ${response['billDetails']['contact']}'),
-          Text('Weight: ${response['billDetails']['weight']}'),
-          Text('Age: ${response['billDetails']['age']}'),
-          Text('Admission Date: ${response['billDetails']['admissionDate']}'),
-          Text('Discharge Date: ${response['billDetails']['dischargeDate']}'),
-          Text(
-              'Reason for Admission: ${response['billDetails']['reasonForAdmission']}'),
-          Text(
-              'Condition at Discharge: ${response['billDetails']['conditionAtDischarge']}'),
-          const SizedBox(height: 20),
-          Text('Doctor: ${response['billDetails']['doctorName']}'),
-          const SizedBox(height: 20),
-          Text('Charges Breakdown',
-              style:
-                  const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const Divider(),
-          Text('Bed Charges',
-              style:
-                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          Text('ICU: ${response['billDetails']['bedCharges']['icu']['total']}'),
-          Text(
-              'Single AC: ${response['billDetails']['bedCharges']['singleAc']['total']}'),
-          Text(
-              'Total Bed Charges: ${response['billDetails']['bedCharges']['total']}'),
-          const Divider(),
-          Text('Procedure Charges',
-              style:
-                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          Text(
-              'Oxygen: ${response['billDetails']['procedureCharges']['oxygen']['total']}'),
-          Text(
-              'Total Procedure Charges: ${response['billDetails']['procedureCharges']['total']}'),
-          const Divider(),
-          Text('Doctor Charges',
-              style:
-                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          Text(
-              'ICU Visiting: ${response['billDetails']['doctorCharges']['icuVisiting']['total']}'),
-          Text(
-              'General Visiting: ${response['billDetails']['doctorCharges']['generalVisiting']['total']}'),
-          Text(
-              'Total Doctor Charges: ${response['billDetails']['doctorCharges']['total']}'),
-          const Divider(),
-          Text('Investigation Charges',
-              style:
-                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          Text(
-              'ECG: ${response['billDetails']['investigationCharges']['ecg']['total']}'),
-          Text(
-              'X-Ray: ${response['billDetails']['investigationCharges']['xray']['total']}'),
-          Text(
-              'Total Investigation Charges: ${response['billDetails']['investigationCharges']['total']}'),
-          const Divider(),
-          Text(
-              'Medicine Charges: ${response['billDetails']['medicineCharges']['total']}'),
-          const Divider(),
-          Text(
-              'Total Amount Due: ${response['billDetails']['totalAmountDue']}'),
-          Text('Amount Paid: ${response['billDetails']['amountPaid']}'),
-          Text(
-              'Remaining Balance: ${response['billDetails']['remainingBalance']}'),
-          Text(
-              'Discharge Status: ${response['billDetails']['dischargeStatus']}'),
-          Text('Payment Mode: ${response['billDetails']['paymentMode']}'),
-          Text(
-              'Insurance Company: ${response['billDetails']['insuranceCompany']}'),
-          Text(
-              'Condition at Discharge Point: ${response['billDetails']['conditionAtDischargePoint']}'),
-        ],
-        if (response != null && response['fileLink'] != null) ...[
-          const SizedBox(height: 20),
-          Text('PDF Link: ${response['fileLink']}',
-              style:
-                  const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        ],
-        const SizedBox(height: 20),
-        ElevatedButton(
-          onPressed: () {
-            Methods().openPdf(fileLink);
-          },
-          child: const Text('Download Bill PDF'),
-        ),
+        const SizedBox(height: 8),
+        ...items.map((item) => Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                children: [
+                  Container(
+                    width: 4,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: HospitalTheme.primary,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    item,
+                    style: TextStyle(
+                      color: HospitalTheme.textMedium,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            )),
       ],
-    ]),
-  );
-}
-
-Widget _buildChargeDetails(String title, Map<String, dynamic> charges) {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-      Text('Start Date: ${charges['startDate']}'),
-      Text('End Date: ${charges['endDate']}'),
-      Text('Rate Per Day: ${charges['ratePerDay']}'),
-      Text('Total: ${charges['total']}'),
-      const SizedBox(height: 10),
-    ],
-  );
-}
-
-Future<void> downloadFile(
-    String url, String fileName, BuildContext context) async {
-  try {
-    // Extract the file ID from the Google Drive URL
-    final fileId = extractFileIdFromUrl(url);
-    if (fileId == null) {
-      throw Exception('Invalid Google Drive URL');
-    }
-
-    // Construct the direct download URL
-    final directUrl = 'https://drive.google.com/uc?id=$fileId&export=download';
-
-    // Send GET request to fetch file
-    final response = await http.get(Uri.parse(directUrl));
-
-    if (response.statusCode == 200) {
-      // Get the local directory for downloads
-      final directory = await getDownloadsDirectory();
-
-      if (directory != null) {
-        // Construct the file path in the downloads directory
-        final filePath = '${directory.path}/$fileName';
-
-        // Write the file to the specified location
-        final file = File(filePath);
-        await file.writeAsBytes(response.bodyBytes);
-
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('File downloaded: $filePath')),
-        );
-      } else {
-        throw Exception('Unable to find downloads directory');
-      }
-    } else {
-      throw Exception(
-          'Failed to download file. Status code: ${response.statusCode}');
-    }
-  } catch (e) {
-    print("Error: $e");
-
-    // Show error message
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error downloading file: $e')),
     );
   }
-}
 
-// Function to extract the file ID from a Google Drive URL
-String? extractFileIdFromUrl(String url) {
-  final regex = RegExp(r'/d/([a-zA-Z0-9_-]+)');
-  final match = regex.firstMatch(url);
-  return match?.group(1); // Return the file ID or null if not found
+  String _formatDate(dynamic dateString) {
+    if (dateString == null) return 'N/A';
+    try {
+      final date = DateTime.parse(dateString.toString());
+      return '${date.day}/${date.month}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return dateString.toString();
+    }
+  }
 }

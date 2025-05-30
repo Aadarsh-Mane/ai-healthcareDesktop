@@ -10,7 +10,6 @@ import 'package:doctordesktop/constants/Methods.dart';
 import 'package:doctordesktop/constants/Url.dart';
 import 'package:doctordesktop/model/patientDischargeModel.dart';
 import 'package:doctordesktop/reception/GenerateBillScreen.dart';
-import 'package:doctordesktop/reception/GenerateIpdBillScreen.dart';
 import 'package:doctordesktop/reception/GenerateOpdBill.dart';
 import 'package:doctordesktop/reception/ExportSummaryScreen.dart';
 
@@ -1116,7 +1115,7 @@ class _DischargedPatientsScreenState
                             onPressed: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => GenerateBillScreen(
+                                builder: (context) => GenerateIpdBillScreen(
                                   patientId: patient.patientId,
                                 ),
                               ),
@@ -1169,7 +1168,7 @@ class _DischargedPatientsScreenState
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => GenerateBillScreen(
+                            builder: (context) => GenerateIpdBillScreen(
                               patientId: patient.patientId,
                             ),
                           ),
@@ -1673,6 +1672,225 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
         _isDischargedByReception = false;
       });
       _showSnackBar(context, "Error: $e");
+    }
+  }
+
+  Future<void> _generateDischargeSummary() async {
+    BuildContext? dialogContext;
+
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext ctx) {
+          dialogContext = ctx; // Store the dialog context
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(
+                  valueColor:
+                      AlwaysStoppedAnimation<Color>(HospitalTheme.primary),
+                  strokeWidth: 3,
+                ),
+                SizedBox(height: 20),
+                Text(
+                  'Generating discharge summary...',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Please wait while we prepare your document',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      final response = await http.get(
+        Uri.parse(
+            '${KVM_URL}/reception/generateDischargeSummary/${widget.patient.patientId}'),
+      );
+
+      // Close loading dialog using the stored context
+      if (dialogContext != null && Navigator.of(dialogContext!).canPop()) {
+        Navigator.of(dialogContext!).pop();
+        dialogContext = null;
+      }
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = json.decode(response.body);
+
+        if (responseData['success'] == true && responseData['data'] != null) {
+          final String driveLink = responseData['data']['driveLink'];
+          final String fileName =
+              responseData['data']['fileName'] ?? 'Discharge Summary';
+
+          // Show success dialog with PDF link and action buttons
+          showDialog(
+            context: context,
+            barrierDismissible: true,
+            builder: (BuildContext successDialogContext) {
+              return AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                title: Row(
+                  children: [
+                    Icon(
+                      Icons.check_circle,
+                      color: Colors.green,
+                      size: 28,
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Summary Generated',
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: HospitalTheme.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Discharge summary has been generated successfully!',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    SizedBox(height: 12),
+                    Container(
+                      padding: EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: HospitalTheme.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: HospitalTheme.primary.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.picture_as_pdf,
+                            color: HospitalTheme.primary,
+                            size: 20,
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              fileName,
+                              style: GoogleFonts.poppins(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: HospitalTheme.primary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'Would you like to open the PDF document now?',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade800,
+                      ),
+                    ),
+                  ],
+                ),
+                actions: [
+                  // Close Button
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(successDialogContext).pop();
+                      _showSnackBar(
+                          context, 'Discharge summary saved successfully');
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.grey.shade600,
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: Text(
+                      'Close',
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+
+                  // Open PDF Button
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(successDialogContext).pop();
+                      Methods().openPdf(driveLink);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: HospitalTheme.primary,
+                      foregroundColor: Colors.white,
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      elevation: 2,
+                    ),
+                    icon: Icon(Icons.open_in_new, size: 18),
+                    label: Text(
+                      'Open PDF',
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+        } else {
+          _showSnackBar(context,
+              'Failed to generate discharge summary: ${responseData['message'] ?? 'Unknown error'}');
+        }
+      } else {
+        _showSnackBar(context,
+            'Failed to generate discharge summary. Status: ${response.statusCode}');
+      }
+    } catch (e) {
+      // Close loading dialog if still showing using stored context
+      if (dialogContext != null && Navigator.of(dialogContext!).canPop()) {
+        Navigator.of(dialogContext!).pop();
+      }
+
+      print('Error generating discharge summary: $e');
+      _showSnackBar(
+          context, 'Error generating discharge summary: ${e.toString()}');
     }
   }
 
@@ -2266,7 +2484,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                     () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => GenerateBillScreen(
+                        builder: (context) => GenerateIpdBillScreen(
                             patientId: widget.patient.patientId),
                       ),
                     ),
@@ -2283,22 +2501,22 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                               )),
                     ),
                   ),
-                  _buildActionButton(
-                    'Generate IPD Receipt',
-                    Icons.summarize,
-                    Colors.teal,
-                    () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => GenerateIpdBillScreen(
-                                patientId: widget.patient.patientId,
-                                remainingAmount:
-                                    record.previousRemainingAmount.toString(),
-                                amountTobePaid:
-                                    record.amountToBePayed.toString(),
-                              )),
-                    ),
-                  ),
+                  // _buildActionButton(
+                  //   'Generate IPD Receipt',
+                  //   Icons.summarize,
+                  //   Colors.teal,
+                  //   () => Navigator.push(
+                  //     context,
+                  //     MaterialPageRoute(
+                  //         builder: (context) => GenerateIpdBillScreen(
+                  //               patientId: widget.patient.patientId,
+                  //               remainingAmount:
+                  //                   record.previousRemainingAmount.toString(),
+                  //               amountTobePaid:
+                  //                   record.amountToBePayed.toString(),
+                  //             )),
+                  //   ),
+                  // ),
                   _buildActionButton(
                     'View History',
                     Icons.history,
@@ -2306,7 +2524,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                     () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => GenerateBillScreen(
+                        builder: (context) => GenerateIpdBillScreen(
                             patientId: widget.patient.patientId),
                       ),
                     ),
@@ -2327,10 +2545,9 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                     Icons.print,
                     Colors.blueGrey,
                     () {
+                      _generateDischargeSummary(); // Updated to call the new method
+
                       // Print functionality here
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Print feature coming soon')),
-                      );
                     },
                   ),
                 ],

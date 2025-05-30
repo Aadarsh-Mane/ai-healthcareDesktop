@@ -161,7 +161,7 @@ class Methods {
     }
   }
 
-  // Alternative method using system print command for desktop with timeout
+  // Alternative method using system print command for desktop
   Future<void> printPdfViaSystem(String pdfUrl) async {
     try {
       final directUrl = _convertGoogleDriveUrl(pdfUrl);
@@ -174,189 +174,64 @@ class Methods {
             '${tempDir.path}/prescription_${DateTime.now().millisecondsSinceEpoch}.pdf');
         await tempFile.writeAsBytes(pdfBytes);
 
-        print('Temporary PDF saved at: ${tempFile.path}');
-
-        // Use system print command with timeout
-        ProcessResult result;
-
+        // Use system print command
         if (Platform.isWindows) {
-          // Windows: Multiple fallback methods
-          try {
-            // Method 1: CMD with start command (most reliable)
-            result = await Process.run(
-              'cmd',
-              ['/c', 'start', '/min', '""', '/print', '"${tempFile.path}"'],
-              runInShell: true,
-            ).timeout(Duration(seconds: 15));
-
-            print('Windows CMD print result: ${result.exitCode}');
-            if (result.exitCode != 0) {
-              print('Windows CMD stderr: ${result.stderr}');
-              throw Exception(
-                  'CMD print failed with exit code: ${result.exitCode}');
-            }
-          } catch (e) {
-            print('CMD method failed, trying PowerShell: $e');
-
-            // Method 2: PowerShell with Start-Process -Verb Print
-            try {
-              final powershellCommand =
-                  'try { Start-Process -FilePath "${tempFile.path}" -Verb Print -WindowStyle Hidden; Write-Output "Success" } catch { Write-Error \$_.Exception.Message; exit 1 }';
-              result = await Process.run(
-                'powershell',
-                ['-WindowStyle', 'Hidden', '-Command', powershellCommand],
-                runInShell: true,
-              ).timeout(Duration(seconds: 15));
-
-              if (result.exitCode != 0) {
-                throw Exception('PowerShell print failed: ${result.stderr}');
-              }
-            } catch (psError) {
-              print('PowerShell method failed, trying rundll32: $psError');
-
-              // Method 3: rundll32 printui.dll (Windows native printing)
-              result = await Process.run(
-                'rundll32',
-                [
-                  'shell32.dll,ShellExec_RunDLL',
-                  '"${tempFile.path}"',
-                  '',
-                  '',
-                  '1'
-                ],
-                runInShell: true,
-              ).timeout(Duration(seconds: 15));
-
-              if (result.exitCode != 0) {
-                throw Exception('All Windows print methods failed');
-              }
-            }
-          }
+          await Process.run(
+              'powershell',
+              [
+                '-Command',
+                'Start-Process',
+                '-FilePath',
+                '"${tempFile.path}"',
+                '-Verb',
+                'Print'
+              ],
+              runInShell: true);
         } else if (Platform.isMacOS) {
-          // Check if default printer exists first
-          try {
-            final printerCheckResult = await Process.run(
-              'lpstat',
-              ['-d'],
-            ).timeout(Duration(seconds: 5));
-
-            if (printerCheckResult.exitCode != 0 ||
-                printerCheckResult.stdout
-                    .toString()
-                    .contains('no system default destination')) {
-              throw Exception(
-                  'No default printer configured. Please set up a default printer in System Preferences.');
-            }
-          } catch (e) {
-            throw Exception(
-                'No default printer found. Please configure a printer in System Preferences → Printers & Scanners.');
-          }
-
-          // Proceed with printing if default printer exists
-          result = await Process.run(
-            'lpr',
-            [tempFile.path],
-          ).timeout(Duration(seconds: 15));
-
-          if (result.exitCode != 0) {
-            throw Exception('macOS print failed: ${result.stderr}');
-          }
+          await Process.run('lpr', [tempFile.path]);
         } else if (Platform.isLinux) {
-          // Check for available printers first
-          try {
-            final printerCheckResult = await Process.run(
-              'lpstat',
-              ['-p'],
-            ).timeout(Duration(seconds: 5));
-
-            if (printerCheckResult.exitCode != 0 ||
-                printerCheckResult.stdout.toString().trim().isEmpty) {
-              throw Exception(
-                  'No printers found. Please install and configure a printer.');
-            }
-          } catch (e) {
-            throw Exception(
-                'No printers available. Please set up a printer first.');
-          }
-
-          result = await Process.run(
-            'lp',
-            [tempFile.path],
-          ).timeout(Duration(seconds: 15));
-
-          if (result.exitCode != 0) {
-            throw Exception('Linux print failed: ${result.stderr}');
-          }
-        } else {
-          throw Exception('Unsupported platform for system printing');
+          await Process.run('lp', [tempFile.path]);
         }
-
-        print('Print command completed successfully');
 
         // Clean up temp file after a delay
         Future.delayed(Duration(seconds: 30), () {
           try {
             if (tempFile.existsSync()) {
               tempFile.deleteSync();
-              print('Temporary file cleaned up');
             }
           } catch (e) {
             print('Error cleaning up temp file: $e');
           }
         });
-      } else {
-        throw Exception('Failed to download PDF content');
       }
     } catch (e) {
       print('Error printing via system: $e');
-      rethrow;
+      throw e;
     }
   }
 
-  // Simple method to open PDF with default application (alternative approach)
-  Future<void> openPdfForPrinting(String pdfUrl) async {
-    try {
-      final directUrl = _convertGoogleDriveUrl(pdfUrl);
-      final pdfBytes = await _downloadPdf(directUrl);
+  void openMail({
+    String? to,
+    String? subject,
+    String? body,
+  }) {
+    // URL encode the parameters to handle special characters and spaces
+    final encodedTo = to != null ? Uri.encodeComponent(to) : '';
+    final encodedSubject = subject != null ? Uri.encodeComponent(subject) : '';
+    final encodedBody = body != null ? Uri.encodeComponent(body) : '';
 
-      if (pdfBytes != null) {
-        // Save PDF temporarily
-        final tempDir = Directory.systemTemp;
-        final tempFile = File(
-            '${tempDir.path}/prescription_${DateTime.now().millisecondsSinceEpoch}.pdf');
-        await tempFile.writeAsBytes(pdfBytes);
+    // Build the Gmail URL with all parameters
+    var url = 'https://mail.google.com/mail/?view=cm&fs=1';
 
-        // Open with default application
-        if (Platform.isWindows) {
-          await Process.run('start', [tempFile.path], runInShell: true)
-              .timeout(Duration(seconds: 10));
-        } else if (Platform.isMacOS) {
-          await Process.run('open', [tempFile.path])
-              .timeout(Duration(seconds: 10));
-        } else if (Platform.isLinux) {
-          await Process.run('xdg-open', [tempFile.path])
-              .timeout(Duration(seconds: 10));
-        }
-
-        // Clean up temp file after a longer delay since user needs to print manually
-        Future.delayed(Duration(minutes: 5), () {
-          try {
-            if (tempFile.existsSync()) {
-              tempFile.deleteSync();
-            }
-          } catch (e) {
-            print('Error cleaning up temp file: $e');
-          }
-        });
-      }
-    } catch (e) {
-      print('Error opening PDF for printing: $e');
-      rethrow;
+    if (encodedTo.isNotEmpty) {
+      url += '&to=$encodedTo';
     }
-  }
-
-  void openEmailInBrowser(String email) {
-    final url = 'https://mail.google.com/mail/?view=cm&fs=1&to=$email';
+    if (encodedSubject.isNotEmpty) {
+      url += '&su=$encodedSubject';
+    }
+    if (encodedBody.isNotEmpty) {
+      url += '&body=$encodedBody';
+    }
 
     try {
       if (Platform.isMacOS) {
@@ -370,6 +245,27 @@ class Methods {
       print('Error opening email in browser: $e');
     }
   }
+
+  /// Legacy method for backward compatibility
+  void openEmailInBrowser(String email) {
+    openMail(to: email);
+  }
+
+  // void openEmailInBrowser(String email) {
+  //   final url = 'https://mail.google.com/mail/?view=cm&fs=1&to=$email';
+
+  //   try {
+  //     if (Platform.isMacOS) {
+  //       Process.run('open', [url]);
+  //     } else if (Platform.isLinux) {
+  //       Process.run('xdg-open', [url]);
+  //     } else if (Platform.isWindows) {
+  //       Process.run('start', [url], runInShell: true);
+  //     }
+  //   } catch (e) {
+  //     print('Error opening email in browser: $e');
+  //   }
+  // }
 
   String getGoogleDriveDirectLink(String imageUrl) {
     final regex = RegExp(r'd/([a-zA-Z0-9_-]+)/');

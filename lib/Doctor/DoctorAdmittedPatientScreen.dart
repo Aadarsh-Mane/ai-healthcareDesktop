@@ -1,6 +1,7 @@
 import 'package:doctordesktop/Doctor/DoctorPatientDetailScreen.dart';
 import 'package:doctordesktop/StateProvider.dart';
 import 'package:doctordesktop/authProvider/auth_provider.dart';
+import 'package:doctordesktop/constants/HospitalTheme.dart';
 import 'package:doctordesktop/model/getNewPatientModel.dart';
 import 'package:doctordesktop/repositories/doctor_repository.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +17,7 @@ final assignedPatientsProvider =
     return notifier;
   },
 );
+
 final assignedPatientsProvider1 =
     StateNotifierProvider<AssignedPatientsNotifier, AsyncValue<List<Patient1>>>(
   (ref) {
@@ -30,201 +32,740 @@ class AdmittedPatientsScreen extends ConsumerStatefulWidget {
   const AdmittedPatientsScreen({Key? key}) : super(key: key);
 
   @override
-  _AssignedPatientsScreenState createState() => _AssignedPatientsScreenState();
+  _AdmittedPatientsScreenState createState() => _AdmittedPatientsScreenState();
 }
 
-class _AssignedPatientsScreenState
+class _AdmittedPatientsScreenState
     extends ConsumerState<AdmittedPatientsScreen> {
   final doctor = DoctorRepository();
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     ref.refresh(assignedPatientsProvider.notifier).fetchAdmittedPatients();
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<Patient1> _filterPatients(List<Patient1> patients) {
+    if (_searchQuery.isEmpty) return patients;
+
+    return patients.where((patient) {
+      return patient.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          patient.patientId
+              .toLowerCase()
+              .contains(_searchQuery.toLowerCase()) ||
+          patient.gender.toLowerCase().contains(_searchQuery.toLowerCase());
+    }).toList();
+  }
+
+  Future<void> _refreshData() async {
+    try {
+      ref.refresh(assignedPatientsProvider.notifier).fetchAdmittedPatients();
+    } catch (e) {
+      if (mounted && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline_rounded, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(child: Text('Failed to refresh: $e')),
+              ],
+            ),
+            backgroundColor: HospitalTheme.error,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final assignedPatients = ref.watch(assignedPatientsProvider);
 
     return Scaffold(
-      backgroundColor: Color(0xFFeff7f8),
-      body: Container(
-        decoration: BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage('assets/images/bb1.png'),
-            opacity: 0.3,
-            fit: BoxFit.cover,
-          ),
-        ),
-        child: assignedPatients.when(
-          data: (patients) => ListView.builder(
-            itemCount: patients.length,
-            itemBuilder: (context, index) {
-              final patient = patients[index];
-              final admissionStatus = patient.admissionRecords.isNotEmpty
-                  ? patient.admissionRecords.first.status
-                  : 'Pending';
-
-              Color statusColor =
-                  admissionStatus == 'admitted' ? Colors.green : Colors.red;
-
-              return Card(
-                color: Colors.white,
-                elevation: 20.0,
-                margin:
-                    const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                  side: const BorderSide(
-                    color: Colors.white,
-                    width: 2.0,
+      backgroundColor: HospitalTheme.background,
+      body: Column(
+        children: [
+          // Search and Filter Section
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.02),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: HospitalTheme.background,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: HospitalTheme.border),
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (value) {
+                        setState(() {
+                          _searchQuery = value;
+                        });
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Search patients by name, ID, or gender...',
+                        hintStyle: TextStyle(
+                          color: HospitalTheme.textLight,
+                          fontSize: 14,
+                        ),
+                        prefixIcon: Icon(
+                          Icons.search_rounded,
+                          color: HospitalTheme.textMedium,
+                          size: 20,
+                        ),
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: Icon(
+                                  Icons.clear_rounded,
+                                  color: HospitalTheme.textMedium,
+                                  size: 18,
+                                ),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() {
+                                    _searchQuery = '';
+                                  });
+                                },
+                              )
+                            : null,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-                child: Container(
+                const SizedBox(width: 16),
+                Container(
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [
-                        Color(0xFF005F9E),
-                        Color(0xFF00B8D4),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(15),
+                    color: HospitalTheme.success,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: HospitalTheme.success.withOpacity(0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 12),
-                    leading: CircleAvatar(
-                      radius: 30,
-                      backgroundColor: Colors.cyan,
-                      child: Text(
-                        patient.name[0].toUpperCase(),
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
-                    ),
-                    title: Text(
-                      patient.name,
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 24,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Age: ${patient.age}, Gender: ${patient.gender}',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.white,
-                            fontFamily: 'Poppins',
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          'Status: $admissionStatus',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: statusColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ElevatedButton(
-                          onPressed: () async {
-                            await _handleAssignLab(context, patient, ref);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                Colors.cyan, // Cyan background color
-                            foregroundColor: Colors.white, // White text color
-                            shape: RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.circular(8), // Rounded corners
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8), // Padding for better appearance
-                          ),
-                          child: const Text(
-                            "Assign to Lab",
-                            style: TextStyle(
-                              fontWeight:
-                                  FontWeight.bold, // Bold text for emphasis
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: 10),
-                        ElevatedButton(
-                          onPressed: () async {
-                            final admissionId =
-                                patient.admissionRecords.first.id;
-                            _showConditionDialog(
-                                context, admissionId, patient, ref);
-
-                            // bool? shouldDischarge =
-                            //     await _showDischargeConfirmationDialog(context);
-                            // if (shouldDischarge == true) {
-                            //   await _dischargePatient(patient, ref);
-                            //   ref
-                            //       .read(assignedPatientsProvider.notifier)
-                            //       .removePatient(patient);
-                            // }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: const Text("Discharge"),
-                        ),
-                      ],
-                    ),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              PatientDetailScreen4(patient: patient),
-                        ),
-                      );
-                    },
+                  child: IconButton(
+                    onPressed: _refreshData,
+                    icon: const Icon(Icons.refresh_rounded,
+                        color: Colors.white, size: 20),
+                    tooltip: 'Refresh Data',
                   ),
                 ),
-              );
-            },
-          ),
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stackTrace) => Center(
-            child: Text(
-              'Error: $error',
-              style: const TextStyle(color: Colors.red),
+              ],
             ),
           ),
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          ref.refresh(assignedPatientsProvider);
-        },
-        child: const Icon(Icons.refresh),
-        backgroundColor: Colors.cyan,
+
+          // Patient List
+          Expanded(
+            child: assignedPatients.when(
+              data: (patients) {
+                final filteredPatients = _filterPatients(patients);
+
+                if (patients.isEmpty) {
+                  return _buildEmptyState();
+                }
+
+                if (filteredPatients.isEmpty && _searchQuery.isNotEmpty) {
+                  return _buildNoSearchResults();
+                }
+
+                return _buildPatientsTable(filteredPatients);
+              },
+              error: (error, stackTrace) => _buildErrorState(error),
+              loading: () => _buildLoadingState(),
+            ),
+          ),
+        ],
       ),
     );
   }
 
+  Widget _buildPatientsTable(List<Patient1> patients) {
+    return Container(
+      margin: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: HospitalTheme.surfaceLight,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+              ),
+              border: Border(
+                bottom: BorderSide(color: HospitalTheme.border, width: 1),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.local_hospital_outlined,
+                    color: HospitalTheme.textDark, size: 20),
+                const SizedBox(width: 12),
+                Text(
+                  'Admitted Patients (${patients.length})',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: HospitalTheme.textDark,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Table Header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF9FAFB),
+              border: Border(
+                bottom: BorderSide(color: HospitalTheme.border, width: 1),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    'Patient Information',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: HospitalTheme.textMedium,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'Details',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: HospitalTheme.textMedium,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: Text(
+                    'Status',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: HospitalTheme.textMedium,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'Actions',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: HospitalTheme.textMedium,
+                      letterSpacing: 0.5,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Patient Rows
+          Expanded(
+            child: ListView.builder(
+              itemCount: patients.length,
+              itemBuilder: (context, index) {
+                final patient = patients[index];
+                final admissionStatus = patient.admissionRecords.isNotEmpty
+                    ? patient.admissionRecords.first.status
+                    : 'Pending';
+
+                return _buildPatientRow(patient, admissionStatus, index);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPatientRow(Patient1 patient, String admissionStatus, int index) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                PatientDetailScreen4(patient: patient),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+              return FadeTransition(
+                opacity:
+                    CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+                child: child,
+              );
+            },
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: index % 2 == 0 ? Colors.white : const Color(0xFFFAFAFA),
+          border: Border(
+            bottom: BorderSide(color: HospitalTheme.border, width: 1),
+          ),
+        ),
+        child: Row(
+          children: [
+            // Patient Information
+            Expanded(
+              flex: 3,
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: HospitalTheme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Center(
+                      child: Text(
+                        patient.name.isNotEmpty
+                            ? patient.name[0].toUpperCase()
+                            : '?',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: HospitalTheme.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          patient.name,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: HospitalTheme.textDark,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'ID: ${patient.patientId}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: HospitalTheme.textMedium,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Details
+            Expanded(
+              flex: 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.cake_outlined,
+                          size: 14, color: HospitalTheme.textMedium),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${patient.age} years',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: HospitalTheme.textDark,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        patient.gender.toLowerCase() == 'male'
+                            ? Icons.male_rounded
+                            : Icons.female_rounded,
+                        size: 14,
+                        color: HospitalTheme.textMedium,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        patient.gender,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: HospitalTheme.textDark,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // Status
+            Expanded(
+              flex: 1,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _getStatusColor(admissionStatus).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: _getStatusColor(admissionStatus).withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Text(
+                  admissionStatus,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: _getStatusColor(admissionStatus),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+
+            // Actions
+            Expanded(
+              flex: 2,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildCompactActionButton(
+                    label: 'Assign Lab',
+                    icon: Icons.science_outlined,
+                    color: HospitalTheme.secondary,
+                    onPressed: () async {
+                      await _handleAssignLab(context, patient, ref);
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  _buildCompactActionButton(
+                    label: 'Discharge',
+                    icon: Icons.logout_rounded,
+                    color: HospitalTheme.error,
+                    onPressed: () async {
+                      if (patient.admissionRecords.isNotEmpty) {
+                        final admissionId = patient.admissionRecords.first.id;
+                        _showConditionDialog(
+                            context, admissionId, patient, ref);
+                      } else {
+                        _showErrorSnackBar(
+                            context, "No admission record found");
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactActionButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback? onPressed,
+  }) {
+    return SizedBox(
+      height: 32,
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 14, color: Colors.white),
+        label: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: onPressed != null ? color : HospitalTheme.textLight,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(6),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.all(48),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: HospitalTheme.primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.local_hospital_outlined,
+                size: 48,
+                color: HospitalTheme.primary,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'No Admitted Patients',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: HospitalTheme.textDark,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'There are currently no admitted patients.',
+              style: TextStyle(
+                fontSize: 14,
+                color: HospitalTheme.textMedium,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _refreshData,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Refresh'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: HospitalTheme.primary,
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNoSearchResults() {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.all(48),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.search_off_rounded,
+              size: 48,
+              color: HospitalTheme.textLight,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No patients found',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: HospitalTheme.textDark,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Try adjusting your search criteria',
+              style: TextStyle(
+                fontSize: 14,
+                color: HospitalTheme.textMedium,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(
+            color: HospitalTheme.primary,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Loading patients...',
+            style: TextStyle(
+              fontSize: 14,
+              color: HospitalTheme.textMedium,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(Object error) {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.all(48),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: HospitalTheme.error.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.error_outline_rounded,
+                size: 48,
+                color: HospitalTheme.error,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Something went wrong',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: HospitalTheme.textDark,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              error.toString(),
+              style: TextStyle(
+                fontSize: 14,
+                color: HospitalTheme.textMedium,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _refreshData,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Try Again'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: HospitalTheme.error,
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'admitted':
+        return HospitalTheme.success;
+      case 'pending':
+        return HospitalTheme.warning;
+      case 'discharged':
+        return HospitalTheme.info;
+      default:
+        return HospitalTheme.textMedium;
+    }
+  }
+
+  void _showErrorSnackBar(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline_rounded, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: HospitalTheme.error,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
+  // Keep all the existing dialog and business logic methods unchanged
   Future<void> _showConditionDialog(BuildContext context, String admissionId,
       Patient1 patient, WidgetRef ref) async {
     String selectedCondition = 'Discharged';
@@ -233,84 +774,151 @@ class _AssignedPatientsScreenState
 
     await showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setState) {
             return AlertDialog(
-              title: const Text('Update Condition at Discharge'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              backgroundColor: Colors.white,
+              title: Row(
                 children: [
-                  DropdownButton<String>(
-                    value: selectedCondition,
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        selectedCondition = newValue!;
-                      });
-                    },
-                    items: <String>[
-                      'Discharged',
-                      "Transferred",
-                      "A.M.A.",
-                      "Absconded",
-                      "Expired"
-                    ].map<DropdownMenuItem<String>>((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
-                      );
-                    }).toList(),
-                  ),
-                  TextField(
-                    onChanged: (text) {
-                      additionalInfo = text;
-                    },
-                    decoration: const InputDecoration(
-                      labelText: 'Additional Information',
-                      border: OutlineInputBorder(),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: HospitalTheme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
                     ),
+                    child: Icon(Icons.medical_information_rounded,
+                        color: HospitalTheme.primary, size: 20),
                   ),
-                  const SizedBox(height: 10),
-
-                  // ... [keep dropdown and other fields unchanged] ...
-                  TextField(
-                    onChanged: (text) {
-                      amountToBePayed = text;
-                    },
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Amount to be Paid',
-                      border: OutlineInputBorder(),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Update Condition at Discharge',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: HospitalTheme.textDark,
                     ),
                   ),
                 ],
               ),
-              actions: <Widget>[
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text('Cancel'),
+              content: SizedBox(
+                width: 400,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildModernFormField(
+                      child: DropdownButtonFormField<String>(
+                        value: selectedCondition,
+                        decoration: InputDecoration(
+                          labelText: 'Condition at Discharge',
+                          prefixIcon: Icon(Icons.assignment_turned_in_rounded,
+                              color: HospitalTheme.primary),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 16),
+                        ),
+                        items: [
+                          'Discharged',
+                          "Transferred",
+                          "A.M.A.",
+                          "Absconded",
+                          "Expired"
+                        ].map((String value) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value),
+                          );
+                        }).toList(),
+                        onChanged: (String? newValue) {
+                          if (newValue != null) {
+                            setState(() {
+                              selectedCondition = newValue;
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildModernFormField(
+                      child: TextField(
+                        onChanged: (text) {
+                          additionalInfo = text;
+                        },
+                        decoration: InputDecoration(
+                          labelText: 'Additional Information',
+                          prefixIcon: Icon(Icons.notes_rounded,
+                              color: HospitalTheme.primary),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 16),
+                        ),
+                        maxLines: 3,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildModernFormField(
+                      child: TextField(
+                        onChanged: (text) {
+                          amountToBePayed = text;
+                        },
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Amount to be Paid',
+                          prefixIcon: Icon(Icons.currency_rupee_rounded,
+                              color: HospitalTheme.primary),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 16),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
+              ),
+              actions: [
                 TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(
+                      color: HospitalTheme.textMedium,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                ElevatedButton(
                   onPressed: () async {
                     String amountText = amountToBePayed.trim();
                     if (amountText.isEmpty) {
-                      amountText = '0'; // Set to zero if empty
+                      amountText = '0';
                     }
 
-                    // First parse as double to handle decimal inputs
                     final doubleAmount = double.tryParse(amountText);
                     if (doubleAmount == null || doubleAmount < 0) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Please enter a valid numeric amount'),
+                        SnackBar(
+                          content: const Row(
+                            children: [
+                              Icon(Icons.error_outline_rounded,
+                                  color: Colors.white),
+                              SizedBox(width: 12),
+                              Expanded(
+                                  child: Text(
+                                      'Please enter a valid numeric amount')),
+                            ],
+                          ),
+                          backgroundColor: HospitalTheme.error,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
                         ),
                       );
                       return;
                     }
 
-                    // Convert to integer (truncates decimal values)
                     final intAmount = doubleAmount.toInt();
 
                     Navigator.of(context).pop();
@@ -318,11 +926,18 @@ class _AssignedPatientsScreenState
                       context,
                       admissionId,
                       selectedCondition,
-                      intAmount, // Pass integer value
+                      intAmount,
                       patient,
                       ref,
                     );
                   },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: HospitalTheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
                   child: const Text('Next'),
                 ),
               ],
@@ -333,59 +948,181 @@ class _AssignedPatientsScreenState
     );
   }
 
-  Future<void> _showDischargeDialog(BuildContext context, String admissionId,
-      String selectedCondition, int amount, Patient1 patient, ref) async {
-    bool confirmDischarge = await showDialog<bool>(
-          context: context,
-          builder: (context) {
-            return AlertDialog(
-              title: const Text('Confirm Discharge',
-                  style: TextStyle(color: Colors.deepPurple)),
-              content: const Text(
-                  'Are you sure you want to discharge this patient?',
-                  style: TextStyle(fontSize: 16)),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop(false);
-                    _showConditionDialog(context, admissionId, patient, ref);
-                  },
-                  child:
-                      const Text('Back', style: TextStyle(color: Colors.grey)),
+  Widget _buildModernFormField({required Widget child}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: HospitalTheme.background,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: HospitalTheme.border,
+          width: 1,
+        ),
+      ),
+      child: child,
+    );
+  }
+
+  Future<void> _showDischargeDialog(
+      BuildContext context,
+      String admissionId,
+      String selectedCondition,
+      int amount,
+      Patient1 patient,
+      WidgetRef ref) async {
+    bool? confirmDischarge = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          backgroundColor: Colors.white,
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: HospitalTheme.error.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop(true);
-                  },
-                  child: const Text('Confirm Discharge',
-                      style: TextStyle(color: Colors.deepPurple)),
+                child: Icon(Icons.logout_rounded,
+                    color: HospitalTheme.error, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Confirm Discharge',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: HospitalTheme.textDark,
                 ),
-              ],
-            );
-          },
-        ) ??
-        false; // Default to false if null
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: HospitalTheme.warning.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border:
+                      Border.all(color: HospitalTheme.warning.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded,
+                        color: HospitalTheme.warning, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Are you sure you want to discharge ${patient.name}?',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: HospitalTheme.textDark,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Condition: $selectedCondition',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: HospitalTheme.textDark,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Amount: ₹$amount',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: HospitalTheme.textDark,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: HospitalTheme.textMedium,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: HospitalTheme.error,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('Confirm Discharge'),
+            ),
+          ],
+        );
+      },
+    );
 
     if (confirmDischarge == true) {
       try {
         final response = await doctor.updateConditionAtDischarge(
           admissionId: admissionId,
           conditionAtDischarge: selectedCondition,
-          amountToBePayed: amount.toInt(),
+          amountToBePayed: amount,
         );
 
         await _dischargePatient(patient, ref);
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Discharge successful: ${response['message']}'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Expanded(
+                      child:
+                          Text('Discharge successful: ${response['message']}')),
+                ],
+              ),
+              backgroundColor: HospitalTheme.success,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+              margin: const EdgeInsets.all(16),
+            ),
+          );
+        }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to discharge patient')),
-        );
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.error_outline_rounded, color: Colors.white),
+                  SizedBox(width: 12),
+                  Expanded(child: Text('Failed to discharge patient')),
+                ],
+              ),
+              backgroundColor: HospitalTheme.error,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+              margin: const EdgeInsets.all(16),
+            ),
+          );
+        }
       }
     }
   }
@@ -401,28 +1138,32 @@ class _AssignedPatientsScreenState
         admissionId: admissionId,
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message']),
-          backgroundColor: result['success'] ? Colors.green : Colors.red,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message']),
+            backgroundColor:
+                result['success'] ? HospitalTheme.success : HospitalTheme.error,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
 
       ref.refresh(assignedPatientsProvider.notifier).fetchAdmittedPatients();
       ref.refresh(assignedPatientsProvider1.notifier).fetchAssignedPatients();
     } catch (e) {
       ref.refresh(assignedPatientsProvider.notifier).fetchAdmittedPatients();
-      // ref.refresh(assignedPatientsProvider.notifier).fe;
       ref.refresh(assignedPatientsProvider1.notifier).fetchAssignedPatients();
 
       print('Error discharging patient: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Discharged patient: $e'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Discharged patient: $e'),
+            backgroundColor: HospitalTheme.success,
+          ),
+        );
+      }
     }
   }
 
@@ -454,21 +1195,26 @@ class _AssignedPatientsScreenState
         labTestNameGivenByDoctor: labTestNameGivenByDoctor,
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message']),
-          backgroundColor: result['success'] ? Colors.green : Colors.red,
-        ),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message']),
+            backgroundColor:
+                result['success'] ? HospitalTheme.success : HospitalTheme.error,
+          ),
+        );
+      }
 
       ref.refresh(assignedPatientsProvider.notifier).fetchAdmittedPatients();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to assign lab: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to assign lab: $e'),
+            backgroundColor: HospitalTheme.error,
+          ),
+        );
+      }
     }
   }
 }
@@ -484,25 +1230,75 @@ class SelectAdmissionDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Select Admission Record',
-          style: TextStyle(color: Colors.deepPurple)),
-      content: SingleChildScrollView(
-        child: Column(
-          children: admissionRecords.map((admission) {
-            return ListTile(
-              title: Text('Admission Date: ${admission.admissionDate}'),
-              subtitle: Text('Reason: ${admission.reasonForAdmission}'),
-              onTap: () {
-                Navigator.of(context).pop(admission.id);
-              },
-            );
-          }).toList(),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      backgroundColor: Colors.white,
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: HospitalTheme.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(Icons.assignment_rounded,
+                color: HospitalTheme.primary, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            'Select Admission Record',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: HospitalTheme.textDark,
+            ),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 400,
+        child: SingleChildScrollView(
+          child: Column(
+            children: admissionRecords.map((admission) {
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  color: HospitalTheme.surfaceLight,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: HospitalTheme.border),
+                ),
+                child: ListTile(
+                  title: Text(
+                    'Admission Date: ${admission.admissionDate}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: HospitalTheme.textDark,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Reason: ${admission.reasonForAdmission}',
+                    style: TextStyle(
+                      color: HospitalTheme.textMedium,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.of(context).pop(admission.id);
+                  },
+                ),
+              );
+            }).toList(),
+          ),
         ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          child: Text(
+            'Cancel',
+            style: TextStyle(
+              color: HospitalTheme.textMedium,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ),
       ],
     );
@@ -520,38 +1316,78 @@ class _AssignLabDialogState extends State<AssignLabDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text(
-        'Assign to Lab',
-        style: TextStyle(color: Colors.deepPurple),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      backgroundColor: Colors.white,
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: HospitalTheme.secondary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(Icons.science_rounded,
+                color: HospitalTheme.secondary, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            'Assign to Lab',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: HospitalTheme.textDark,
+            ),
+          ),
+        ],
       ),
-      content: TextField(
-        controller: _controller,
-        decoration: const InputDecoration(
-          labelText: 'Lab Test Name',
+      content: Container(
+        width: 300,
+        decoration: BoxDecoration(
+          color: HospitalTheme.background,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: HospitalTheme.border),
+        ),
+        child: TextField(
+          controller: _controller,
+          decoration: InputDecoration(
+            labelText: 'Lab Test Name',
+            prefixIcon:
+                Icon(Icons.assignment_rounded, color: HospitalTheme.secondary),
+            border: InputBorder.none,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          ),
         ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          child: Text(
+            'Cancel',
+            style: TextStyle(
+              color: HospitalTheme.textMedium,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ),
-        TextButton(
+        ElevatedButton(
           onPressed: () {
-            // Get the current date and time in IST
             final now = DateTime.now()
                 .toUtc()
                 .add(const Duration(hours: 5, minutes: 30));
             final formattedDate = DateFormat('yyyy-MM-dd h:mm a').format(now);
-
-            // Append the date and time to the test name
-            // final updatedTestName = '${_controller.text.trim()} $formattedDate';
             final updatedTestName =
                 '${_controller.text.trim()} - $formattedDate';
-
             Navigator.of(context).pop(updatedTestName);
           },
-          child:
-              const Text('Assign', style: TextStyle(color: Colors.deepPurple)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: HospitalTheme.secondary,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          child: const Text('Assign'),
         ),
       ],
     );
@@ -559,7 +1395,7 @@ class _AssignLabDialogState extends State<AssignLabDialog> {
 
   @override
   void dispose() {
-    _controller.dispose(); // Dispose the controller to prevent memory leaks
+    _controller.dispose();
     super.dispose();
   }
 }

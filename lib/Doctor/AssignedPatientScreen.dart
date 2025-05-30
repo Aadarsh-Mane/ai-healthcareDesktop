@@ -5,6 +5,7 @@ import 'package:doctordesktop/Doctor/DoctorMainScreen.dart';
 import 'package:doctordesktop/Doctor/DoctorPatientDetailScreen.dart';
 import 'package:doctordesktop/StateProvider.dart';
 import 'package:doctordesktop/authProvider/auth_provider.dart';
+import 'package:doctordesktop/constants/HospitalTheme.dart';
 import 'package:doctordesktop/constants/Methods.dart';
 import 'package:doctordesktop/model/getNewPatientModel.dart';
 import 'package:doctordesktop/repositories/doctor_repository.dart';
@@ -13,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:intl/intl.dart';
 
@@ -38,14 +40,29 @@ class AssignedPatientsScreen extends ConsumerStatefulWidget {
   _AssignedPatientsScreenState createState() => _AssignedPatientsScreenState();
 }
 
-class _AssignedPatientsScreenState
-    extends ConsumerState<AssignedPatientsScreen> {
+class _AssignedPatientsScreenState extends ConsumerState<AssignedPatientsScreen>
+    with TickerProviderStateMixin {
   Timer? _refreshTimer;
   bool _mounted = true;
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
 
   @override
   void initState() {
     super.initState();
+
+    // Initialize pulse animation for refresh button
+    _pulseController = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    );
+    _pulseAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.1,
+    ).animate(CurvedAnimation(
+      parent: _pulseController,
+      curve: Curves.easeInOut,
+    ));
 
     // Safe initial fetch with delayed execution to avoid build-time updates
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -68,6 +85,7 @@ class _AssignedPatientsScreenState
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_mounted) {
         ref.read(refreshLoadingProvider.notifier).state = true;
+        _pulseController.repeat(reverse: true);
       }
     });
 
@@ -79,6 +97,8 @@ class _AssignedPatientsScreenState
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (_mounted) {
             ref.read(refreshLoadingProvider.notifier).state = false;
+            _pulseController.stop();
+            _pulseController.reset();
           }
         });
       }
@@ -89,6 +109,7 @@ class _AssignedPatientsScreenState
   void dispose() {
     _mounted = false;
     _refreshTimer?.cancel();
+    _pulseController.dispose();
     super.dispose();
   }
 
@@ -100,38 +121,140 @@ class _AssignedPatientsScreenState
     return DefaultTabController(
       length: 2,
       child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
         appBar: AppBar(
           backgroundColor: Colors.white,
+          elevation: 0.5,
+          shadowColor: Colors.black12,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_rounded,
+                color: Color(0xFF374151), size: 20),
+            onPressed: () {
+              Navigator.push(
+                context,
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) =>
+                      DoctorMainScreen(),
+                  transitionsBuilder:
+                      (context, animation, secondaryAnimation, child) {
+                    return SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(-1.0, 0.0),
+                        end: Offset.zero,
+                      ).animate(CurvedAnimation(
+                        parent: animation,
+                        curve: Curves.easeInOutCubic,
+                      )),
+                      child: child,
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+          title: const Text(
+            'Patient Management',
+            style: TextStyle(
+              color: Color(0xFF1F2937),
+              fontWeight: FontWeight.w600,
+              fontSize: 20,
+            ),
+          ),
+          centerTitle: false,
           actions: [
-            Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: IconButton(
-                icon: isRefreshing
-                    ? LoadingAnimationWidget.staggeredDotsWave(
-                        color: Colors.black,
-                        size: 20,
-                      )
-                    : const Icon(Icons.refresh, color: Colors.black),
-                onPressed: isRefreshing ? null : _fetchData,
+            Container(
+              margin: const EdgeInsets.only(right: 16),
+              child: AnimatedBuilder(
+                animation: _pulseAnimation,
+                builder: (context, child) {
+                  return Transform.scale(
+                    scale: isRefreshing ? _pulseAnimation.value : 1.0,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF3B82F6),
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF3B82F6).withOpacity(0.2),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: IconButton(
+                        icon: isRefreshing
+                            ? SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.refresh_rounded,
+                                color: Colors.white, size: 20),
+                        onPressed: isRefreshing ? null : _fetchData,
+                        tooltip: 'Refresh Patients',
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           ],
           bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(19),
+            preferredSize: const Size.fromHeight(50),
             child: Container(
-              color: Colors.black,
-              child: const TabBar(
-                indicatorColor: Colors.cyan,
-                labelColor: Colors.cyan,
-                unselectedLabelColor: Colors.grey,
+              margin: const EdgeInsets.symmetric(horizontal: 24),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: TabBar(
+                indicatorSize: TabBarIndicatorSize.tab,
+                indicator: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  color: const Color(0xFF3B82F6),
+                ),
+                labelColor: Colors.white,
+                unselectedLabelColor: const Color(0xFF64748B),
+                labelStyle: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+                unselectedLabelStyle: const TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 14,
+                ),
                 tabs: [
                   Tab(
-                    icon: Icon(Icons.people),
-                    text: 'Assigned Patients',
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.people_outline_rounded, size: 16),
+                          const SizedBox(width: 8),
+                          Text('Assigned Patients'),
+                        ],
+                      ),
+                    ),
                   ),
                   Tab(
-                    icon: Icon(Icons.people_outline_rounded),
-                    text: 'Admitted Patient',
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.local_hospital_outlined, size: 16),
+                          const SizedBox(width: 8),
+                          Text('Admitted Patients'),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -157,13 +280,22 @@ class AssignedPatientsView extends ConsumerStatefulWidget {
       _AssignedPatientsViewState();
 }
 
-class _AssignedPatientsViewState extends ConsumerState<AssignedPatientsView> {
+class _AssignedPatientsViewState extends ConsumerState<AssignedPatientsView>
+    with TickerProviderStateMixin {
   bool _mounted = true;
   final _refreshKey = GlobalKey<RefreshIndicatorState>();
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+  }
 
   @override
   void dispose() {
     _mounted = false;
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -172,18 +304,41 @@ class _AssignedPatientsViewState extends ConsumerState<AssignedPatientsView> {
     if (!_mounted) return;
 
     try {
-      // Defer state updates to avoid build-time issues
       await Future.microtask(() => {});
       await ref.read(assignedPatientsProvider.notifier).fetchAssignedPatients();
     } catch (e) {
       print('Error refreshing: $e');
-      // Show error only if mounted
       if (_mounted && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to refresh: $e')),
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline_rounded, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(child: Text('Failed to refresh: $e')),
+              ],
+            ),
+            backgroundColor: const Color(0xFFEF4444),
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            margin: const EdgeInsets.all(16),
+          ),
         );
       }
     }
+  }
+
+  List<Patient1> _filterPatients(List<Patient1> patients) {
+    if (_searchQuery.isEmpty) return patients;
+
+    return patients.where((patient) {
+      return patient.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          patient.patientId
+              .toLowerCase()
+              .contains(_searchQuery.toLowerCase()) ||
+          patient.gender.toLowerCase().contains(_searchQuery.toLowerCase());
+    }).toList();
   }
 
   @override
@@ -192,273 +347,741 @@ class _AssignedPatientsViewState extends ConsumerState<AssignedPatientsView> {
     final isRefreshing = ref.watch(refreshLoadingProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          color: Colors.black,
-          onPressed: () {
-            // Check if the context is still mounted before popping
-
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => DoctorMainScreen(),
-              ),
-            );
-          },
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: Stack(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: Column(
         children: [
+          // Search and Filter Section
           Container(
+            padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/bb1.png'),
-                opacity: 0.3,
-                fit: BoxFit.cover,
-              ),
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.02),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            child: RefreshIndicator(
-              key: _refreshKey,
-              onRefresh: _refreshData,
-              displacement: 50,
-              color: Colors.cyan,
-              backgroundColor: Colors.white,
-              child: assignedPatients.when(
-                data: (patients) => patients.isEmpty
-                    ? ListView(
-                        // Using ListView instead of Center to work with RefreshIndicator
-                        children: [
-                          Container(
-                            height: MediaQuery.of(context).size.height * 0.7,
-                            alignment: Alignment.center,
-                            child: const Text(
-                              'No assigned patients found',
-                              style: TextStyle(fontSize: 18),
-                            ),
-                          ),
-                        ],
-                      )
-                    : ListView.builder(
-                        itemCount: patients.length,
-                        itemBuilder: (context, index) {
-                          final patient = patients[index];
-                          final admissionStatus =
-                              patient.admissionRecords.isNotEmpty
-                                  ? patient.admissionRecords.first.status
-                                  : 'Pending';
-
-                          return GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => PatientDetailScreen4(
-                                    patient: patient,
-                                  ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (value) {
+                        setState(() {
+                          _searchQuery = value;
+                        });
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Search patients by name, ID, or gender...',
+                        hintStyle: TextStyle(
+                          color: const Color(0xFF9CA3AF),
+                          fontSize: 14,
+                        ),
+                        prefixIcon: Icon(
+                          Icons.search_rounded,
+                          color: const Color(0xFF6B7280),
+                          size: 20,
+                        ),
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: Icon(
+                                  Icons.clear_rounded,
+                                  color: const Color(0xFF6B7280),
+                                  size: 18,
                                 ),
-                              );
-                            },
-                            child: Card(
-                              elevation: 8.0,
-                              margin: const EdgeInsets.symmetric(
-                                  vertical: 10, horizontal: 15),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(15),
-                                side: const BorderSide(
-                                    color: Color(0Xffeff7f8), width: 2.0),
-                              ),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Color(0xFF005F9E),
-                                      Color(0xFF00B8D4),
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                                  borderRadius: BorderRadius.circular(15),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 20, vertical: 12),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    CircleAvatar(
-                                      radius: 30,
-                                      backgroundColor: Colors.white,
-                                      child: Text(
-                                        patient.name.isNotEmpty
-                                            ? patient.name[0].toUpperCase()
-                                            : '?',
-                                        style: const TextStyle(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.black,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 15),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            patient.name,
-                                            style: const TextStyle(
-                                              fontFamily: 'Poppins',
-                                              fontSize: 22,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 5),
-                                          Text(
-                                            'Age: ${patient.age}, Gender: ${patient.gender}',
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.normal,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 5),
-                                          Text(
-                                            'Status: $admissionStatus',
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    ElevatedButton(
-                                      onPressed: isRefreshing
-                                          ? null
-                                          : () async {
-                                              if (patient.admissionRecords
-                                                  .isNotEmpty) {
-                                                final admissionId = patient
-                                                    .admissionRecords.first.id;
-                                                _showConditionDialog(context,
-                                                    admissionId, patient, ref);
-                                              } else {
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
-                                                        "No admission record found"),
-                                                    backgroundColor: Colors.red,
-                                                  ),
-                                                );
-                                              }
-                                            },
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.red,
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 12, vertical: 8),
-                                      ),
-                                      child: const Text(
-                                        "Discharge",
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    ElevatedButton(
-                                      onPressed: isRefreshing
-                                          ? null
-                                          : () async {
-                                              await _admitPatient(
-                                                  patient, ref, context);
-                                            },
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.white,
-                                        foregroundColor: Colors.black,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 12, vertical: 8),
-                                      ),
-                                      child: const Text(
-                                        "Admit",
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        },
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() {
+                                    _searchQuery = '';
+                                  });
+                                },
+                              )
+                            : null,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                       ),
-                error: (error, stackTrace) => Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Error loading patients: ${error.toString()}',
-                        style: const TextStyle(color: Colors.red, fontSize: 18),
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(height: 10),
-                      ElevatedButton(
-                        onPressed: () {
-                          if (_mounted) {
-                            _refreshData();
-                          }
-                        },
-                        child: Text('Retry'),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF10B981).withOpacity(0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
                       ),
                     ],
                   ),
+                  child: IconButton(
+                    onPressed: isRefreshing ? null : _refreshData,
+                    icon: isRefreshing
+                        ? SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Icon(Icons.refresh_rounded,
+                            color: Colors.white, size: 20),
+                    tooltip: 'Refresh Data',
+                  ),
                 ),
-                loading: () => Container(), // Empty container for loading state
-              ),
+              ],
             ),
           ),
-          // Single centralized loading overlay - show only when loading or refreshing
-          if (isRefreshing || assignedPatients is AsyncLoading)
-            Container(
-              color: Colors.black.withOpacity(0.3),
-              child: const CustomLoadingAnimation(),
+
+          // Patient List
+          Expanded(
+            child: assignedPatients.when(
+              data: (patients) {
+                final filteredPatients = _filterPatients(patients);
+
+                if (patients.isEmpty) {
+                  return _buildEmptyState();
+                }
+
+                if (filteredPatients.isEmpty && _searchQuery.isNotEmpty) {
+                  return _buildNoSearchResults();
+                }
+
+                return _buildPatientsTable(filteredPatients, isRefreshing);
+              },
+              error: (error, stackTrace) => _buildErrorState(error),
+              loading: () => _buildLoadingState(),
             ),
+          ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: isRefreshing
-            ? null
-            : () {
-                // Trigger the pull-to-refresh animation programmatically
-                _refreshKey.currentState?.show();
+    );
+  }
+
+  Widget _buildPatientsTable(List<Patient1> patients, bool isRefreshing) {
+    return Container(
+      margin: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+              ),
+              border: Border(
+                bottom: BorderSide(color: const Color(0xFFE5E7EB), width: 1),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.people_outline_rounded,
+                    color: const Color(0xFF374151), size: 20),
+                const SizedBox(width: 12),
+                Text(
+                  'Assigned Patients (${patients.length})',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF1F2937),
+                  ),
+                ),
+                const Spacer(),
+                if (isRefreshing)
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          color: const Color(0xFF3B82F6),
+                          strokeWidth: 2,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Updating...',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: const Color(0xFF6B7280),
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+
+          // Table Header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF9FAFB),
+              border: Border(
+                bottom: BorderSide(color: const Color(0xFFE5E7EB), width: 1),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    'Patient Information',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF6B7280),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'Details',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF6B7280),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: Text(
+                    'Status',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF6B7280),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'Actions',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF6B7280),
+                      letterSpacing: 0.5,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Patient Rows
+          Expanded(
+            child: ListView.builder(
+              itemCount: patients.length,
+              itemBuilder: (context, index) {
+                final patient = patients[index];
+                final admissionStatus = patient.admissionRecords.isNotEmpty
+                    ? patient.admissionRecords.first.status
+                    : 'Pending';
+
+                return _buildPatientRow(
+                    patient, admissionStatus, isRefreshing, index);
               },
-        child: isRefreshing
-            ? LoadingAnimationWidget.staggeredDotsWave(
-                color: Colors.white,
-                size: 20,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPatientRow(
+      Patient1 patient, String admissionStatus, bool isRefreshing, int index) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                PatientDetailScreen4(patient: patient),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+              return FadeTransition(
+                opacity:
+                    CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+                child: child,
+              );
+            },
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: index % 2 == 0 ? Colors.white : const Color(0xFFFAFAFA),
+          border: Border(
+            bottom: BorderSide(color: const Color(0xFFF3F4F6), width: 1),
+          ),
+        ),
+        child: Row(
+          children: [
+            // Patient Information
+            Expanded(
+              flex: 3,
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF3B82F6).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Center(
+                      child: Text(
+                        patient.name.isNotEmpty
+                            ? patient.name[0].toUpperCase()
+                            : '?',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF3B82F6),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          patient.name,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF1F2937),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'ID: ${patient.patientId}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: const Color(0xFF6B7280),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Details
+            Expanded(
+              flex: 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.cake_outlined,
+                          size: 14, color: const Color(0xFF6B7280)),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${patient.age} years',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: const Color(0xFF374151),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        patient.gender.toLowerCase() == 'male'
+                            ? Icons.male_rounded
+                            : Icons.female_rounded,
+                        size: 14,
+                        color: const Color(0xFF6B7280),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        patient.gender,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: const Color(0xFF374151),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // Status
+            Expanded(
+              flex: 1,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _getStatusColor(admissionStatus).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: _getStatusColor(admissionStatus).withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Text(
+                  admissionStatus,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: _getStatusColor(admissionStatus),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+
+            // Actions
+            Expanded(
+              flex: 2,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildCompactActionButton(
+                    label: 'Admit',
+                    icon: Icons.login_rounded,
+                    color: const Color(0xFF10B981),
+                    isLoading: isRefreshing,
+                    onPressed: isRefreshing
+                        ? null
+                        : () async {
+                            await _admitPatient(patient, ref, context);
+                          },
+                  ),
+                  const SizedBox(width: 8),
+                  _buildCompactActionButton(
+                    label: 'Discharge',
+                    icon: Icons.logout_rounded,
+                    color: const Color(0xFFEF4444),
+                    isLoading: isRefreshing,
+                    onPressed: isRefreshing
+                        ? null
+                        : () async {
+                            if (patient.admissionRecords.isNotEmpty) {
+                              final admissionId =
+                                  patient.admissionRecords.first.id;
+                              _showConditionDialog(
+                                  context, admissionId, patient, ref);
+                            } else {
+                              _showErrorSnackBar(
+                                  context, "No admission record found");
+                            }
+                          },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactActionButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required bool isLoading,
+    required VoidCallback? onPressed,
+  }) {
+    return Container(
+      height: 32,
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: isLoading
+            ? SizedBox(
+                width: 12,
+                height: 12,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
               )
-            : const Icon(Icons.refresh),
-        backgroundColor: Colors.cyan,
+            : Icon(icon, size: 14, color: Colors.white),
+        label: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: onPressed != null ? color : const Color(0xFF9CA3AF),
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(6),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.all(48),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: const Color(0xFF3B82F6).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.people_outline_rounded,
+                size: 48,
+                color: const Color(0xFF3B82F6),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'No Assigned Patients',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF1F2937),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'There are currently no patients assigned to you.',
+              style: TextStyle(
+                fontSize: 14,
+                color: const Color(0xFF6B7280),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _refreshData,
+              icon: Icon(Icons.refresh_rounded, size: 18),
+              label: Text('Refresh'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3B82F6),
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNoSearchResults() {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.all(48),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.search_off_rounded,
+              size: 48,
+              color: const Color(0xFF9CA3AF),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No patients found',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF374151),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Try adjusting your search criteria',
+              style: TextStyle(
+                fontSize: 14,
+                color: const Color(0xFF6B7280),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(
+            color: const Color(0xFF3B82F6),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Loading patients...',
+            style: TextStyle(
+              fontSize: 14,
+              color: const Color(0xFF6B7280),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(Object error) {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.all(48),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEF4444).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.error_outline_rounded,
+                size: 48,
+                color: const Color(0xFFEF4444),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Something went wrong',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF1F2937),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              error.toString(),
+              style: TextStyle(
+                fontSize: 14,
+                color: const Color(0xFF6B7280),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _refreshData,
+              icon: Icon(Icons.refresh_rounded, size: 18),
+              label: Text('Try Again'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFEF4444),
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'admitted':
+        return const Color(0xFF10B981);
+      case 'pending':
+        return const Color(0xFFF59E0B);
+      case 'discharged':
+        return const Color(0xFF3B82F6);
+      default:
+        return const Color(0xFF6B7280);
+    }
+  }
+
+  IconData _getStatusIcon(String status) {
+    switch (status.toLowerCase()) {
+      case 'admitted':
+        return Icons.check_circle_rounded;
+      case 'pending':
+        return Icons.schedule_rounded;
+      case 'discharged':
+        return Icons.home_rounded;
+      default:
+        return Icons.info_rounded;
+    }
+  }
+
+  void _showErrorSnackBar(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline_rounded, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: const Color(0xFFEF4444),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        margin: const EdgeInsets.all(16),
       ),
     );
   }
 }
 
-// This function needs to be updated to respect the mounted state
+// Enhanced modern dialog functions
 Future<void> _showDischargeDialog(
     BuildContext context,
     String admissionId,
@@ -468,26 +1091,102 @@ Future<void> _showDischargeDialog(
     WidgetRef ref) async {
   bool? confirmDischarge = await showDialog<bool>(
     context: context,
+    barrierDismissible: false,
     builder: (context) {
       return AlertDialog(
-        title: const Text('Confirm Discharge',
-            style: TextStyle(color: Colors.deepPurple)),
-        content: const Text('Are you sure you want to discharge this patient?',
-            style: TextStyle(fontSize: 16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: Colors.white,
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEF4444).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.logout_rounded,
+                  color: const Color(0xFFEF4444), size: 20),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Confirm Discharge',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF1F2937),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF3C7),
+                borderRadius: BorderRadius.circular(12),
+                border:
+                    Border.all(color: const Color(0xFFF59E0B).withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded,
+                      color: const Color(0xFFF59E0B), size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Are you sure you want to discharge ${patient.name}?',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: const Color(0xFF92400E),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Condition: $selectedCondition',
+              style: TextStyle(
+                fontSize: 14,
+                color: const Color(0xFF374151),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Amount: ₹$amount',
+              style: TextStyle(
+                fontSize: 14,
+                color: const Color(0xFF374151),
+              ),
+            ),
+          ],
+        ),
         actions: [
           TextButton(
-            onPressed: () {
-              Navigator.of(context).pop(false);
-              _showConditionDialog(context, admissionId, patient, ref);
-            },
-            child: const Text('Back', style: TextStyle(color: Colors.grey)),
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: const Color(0xFF6B7280),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop(true);
-            },
-            child: const Text('Confirm Discharge',
-                style: TextStyle(color: Colors.deepPurple)),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text('Confirm Discharge'),
           ),
         ],
       );
@@ -496,7 +1195,6 @@ Future<void> _showDischargeDialog(
 
   if (confirmDischarge == true) {
     try {
-      // Show loading animation during discharge process - using Future to avoid build-time updates
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ref.read(refreshLoadingProvider.notifier).state = true;
       });
@@ -510,32 +1208,53 @@ Future<void> _showDischargeDialog(
 
       await _dischargePatient(patient, ref);
 
-      // Hide loading animation - using Future to avoid build-time updates
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ref.read(refreshLoadingProvider.notifier).state = false;
       });
 
-      // Check if context is still valid before showing SnackBar
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Discharge successful: ${response['message']}'),
-            backgroundColor: Colors.green,
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                    child:
+                        Text('Discharge successful: ${response['message']}')),
+              ],
+            ),
+            backgroundColor: const Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            margin: const EdgeInsets.all(16),
           ),
         );
       }
     } catch (e) {
       print("Error during discharge: $e");
 
-      // Hide loading animation even on error - using Future to avoid build-time updates
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ref.read(refreshLoadingProvider.notifier).state = false;
       });
 
-      // Check if context is still valid before showing SnackBar
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to discharge patient')),
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.error_outline_rounded, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(child: Text('Failed to discharge patient')),
+              ],
+            ),
+            backgroundColor: const Color(0xFFEF4444),
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            margin: const EdgeInsets.all(16),
+          ),
         );
       }
     }
@@ -550,90 +1269,151 @@ Future<void> _showConditionDialog(BuildContext context, String admissionId,
 
   await showDialog(
     context: context,
+    barrierDismissible: false,
     builder: (BuildContext context) {
       return StatefulBuilder(
         builder: (BuildContext context, StateSetter setState) {
           return AlertDialog(
-            title: const Text('Update Condition at Discharge'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            backgroundColor: Colors.white,
+            title: Row(
               children: [
-                DropdownButtonFormField<String>(
-                  value: selectedCondition,
-                  decoration: const InputDecoration(
-                    labelText: 'Condition at Discharge',
-                    border: OutlineInputBorder(),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3B82F6).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  items: [
-                    'Discharged',
-                    'Referred',
-                    'LAMA',
-                    'Expired',
-                    'Absconded'
-                  ].map((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value),
-                    );
-                  }).toList(),
-                  onChanged: (String? newValue) {
-                    if (newValue != null) {
-                      setState(() {
-                        selectedCondition = newValue;
-                      });
-                    }
-                  },
+                  child: Icon(Icons.medical_information_rounded,
+                      color: const Color(0xFF3B82F6), size: 20),
                 ),
-                SizedBox(height: 15),
-                TextField(
-                  onChanged: (text) {
-                    additionalInfo = text;
-                  },
-                  decoration: const InputDecoration(
-                    labelText: 'Additional Information (Optional)',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 2,
-                ),
-                SizedBox(height: 15),
-                TextField(
-                  onChanged: (text) {
-                    amountToBePayed = text;
-                  },
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Amount to be Paid',
-                    border: OutlineInputBorder(),
+                const SizedBox(width: 12),
+                Text(
+                  'Discharge Details',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF1F2937),
                   ),
                 ),
               ],
             ),
-            actions: <Widget>[
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: const Text('Cancel'),
+            content: SizedBox(
+              width: 400,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildModernFormField(
+                    child: DropdownButtonFormField<String>(
+                      value: selectedCondition,
+                      decoration: InputDecoration(
+                        labelText: 'Condition at Discharge',
+                        prefixIcon: Icon(Icons.assignment_turned_in_rounded,
+                            color: const Color(0xFF3B82F6)),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 16),
+                      ),
+                      items: [
+                        'Discharged',
+                        'Referred',
+                        'LAMA',
+                        'Expired',
+                        'Absconded'
+                      ].map((String value) {
+                        return DropdownMenuItem<String>(
+                          value: value,
+                          child: Text(value),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        if (newValue != null) {
+                          setState(() {
+                            selectedCondition = newValue;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildModernFormField(
+                    child: TextField(
+                      onChanged: (text) {
+                        additionalInfo = text;
+                      },
+                      decoration: InputDecoration(
+                        labelText: 'Additional Information (Optional)',
+                        prefixIcon: Icon(Icons.notes_rounded,
+                            color: const Color(0xFF3B82F6)),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 16),
+                      ),
+                      maxLines: 3,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildModernFormField(
+                    child: TextField(
+                      onChanged: (text) {
+                        amountToBePayed = text;
+                      },
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Amount to be Paid',
+                        prefixIcon: Icon(Icons.currency_rupee_rounded,
+                            color: const Color(0xFF3B82F6)),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 16),
+                      ),
+                    ),
+                  ),
+                ],
               ),
+            ),
+            actions: [
               TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: const Color(0xFF6B7280),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              ElevatedButton(
                 onPressed: () async {
                   String amountText = amountToBePayed.trim();
                   if (amountText.isEmpty) {
-                    amountText = '0'; // Set to zero if empty
+                    amountText = '0';
                   }
 
-                  // First parse as double to handle decimal inputs
                   final doubleAmount = double.tryParse(amountText);
                   if (doubleAmount == null || doubleAmount < 0) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please enter a valid numeric amount'),
+                      SnackBar(
+                        content: const Row(
+                          children: [
+                            Icon(Icons.error_outline_rounded,
+                                color: Colors.white),
+                            SizedBox(width: 12),
+                            Expanded(
+                                child: Text(
+                                    'Please enter a valid numeric amount')),
+                          ],
+                        ),
+                        backgroundColor: const Color(0xFFEF4444),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
                       ),
                     );
                     return;
                   }
 
-                  // Convert to integer (truncates decimal values)
                   final intAmount = doubleAmount.toInt();
 
                   Navigator.of(context).pop();
@@ -641,12 +1421,19 @@ Future<void> _showConditionDialog(BuildContext context, String admissionId,
                     context,
                     admissionId,
                     selectedCondition,
-                    intAmount, // Pass integer value
+                    intAmount,
                     patient,
                     ref,
                   );
                 },
-                child: const Text('Next'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF3B82F6),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: Text('Next'),
               ),
             ],
           );
@@ -656,29 +1443,50 @@ Future<void> _showConditionDialog(BuildContext context, String admissionId,
   );
 }
 
+Widget _buildModernFormField({required Widget child}) {
+  return Container(
+    decoration: BoxDecoration(
+      color: const Color(0xFFF8FAFC),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(
+        color: const Color(0xFFE2E8F0),
+        width: 1,
+      ),
+    ),
+    child: child,
+  );
+}
+
 Future<void> _admitPatient(
     Patient1 patient, WidgetRef ref, BuildContext context) async {
   try {
-    // Show loading animation - using Future to avoid build-time updates
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(refreshLoadingProvider.notifier).state = true;
     });
 
-    // Wait for the next frame to ensure the loading state has updated
     await Future.microtask(() => {});
 
-    // Ensure there are admission records
     if (patient.admissionRecords.isEmpty) {
-      // Hide loading animation - using Future to avoid build-time updates
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ref.read(refreshLoadingProvider.notifier).state = false;
       });
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No admission records found for this patient'),
-            backgroundColor: Colors.red,
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.error_outline_rounded, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(
+                    child: Text('No admission records found for this patient')),
+              ],
+            ),
+            backgroundColor: const Color(0xFFEF4444),
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            margin: const EdgeInsets.all(16),
           ),
         );
       }
@@ -687,18 +1495,15 @@ Future<void> _admitPatient(
 
     final admissionId = patient.admissionRecords.first.id;
 
-    // Hide loading during dialog - using Future to avoid build-time updates
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(refreshLoadingProvider.notifier).state = false;
     });
 
-    // Wait for the next frame to ensure the loading state has updated
     await Future.microtask(() => {});
 
-    // Show our new admission dialog and get the admit note
     final admitNote = await showDialog<String>(
       context: context,
-      barrierDismissible: false, // Prevent accidental dismissal
+      barrierDismissible: false,
       builder: (context) => AdmitPatientDialog(
         patientName: patient.name,
         onAdmit: (String location) {
@@ -707,18 +1512,14 @@ Future<void> _admitPatient(
       ),
     );
 
-    // If dialog was dismissed without selecting, return early
     if (admitNote == null) return;
 
-    // Check if context is still valid
     if (!context.mounted) return;
 
-    // Show loading animation again - using Future to avoid build-time updates
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(refreshLoadingProvider.notifier).state = true;
     });
 
-    // Wait for the next frame to ensure the loading state has updated
     await Future.microtask(() => {});
 
     final authRepository = ref.read(authRepositoryProvider);
@@ -727,48 +1528,67 @@ Future<void> _admitPatient(
       admitNote: admitNote,
     );
 
-    // Hide loading animation - using Future to avoid build-time updates
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(refreshLoadingProvider.notifier).state = false;
     });
 
-    // Check if context is still valid after async operation
     if (!context.mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(result['message'] ?? 'Unknown error occurred'),
-        backgroundColor:
-            (result['success'] as bool? ?? false) ? Colors.green : Colors.red,
-        duration: const Duration(seconds: 2),
+        content: Row(
+          children: [
+            Icon(
+              (result['success'] as bool? ?? false)
+                  ? Icons.check_circle_rounded
+                  : Icons.error_outline_rounded,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+                child: Text(result['message'] ?? 'Unknown error occurred')),
+          ],
+        ),
+        backgroundColor: (result['success'] as bool? ?? false)
+            ? const Color(0xFF10B981)
+            : const Color(0xFFEF4444),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 3),
       ),
     );
 
-    // Only refresh if needed, with delayed execution
     Future.microtask(() {
       ref.read(assignedPatientsProvider.notifier).fetchAssignedPatients();
     });
   } catch (e) {
     print('Error admitting patient: $e');
 
-    // Hide loading animation on error - using Future to avoid build-time updates
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(refreshLoadingProvider.notifier).state = false;
     });
 
-    // Check if context is still valid
     if (!context.mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Patient already admitted: ${e.toString()}'),
-        backgroundColor: Colors.red,
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline_rounded, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(child: Text('Patient already admitted: ${e.toString()}')),
+          ],
+        ),
+        backgroundColor: const Color(0xFFEF4444),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        margin: const EdgeInsets.all(16),
       ),
     );
   }
 }
 
-// Update dischargePatient function to check for mounted state
 Future<void> _dischargePatient(Patient1 patient, WidgetRef ref) async {
   try {
     final admissionId = patient.admissionRecords.isNotEmpty
@@ -788,7 +1608,6 @@ Future<void> _dischargePatient(Patient1 patient, WidgetRef ref) async {
 
     print("Discharge result: ${result['message']}");
 
-    // Refresh data only if needed, with delayed execution
     Future.microtask(() {
       ref.read(assignedPatientsProvider.notifier).fetchAssignedPatients();
     });

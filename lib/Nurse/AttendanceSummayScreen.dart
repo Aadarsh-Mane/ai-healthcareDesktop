@@ -1,4 +1,5 @@
 import 'package:doctordesktop/constants/HospitalTheme.dart';
+import 'package:doctordesktop/constants/Url.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -175,12 +176,10 @@ class AttendanceResponse {
 
 // API Service
 class NurseApiService {
-  static const String baseUrl = 'http://localhost:5001';
-
   static Future<List<Nurse>> getAllNurses() async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/nurse/getAllNurses'),
+        Uri.parse('$KVM_URL/nurse/getAllNurses'),
         headers: {'Content-Type': 'application/json'},
       );
 
@@ -222,7 +221,7 @@ class NurseApiService {
       if (status != null && status.isNotEmpty) queryParams['status'] = status;
       if (search != null && search.isNotEmpty) queryParams['search'] = search;
 
-      final uri = Uri.parse('$baseUrl/nurse/getAllNurseAttendance')
+      final uri = Uri.parse('$KVM_URL/nurse/getAllNurseAttendance')
           .replace(queryParameters: queryParams);
 
       final response = await http.get(
@@ -254,7 +253,7 @@ class NurseApiService {
       };
 
       final response = await http.post(
-        Uri.parse('$baseUrl/nurse/markAttendanceManually'),
+        Uri.parse('$KVM_URL/nurse/markAttendanceManually'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(body),
       );

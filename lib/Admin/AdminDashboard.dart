@@ -1,4 +1,5 @@
 import 'package:doctordesktop/Admin/BedManagement.dart';
+import 'package:doctordesktop/Admin/PatientManagement.dart';
 import 'package:doctordesktop/Check.dart';
 import 'package:doctordesktop/Doctor/Dashboard/HomeScreen.dart';
 import 'package:doctordesktop/Doctor/SeeNurseAttendace.dart';
@@ -51,6 +52,7 @@ class _MainLayoutState extends State<MainLayout> {
     PatientListScreen(),
     DoctorRegisterScreen(),
     NurseRegisterScreen(),
+    AdmissionManagementScreen(),
   ];
 
   // Add this new public method
@@ -273,6 +275,13 @@ class SidebarWidget extends StatelessWidget {
                   label: 'Register Nurse',
                   isSelected: selectedIndex == 6,
                   onTap: () => onItemSelected(6),
+                ),
+                _buildNavItem(
+                  index: 7,
+                  icon: Icons.settings_outlined,
+                  label: 'Patient Management',
+                  isSelected: selectedIndex == 7,
+                  onTap: () => onItemSelected(7),
                 ),
               ],
             ),

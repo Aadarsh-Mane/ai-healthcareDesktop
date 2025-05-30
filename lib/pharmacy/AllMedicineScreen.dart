@@ -235,7 +235,7 @@ class MedicineService {
         },
         body: json.encode(data),
       );
-
+      print('Server response status: ${response.body}');
       debugPrint('Server response status: ${response.statusCode}');
       debugPrint('Server response body: ${response.body}');
 

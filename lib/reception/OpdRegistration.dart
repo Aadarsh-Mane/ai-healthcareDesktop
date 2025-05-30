@@ -1246,7 +1246,7 @@ class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
       request.fields['contact'] = _contactController.text;
       request.fields['address'] = _addressController.text;
       request.fields['weight'] = _weightController.text;
-      request.fields['isReturnVisit'] = _isReturnVisit.toString();
+      request.fields['isReadmission'] = _isReturnVisit.toString();
 
       if (_isReturnVisit) {
         if (_patientIdController.text.isEmpty) {

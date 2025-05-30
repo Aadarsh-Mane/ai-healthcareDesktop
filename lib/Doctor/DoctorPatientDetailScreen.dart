@@ -539,14 +539,13 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                     DateFormat('yyyy-MM-dd hh:mm:ss a').format(DateTime.now());
 
                 // Append the current date and time to the 'other' field, placing it on a new line
-                final String otherWithDateTime =
-                    '${other.text}\nDate: $currentDateTime';
+                final String otherWithDateTime = '${other.text}';
                 final vitals = Vitals(
                   temperature: temperature.text,
                   pulse: pulse.text,
                   bloodPressure: bloodPressure.text,
                   bloodSugarLevel: bloodSugarLevel.text,
-                  other: otherWithDateTime,
+                  other: other.text,
                 );
 
                 try {
@@ -1407,12 +1406,12 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                                                 // Handle user actions
                                                 switch (value) {
                                                   case 'profile':
-                                                    Navigator.push(
-                                                        context,
-                                                        MaterialPageRoute(
-                                                          builder: (context) =>
-                                                              DoctorProfileScreen(),
-                                                        ));
+                                                    // Navigator.push(
+                                                    //     context,
+                                                    //     MaterialPageRoute(
+                                                    //       builder: (context) =>
+                                                    //           DoctorProfileScreen(),
+                                                    //     ));
                                                     // Navigate to profile
                                                     break;
                                                   case 'logout':
@@ -7044,13 +7043,13 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
       _buildDetailRow(
         icon: Icons.medical_services,
         label: 'Reason',
-        value: record.reasonForAdmission,
+        value: record.reasonForAdmission ?? 'Not specified',
       ),
       const SizedBox(height: 8),
       _buildDetailRow(
         icon: Icons.healing,
         label: 'Symptoms',
-        value: record.symptoms,
+        value: record.symptoms ?? 'No symptoms',
       ),
     ];
   }
@@ -7284,9 +7283,12 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
             ),
             const SizedBox(height: 8),
             _buildInfoRow(Icons.calendar_today, 'Date', record.admissionDate),
-            _buildInfoRow(Icons.healing, 'Symptoms', record.symptoms),
+            _buildInfoRow(
+                Icons.healing, 'Symptoms', record.symptoms ?? 'No symptoms'),
+            _buildInfoRow(Icons.medical_services, 'Reason',
+                record.reasonForAdmission ?? 'No reason provided'),
             _buildInfoRow(Icons.medical_services, 'Initial Diagnosis',
-                record.initialDiagnosis),
+                record.initialDiagnosis ?? 'No initial diagnosis'),
             const SizedBox(height: 12),
             _buildLatestFollowUpSection(record.id),
           ],

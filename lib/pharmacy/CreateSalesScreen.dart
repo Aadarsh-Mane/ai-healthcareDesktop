@@ -582,7 +582,7 @@ class _CreateSaleScreenState extends ConsumerState<CreateSaleScreen> {
               );
             },
           ),
-          title: Text('Create Sale'),
+          title: Text('Create Sle'),
           backgroundColor: PharmaTheme.primary,
           foregroundColor: PharmaTheme.textLight,
           elevation: 0,

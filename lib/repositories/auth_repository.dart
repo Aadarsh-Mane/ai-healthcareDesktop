@@ -229,17 +229,54 @@ class AuthRepository {
           'Authorization': 'Bearer $token',
         },
       );
-      print('Patient JSON: $json');
 
-      // print(response.body); // Inspect the API response
       print('Full response body: ${response.body}');
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body)['patients'] as List<dynamic>;
-        return data.map((json) => Patient1.fromJson(json)).toList();
+        final responseData = jsonDecode(response.body) as Map<String, dynamic>;
+
+        // Check if the response is successful
+        if (responseData['success'] != true) {
+          throw Exception(
+              'API returned error: ${responseData['message'] ?? 'Unknown error'}');
+        }
+
+        // Extract patients from the nested structure
+        final data = responseData['data'] as Map<String, dynamic>?;
+        if (data == null) {
+          print('No data field in response');
+          return [];
+        }
+
+        final patients = data['patients'] as List<dynamic>?;
+        if (patients == null) {
+          print('No patients field in data');
+          return [];
+        }
+
+        print('Found ${patients.length} patients');
+
+        // Parse each patient safely
+        List<Patient1> parsedPatients = [];
+        for (int i = 0; i < patients.length; i++) {
+          try {
+            final patientJson = patients[i] as Map<String, dynamic>;
+            print('Parsing patient $i: ${patientJson['name'] ?? 'Unknown'}');
+            final patient = Patient1.fromJson(patientJson);
+            parsedPatients.add(patient);
+          } catch (e) {
+            print('Error parsing patient at index $i: $e');
+            print('Patient JSON: ${patients[i]}');
+            // Continue parsing other patients instead of failing completely
+            continue;
+          }
+        }
+
+        print('Successfully parsed ${parsedPatients.length} patients');
+        return parsedPatients;
       } else {
         throw Exception(
-            'Failed to fetch assigned patients. Status: ${response.statusCode}');
+            'Failed to fetch assigned patients. Status: ${response.statusCode}, Body: ${response.body}');
       }
     } catch (e) {
       print('Error fetching assigned patients: $e');

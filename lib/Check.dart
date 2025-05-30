@@ -6,6 +6,7 @@ import 'package:doctordesktop/Doctor/fetchDoctor.dart';
 import 'package:doctordesktop/External/CommonScreen.dart';
 import 'package:doctordesktop/Lab/LabDashBoard.dart';
 import 'package:doctordesktop/Lab/LabScreen.dart';
+import 'package:doctordesktop/Nurse/NurseLoginScreen.dart';
 import 'package:doctordesktop/Patient/fetchPatient.dart';
 import 'package:doctordesktop/Provider.dart';
 import 'package:doctordesktop/authProvider/auth_provider.dart';
@@ -1037,9 +1038,13 @@ class _HomePageState extends ConsumerState<HomePage>
                   );
                   break;
                 case 'NursesScreen':
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Nurse management coming soon')),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => NurseLoginScreen()),
                   );
+                  // ScaffoldMessenger.of(context).showSnackBar(
+                  //   SnackBar(content: Text('Nurse management coming soon')),
+                  // );
                   break;
                 case 'PharmacyScreen':
                   Navigator.push(
