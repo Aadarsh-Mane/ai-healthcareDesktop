@@ -58,7 +58,7 @@ class DoctorNotesService {
       String doctorName) async {
     try {
       final response = await http.post(
-        Uri.parse('${KVM_URL}/addNotes'),
+        Uri.parse('${KVM_URL}/doctors/addNotes'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'patientId': patientId,
