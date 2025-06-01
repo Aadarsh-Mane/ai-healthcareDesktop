@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:doctordesktop/reception/ManualDischargeSummaryScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -1127,7 +1128,7 @@ class _DischargedPatientsScreenState
                             onPressed: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => GenerateOpdBillScreen(
+                                builder: (context) => OpdBillingScreen(
                                   patientId: patient.patientId,
                                 ),
                               ),
@@ -1181,7 +1182,7 @@ class _DischargedPatientsScreenState
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => GenerateOpdBillScreen(
+                            builder: (context) => OpdBillingScreen(
                               patientId: patient.patientId,
                             ),
                           ),
@@ -2227,6 +2228,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
 
   Widget _buildInfoCard(String title, IconData icon, Widget content) {
     return Card(
+      color: HospitalTheme.background,
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
@@ -2291,6 +2293,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
 
   Widget _buildMedicalInfoCard(record) {
     return Card(
+      color: HospitalTheme.background,
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
@@ -2378,6 +2381,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
 
   Widget _buildDischargeSection() {
     return Card(
+      color: HospitalTheme.background,
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
@@ -2448,6 +2452,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
 
   Widget _buildActionButtons(record) {
     return Card(
+      color: HospitalTheme.background,
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
@@ -2496,7 +2501,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                     () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (context) => GenerateOpdBillScreen(
+                          builder: (context) => OpdBillingScreen(
                                 patientId: widget.patient.patientId,
                               )),
                     ),
@@ -2549,6 +2554,22 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
 
                       // Print functionality here
                     },
+                  ),
+                  _buildActionButton(
+                    'Generate Manual Summary',
+                    Icons.print,
+                    Colors.blueGrey,
+
+                    // Updated to call the new method
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ManualDischargeSummaryScreen(
+                            patientId: widget.patient.patientId),
+                      ),
+                    ),
+
+                    // Print functionality here
                   ),
                 ],
               ),

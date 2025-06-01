@@ -102,6 +102,29 @@ class GeneratedBillResponse {
   }
 }
 
+class OpdReceiptResponse {
+  final String message;
+  final Map<String, dynamic> updatedPatient;
+  final Map<String, dynamic> updatedHistory;
+  final String fileLink;
+
+  const OpdReceiptResponse({
+    required this.message,
+    required this.updatedPatient,
+    required this.updatedHistory,
+    required this.fileLink,
+  });
+
+  factory OpdReceiptResponse.fromJson(Map<String, dynamic> json) {
+    return OpdReceiptResponse(
+      message: json['message'] ?? '',
+      updatedPatient: json['updatedPatient'] ?? {},
+      updatedHistory: json['updatedHistory'] ?? {},
+      fileLink: json['fileLink'] ?? '',
+    );
+  }
+}
+
 // State Providers
 final ipdBillStateProvider =
     StateNotifierProvider.family<IpdBillNotifier, IpdBillState, String>(
@@ -117,6 +140,10 @@ class IpdBillState {
   final String? error;
   final GeneratedBillResponse? generatedBill;
   final bool showPreview;
+  final bool isGeneratingReceipt;
+  final OpdReceiptResponse? generatedReceipt;
+  final double receiptAmount;
+  final double amountPaid;
 
   const IpdBillState({
     required this.patientId,
@@ -127,6 +154,10 @@ class IpdBillState {
     this.error,
     this.generatedBill,
     this.showPreview = false,
+    this.isGeneratingReceipt = false,
+    this.generatedReceipt,
+    this.receiptAmount = 0,
+    this.amountPaid = 0,
   });
 
   IpdBillState copyWith({
@@ -138,6 +169,10 @@ class IpdBillState {
     String? error,
     GeneratedBillResponse? generatedBill,
     bool? showPreview,
+    bool? isGeneratingReceipt,
+    OpdReceiptResponse? generatedReceipt,
+    double? receiptAmount,
+    double? amountPaid,
   }) {
     return IpdBillState(
       patientId: patientId ?? this.patientId,
@@ -148,6 +183,10 @@ class IpdBillState {
       error: error,
       generatedBill: generatedBill ?? this.generatedBill,
       showPreview: showPreview ?? this.showPreview,
+      isGeneratingReceipt: isGeneratingReceipt ?? this.isGeneratingReceipt,
+      generatedReceipt: generatedReceipt ?? this.generatedReceipt,
+      receiptAmount: receiptAmount ?? this.receiptAmount,
+      amountPaid: amountPaid ?? this.amountPaid,
     );
   }
 
@@ -396,6 +435,14 @@ class IpdBillNotifier extends StateNotifier<IpdBillState> {
     state = state.copyWith(advance: advance);
   }
 
+  void updateReceiptAmount(double amount) {
+    state = state.copyWith(receiptAmount: amount);
+  }
+
+  void updateAmountPaid(double amount) {
+    state = state.copyWith(amountPaid: amount);
+  }
+
   void togglePreview() {
     state = state.copyWith(showPreview: !state.showPreview);
   }
@@ -404,7 +451,35 @@ class IpdBillNotifier extends StateNotifier<IpdBillState> {
     state = state.copyWith(error: null);
   }
 
+  // Validation method for charges
+  String? validateCharges() {
+    final activeCharges = state.charges.where((c) => c.isActive).toList();
+
+    if (activeCharges.isEmpty) {
+      return 'Please select at least one charge item';
+    }
+
+    final chargesWithoutRate = activeCharges.where((c) => c.rate <= 0).toList();
+
+    if (chargesWithoutRate.isNotEmpty) {
+      final invalidItems =
+          chargesWithoutRate.map((c) => c.displayName).take(3).join(', ');
+      final additionalCount = chargesWithoutRate.length - 3;
+
+      return 'Selected charges must have valid rates. Items without rates: $invalidItems${additionalCount > 0 ? ' and ${additionalCount} more' : ''}';
+    }
+
+    return null;
+  }
+
   Future<void> generateBill() async {
+    // Validate charges first
+    final validationError = validateCharges();
+    if (validationError != null) {
+      state = state.copyWith(error: validationError);
+      return;
+    }
+
     state = state.copyWith(isLoading: true, error: null);
 
     try {
@@ -431,9 +506,14 @@ class IpdBillNotifier extends StateNotifier<IpdBillState> {
         final responseData = json.decode(response.body);
         if (responseData['success'] == true) {
           final generatedBill = GeneratedBillResponse.fromJson(responseData);
+
+          // Auto-populate receipt amount with final amount from bill
           state = state.copyWith(
             isLoading: false,
             generatedBill: generatedBill,
+            receiptAmount: generatedBill.billSummary.finalAmount,
+            amountPaid: generatedBill
+                .billSummary.finalAmount, // Default to full payment
           );
         } else {
           state = state.copyWith(
@@ -451,6 +531,54 @@ class IpdBillNotifier extends StateNotifier<IpdBillState> {
       state = state.copyWith(
         isLoading: false,
         error: 'Error generating bill: $e',
+      );
+    }
+  }
+
+  Future<void> generateReceipt() async {
+    if (state.receiptAmount <= 0) {
+      state = state.copyWith(error: 'Please enter a valid billing amount');
+      return;
+    }
+
+    if (state.amountPaid < 0) {
+      state = state.copyWith(error: 'Amount paid cannot be negative');
+      return;
+    }
+
+    state = state.copyWith(isGeneratingReceipt: true, error: null);
+
+    try {
+      final requestBody = {
+        'patientId': state.patientId,
+        'billingAmount': state.receiptAmount.toString(),
+        'amountPaid': state.amountPaid.toString(),
+      };
+
+      final response = await http.post(
+        Uri.parse('${KVM_URL}/reception/generateOpdReceiptx'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(requestBody),
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        final generatedReceipt = OpdReceiptResponse.fromJson(responseData);
+
+        state = state.copyWith(
+          isGeneratingReceipt: false,
+          generatedReceipt: generatedReceipt,
+        );
+      } else {
+        state = state.copyWith(
+          isGeneratingReceipt: false,
+          error: 'Failed to generate receipt: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      state = state.copyWith(
+        isGeneratingReceipt: false,
+        error: 'Error generating receipt: $e',
       );
     }
   }
@@ -474,12 +602,16 @@ class _GenerateIpdBillScreenState extends ConsumerState<GenerateIpdBillScreen> {
   final _scrollController = ScrollController();
   final _discountController = TextEditingController();
   final _advanceController = TextEditingController();
+  final _receiptAmountController = TextEditingController();
+  final _amountPaidController = TextEditingController();
 
   @override
   void dispose() {
     _scrollController.dispose();
     _discountController.dispose();
     _advanceController.dispose();
+    _receiptAmountController.dispose();
+    _amountPaidController.dispose();
     super.dispose();
   }
 
@@ -488,6 +620,12 @@ class _GenerateIpdBillScreenState extends ConsumerState<GenerateIpdBillScreen> {
     final size = MediaQuery.of(context).size;
     final state = ref.watch(ipdBillStateProvider(widget.patientId));
     final notifier = ref.read(ipdBillStateProvider(widget.patientId).notifier);
+
+    // Update receipt amount controller when bill is generated
+    if (state.generatedBill != null && _receiptAmountController.text.isEmpty) {
+      _receiptAmountController.text = state.receiptAmount.toString();
+      _amountPaidController.text = state.amountPaid.toString();
+    }
 
     return Scaffold(
       backgroundColor: HospitalTheme.background,
@@ -512,6 +650,8 @@ class _GenerateIpdBillScreenState extends ConsumerState<GenerateIpdBillScreen> {
               notifier.generateBill(),
           const SingleActivator(LogicalKeyboardKey.keyP, control: true): () =>
               notifier.togglePreview(),
+          const SingleActivator(LogicalKeyboardKey.keyR, control: true): () =>
+              notifier.generateReceipt(),
         },
         child: Focus(
           autofocus: true,
@@ -913,7 +1053,7 @@ class _GenerateIpdBillScreenState extends ConsumerState<GenerateIpdBillScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Ctrl+P: Preview\nCtrl+S: Generate Bill',
+                  'Ctrl+P: Preview\nCtrl+S: Generate Bill\nCtrl+R: Generate Receipt',
                   style: TextStyle(
                     color: HospitalTheme.textMedium,
                     fontSize: 11,
@@ -1357,79 +1497,82 @@ class _GenerateIpdBillScreenState extends ConsumerState<GenerateIpdBillScreen> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Bill details
+                // Left side - Bill details (Scrollable)
                 Expanded(
                   flex: 2,
-                  child: HospitalTheme.buildCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: HospitalTheme.success.withOpacity(0.1),
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(12),
-                              topRight: Radius.circular(12),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.receipt_long,
-                                  color: HospitalTheme.success, size: 32),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Bill Generated',
-                                      style: TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                        color: HospitalTheme.success,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'File: ${bill.fileName}',
-                                      style: TextStyle(
-                                        color: HospitalTheme.textMedium,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    Text(
-                                      'Generated: ${bill.generatedAt.toString().split('.')[0]}',
-                                      style: TextStyle(
-                                        color: HospitalTheme.textMedium,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                  child: SingleChildScrollView(
+                    child: HospitalTheme.buildCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: HospitalTheme.success.withOpacity(0.1),
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(12),
+                                topRight: Radius.circular(12),
                               ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: HospitalTheme.info.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: HospitalTheme.info),
-                                ),
-                                child: Text(
-                                  '${(bill.pdfSize / 1024).toStringAsFixed(1)} KB',
-                                  style: TextStyle(
-                                    color: HospitalTheme.info,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.receipt_long,
+                                    color: HospitalTheme.success, size: 32),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Bill Generated',
+                                        style: TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                          color: HospitalTheme.success,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'File: ${bill.fileName}',
+                                        style: TextStyle(
+                                          color: HospitalTheme.textMedium,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Generated: ${bill.generatedAt.toString().split('.')[0]}',
+                                        style: TextStyle(
+                                          color: HospitalTheme.textMedium,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ),
-                            ],
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: HospitalTheme.info.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border:
+                                        Border.all(color: HospitalTheme.info),
+                                  ),
+                                  child: Text(
+                                    '${(bill.pdfSize / 1024).toStringAsFixed(1)} KB',
+                                    style: TextStyle(
+                                      color: HospitalTheme.info,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        Expanded(
-                          child: Padding(
+                          Padding(
                             padding: const EdgeInsets.all(20),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1513,123 +1656,484 @@ class _GenerateIpdBillScreenState extends ConsumerState<GenerateIpdBillScreen> {
                               ],
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
 
                 const SizedBox(width: 16),
 
-                // Bill summary sidebar
+                // Right side - Receipt and Actions (Scrollable)
                 SizedBox(
                   width: 300,
-                  child: Column(
-                    children: [
-                      HospitalTheme.buildCard(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(Icons.account_balance_wallet,
-                                    color: HospitalTheme.primary, size: 20),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Final Bill Summary',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: HospitalTheme.textDark,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            _buildSummaryRow('Total Charges',
-                                '₹${bill.billSummary.totalCharges.toStringAsFixed(2)}'),
-                            _buildSummaryRow('Discount Applied',
-                                '-₹${bill.billSummary.discount.toStringAsFixed(2)}'),
-                            _buildSummaryRow('Advance Paid',
-                                '-₹${bill.billSummary.advance.toStringAsFixed(2)}'),
-                            const Divider(height: 24),
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: HospitalTheme.success.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                    color:
-                                        HospitalTheme.success.withOpacity(0.3)),
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        HospitalTheme.buildCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
                                 children: [
+                                  Icon(Icons.account_balance_wallet,
+                                      color: HospitalTheme.primary, size: 20),
+                                  const SizedBox(width: 8),
                                   Text(
-                                    'Amount Due',
+                                    'Final Bill Summary',
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
-                                      color: HospitalTheme.success,
-                                    ),
-                                  ),
-                                  Text(
-                                    '₹${bill.billSummary.finalAmount.toStringAsFixed(2)}',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: HospitalTheme.success,
+                                      color: HospitalTheme.textDark,
                                     ),
                                   ),
                                 ],
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 16),
+                              _buildSummaryRow('Total Charges',
+                                  '₹${bill.billSummary.totalCharges.toStringAsFixed(2)}'),
+                              _buildSummaryRow('Discount Applied',
+                                  '-₹${bill.billSummary.discount.toStringAsFixed(2)}'),
+                              _buildSummaryRow('Advance Paid',
+                                  '-₹${bill.billSummary.advance.toStringAsFixed(2)}'),
+                              const Divider(height: 24),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: HospitalTheme.success.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                      color: HospitalTheme.success
+                                          .withOpacity(0.3)),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Amount Due',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: HospitalTheme.success,
+                                      ),
+                                    ),
+                                    Text(
+                                      '₹${bill.billSummary.finalAmount.toStringAsFixed(2)}',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: HospitalTheme.success,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
 
-                      const SizedBox(height: 16),
+                        const SizedBox(height: 16),
 
-                      // Actions
-                      HospitalTheme.buildCard(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Actions',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: HospitalTheme.textDark,
-                              ),
+                        // Receipt Generation Section
+                        if (state.generatedReceipt == null) ...[
+                          HospitalTheme.buildCard(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(Icons.receipt,
+                                        color: HospitalTheme.secondary,
+                                        size: 20),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Generate Receipt',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: HospitalTheme.textDark,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Billing Amount
+                                Text(
+                                  'Billing Amount',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: HospitalTheme.textDark,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  controller: _receiptAmountController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    prefixText: '₹',
+                                    hintText: 'Enter billing amount',
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 8),
+                                  ),
+                                  onChanged: (value) {
+                                    final amount =
+                                        double.tryParse(value) ?? 0.0;
+                                    notifier.updateReceiptAmount(amount);
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Amount Paid
+                                Text(
+                                  'Amount Paid',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: HospitalTheme.textDark,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  controller: _amountPaidController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    prefixText: '₹',
+                                    hintText: 'Enter amount paid',
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 8),
+                                  ),
+                                  onChanged: (value) {
+                                    final amount =
+                                        double.tryParse(value) ?? 0.0;
+                                    notifier.updateAmountPaid(amount);
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Pending Amount Display
+                                if (state.receiptAmount > 0 &&
+                                    state.amountPaid >= 0)
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: (state.receiptAmount -
+                                                  state.amountPaid) <=
+                                              0
+                                          ? HospitalTheme.success
+                                              .withOpacity(0.1)
+                                          : HospitalTheme.warning
+                                              .withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: (state.receiptAmount -
+                                                    state.amountPaid) <=
+                                                0
+                                            ? HospitalTheme.success
+                                            : HospitalTheme.warning,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          'Pending Amount:',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                            color: (state.receiptAmount -
+                                                        state.amountPaid) <=
+                                                    0
+                                                ? HospitalTheme.success
+                                                : HospitalTheme.warning,
+                                          ),
+                                        ),
+                                        Text(
+                                          '₹${(state.receiptAmount - state.amountPaid).toStringAsFixed(2)}',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            color: (state.receiptAmount -
+                                                        state.amountPaid) <=
+                                                    0
+                                                ? HospitalTheme.success
+                                                : HospitalTheme.warning,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                const SizedBox(height: 16),
+
+                                // Generate Receipt Button
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 44,
+                                  child: ElevatedButton.icon(
+                                    onPressed: state.isGeneratingReceipt
+                                        ? null
+                                        : () => notifier.generateReceipt(),
+                                    icon: state.isGeneratingReceipt
+                                        ? const SizedBox(
+                                            width: 16,
+                                            height: 16,
+                                            child: CircularProgressIndicator(
+                                                strokeWidth: 2),
+                                          )
+                                        : const Icon(Icons.receipt_long),
+                                    label: Text(
+                                      state.isGeneratingReceipt
+                                          ? 'Generating...'
+                                          : 'Generate Receipt',
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: HospitalTheme.secondary,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 12),
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton.icon(
-                                onPressed: () {
-                                  // Copy link to clipboard
-                                  Clipboard.setData(
-                                      ClipboardData(text: bill.driveLink));
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content:
-                                            Text('Link copied to clipboard')),
-                                  );
-                                },
-                                icon: const Icon(Icons.copy),
-                                label: const Text('Copy Link'),
-                              ),
+                          ),
+                        ] else ...[
+                          // Receipt Generated Section
+                          HospitalTheme.buildCard(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(Icons.check_circle,
+                                        color: HospitalTheme.success, size: 20),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Receipt Generated',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: HospitalTheme.success,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+
+                                Text(
+                                  state.generatedReceipt!.message,
+                                  style: TextStyle(
+                                    color: HospitalTheme.textMedium,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Receipt Details
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        HospitalTheme.success.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                        color: HospitalTheme.success
+                                            .withOpacity(0.3)),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text('Patient ID:',
+                                              style: TextStyle(
+                                                  color: HospitalTheme
+                                                      .textMedium)),
+                                          Text(
+                                            state.generatedReceipt!
+                                                        .updatedPatient[
+                                                    'patientId'] ??
+                                                'N/A',
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w600),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text('Last Billing:',
+                                              style: TextStyle(
+                                                  color: HospitalTheme
+                                                      .textMedium)),
+                                          Text(
+                                            '₹${state.generatedReceipt!.updatedHistory['lastBillingAmount'] ?? '0'}',
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w600),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text('Payment Received:',
+                                              style: TextStyle(
+                                                  color: HospitalTheme
+                                                      .textMedium)),
+                                          Text(
+                                            '₹${state.generatedReceipt!.updatedHistory['lastPaymentReceived'] ?? '0'}',
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w600),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text('Remaining Amount:',
+                                              style: TextStyle(
+                                                  color: HospitalTheme
+                                                      .textMedium)),
+                                          Text(
+                                            '₹${state.generatedReceipt!.updatedHistory['remainingAmount'] ?? '0'}',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: (state.generatedReceipt!
+                                                                  .updatedHistory[
+                                                              'remainingAmount'] ??
+                                                          0) <=
+                                                      0
+                                                  ? HospitalTheme.success
+                                                  : HospitalTheme.warning,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                const SizedBox(height: 16),
+
+                                // Open Receipt Button
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 44,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () {
+                                      Methods().openPdf(
+                                          state.generatedReceipt!.fileLink);
+                                    },
+                                    icon: const Icon(Icons.open_in_new),
+                                    label: const Text('Open Receipt'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: HospitalTheme.secondary,
+                                    ),
+                                  ),
+                                ),
+
+                                const SizedBox(height: 8),
+
+                                // Generate Another Receipt Button
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: () {
+                                      // Reset receipt state
+                                      notifier.state = notifier.state.copyWith(
+                                        generatedReceipt: null,
+                                        receiptAmount:
+                                            bill.billSummary.finalAmount,
+                                        amountPaid:
+                                            bill.billSummary.finalAmount,
+                                      );
+                                      _receiptAmountController.text = bill
+                                          .billSummary.finalAmount
+                                          .toString();
+                                      _amountPaidController.text = bill
+                                          .billSummary.finalAmount
+                                          .toString();
+                                    },
+                                    icon: const Icon(Icons.add),
+                                    label:
+                                        const Text('Generate Another Receipt'),
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 8),
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton.icon(
-                                onPressed: () {
-                                  final emailSubject =
-                                      'IPD Discharge Bill - ${bill.patientInfo['name'] ?? 'Patient'} (${bill.patientInfo['patientId'] ?? 'N/A'})';
-                                  final emailBody = '''
+                          ),
+                        ],
+
+                        const SizedBox(height: 16),
+
+                        // Actions
+                        HospitalTheme.buildCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Actions',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: HospitalTheme.textDark,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: () {
+                                    // Copy link to clipboard
+                                    Clipboard.setData(
+                                        ClipboardData(text: bill.driveLink));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content:
+                                              Text('Link copied to clipboard')),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.copy),
+                                  label: const Text('Copy Bill Link'),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              if (state.generatedReceipt != null)
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: () {
+                                      // Copy receipt link to clipboard
+                                      Clipboard.setData(ClipboardData(
+                                          text: state
+                                              .generatedReceipt!.fileLink));
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                            content: Text(
+                                                'Receipt link copied to clipboard')),
+                                      );
+                                    },
+                                    icon: const Icon(Icons.copy),
+                                    label: const Text('Copy Receipt Link'),
+                                  ),
+                                ),
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: () {
+                                    final emailSubject =
+                                        'IPD Discharge Bill - ${bill.patientInfo['name'] ?? 'Patient'} (${bill.patientInfo['patientId'] ?? 'N/A'})';
+                                    final emailBody = '''
 Dear Recipient,
 
 Please find the IPD Discharge Bill details below:
@@ -1655,6 +2159,8 @@ Bill Summary:
 You can access the complete PDF bill using the following link:
 ${bill.driveLink}
 
+${state.generatedReceipt != null ? 'Receipt Link: ${state.generatedReceipt!.fileLink}' : ''}
+
 Bill Generated: ${bill.generatedAt.toString().split('.')[0]}
 File: ${bill.fileName}
 
@@ -1662,21 +2168,20 @@ Best regards,
 Bhosale Hospital Team
                                   ''';
 
-                                  Methods().openMail(
-                                    subject: emailSubject,
-                                    body: emailBody,
-                                  );
-                                },
-                                // Share functionality can be implemented here
-
-                                icon: const Icon(Icons.share),
-                                label: const Text('Share Bill'),
+                                    Methods().openMail(
+                                      subject: emailSubject,
+                                      body: emailBody,
+                                    );
+                                  },
+                                  icon: const Icon(Icons.share),
+                                  label: const Text('Share Bill'),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ],

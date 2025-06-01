@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:doctordesktop/constants/Methods.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -29,6 +30,14 @@ final availableBedsProvider =
     StateNotifierProvider<AvailableBedsNotifier, List<int>>(
         (ref) => AvailableBedsNotifier());
 
+// Deposit providers
+final depositFormProvider =
+    StateNotifierProvider<DepositFormNotifier, DepositFormData>(
+        (ref) => DepositFormNotifier());
+final depositReceiptProvider =
+    StateNotifierProvider<DepositReceiptNotifier, DepositReceipt?>(
+        (ref) => DepositReceiptNotifier());
+
 // Filtered patients provider
 final filteredPatientsProvider = Provider<List<Patient>>((ref) {
   final patients = ref.watch(patientsProvider);
@@ -49,22 +58,34 @@ class UIState {
   final bool isLoadingPatients;
   final bool isLoadingSections;
   final bool isProcessing;
+  final bool isCheckingDeposit;
+  final bool isCreatingDeposit;
+  final bool isCancellingDeposit;
 
   UIState({
     this.isLoadingPatients = false,
     this.isLoadingSections = false,
     this.isProcessing = false,
+    this.isCheckingDeposit = false,
+    this.isCreatingDeposit = false,
+    this.isCancellingDeposit = false,
   });
 
   UIState copyWith({
     bool? isLoadingPatients,
     bool? isLoadingSections,
     bool? isProcessing,
+    bool? isCheckingDeposit,
+    bool? isCreatingDeposit,
+    bool? isCancellingDeposit,
   }) {
     return UIState(
       isLoadingPatients: isLoadingPatients ?? this.isLoadingPatients,
       isLoadingSections: isLoadingSections ?? this.isLoadingSections,
       isProcessing: isProcessing ?? this.isProcessing,
+      isCheckingDeposit: isCheckingDeposit ?? this.isCheckingDeposit,
+      isCreatingDeposit: isCreatingDeposit ?? this.isCreatingDeposit,
+      isCancellingDeposit: isCancellingDeposit ?? this.isCancellingDeposit,
     );
   }
 }
@@ -111,6 +132,97 @@ class FormData {
   }
 }
 
+class DepositFormData {
+  final double? depositAmount;
+  final String? paymentMethod;
+  final String? remarks;
+  final String? transactionId;
+  final String? chequeNumber;
+  final String? bankName;
+
+  DepositFormData({
+    this.depositAmount,
+    this.paymentMethod,
+    this.remarks,
+    this.transactionId,
+    this.chequeNumber,
+    this.bankName,
+  });
+
+  DepositFormData copyWith({
+    double? depositAmount,
+    String? paymentMethod,
+    String? remarks,
+    String? transactionId,
+    String? chequeNumber,
+    String? bankName,
+    bool clearAll = false,
+  }) {
+    if (clearAll) {
+      return DepositFormData();
+    }
+
+    return DepositFormData(
+      depositAmount: depositAmount ?? this.depositAmount,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      remarks: remarks ?? this.remarks,
+      transactionId: transactionId ?? this.transactionId,
+      chequeNumber: chequeNumber ?? this.chequeNumber,
+      bankName: bankName ?? this.bankName,
+    );
+  }
+
+  bool get isValid {
+    return depositAmount != null &&
+        depositAmount! > 0 &&
+        paymentMethod != null &&
+        paymentMethod!.isNotEmpty;
+  }
+}
+
+class DepositReceipt {
+  final String receiptId;
+  final double depositAmount;
+  final String paymentMethod;
+  final DateTime generatedAt;
+  final String? receiptUrl;
+  final bool? isCancelled;
+  final String? cancelReason;
+  final DateTime? cancelledAt;
+
+  DepositReceipt({
+    required this.receiptId,
+    required this.depositAmount,
+    required this.paymentMethod,
+    required this.generatedAt,
+    this.receiptUrl,
+    this.isCancelled,
+    this.cancelReason,
+    this.cancelledAt,
+  });
+
+  factory DepositReceipt.fromJson(Map<String, dynamic> json) {
+    return DepositReceipt(
+      receiptId: json['receiptId'] ?? '',
+      depositAmount: (json['depositAmount'] is String)
+          ? double.tryParse(json['depositAmount']
+                  .toString()
+                  .replaceAll(RegExp(r'[^\d.]'), '')) ??
+              0.0
+          : (json['depositAmount'] ?? 0.0).toDouble(),
+      paymentMethod: json['paymentMethod'] ?? '',
+      generatedAt:
+          DateTime.tryParse(json['generatedAt'] ?? '') ?? DateTime.now(),
+      receiptUrl: json['receiptUrl'],
+      isCancelled: json['isCancelled'] ?? false,
+      cancelReason: json['cancelReason'],
+      cancelledAt: json['cancelledAt'] != null
+          ? DateTime.tryParse(json['cancelledAt'])
+          : null,
+    );
+  }
+}
+
 // State notifier classes
 class PatientsNotifier extends StateNotifier<List<Patient>> {
   PatientsNotifier() : super([]);
@@ -149,6 +261,18 @@ class UIStateNotifier extends StateNotifier<UIState> {
 
   void setProcessing(bool isProcessing) {
     state = state.copyWith(isProcessing: isProcessing);
+  }
+
+  void setCheckingDeposit(bool isChecking) {
+    state = state.copyWith(isCheckingDeposit: isChecking);
+  }
+
+  void setCreatingDeposit(bool isCreating) {
+    state = state.copyWith(isCreatingDeposit: isCreating);
+  }
+
+  void setCancellingDeposit(bool isCancelling) {
+    state = state.copyWith(isCancellingDeposit: isCancelling);
   }
 }
 
@@ -207,6 +331,50 @@ class AvailableBedsNotifier extends StateNotifier<List<int>> {
   }
 }
 
+class DepositFormNotifier extends StateNotifier<DepositFormData> {
+  DepositFormNotifier() : super(DepositFormData());
+
+  void setDepositAmount(double amount) {
+    state = state.copyWith(depositAmount: amount);
+  }
+
+  void setPaymentMethod(String method) {
+    state = state.copyWith(paymentMethod: method);
+  }
+
+  void setRemarks(String remarks) {
+    state = state.copyWith(remarks: remarks);
+  }
+
+  void setTransactionId(String transactionId) {
+    state = state.copyWith(transactionId: transactionId);
+  }
+
+  void setChequeNumber(String chequeNumber) {
+    state = state.copyWith(chequeNumber: chequeNumber);
+  }
+
+  void setBankName(String bankName) {
+    state = state.copyWith(bankName: bankName);
+  }
+
+  void clearForm() {
+    state = state.copyWith(clearAll: true);
+  }
+}
+
+class DepositReceiptNotifier extends StateNotifier<DepositReceipt?> {
+  DepositReceiptNotifier() : super(null);
+
+  void setReceipt(DepositReceipt? receipt) {
+    state = receipt;
+  }
+
+  void clearReceipt() {
+    state = null;
+  }
+}
+
 class IpdDetailScreen extends ConsumerStatefulWidget {
   const IpdDetailScreen({Key? key}) : super(key: key);
 
@@ -220,8 +388,27 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
   final TextEditingController symptomsController = TextEditingController();
   final TextEditingController diagnosisController = TextEditingController();
 
+  // Deposit form controllers
+  final TextEditingController depositAmountController = TextEditingController();
+  final TextEditingController remarksController = TextEditingController();
+  final TextEditingController transactionIdController = TextEditingController();
+  final TextEditingController chequeNumberController = TextEditingController();
+  final TextEditingController bankNameController = TextEditingController();
+
+  // Cancel reason controller
+  final TextEditingController cancelReasonController = TextEditingController();
+
   // Focus node for keyboard shortcuts
   final FocusNode _shortcutFocusNode = FocusNode();
+
+  // Payment methods
+  final List<String> paymentMethods = [
+    'Cash',
+    'Card',
+    'UPI',
+    'Net Banking',
+    'Cheque'
+  ];
 
   @override
   void initState() {
@@ -244,6 +431,34 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
       ref
           .read(formDataProvider.notifier)
           .setDiagnosis(diagnosisController.text);
+    });
+
+    // Deposit form listeners
+    depositAmountController.addListener(() {
+      final amount = double.tryParse(depositAmountController.text) ?? 0.0;
+      ref.read(depositFormProvider.notifier).setDepositAmount(amount);
+    });
+
+    remarksController.addListener(() {
+      ref.read(depositFormProvider.notifier).setRemarks(remarksController.text);
+    });
+
+    transactionIdController.addListener(() {
+      ref
+          .read(depositFormProvider.notifier)
+          .setTransactionId(transactionIdController.text);
+    });
+
+    chequeNumberController.addListener(() {
+      ref
+          .read(depositFormProvider.notifier)
+          .setChequeNumber(chequeNumberController.text);
+    });
+
+    bankNameController.addListener(() {
+      ref
+          .read(depositFormProvider.notifier)
+          .setBankName(bankNameController.text);
     });
   }
 
@@ -272,6 +487,12 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
     reasonController.dispose();
     symptomsController.dispose();
     diagnosisController.dispose();
+    depositAmountController.dispose();
+    remarksController.dispose();
+    transactionIdController.dispose();
+    chequeNumberController.dispose();
+    bankNameController.dispose();
+    cancelReasonController.dispose();
     _shortcutFocusNode.dispose();
     super.dispose();
   }
@@ -337,6 +558,450 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
     } finally {
       ref.read(uiStateProvider.notifier).setProcessing(false);
     }
+  }
+
+  Future<void> checkDepositReceipt(String patientId, String admissionId) async {
+    ref.read(uiStateProvider.notifier).setCheckingDeposit(true);
+    ref.read(depositReceiptProvider.notifier).clearReceipt();
+
+    try {
+      final response = await http.get(
+        Uri.parse(
+            '${KVM_URL}/reception/checkDepositReceiptExists/$patientId/$admissionId'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+
+        if (data['exists'] == true && data['data'] != null) {
+          final receipt = DepositReceipt.fromJson(data['data']);
+          ref.read(depositReceiptProvider.notifier).setReceipt(receipt);
+        } else {
+          ref.read(depositReceiptProvider.notifier).clearReceipt();
+        }
+      } else {
+        throw Exception('Failed to check deposit receipt');
+      }
+    } catch (e) {
+      showErrorSnackBar('Error checking deposit: $e');
+    } finally {
+      ref.read(uiStateProvider.notifier).setCheckingDeposit(false);
+    }
+  }
+
+  Future<void> cancelDepositReceipt() async {
+    final existingReceipt = ref.read(depositReceiptProvider);
+
+    if (existingReceipt == null) {
+      showErrorSnackBar('No receipt found to cancel');
+      return;
+    }
+
+    // Show cancel reason dialog
+    final String? cancelReason = await _showCancelReasonDialog();
+
+    if (cancelReason == null || cancelReason.trim().isEmpty) {
+      return; // User cancelled or didn't provide reason
+    }
+
+    ref.read(uiStateProvider.notifier).setCancellingDeposit(true);
+
+    try {
+      final response = await http.patch(
+        Uri.parse(
+            '${KVM_URL}/reception/cancelDepositReceipt/${existingReceipt.receiptId}'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'reason': cancelReason.trim(),
+        }),
+      );
+      print('Response status: ${response.body}');
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+
+        if (data['success'] == true) {
+          showSuccessSnackBar('Deposit receipt cancelled successfully');
+
+          // Clear the receipt from state
+          ref.read(depositReceiptProvider.notifier).clearReceipt();
+
+          // Re-check deposit status to get updated info
+          final patient = ref.read(selectedPatientProvider);
+          if (patient != null && patient.admissionRecords.isNotEmpty) {
+            await checkDepositReceipt(
+                patient.patientId, patient.admissionRecords.first.id);
+          }
+        } else {
+          throw Exception(
+              data['message'] ?? 'Failed to cancel deposit receipt');
+        }
+      } else {
+        final errorData = json.decode(response.body);
+        throw Exception(
+            errorData['message'] ?? 'Failed to cancel deposit receipt');
+      }
+    } catch (e) {
+      showErrorSnackBar('Error cancelling deposit receipt: $e');
+    } finally {
+      ref.read(uiStateProvider.notifier).setCancellingDeposit(false);
+    }
+  }
+
+  Future<String?> _showCancelReasonDialog() async {
+    cancelReasonController.clear();
+
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Container(
+            width: MediaQuery.of(dialogContext).size.width * 0.4,
+            constraints: const BoxConstraints(maxWidth: 500),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: HospitalTheme.warning.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.warning_amber,
+                        color: HospitalTheme.warning,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    const Expanded(
+                      child: Text(
+                        'Cancel Deposit Receipt',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: HospitalTheme.textDark,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Please provide a reason for cancelling this deposit receipt:',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: HospitalTheme.textMedium,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: cancelReasonController,
+                  maxLines: 3,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: 'Enter cancellation reason...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(
+                          color: HospitalTheme.primary, width: 2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(null),
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(color: HospitalTheme.textMedium),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton(
+                      onPressed: () {
+                        final reason = cancelReasonController.text.trim();
+                        if (reason.isNotEmpty) {
+                          Navigator.of(dialogContext).pop(reason);
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: HospitalTheme.error,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('Confirm Cancel'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> createDepositReceipt() async {
+    final patient = ref.read(selectedPatientProvider);
+    final depositForm = ref.read(depositFormProvider);
+
+    if (patient == null || patient.admissionRecords.isEmpty) {
+      showErrorSnackBar('No patient or admission record selected');
+      return;
+    }
+
+    if (!depositForm.isValid) {
+      showErrorSnackBar('Please fill in all required deposit fields');
+      return;
+    }
+
+    final admissionId = patient.admissionRecords.first.id;
+
+    ref.read(uiStateProvider.notifier).setCreatingDeposit(true);
+
+    try {
+      final requestBody = {
+        'patientId': patient.patientId,
+        'admissionId': admissionId,
+        'depositAmount': depositForm.depositAmount,
+        'paymentMethod': depositForm.paymentMethod,
+        'remarks': depositForm.remarks ?? '',
+      };
+
+      // Add optional fields based on payment method
+      if (depositForm.paymentMethod == 'UPI' ||
+          depositForm.paymentMethod == 'Net Banking') {
+        if (depositForm.transactionId?.isNotEmpty == true) {
+          requestBody['transactionId'] = depositForm.transactionId;
+        }
+      }
+
+      if (depositForm.paymentMethod == 'Cheque') {
+        if (depositForm.chequeNumber?.isNotEmpty == true) {
+          requestBody['chequeNumber'] = depositForm.chequeNumber;
+        }
+        if (depositForm.bankName?.isNotEmpty == true) {
+          requestBody['bankName'] = depositForm.bankName;
+        }
+      }
+
+      final response = await http.post(
+        Uri.parse('${KVM_URL}/reception/createDepositReceipt'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(requestBody),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = json.decode(response.body);
+
+        if (data['success'] == true) {
+          // Update the existing receipt in state FIRST
+          if (data['data'] != null) {
+            final receipt = DepositReceipt.fromJson(data['data']);
+            ref.read(depositReceiptProvider.notifier).setReceipt(receipt);
+          }
+
+          showSuccessSnackBar('Deposit receipt created successfully!');
+
+          // Clear the deposit form
+          clearDepositForm();
+
+          // ALWAYS show the dialog regardless of existing receipt state
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && context.mounted) {
+              _showReceiptDetailsDialog(data);
+            }
+          });
+        } else {
+          throw Exception(
+              data['message'] ?? 'Failed to create deposit receipt');
+        }
+      } else {
+        final errorData = json.decode(response.body);
+        throw Exception(
+            errorData['message'] ?? 'Failed to create deposit receipt');
+      }
+    } catch (e) {
+      showErrorSnackBar('Error creating deposit receipt: $e');
+    } finally {
+      ref.read(uiStateProvider.notifier).setCreatingDeposit(false);
+    }
+  }
+
+  void _showReceiptDetailsDialog(Map<String, dynamic> receiptData) {
+    // Extract data safely with null checks
+    final data = receiptData['data'] as Map<String, dynamic>? ?? {};
+    final receipt = receiptData['receipt'] as Map<String, dynamic>? ?? {};
+
+    final receiptId = data['receiptId'] ?? receipt['receiptId'] ?? 'N/A';
+    final depositAmount = data['depositAmount'] ??
+        receipt['depositDetails']?['depositAmount'] ??
+        0;
+    final receiptUrl =
+        data['receiptUrl'] ?? receipt['depositDetails']?['receiptUrl'];
+    final generatedAt =
+        data['generatedAt'] ?? receipt['depositDetails']?['generatedAt'] ?? '';
+    final paymentMethod = data['paymentMethod'] ??
+        receipt['depositDetails']?['paymentMethod'] ??
+        'N/A';
+
+    // Format date
+    String formattedDate = 'N/A';
+    if (generatedAt.toString().isNotEmpty) {
+      try {
+        final dateTime = DateTime.parse(generatedAt.toString());
+        formattedDate =
+            '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
+      } catch (e) {
+        formattedDate = generatedAt.toString().split('.')[0]; // Fallback
+      }
+    }
+
+    if (mounted && context.mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext dialogContext) {
+          return Dialog(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Container(
+              width: MediaQuery.of(dialogContext).size.width * 0.6,
+              constraints: const BoxConstraints(maxWidth: 600),
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Success icon
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: HospitalTheme.success.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.check_circle,
+                      color: HospitalTheme.success,
+                      size: 48,
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  const Text(
+                    'Deposit Receipt Created Successfully!',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: HospitalTheme.textDark,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Receipt details
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: HospitalTheme.surfaceLight,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: HospitalTheme.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildReceiptDetailRow('Receipt ID', receiptId),
+                        _buildReceiptDetailRow(
+                            'Amount', '₹${depositAmount.toString()}'),
+                        _buildReceiptDetailRow('Payment Method', paymentMethod),
+                        _buildReceiptDetailRow('Date & Time', formattedDate),
+                        if (receipt['patientDetails'] != null)
+                          _buildReceiptDetailRow('Patient',
+                              receipt['patientDetails']['name'] ?? 'N/A'),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Action buttons
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      if (receiptUrl != null &&
+                          receiptUrl.toString().isNotEmpty)
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            Methods().openPdf(receiptUrl.toString());
+                            showSuccessSnackBar('Opening receipt...');
+                          },
+                          icon: const Icon(Icons.picture_as_pdf),
+                          label: const Text('View Receipt'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: HospitalTheme.primary,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 12),
+                          ),
+                        ),
+                      ElevatedButton.icon(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        icon: const Icon(Icons.close),
+                        label: const Text('Close'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: HospitalTheme.textMedium,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    }
+  }
+
+  Widget _buildReceiptDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: HospitalTheme.textMedium,
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: HospitalTheme.textDark,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> updateIpdDetails() async {
@@ -465,6 +1130,11 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
         formData.selectedBedNumber == null) {
       fetchAvailableBeds(formData.selectedSectionId!);
     }
+
+    // Check for existing deposit receipt
+    if (patient.admissionRecords.isNotEmpty) {
+      checkDepositReceipt(patient.patientId, patient.admissionRecords.first.id);
+    }
   }
 
   void clearForm() {
@@ -474,6 +1144,16 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
     ref.read(formDataProvider.notifier).clearForm();
     ref.read(selectedPatientProvider.notifier).setPatient(null);
     ref.read(availableBedsProvider.notifier).setBeds([]);
+    clearDepositForm();
+  }
+
+  void clearDepositForm() {
+    depositAmountController.clear();
+    remarksController.clear();
+    transactionIdController.clear();
+    chequeNumberController.clear();
+    bankNameController.clear();
+    ref.read(depositFormProvider.notifier).clearForm();
   }
 
   void showSuccessSnackBar(String message) {
@@ -524,7 +1204,7 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
             IconButton(
               icon: const Icon(Icons.refresh),
               onPressed: _fetchInitialData,
-              tooltip: 'Refresh data',
+              tooltip: 'Refresh data (F5)',
             ),
           ],
         ),
@@ -904,7 +1584,7 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
           ),
           SizedBox(height: 8),
           Text(
-            'to update IPD details and assign bed',
+            'to update IPD details and manage deposits',
             style: TextStyle(
               fontSize: 16,
               color: HospitalTheme.textLight,
@@ -1092,322 +1772,695 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
                 const SizedBox(height: 24),
 
                 // IPD Details Form
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'IPD Details',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: HospitalTheme.textDark,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
+                _buildIpdDetailsSection(
+                    formData, uiState, sections, availableBeds),
 
-                    // Reason for Admission
-                    _buildFormField(
-                      label: 'Reason for Admission',
-                      hint: 'Enter reason for admission',
-                      controller: reasonController,
-                      icon: Icons.medical_services,
-                    ),
-                    const SizedBox(height: 16),
+                const SizedBox(height: 32),
 
-                    // Symptoms
-                    _buildFormField(
-                      label: 'Symptoms',
-                      hint: 'Enter patient symptoms',
-                      controller: symptomsController,
-                      icon: Icons.sick,
-                      maxLines: 3,
-                    ),
-                    const SizedBox(height: 16),
+                // Deposit Management Section
+                _buildDepositManagementSection(),
 
-                    // Initial Diagnosis
-                    _buildFormField(
-                      label: 'Initial Diagnosis',
-                      hint: 'Enter initial diagnosis',
-                      controller: diagnosisController,
-                      icon: Icons.medical_information,
-                      maxLines: 3,
-                    ),
-                  ],
-                ),
+                const SizedBox(height: 32),
 
-                const SizedBox(height: 24),
-
-                // Bed Assignment Section
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Bed Assignment',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: HospitalTheme.textDark,
-                          ),
-                        ),
-                        if (hasBed)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: HospitalTheme.success.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: HospitalTheme.success),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: const [
-                                Icon(
-                                  Icons.check_circle,
-                                  size: 16,
-                                  color: HospitalTheme.success,
-                                ),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Bed Already Assigned',
-                                  style: TextStyle(
-                                    color: HospitalTheme.success,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    uiState.isLoadingSections
-                        ? const Center(child: CircularProgressIndicator())
-                        : sections.isEmpty
-                            ? const Center(
-                                child: Text(
-                                  'No available sections found',
-                                  style: TextStyle(
-                                      color: HospitalTheme.textMedium),
-                                ),
-                              )
-                            : Column(
-                                children: [
-                                  // Section Dropdown
-                                  DropdownButtonFormField<String>(
-                                    decoration: const InputDecoration(
-                                      labelText: 'Select Section',
-                                      border: OutlineInputBorder(),
-                                      prefixIcon: Icon(Icons.business),
-                                    ),
-                                    value: formData.selectedSectionId,
-                                    onChanged: (value) {
-                                      if (value != null) {
-                                        ref
-                                            .read(formDataProvider.notifier)
-                                            .setSelectedSection(value);
-                                        fetchAvailableBeds(value);
-                                      }
-                                    },
-                                    items: sections.map((section) {
-                                      return DropdownMenuItem<String>(
-                                        value: section.id,
-                                        child: Text(
-                                            '${section.name} (${section.type}) - ${section.availableBeds} beds available'),
-                                      );
-                                    }).toList(),
-                                  ),
-
-                                  const SizedBox(height: 16),
-
-                                  // Bed Selection
-                                  if (formData.selectedSectionId != null)
-                                    uiState.isProcessing
-                                        ? const Center(
-                                            child: CircularProgressIndicator())
-                                        : availableBeds.isEmpty
-                                            ? const Center(
-                                                child: Padding(
-                                                  padding: EdgeInsets.all(16.0),
-                                                  child: Text(
-                                                    'No available beds in this section',
-                                                    style: TextStyle(
-                                                        color: HospitalTheme
-                                                            .textMedium),
-                                                  ),
-                                                ),
-                                              )
-                                            : Container(
-                                                padding:
-                                                    const EdgeInsets.all(16),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.grey.shade50,
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                  border: Border.all(
-                                                      color:
-                                                          HospitalTheme.border),
-                                                ),
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    const Text(
-                                                      'Available Beds',
-                                                      style: TextStyle(
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        fontSize: 16,
-                                                        color: HospitalTheme
-                                                            .textDark,
-                                                      ),
-                                                    ),
-                                                    const SizedBox(height: 12),
-                                                    Wrap(
-                                                      spacing: 12,
-                                                      runSpacing: 12,
-                                                      children: availableBeds
-                                                          .map((bedNumber) {
-                                                        final isSelected = formData
-                                                                .selectedBedNumber ==
-                                                            bedNumber;
-                                                        return InkWell(
-                                                          onTap: () {
-                                                            ref
-                                                                .read(formDataProvider
-                                                                    .notifier)
-                                                                .setSelectedBed(
-                                                                    bedNumber);
-                                                          },
-                                                          child: Container(
-                                                            width: 80,
-                                                            padding:
-                                                                const EdgeInsets
-                                                                    .all(12),
-                                                            decoration:
-                                                                BoxDecoration(
-                                                              color: isSelected
-                                                                  ? HospitalTheme
-                                                                      .primary
-                                                                      .withOpacity(
-                                                                          0.2)
-                                                                  : Colors
-                                                                      .white,
-                                                              borderRadius:
-                                                                  BorderRadius
-                                                                      .circular(
-                                                                          8),
-                                                              border:
-                                                                  Border.all(
-                                                                color: isSelected
-                                                                    ? HospitalTheme
-                                                                        .primary
-                                                                    : HospitalTheme
-                                                                        .border,
-                                                                width:
-                                                                    isSelected
-                                                                        ? 2
-                                                                        : 1,
-                                                              ),
-                                                            ),
-                                                            child: Column(
-                                                              mainAxisAlignment:
-                                                                  MainAxisAlignment
-                                                                      .center,
-                                                              children: [
-                                                                Icon(
-                                                                  Icons.bed,
-                                                                  size: 20,
-                                                                  color: isSelected
-                                                                      ? HospitalTheme
-                                                                          .primary
-                                                                      : HospitalTheme
-                                                                          .textMedium,
-                                                                ),
-                                                                const SizedBox(
-                                                                    height: 4),
-                                                                Text(
-                                                                  'Bed $bedNumber',
-                                                                  style:
-                                                                      TextStyle(
-                                                                    fontWeight: isSelected
-                                                                        ? FontWeight
-                                                                            .bold
-                                                                        : FontWeight
-                                                                            .normal,
-                                                                    color: isSelected
-                                                                        ? HospitalTheme
-                                                                            .primary
-                                                                        : HospitalTheme
-                                                                            .textDark,
-                                                                  ),
-                                                                ),
-                                                              ],
-                                                            ),
-                                                          ),
-                                                        );
-                                                      }).toList(),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                ],
-                              ),
-
-                    const SizedBox(height: 32),
-
-                    // Action Buttons
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        ElevatedButton.icon(
-                          onPressed:
-                              uiState.isProcessing ? null : updateIpdDetails,
-                          icon: uiState.isProcessing
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                        Colors.white),
-                                  ),
-                                )
-                              : const Icon(Icons.save),
-                          label: Text(
-                              hasBed && formData.selectedSectionId == null
-                                  ? 'Update IPD Details'
-                                  : 'Update & Assign Bed'),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 24, vertical: 16),
-                            backgroundColor: HospitalTheme.primary,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        OutlinedButton.icon(
-                          onPressed: uiState.isProcessing ? null : clearForm,
-                          icon: const Icon(Icons.clear),
-                          label: const Text('Clear Form'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 24, vertical: 16),
-                            side:
-                                const BorderSide(color: HospitalTheme.primary),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                // Action Buttons
+                _buildActionButtons(uiState, formData, hasBed),
               ],
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildIpdDetailsSection(FormData formData, UIState uiState,
+      List<Section> sections, List<int> availableBeds) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'IPD Details',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: HospitalTheme.textDark,
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Reason for Admission
+        _buildFormField(
+          label: 'Reason for Admission',
+          hint: 'Enter reason for admission',
+          controller: reasonController,
+          icon: Icons.medical_services,
+        ),
+        const SizedBox(height: 16),
+
+        // Symptoms
+        _buildFormField(
+          label: 'Symptoms',
+          hint: 'Enter patient symptoms',
+          controller: symptomsController,
+          icon: Icons.sick,
+          maxLines: 3,
+        ),
+        const SizedBox(height: 16),
+
+        // Initial Diagnosis
+        _buildFormField(
+          label: 'Initial Diagnosis',
+          hint: 'Enter initial diagnosis',
+          controller: diagnosisController,
+          icon: Icons.medical_information,
+          maxLines: 3,
+        ),
+
+        const SizedBox(height: 24),
+
+        // Bed Assignment Section
+        const Text(
+          'Bed Assignment',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: HospitalTheme.textDark,
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        uiState.isLoadingSections
+            ? const Center(child: CircularProgressIndicator())
+            : sections.isEmpty
+                ? const Center(
+                    child: Text(
+                      'No available sections found',
+                      style: TextStyle(color: HospitalTheme.textMedium),
+                    ),
+                  )
+                : Column(
+                    children: [
+                      // Section Dropdown
+                      DropdownButtonFormField<String>(
+                        decoration: const InputDecoration(
+                          labelText: 'Select Section',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.business),
+                        ),
+                        value: formData.selectedSectionId,
+                        onChanged: (value) {
+                          if (value != null) {
+                            ref
+                                .read(formDataProvider.notifier)
+                                .setSelectedSection(value);
+                            fetchAvailableBeds(value);
+                          }
+                        },
+                        items: sections.map((section) {
+                          return DropdownMenuItem<String>(
+                            value: section.id,
+                            child: Text(
+                                '${section.name} (${section.type}) - ${section.availableBeds} beds available'),
+                          );
+                        }).toList(),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Bed Selection
+                      if (formData.selectedSectionId != null)
+                        uiState.isProcessing
+                            ? const Center(child: CircularProgressIndicator())
+                            : availableBeds.isEmpty
+                                ? const Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(16.0),
+                                      child: Text(
+                                        'No available beds in this section',
+                                        style: TextStyle(
+                                            color: HospitalTheme.textMedium),
+                                      ),
+                                    ),
+                                  )
+                                : Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade50,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                          color: HospitalTheme.border),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Available Beds',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                            color: HospitalTheme.textDark,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Wrap(
+                                          spacing: 12,
+                                          runSpacing: 12,
+                                          children:
+                                              availableBeds.map((bedNumber) {
+                                            final isSelected =
+                                                formData.selectedBedNumber ==
+                                                    bedNumber;
+                                            return InkWell(
+                                              onTap: () {
+                                                ref
+                                                    .read(formDataProvider
+                                                        .notifier)
+                                                    .setSelectedBed(bedNumber);
+                                              },
+                                              child: Container(
+                                                width: 80,
+                                                padding:
+                                                    const EdgeInsets.all(12),
+                                                decoration: BoxDecoration(
+                                                  color: isSelected
+                                                      ? HospitalTheme.primary
+                                                          .withOpacity(0.2)
+                                                      : Colors.white,
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                  border: Border.all(
+                                                    color: isSelected
+                                                        ? HospitalTheme.primary
+                                                        : HospitalTheme.border,
+                                                    width: isSelected ? 2 : 1,
+                                                  ),
+                                                ),
+                                                child: Column(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.center,
+                                                  children: [
+                                                    Icon(
+                                                      Icons.bed,
+                                                      size: 20,
+                                                      color: isSelected
+                                                          ? HospitalTheme
+                                                              .primary
+                                                          : HospitalTheme
+                                                              .textMedium,
+                                                    ),
+                                                    const SizedBox(height: 4),
+                                                    Text(
+                                                      'Bed $bedNumber',
+                                                      style: TextStyle(
+                                                        fontWeight: isSelected
+                                                            ? FontWeight.bold
+                                                            : FontWeight.normal,
+                                                        color: isSelected
+                                                            ? HospitalTheme
+                                                                .primary
+                                                            : HospitalTheme
+                                                                .textDark,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            );
+                                          }).toList(),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                    ],
+                  ),
+      ],
+    );
+  }
+
+  Widget _buildDepositManagementSection() {
+    return Consumer(
+      builder: (context, ref, _) {
+        final patient = ref.watch(selectedPatientProvider);
+        final uiState = ref.watch(uiStateProvider);
+        final depositForm = ref.watch(depositFormProvider);
+        final existingReceipt = ref.watch(depositReceiptProvider);
+
+        if (patient == null || patient.admissionRecords.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Deposit Management',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: HospitalTheme.textDark,
+                  ),
+                ),
+                if (uiState.isCheckingDeposit)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Existing deposit receipt display
+            if (existingReceipt != null && existingReceipt.isCancelled != true)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: HospitalTheme.success.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: HospitalTheme.success),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.check_circle,
+                          color: HospitalTheme.success,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Deposit Receipt Exists',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: HospitalTheme.success,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildReceiptInfoRow(
+                                  'Receipt ID:', existingReceipt.receiptId),
+                              _buildReceiptInfoRow('Amount:',
+                                  '₹${existingReceipt.depositAmount.toStringAsFixed(2)}'),
+                              _buildReceiptInfoRow('Payment Method:',
+                                  existingReceipt.paymentMethod),
+                              _buildReceiptInfoRow(
+                                  'Generated:',
+                                  existingReceipt.generatedAt
+                                      .toString()
+                                      .split('.')[0]),
+                            ],
+                          ),
+                        ),
+                        Column(
+                          children: [
+                            if (existingReceipt.receiptUrl != null)
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  Methods()
+                                      .openPdf(existingReceipt.receiptUrl!);
+                                  showSuccessSnackBar('Opening receipt...');
+                                },
+                                icon: const Icon(Icons.picture_as_pdf),
+                                label: const Text('View Receipt'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: HospitalTheme.primary,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 8),
+                                ),
+                              ),
+                            const SizedBox(height: 8),
+                            ElevatedButton.icon(
+                              onPressed: uiState.isCancellingDeposit
+                                  ? null
+                                  : cancelDepositReceipt,
+                              icon: uiState.isCancellingDeposit
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                                Colors.white),
+                                      ),
+                                    )
+                                  : const Icon(Icons.cancel_outlined),
+                              label: Text(
+                                uiState.isCancellingDeposit
+                                    ? 'Cancelling...'
+                                    : 'Cancel Receipt',
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: HospitalTheme.error,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 8),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              )
+            else if (existingReceipt != null &&
+                existingReceipt.isCancelled == true)
+              // Show cancelled receipt info
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: HospitalTheme.error.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: HospitalTheme.error),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.cancel,
+                          color: HospitalTheme.error,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Deposit Receipt Cancelled',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: HospitalTheme.error,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildReceiptInfoRow(
+                            'Receipt ID:', existingReceipt.receiptId),
+                        _buildReceiptInfoRow('Amount:',
+                            '₹${existingReceipt.depositAmount.toStringAsFixed(2)}'),
+                        _buildReceiptInfoRow(
+                            'Payment Method:', existingReceipt.paymentMethod),
+                        if (existingReceipt.cancelReason != null)
+                          _buildReceiptInfoRow(
+                              'Cancel Reason:', existingReceipt.cancelReason!),
+                        if (existingReceipt.cancelledAt != null)
+                          _buildReceiptInfoRow(
+                              'Cancelled At:',
+                              existingReceipt.cancelledAt
+                                  .toString()
+                                  .split('.')[0]),
+                      ],
+                    ),
+                  ],
+                ),
+              )
+            else
+              // New deposit form
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: HospitalTheme.border),
+                  boxShadow: HospitalTheme.shadowSmall,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.account_balance_wallet,
+                          color: HospitalTheme.primary,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Create Deposit Receipt',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: HospitalTheme.textDark,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Deposit Amount
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildFormField(
+                            label: 'Deposit Amount *',
+                            hint: 'Enter deposit amount',
+                            controller: depositAmountController,
+                            icon: Icons.currency_rupee,
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Payment Method *',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: HospitalTheme.textDark,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              DropdownButtonFormField<String>(
+                                decoration: const InputDecoration(
+                                  border: OutlineInputBorder(),
+                                  prefixIcon: Icon(Icons.payment),
+                                ),
+                                value: depositForm.paymentMethod,
+                                hint: const Text('Select payment method'),
+                                onChanged: (value) {
+                                  if (value != null) {
+                                    ref
+                                        .read(depositFormProvider.notifier)
+                                        .setPaymentMethod(value);
+                                  }
+                                },
+                                items: paymentMethods.map((method) {
+                                  return DropdownMenuItem<String>(
+                                    value: method,
+                                    child: Text(method),
+                                  );
+                                }).toList(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Conditional fields based on payment method
+                    if (depositForm.paymentMethod == 'UPI' ||
+                        depositForm.paymentMethod == 'Net Banking')
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: _buildFormField(
+                          label: 'Transaction ID',
+                          hint: 'Enter transaction ID',
+                          controller: transactionIdController,
+                          icon: Icons.receipt_long,
+                        ),
+                      ),
+
+                    if (depositForm.paymentMethod == 'Cheque')
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _buildFormField(
+                                label: 'Cheque Number',
+                                hint: 'Enter cheque number',
+                                controller: chequeNumberController,
+                                icon: Icons.receipt,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: _buildFormField(
+                                label: 'Bank Name',
+                                hint: 'Enter bank name',
+                                controller: bankNameController,
+                                icon: Icons.account_balance,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    // Remarks
+                    _buildFormField(
+                      label: 'Remarks',
+                      hint: 'Enter any remarks (optional)',
+                      controller: remarksController,
+                      icon: Icons.note,
+                      maxLines: 2,
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Create deposit button
+                    Center(
+                      child: ElevatedButton.icon(
+                        onPressed:
+                            (uiState.isCreatingDeposit || !depositForm.isValid)
+                                ? null
+                                : createDepositReceipt,
+                        icon: uiState.isCreatingDeposit
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white),
+                                ),
+                              )
+                            : const Icon(Icons.receipt_long),
+                        label: Text(
+                          uiState.isCreatingDeposit
+                              ? 'Creating Receipt...'
+                              : 'Create Deposit Receipt',
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: HospitalTheme.primary,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 32, vertical: 16),
+                          textStyle: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+
+                    if (!depositForm.isValid &&
+                        depositForm.paymentMethod != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.info,
+                                color: HospitalTheme.warning, size: 16),
+                            const SizedBox(width: 8),
+                            Text(
+                              depositForm.depositAmount == null ||
+                                      depositForm.depositAmount! <= 0
+                                  ? 'Please enter a valid deposit amount'
+                                  : 'Please fill in all required fields',
+                              style: const TextStyle(
+                                color: HospitalTheme.warning,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildReceiptInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                color: HospitalTheme.textMedium,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: HospitalTheme.textDark,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButtons(UIState uiState, FormData formData, bool hasBed) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        ElevatedButton.icon(
+          onPressed: uiState.isProcessing ? null : updateIpdDetails,
+          icon: uiState.isProcessing
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : const Icon(Icons.save),
+          label: Text(hasBed && formData.selectedSectionId == null
+              ? 'Update IPD Details'
+              : 'Update & Assign Bed'),
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            backgroundColor: HospitalTheme.primary,
+          ),
+        ),
+        const SizedBox(width: 16),
+        OutlinedButton.icon(
+          onPressed: uiState.isProcessing ? null : clearForm,
+          icon: const Icon(Icons.clear),
+          label: const Text('Clear Form'),
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            side: const BorderSide(color: HospitalTheme.primary),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1417,6 +2470,7 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
     required TextEditingController controller,
     required IconData icon,
     int maxLines = 1,
+    TextInputType? keyboardType,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1432,6 +2486,7 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
         TextField(
           controller: controller,
           maxLines: maxLines,
+          keyboardType: keyboardType,
           decoration: InputDecoration(
             hintText: hint,
             prefixIcon: Icon(icon, color: HospitalTheme.primary),

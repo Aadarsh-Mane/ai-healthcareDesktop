@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:doctordesktop/Admin/AdminAuthDialod.dart';
 import 'package:doctordesktop/Admin/AdminDashboard.dart';
 import 'package:doctordesktop/Admin/BedManagement.dart';
+import 'package:doctordesktop/Admin/BillTrackScreen.dart';
 import 'package:doctordesktop/Admin/ReceptionAuthDialog.dart';
 import 'package:doctordesktop/Check.dart';
 import 'package:doctordesktop/Doctor/AddMedicine.dart';
