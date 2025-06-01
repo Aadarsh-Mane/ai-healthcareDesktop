@@ -1,4 +1,5 @@
 import 'package:doctordesktop/constants/HospitalTheme.dart';
+import 'package:doctordesktop/constants/Methods.dart';
 import 'package:doctordesktop/constants/Url.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -350,6 +351,7 @@ class _ManualDischargeSummaryScreenState
                   ElevatedButton.icon(
                     onPressed: () {
                       // Use Methods().pdfUrl(response['data']['driveLink'])
+                      Methods().openPdf(response['data']['driveLink']);
                       // For now, just copying to clipboard
                       Clipboard.setData(
                           ClipboardData(text: response['data']['driveLink']));
@@ -1828,7 +1830,7 @@ class _ManualDischargeSummaryScreenState
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: () {
-                // Use Methods().pdfUrl(data['driveLink']) when available
+                Methods().openPdf(data['driveLink']);
                 // For now, copy to clipboard
                 Clipboard.setData(ClipboardData(text: data['driveLink']));
                 ScaffoldMessenger.of(context).showSnackBar(
