@@ -15,6 +15,7 @@ import 'package:doctordesktop/External/DashBoard.dart';
 import 'package:doctordesktop/Lab/LabAuthDialog.dart';
 import 'package:doctordesktop/Lab/LabDashBoard.dart';
 import 'package:doctordesktop/Lab/LabScreen.dart';
+import 'package:doctordesktop/PdfTest.dart';
 import 'package:doctordesktop/Working.dart';
 import 'package:doctordesktop/authProvider/auth_provider.dart';
 import 'package:doctordesktop/constants/AppTheme.dart';
@@ -91,7 +92,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    return HomePage();
+    return PdfScreen();
   }
 
   // Drawer widget
