@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:doctordesktop/reception/ManualDischargeSummaryScreen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
@@ -14,20 +15,61 @@ import 'package:doctordesktop/reception/GenerateBillScreen.dart';
 import 'package:doctordesktop/reception/GenerateOpdBill.dart';
 import 'package:doctordesktop/reception/ExportSummaryScreen.dart';
 
-// PatientFilters class - stays mostly the same but with some optimizations
+// Enhanced filter class with proper state management
 class PatientFilters {
-  String searchQuery = '';
-  String doctorType = 'All'; // 'All', 'doctor' (internal), 'external'
-  String dateRange =
-      'All Time'; // 'All Time', 'Today', 'This Week', 'This Month'
+  final String searchQuery;
+  final String doctorType;
+  final String dateRange;
+  final String patientType;
+  final String admissionType; // New: Filter by IPD/OPD
+
+  const PatientFilters({
+    this.searchQuery = '',
+    this.doctorType = 'All',
+    this.dateRange = 'All Time',
+    this.patientType = 'All',
+    this.admissionType = 'All', // All, IPD, OPD
+  });
+
+  PatientFilters copyWith({
+    String? searchQuery,
+    String? doctorType,
+    String? dateRange,
+    String? patientType,
+    String? admissionType,
+  }) {
+    return PatientFilters(
+      searchQuery: searchQuery ?? this.searchQuery,
+      doctorType: doctorType ?? this.doctorType,
+      dateRange: dateRange ?? this.dateRange,
+      patientType: patientType ?? this.patientType,
+      admissionType: admissionType ?? this.admissionType,
+    );
+  }
 
   bool filterPatient(PatientDischarge patient) {
-    // Search query filter - optimization to only perform toLowerCase once
+    // Search query filter - check multiple fields including numbers
     if (searchQuery.isNotEmpty) {
       final query = searchQuery.toLowerCase();
-      if (!patient.name.toLowerCase().contains(query) &&
-          !patient.patientId.toLowerCase().contains(query) &&
-          !patient.contact.toLowerCase().contains(query)) {
+      final searchableText = [
+        patient.name,
+        patient.patientId,
+        patient.contact,
+        patient.lastRecord.doctor?.name ?? '',
+        patient.lastRecord.opdNumber?.toString() ?? '',
+        patient.lastRecord.ipdNumber?.toString() ?? '',
+      ].join(' ').toLowerCase();
+
+      if (!searchableText.contains(query)) {
+        return false;
+      }
+    }
+
+    // Patient type filter
+    if (patientType != 'All') {
+      final currentPatientType =
+          patient.lastRecord.patientType?.toLowerCase() ?? '';
+      if (patientType.toLowerCase() != currentPatientType) {
         return false;
       }
     }
@@ -41,26 +83,47 @@ class PatientFilters {
       }
     }
 
+    // Admission type filter (IPD/OPD)
+    if (admissionType != 'All') {
+      final hasIpdNumber = patient.lastRecord.ipdNumber != null &&
+          patient.lastRecord.ipdNumber! > 0;
+      final hasOpdNumber = patient.lastRecord.opdNumber != null &&
+          patient.lastRecord.opdNumber! > 0;
+
+      if (admissionType == 'IPD' && !hasIpdNumber) {
+        return false;
+      } else if (admissionType == 'OPD' && (!hasOpdNumber || hasIpdNumber)) {
+        // OPD only if has OPD number but no IPD number (not admitted)
+        return false;
+      }
+    }
+
     // Date range filter
     if (dateRange != 'All Time') {
       final dischargeDate = _parseDateString(patient.lastRecord.dischargeDate);
       if (dischargeDate != null) {
         final now = DateTime.now();
 
-        if (dateRange == 'Today') {
-          if (!_isSameDay(dischargeDate, now)) {
-            return false;
-          }
-        } else if (dateRange == 'This Week') {
-          final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-          if (dischargeDate.isBefore(startOfWeek)) {
-            return false;
-          }
-        } else if (dateRange == 'This Month') {
-          final startOfMonth = DateTime(now.year, now.month, 1);
-          if (dischargeDate.isBefore(startOfMonth)) {
-            return false;
-          }
+        switch (dateRange) {
+          case 'Today':
+            if (!_isSameDay(dischargeDate, now)) return false;
+            break;
+          case 'This Week':
+            final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+            if (dischargeDate.isBefore(startOfWeek)) return false;
+            break;
+          case 'This Month':
+            final startOfMonth = DateTime(now.year, now.month, 1);
+            if (dischargeDate.isBefore(startOfMonth)) return false;
+            break;
+          case 'Last 7 Days':
+            final sevenDaysAgo = now.subtract(const Duration(days: 7));
+            if (dischargeDate.isBefore(sevenDaysAgo)) return false;
+            break;
+          case 'Last 30 Days':
+            final thirtyDaysAgo = now.subtract(const Duration(days: 30));
+            if (dischargeDate.isBefore(thirtyDaysAgo)) return false;
+            break;
         }
       }
     }
@@ -68,32 +131,42 @@ class PatientFilters {
     return true;
   }
 
-  DateTime? _parseDateString(String dateStr) {
+  DateTime? _parseDateString(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) return null;
+
     try {
-      // Example format: "2025-05-01 01:19:23 PM"
-      // Parse date part
-      final dateParts = dateStr.split(' ')[0].split('-');
-      final year = int.parse(dateParts[0]);
-      final month = int.parse(dateParts[1]);
-      final day = int.parse(dateParts[2]);
+      // Handle format: "2025-06-20 01:46:30 PM"
+      final parts = dateStr.split(' ');
+      if (parts.length >= 3) {
+        final dateParts = parts[0].split('-');
+        final timeParts = parts[1].split(':');
+        final amPm = parts[2];
 
-      // Parse time part
-      final timeParts = dateStr.split(' ')[1].split(':');
-      var hour = int.parse(timeParts[0]);
-      final minute = int.parse(timeParts[1]);
-      final second = int.parse(timeParts[2]);
+        if (dateParts.length == 3 && timeParts.length == 3) {
+          var hour = int.parse(timeParts[0]);
+          final minute = int.parse(timeParts[1]);
+          final second = int.parse(timeParts[2]);
 
-      // Handle AM/PM
-      final amPm = dateStr.split(' ')[2];
-      if (amPm == 'PM' && hour < 12) {
-        hour += 12;
-      } else if (amPm == 'AM' && hour == 12) {
-        hour = 0;
+          // Handle AM/PM
+          if (amPm.toUpperCase() == 'PM' && hour < 12) {
+            hour += 12;
+          } else if (amPm.toUpperCase() == 'AM' && hour == 12) {
+            hour = 0;
+          }
+
+          return DateTime(
+            int.parse(dateParts[0]),
+            int.parse(dateParts[1]),
+            int.parse(dateParts[2]),
+            hour,
+            minute,
+            second,
+          );
+        }
       }
-
-      return DateTime(year, month, day, hour, minute, second);
+      return null;
     } catch (e) {
-      print('Error parsing date: $e');
+      debugPrint('Error parsing date: $dateStr - $e');
       return null;
     }
   }
@@ -103,36 +176,182 @@ class PatientFilters {
   }
 }
 
-// State notifier for discharged patients
+// Enhanced data model with proper null safety
+class PatientDischarge {
+  final String name;
+  final String gender;
+  final String contact;
+  final String patientId;
+  final LastRecord lastRecord;
+
+  const PatientDischarge({
+    required this.name,
+    required this.gender,
+    required this.contact,
+    required this.patientId,
+    required this.lastRecord,
+  });
+
+  factory PatientDischarge.fromJson(Map<String, dynamic> json) {
+    return PatientDischarge(
+      name: json['name']?.toString() ?? 'Unknown',
+      gender: json['gender']?.toString() ?? 'Unknown',
+      contact: json['contact']?.toString() ?? 'Unknown',
+      patientId: json['patientId']?.toString() ?? 'Unknown',
+      lastRecord: LastRecord.fromJson(json['lastRecord'] ?? {}),
+    );
+  }
+}
+
+class LastRecord {
+  final String admissionId;
+  final int? opdNumber;
+  final int? ipdNumber;
+  final String admissionDate;
+  final String dischargeDate;
+  final String status;
+  final String? patientType;
+  final String? admitNotes;
+  final String conditionAtDischarge;
+  final double amountToBePayed;
+  final double previousRemainingAmount;
+  final bool dischargedByReception;
+  final double weight;
+  final Doctor? doctor;
+  final String? reasonForAdmission;
+  final String? symptoms;
+  final String? initialDiagnosis;
+  final String? treatmentGiven;
+  final String? followUpAdvice;
+  final String? investigations;
+  final String? operativeProcedures;
+
+  const LastRecord({
+    required this.admissionId,
+    this.opdNumber,
+    this.ipdNumber,
+    required this.admissionDate,
+    required this.dischargeDate,
+    required this.status,
+    this.patientType,
+    this.admitNotes,
+    required this.conditionAtDischarge,
+    required this.amountToBePayed,
+    required this.previousRemainingAmount,
+    required this.dischargedByReception,
+    required this.weight,
+    this.doctor,
+    this.reasonForAdmission,
+    this.symptoms,
+    this.initialDiagnosis,
+    this.treatmentGiven,
+    this.followUpAdvice,
+    this.investigations,
+    this.operativeProcedures,
+  });
+
+  factory LastRecord.fromJson(Map<String, dynamic> json) {
+    return LastRecord(
+      admissionId: json['admissionId']?.toString() ?? '',
+      opdNumber: (json['opdNumber'] as num?)?.toInt(),
+      ipdNumber: (json['ipdNumber'] as num?)?.toInt(),
+      admissionDate: json['admissionDate']?.toString() ?? '',
+      dischargeDate: json['dischargeDate']?.toString() ?? '',
+      status: json['status']?.toString() ?? 'Unknown',
+      patientType: json['patientType']?.toString(),
+      admitNotes: json['admitNotes']?.toString(),
+      conditionAtDischarge:
+          json['conditionAtDischarge']?.toString() ?? 'Unknown',
+      amountToBePayed: (json['amountToBePayed'] as num?)?.toDouble() ?? 0.0,
+      previousRemainingAmount:
+          (json['previousRemainingAmount'] as num?)?.toDouble() ?? 0.0,
+      dischargedByReception: json['dischargedByReception'] as bool? ?? false,
+      weight: (json['weight'] as num?)?.toDouble() ?? 0.0,
+      doctor: json['doctor'] != null ? Doctor.fromJson(json['doctor']) : null,
+      reasonForAdmission: json['reasonForAdmission']?.toString(),
+      symptoms: json['symptoms']?.toString(),
+      initialDiagnosis: json['initialDiagnosis']?.toString(),
+      treatmentGiven: json['treatmentGiven']?.toString(),
+      followUpAdvice: json['followUpAdvice']?.toString(),
+      investigations: json['investigations']?.toString(),
+      operativeProcedures: json['operativeProcedures']?.toString(),
+    );
+  }
+
+  // Helper method to determine if this is an IPD admission
+  bool get isIpdAdmission => ipdNumber != null && ipdNumber! > 0;
+
+  // Helper method to get admission type
+  String get admissionType => isIpdAdmission ? 'IPD' : 'OPD';
+}
+
+class Doctor {
+  final String id;
+  final String name;
+  final String usertype;
+
+  const Doctor({
+    required this.id,
+    required this.name,
+    required this.usertype,
+  });
+
+  factory Doctor.fromJson(Map<String, dynamic> json) {
+    return Doctor(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? 'Unknown',
+      usertype: json['usertype']?.toString() ?? 'unknown',
+    );
+  }
+}
+
+// Enhanced state notifier with better error handling
 class DischargedPatientsNotifier
     extends StateNotifier<AsyncValue<List<PatientDischarge>>> {
   DischargedPatientsNotifier() : super(const AsyncValue.loading()) {
     fetchDischargedPatients();
   }
 
+  static const String apiUrl =
+      'http://localhost:5001/reception/getAllDischargedPatient';
+
   Future<void> fetchDischargedPatients() async {
     try {
       state = const AsyncValue.loading();
 
-      final response = await http
-          .get(Uri.parse('${KVM_URL}/reception/getAllDischargedPatient'));
-
+      final response = await http.get(
+        Uri.parse(apiUrl),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(const Duration(seconds: 30));
+      print('Fetching discharged patients from ${response.body}');
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         final patients =
             data.map((json) => PatientDischarge.fromJson(json)).toList();
+
+        // Sort by discharge date (newest first)
+        patients.sort((a, b) {
+          final dateA =
+              DateTime.tryParse(a.lastRecord.dischargeDate.split(' ')[0]) ??
+                  DateTime(1970);
+          final dateB =
+              DateTime.tryParse(b.lastRecord.dischargeDate.split(' ')[0]) ??
+                  DateTime(1970);
+          return dateB.compareTo(dateA);
+        });
+
         state = AsyncValue.data(patients);
       } else {
         throw Exception(
-            'Failed to load discharged patients: ${response.statusCode}');
+            'Server returned ${response.statusCode}: ${response.reasonPhrase}');
       }
     } catch (e) {
-      print('Error fetching discharged patients: $e');
+      debugPrint('Error fetching discharged patients: $e');
       state = AsyncValue.error(e, StackTrace.current);
     }
   }
 
-  Future<void> manualRefresh() async {
+  Future<void> refresh() async {
     await fetchDischargedPatients();
   }
 }
@@ -143,17 +362,46 @@ final dischargedPatientsProvider = StateNotifierProvider<
   (ref) => DischargedPatientsNotifier(),
 );
 
+final patientFiltersProvider =
+    StateProvider<PatientFilters>((ref) => const PatientFilters());
+
 final selectedTabProvider = StateProvider<int>((ref) => 0);
 
-final patientFiltersProvider = StateProvider<PatientFilters>((ref) {
-  return PatientFilters();
+final filteredPatientsProvider =
+    Provider<AsyncValue<Map<String, List<PatientDischarge>>>>((ref) {
+  final patientsAsync = ref.watch(dischargedPatientsProvider);
+  final filters = ref.watch(patientFiltersProvider);
+
+  return patientsAsync.when(
+    data: (patients) {
+      final filteredPatients =
+          patients.where((patient) => filters.filterPatient(patient)).toList();
+
+      final internalPatients = filteredPatients
+          .where((p) => p.lastRecord.patientType?.toLowerCase() == 'internal')
+          .toList();
+
+      final externalPatients = filteredPatients
+          .where((p) => p.lastRecord.patientType?.toLowerCase() == 'external')
+          .toList();
+
+      return AsyncValue.data({
+        'all': filteredPatients,
+        'internal': internalPatients,
+        'external': externalPatients,
+      });
+    },
+    loading: () => const AsyncValue.loading(),
+    error: (error, stack) => AsyncValue.error(error, stack),
+  );
 });
 
+// Enhanced main screen with performance optimizations
 class DischargedPatientsScreen1 extends ConsumerStatefulWidget {
-  const DischargedPatientsScreen1({Key? key}) : super(key: key);
+  const DischargedPatientsScreen1({super.key});
 
   @override
-  _DischargedPatientsScreenState createState() =>
+  ConsumerState<DischargedPatientsScreen1> createState() =>
       _DischargedPatientsScreenState();
 }
 
@@ -161,32 +409,28 @@ class _DischargedPatientsScreenState
     extends ConsumerState<DischargedPatientsScreen1>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final TextEditingController _searchController = TextEditingController();
-  final ScrollController _mainScrollController = ScrollController();
+  late TextEditingController _searchController;
+  late FocusNode _searchFocusNode;
 
-  // We'll use a separate scroll controller for each tab to maintain scroll position
-  final ScrollController _allPatientsScrollController = ScrollController();
-  final ScrollController _internalPatientsScrollController = ScrollController();
-  final ScrollController _externalPatientsScrollController = ScrollController();
+  // Separate scroll controllers for each tab
+  final Map<String, ScrollController> _scrollControllers = {
+    'all': ScrollController(),
+    'internal': ScrollController(),
+    'external': ScrollController(),
+  };
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _searchController = TextEditingController();
+    _searchFocusNode = FocusNode();
+
     _tabController.addListener(_handleTabChange);
 
-    // Initial data fetch
-    ref.read(dischargedPatientsProvider.notifier).fetchDischargedPatients();
-
-    // Setup refresh after navigation
+    // Load initial data
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final route = ModalRoute.of(context);
-      if (route != null) {
-        route.addScopedWillPopCallback(() async {
-          await ref.read(dischargedPatientsProvider.notifier).manualRefresh();
-          return true;
-        });
-      }
+      ref.read(dischargedPatientsProvider.notifier).fetchDischargedPatients();
     });
   }
 
@@ -195,10 +439,12 @@ class _DischargedPatientsScreenState
     _tabController.removeListener(_handleTabChange);
     _tabController.dispose();
     _searchController.dispose();
-    _mainScrollController.dispose();
-    _allPatientsScrollController.dispose();
-    _internalPatientsScrollController.dispose();
-    _externalPatientsScrollController.dispose();
+    _searchFocusNode.dispose();
+
+    for (final controller in _scrollControllers.values) {
+      controller.dispose();
+    }
+
     super.dispose();
   }
 
@@ -208,137 +454,141 @@ class _DischargedPatientsScreenState
     }
   }
 
+  void _handleSearch(String value) {
+    ref.read(patientFiltersProvider.notifier).update(
+          (state) => state.copyWith(searchQuery: value),
+        );
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    _handleSearch('');
+    _searchFocusNode.unfocus();
+  }
+
+  void _resetFilters() {
+    _searchController.clear();
+    ref.read(patientFiltersProvider.notifier).state = const PatientFilters();
+    _searchFocusNode.unfocus();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final dischargedPatientsAsync = ref.watch(dischargedPatientsProvider);
+    final filteredPatientsAsync = ref.watch(filteredPatientsProvider);
     final selectedTab = ref.watch(selectedTabProvider);
     final filters = ref.watch(patientFiltersProvider);
 
-    // Responsive layout adjustments
+    // Responsive calculations
     final screenSize = MediaQuery.of(context).size;
     final isWideScreen = screenSize.width > 1200;
-    final isMediumScreen = screenSize.width > 800 && screenSize.width <= 1200;
+    final isMediumScreen = screenSize.width > 800;
 
-    // Filtered patient lists by patient type
-    List<PatientDischarge> allPatients = [];
-    List<PatientDischarge> internalPatients = [];
-    List<PatientDischarge> externalPatients = [];
-
-    dischargedPatientsAsync.whenData((patients) {
-      // First apply general filters
-      final filteredPatients =
-          patients.where((p) => filters.filterPatient(p)).toList();
-
-      // Then separate by patient type
-      allPatients = filteredPatients;
-      internalPatients = filteredPatients
-          .where((p) => p.lastRecord.patientType?.toLowerCase() == 'internal')
-          .toList();
-      externalPatients = filteredPatients
-          .where((p) => p.lastRecord.patientType?.toLowerCase() == 'external')
-          .toList();
-    });
-
-    // Total counts for the status bar
-    int totalPatients = allPatients.length;
-    int totalInternal = internalPatients.length;
-    int totalExternal = externalPatients.length;
-
-    return Scaffold(
-      backgroundColor: HospitalTheme.background,
-      appBar: _buildAppBar(),
-      body: Column(
-        children: [
-          // Filters section
-          _buildFilters(isWideScreen),
-
-          // Main content area with tabs
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                // All Patients Tab with its own ScrollController
-                _buildPatientList(allPatients, dischargedPatientsAsync,
-                    isWideScreen, _allPatientsScrollController),
-
-                // Internal Patients Tab with its own ScrollController
-                _buildPatientList(internalPatients, dischargedPatientsAsync,
-                    isWideScreen, _internalPatientsScrollController),
-
-                // External Patients Tab with its own ScrollController
-                _buildPatientList(externalPatients, dischargedPatientsAsync,
-                    isWideScreen, _externalPatientsScrollController),
-              ],
-            ),
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyF, control: true):
+            _focusSearch,
+        const SingleActivator(LogicalKeyboardKey.keyF, meta: true):
+            _focusSearch,
+        const SingleActivator(LogicalKeyboardKey.escape): _clearSearch,
+        const SingleActivator(LogicalKeyboardKey.keyR, control: true):
+            _refreshData,
+        const SingleActivator(LogicalKeyboardKey.keyR, meta: true):
+            _refreshData,
+      },
+      child: Focus(
+        autofocus: true,
+        child: Scaffold(
+          backgroundColor: HospitalTheme.background,
+          appBar: _buildAppBar(context),
+          body: Column(
+            children: [
+              _FiltersSection(
+                searchController: _searchController,
+                searchFocusNode: _searchFocusNode,
+                filters: filters,
+                isWideScreen: isWideScreen,
+                onSearch: _handleSearch,
+                onClearSearch: _clearSearch,
+                onResetFilters: _resetFilters,
+                onFilterChange: (newFilters) {
+                  ref.read(patientFiltersProvider.notifier).state = newFilters;
+                },
+              ),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _PatientListView(
+                      key: const ValueKey('all'),
+                      patientsAsync: filteredPatientsAsync,
+                      listKey: 'all',
+                      scrollController: _scrollControllers['all']!,
+                      isWideScreen: isWideScreen,
+                    ),
+                    _PatientListView(
+                      key: const ValueKey('internal'),
+                      patientsAsync: filteredPatientsAsync,
+                      listKey: 'internal',
+                      scrollController: _scrollControllers['internal']!,
+                      isWideScreen: isWideScreen,
+                    ),
+                    _PatientListView(
+                      key: const ValueKey('external'),
+                      patientsAsync: filteredPatientsAsync,
+                      listKey: 'external',
+                      scrollController: _scrollControllers['external']!,
+                      isWideScreen: isWideScreen,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+          bottomNavigationBar: _BottomStatusBar(
+            filteredPatientsAsync: filteredPatientsAsync,
+          ),
+        ),
       ),
-      bottomNavigationBar:
-          _buildBottomStatusBar(totalPatients, totalInternal, totalExternal),
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
-    // Define specific colors for each patient type
-    final allPatientsColor = Colors.blue;
-    final internalPatientsColor = Colors.green;
-    final externalPatientsColor = Colors.orange;
+  void _focusSearch() {
+    _searchFocusNode.requestFocus();
+  }
 
-    return AppBar(
-      title: Text(
-        'Discharged Patients',
-        style: GoogleFonts.poppins(
-          fontWeight: FontWeight.bold,
-          fontSize: 22,
-          color: Colors.white,
-        ),
-      ),
+  void _refreshData() {
+    ref.read(dischargedPatientsProvider.notifier).refresh();
+  }
+
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+    return HospitalTheme.buildAppBar(
+      context: context,
+      title: 'Discharged Patients',
       actions: [
-        // Export button with tooltip
         Tooltip(
-          message: 'Export Data',
+          message: 'Export Data (Ctrl+E)',
           child: IconButton(
-            icon: Icon(Icons.file_download_outlined, color: Colors.white),
+            icon: const Icon(Icons.file_download_outlined, color: Colors.white),
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Export feature coming soon')),
+                const SnackBar(content: Text('Export feature coming soon')),
               );
             },
           ),
         ),
-        // Refresh button with tooltip
         Tooltip(
-          message: 'Refresh Data',
+          message: 'Refresh (Ctrl+R)',
           child: IconButton(
-            icon: Icon(Icons.refresh, color: Colors.white),
-            onPressed: () {
-              ref.read(dischargedPatientsProvider.notifier).manualRefresh();
-            },
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: _refreshData,
           ),
         ),
-        SizedBox(width: 10),
+        const SizedBox(width: 16),
       ],
-      flexibleSpace: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              HospitalTheme.primaryDark,
-              HospitalTheme.secondary,
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-      ),
-      elevation: 4,
-      shadowColor: Colors.black.withOpacity(0.3),
       bottom: TabBar(
         controller: _tabController,
-        // Make indicator thicker and match tab colors
-        indicatorColor: _getCurrentTabColor(),
-        indicatorWeight: 4,
-        indicatorSize:
-            TabBarIndicatorSize.label, // Makes indicator match tab width
+        indicatorColor: Colors.white,
+        indicatorWeight: 3,
         labelStyle: GoogleFonts.poppins(
           fontSize: 16,
           fontWeight: FontWeight.bold,
@@ -347,906 +597,36 @@ class _DischargedPatientsScreenState
           fontSize: 16,
           fontWeight: FontWeight.normal,
         ),
-        // Apply selected colors
-        labelColor: _getCurrentTabColor(),
-        unselectedLabelColor: Colors.white.withOpacity(0.7),
-        tabs: [
-          _buildCustomTab(
-            icon: Icons.people,
-            label: 'All Patients',
-            color: allPatientsColor,
-            isSelected: _tabController.index == 0,
-          ),
-          _buildCustomTab(
-            icon: Icons.person,
-            label: 'Internal',
-            color: internalPatientsColor,
-            isSelected: _tabController.index == 1,
-          ),
-          _buildCustomTab(
-            icon: Icons.person_outline,
-            label: 'External',
-            color: externalPatientsColor,
-            isSelected: _tabController.index == 2,
-          ),
-        ],
-      ),
-    );
-  }
-
-// Helper method to get the color for the current tab
-  Color _getCurrentTabColor() {
-    switch (_tabController.index) {
-      case 0:
-        return Colors.blue; // All patients
-      case 1:
-        return Colors.green; // Internal patients
-      case 2:
-        return Colors.orange; // External patients
-      default:
-        return Colors.white;
-    }
-  }
-
-// Custom tab with color indicator
-  Widget _buildCustomTab({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required bool isSelected,
-  }) {
-    return Tab(
-      child: Container(
-        padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-        decoration: BoxDecoration(
-          // Add a subtle background color when selected
-          color: isSelected ? color.withOpacity(0.2) : Colors.transparent,
-          borderRadius: BorderRadius.circular(30),
-          // Add a border with the specific color
-          border: Border.all(
-            color: isSelected ? color : Colors.transparent,
-            width: 2,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: isSelected ? color : null),
-            SizedBox(width: 8),
-            Text(label),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFilters(bool isWideScreen) {
-    final filters = ref.watch(patientFiltersProvider);
-
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            spreadRadius: 1,
-            blurRadius: 3,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: isWideScreen
-          ? _buildWideScreenFilters(filters)
-          : _buildNarrowScreenFilters(filters),
-    );
-  }
-
-  // Wide screen layout for filters (horizontal)
-  Widget _buildWideScreenFilters(PatientFilters filters) {
-    return Row(
-      children: [
-        // Search Bar
-        Expanded(
-          flex: 2,
-          child: TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              prefixIcon: Icon(Icons.search, color: HospitalTheme.primary),
-              hintText: 'Search patients by name, ID or contact...',
-              filled: true,
-              fillColor: Colors.grey.shade100,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding:
-                  EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: Icon(Icons.clear),
-                      onPressed: () {
-                        setState(() {
-                          _searchController.clear();
-                          ref
-                              .read(patientFiltersProvider.notifier)
-                              .update((state) {
-                            state.searchQuery = '';
-                            return state;
-                          });
-                        });
-                      },
-                    )
-                  : null,
-            ),
-            onChanged: (value) {
-              ref.read(patientFiltersProvider.notifier).update((state) {
-                state.searchQuery = value;
-                return state;
-              });
-            },
-          ),
-        ),
-
-        SizedBox(width: 16),
-
-        // Doctor Type Filter Dropdown
-        Expanded(
-          child: _buildFilterDropdown(
-            labelText: 'Doctor Type',
-            value: filters.doctorType,
-            items: [
-              {'value': 'All', 'label': 'All Doctors', 'icon': Icons.groups},
-              {
-                'value': 'doctor',
-                'label': 'Internal Doctors',
-                'icon': Icons.medical_services
-              },
-              {
-                'value': 'external',
-                'label': 'External Doctors',
-                'icon': Icons.person_pin
-              },
-            ],
-            onChanged: (value) {
-              if (value != null) {
-                ref.read(patientFiltersProvider.notifier).update((state) {
-                  state.doctorType = value;
-                  return state;
-                });
-              }
-            },
-          ),
-        ),
-
-        SizedBox(width: 16),
-
-        // Date Range Filter Dropdown
-        Expanded(
-          child: _buildFilterDropdown(
-            labelText: 'Date Range',
-            value: filters.dateRange,
-            items: [
-              {
-                'value': 'All Time',
-                'label': 'All Time',
-                'icon': Icons.date_range
-              },
-              {'value': 'Today', 'label': 'Today', 'icon': Icons.today},
-              {
-                'value': 'This Week',
-                'label': 'This Week',
-                'icon': Icons.view_week
-              },
-              {
-                'value': 'This Month',
-                'label': 'This Month',
-                'icon': Icons.calendar_month
-              },
-            ],
-            onChanged: (value) {
-              if (value != null) {
-                ref.read(patientFiltersProvider.notifier).update((state) {
-                  state.dateRange = value;
-                  return state;
-                });
-              }
-            },
-          ),
-        ),
-
-        SizedBox(width: 16),
-
-        // Reset Button
-        ElevatedButton.icon(
-          icon: Icon(Icons.filter_list_off),
-          label: Text('Reset Filters'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: HospitalTheme.primary,
-            foregroundColor: Colors.white,
-            padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-          onPressed: () {
-            _searchController.clear();
-            ref.read(patientFiltersProvider.notifier).state = PatientFilters();
-          },
-        ),
-      ],
-    );
-  }
-
-  // Narrow screen layout for filters (vertical)
-  Widget _buildNarrowScreenFilters(PatientFilters filters) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Search Bar
-        TextField(
-          controller: _searchController,
-          decoration: InputDecoration(
-            prefixIcon: Icon(Icons.search, color: HospitalTheme.primary),
-            hintText: 'Search patients by name, ID or contact...',
-            filled: true,
-            fillColor: Colors.grey.shade100,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide.none,
-            ),
-            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            suffixIcon: _searchController.text.isNotEmpty
-                ? IconButton(
-                    icon: Icon(Icons.clear),
-                    onPressed: () {
-                      setState(() {
-                        _searchController.clear();
-                        ref
-                            .read(patientFiltersProvider.notifier)
-                            .update((state) {
-                          state.searchQuery = '';
-                          return state;
-                        });
-                      });
-                    },
-                  )
-                : null,
-          ),
-          onChanged: (value) {
-            ref.read(patientFiltersProvider.notifier).update((state) {
-              state.searchQuery = value;
-              return state;
-            });
-          },
-        ),
-
-        SizedBox(height: 12),
-
-        // Filter dropdowns in a row
-        Row(
-          children: [
-            // Doctor Type Filter Dropdown
-            Expanded(
-              child: _buildFilterDropdown(
-                labelText: 'Doctor Type',
-                value: filters.doctorType,
-                items: [
-                  {
-                    'value': 'All',
-                    'label': 'All Doctors',
-                    'icon': Icons.groups
-                  },
-                  {
-                    'value': 'doctor',
-                    'label': 'Internal Doctors',
-                    'icon': Icons.medical_services
-                  },
-                  {
-                    'value': 'external',
-                    'label': 'External Doctors',
-                    'icon': Icons.person_pin
-                  },
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    ref.read(patientFiltersProvider.notifier).update((state) {
-                      state.doctorType = value;
-                      return state;
-                    });
-                  }
-                },
-              ),
-            ),
-
-            SizedBox(width: 8),
-
-            // Date Range Filter Dropdown
-            Expanded(
-              child: _buildFilterDropdown(
-                labelText: 'Date Range',
-                value: filters.dateRange,
-                items: [
-                  {
-                    'value': 'All Time',
-                    'label': 'All Time',
-                    'icon': Icons.date_range
-                  },
-                  {'value': 'Today', 'label': 'Today', 'icon': Icons.today},
-                  {
-                    'value': 'This Week',
-                    'label': 'This Week',
-                    'icon': Icons.view_week
-                  },
-                  {
-                    'value': 'This Month',
-                    'label': 'This Month',
-                    'icon': Icons.calendar_month
-                  },
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    ref.read(patientFiltersProvider.notifier).update((state) {
-                      state.dateRange = value;
-                      return state;
-                    });
-                  }
-                },
-              ),
-            ),
-          ],
-        ),
-
-        SizedBox(height: 12),
-
-        // Reset Button
-        ElevatedButton.icon(
-          icon: Icon(Icons.filter_list_off),
-          label: Text('Reset Filters'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: HospitalTheme.primary,
-            foregroundColor: Colors.white,
-            padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-          onPressed: () {
-            _searchController.clear();
-            ref.read(patientFiltersProvider.notifier).state = PatientFilters();
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFilterDropdown({
-    required String labelText,
-    required String value,
-    required List<Map<String, dynamic>> items,
-    required Function(String?) onChanged,
-  }) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade300, width: 1),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          isExpanded: true,
-          value: value,
-          hint: Text(labelText),
-          icon: Icon(Icons.arrow_drop_down, color: HospitalTheme.primary),
-          style: TextStyle(color: Colors.black87, fontSize: 14),
-          dropdownColor: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          onChanged: onChanged,
-          items:
-              items.map<DropdownMenuItem<String>>((Map<String, dynamic> item) {
-            return DropdownMenuItem<String>(
-              value: item['value'],
-              child: Row(
-                children: [
-                  Icon(item['icon'] as IconData,
-                      size: 18, color: HospitalTheme.primary),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      item['label'],
-                      style: TextStyle(
-                        fontWeight: item['value'] == value
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }).toList(),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPatientList(
-    List<PatientDischarge> patients,
-    AsyncValue<List<PatientDischarge>> patientsAsync,
-    bool isWideScreen,
-    ScrollController scrollController,
-  ) {
-    return patientsAsync.when(
-      data: (_) {
-        if (patients.isEmpty) {
-          return _buildEmptyState();
-        }
-
-        // Using CustomScrollView with SliverList for better performance with large lists
-        return Scrollbar(
-          controller: scrollController,
-          thumbVisibility: true,
-          thickness: 8,
-          radius: Radius.circular(4),
-          child: CustomScrollView(
-            controller: scrollController,
-            // Allow physics to handle the scrolling behavior appropriately
-            physics: const AlwaysScrollableScrollPhysics(),
-            slivers: [
-              SliverPadding(
-                padding: EdgeInsets.all(isWideScreen ? 24 : 12),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final patient = patients[index];
-                      return _buildPatientCard(patient, isWideScreen);
-                    },
-                    childCount: patients.length,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-      loading: () => _buildLoadingState(),
-      error: (error, stackTrace) => _buildErrorState(error),
-    );
-  }
-
-  Widget _buildLoadingState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 60,
-            height: 60,
-            child: CircularProgressIndicator(
-              valueColor:
-                  AlwaysStoppedAnimation<Color>(HospitalTheme.secondary),
-              strokeWidth: 3,
-            ),
-          ),
-          SizedBox(height: 24),
-          Text(
-            'Loading patients...',
-            style: GoogleFonts.poppins(
-              color: HospitalTheme.primary,
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          SizedBox(height: 8),
-          Text(
-            'Please wait while we fetch the latest data',
-            style: GoogleFonts.poppins(
-              color: Colors.grey.shade600,
-              fontSize: 14,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPatientCard(PatientDischarge patient, bool isWideScreen) {
-    final isInternal =
-        patient.lastRecord.patientType?.toLowerCase() == 'internal';
-    final doctorType = patient.lastRecord.doctor?.usertype ?? 'unknown';
-    final doctorName = patient.lastRecord.doctor?.name ?? 'Unknown';
-
-    // Choose tag colors based on patient and doctor types
-    final patientTypeColor = isInternal ? Colors.blue : Colors.orange;
-    final doctorTypeColor = doctorType.toLowerCase() == 'doctor'
-        ? Colors.green
-        : doctorType.toLowerCase() == 'external'
-            ? Colors.purple
-            : Colors.grey;
-
-    // Format discharge date to more readable format
-    String formattedDate = '';
-    try {
-      if (patient.lastRecord.dischargeDate.isNotEmpty) {
-        // Assuming format like "2025-05-01 01:19:23 PM"
-        final parts = patient.lastRecord.dischargeDate.split(' ');
-        if (parts.length >= 3) {
-          final datePart = parts[0];
-          final timePart = parts[1];
-          final amPmPart = parts[2];
-
-          final dateComponents = datePart.split('-');
-          if (dateComponents.length == 3) {
-            // Format as "May 1, 2025 at 1:19 PM"
-            final parsedDate = DateTime(
-              int.parse(dateComponents[0]), // year
-              int.parse(dateComponents[1]), // month
-              int.parse(dateComponents[2]), // day
-            );
-
-            formattedDate =
-                '${DateFormat.yMMMd().format(parsedDate)} at $timePart $amPmPart';
-          } else {
-            formattedDate = patient.lastRecord.dischargeDate;
-          }
-        } else {
-          formattedDate = patient.lastRecord.dischargeDate;
-        }
-      }
-    } catch (e) {
-      // If any error in parsing, fall back to original format
-      formattedDate = patient.lastRecord.dischargeDate;
-    }
-
-    return Card(
-      margin: EdgeInsets.only(bottom: 16),
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      clipBehavior: Clip.antiAlias,
-      shadowColor: Colors.black26,
-      child: Material(
-        color: Colors.white,
-        child: InkWell(
-          onTap: () async {
-            final shouldRefresh = await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => PatientDetailsScreen(patient: patient),
-              ),
-            );
-            if (shouldRefresh == true) {
-              ref.read(dischargedPatientsProvider.notifier).manualRefresh();
-            }
-          },
-          child: Column(
-            children: [
-              // Card header with patient type and doctor info
-              Container(
-                color: HospitalTheme.primary.withOpacity(0.05),
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Patient ID
-                    Row(
-                      children: [
-                        Icon(Icons.badge,
-                            size: 18, color: HospitalTheme.primary),
-                        SizedBox(width: 8),
-                        Text(
-                          'ID: ${patient.patientId}',
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                            color: HospitalTheme.primary,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    // Types
-                    Row(
-                      children: [
-                        // Patient Type Tag
-                        Container(
-                          padding:
-                              EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: patientTypeColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: patientTypeColor),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                isInternal
-                                    ? Icons.person
-                                    : Icons.person_outline,
-                                color: patientTypeColor,
-                                size: 14,
-                              ),
-                              SizedBox(width: 4),
-                              Text(
-                                isInternal ? 'Internal' : 'External',
-                                style: TextStyle(
-                                  color: patientTypeColor,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        SizedBox(width: 8),
-
-                        // Doctor Type Tag
-                        Container(
-                          padding:
-                              EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: doctorTypeColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: doctorTypeColor),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                doctorType.toLowerCase() == 'doctor'
-                                    ? Icons.medical_services
-                                    : Icons.person_pin,
-                                color: doctorTypeColor,
-                                size: 14,
-                              ),
-                              SizedBox(width: 4),
-                              Text(
-                                doctorType.capitalizeFirst(),
-                                style: TextStyle(
-                                  color: doctorTypeColor,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              // Main content
-              Padding(
-                padding: EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    // Avatar
-                    CircleAvatar(
-                      backgroundColor: HospitalTheme.primary.withOpacity(0.2),
-                      backgroundImage: AssetImage('assets/images/p2.png'),
-                      radius: 30,
-                    ),
-                    SizedBox(width: 16),
-
-                    // Patient details
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Name with discharge badge
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  patient.name,
-                                  style: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                    color: HospitalTheme.primary,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              SizedBox(width: 8),
-                              Container(
-                                padding: EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: Colors.green.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.green),
-                                ),
-                                child: Text(
-                                  'Discharged',
-                                  style: TextStyle(
-                                    color: Colors.green,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: 6),
-
-                          // Info grid
-                          Wrap(
-                            spacing: 16,
-                            runSpacing: 8,
-                            children: [
-                              _buildInfoItem(
-                                icon: Icons.person,
-                                label: 'Gender',
-                                value: patient.gender,
-                                color: Colors.blue,
-                              ),
-                              _buildInfoItem(
-                                icon: Icons.phone,
-                                label: 'Contact',
-                                value: patient.contact,
-                                color: Colors.deepPurple,
-                              ),
-                              _buildInfoItem(
-                                icon: Icons.calendar_today,
-                                label: 'Discharged',
-                                value: formattedDate,
-                                color: Colors.teal,
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Desktop-specific quick actions
-                    if (isWideScreen)
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: Icon(Icons.receipt_long,
-                                color: HospitalTheme.primary),
-                            tooltip: 'Generate Bill',
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => GenerateIpdBillScreen(
-                                  patientId: patient.patientId,
-                                ),
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.assignment, color: Colors.orange),
-                            tooltip: 'Generate OPD Bill',
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => OpdBillingScreen(
-                                  patientId: patient.patientId,
-                                ),
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.medical_services,
-                                color: Colors.teal),
-                            tooltip: 'View Medical Details',
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => PatientDetailsScreen(
-                                    patient: patient,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
-              ),
-
-              // Action buttons for mobile/tablet view
-              if (!isWideScreen)
-                Padding(
-                  padding: EdgeInsets.only(left: 16, right: 16, bottom: 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildActionButton(
-                        icon: Icons.receipt_long,
-                        label: 'Bill',
-                        color: HospitalTheme.primary,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => GenerateIpdBillScreen(
-                              patientId: patient.patientId,
-                            ),
-                          ),
-                        ),
-                      ),
-                      _buildActionButton(
-                        icon: Icons.assignment,
-                        label: 'OPD',
-                        color: Colors.orange,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => OpdBillingScreen(
-                              patientId: patient.patientId,
-                            ),
-                          ),
-                        ),
-                      ),
-                      _buildActionButton(
-                        icon: Icons.medical_services,
-                        label: 'Details',
-                        color: Colors.teal,
-                        onTap: () {
-                          // Already navigating to details on card tap, but
-                          // this gives an explicit button for clarity
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoItem({
-    required IconData icon,
-    required String label,
-    required String value,
-    required Color color,
-  }) {
-    return Container(
-      constraints: BoxConstraints(minWidth: 120),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, size: 16, color: color),
-          ),
-          SizedBox(width: 8),
-          Flexible(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        labelColor: Colors.white,
+        unselectedLabelColor: Colors.white70,
+        tabs: const [
+          Tab(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 12,
-                  ),
-                ),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  maxLines: 1,
-                ),
+                Icon(Icons.people),
+                SizedBox(width: 8),
+                Text('All'),
+              ],
+            ),
+          ),
+          Tab(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.person),
+                SizedBox(width: 8),
+                Text('Internal'),
+              ],
+            ),
+          ),
+          Tab(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.person_outline),
+                SizedBox(width: 8),
+                Text('External'),
               ],
             ),
           ),
@@ -1254,296 +634,827 @@ class _DischargedPatientsScreenState
       ),
     );
   }
+}
 
-  Widget _buildActionButton({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color, width: 1),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 20, color: color),
-            SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                  fontSize: 12, color: color, fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+// Extracted filters section for better performance
+class _FiltersSection extends StatelessWidget {
+  final TextEditingController searchController;
+  final FocusNode searchFocusNode;
+  final PatientFilters filters;
+  final bool isWideScreen;
+  final Function(String) onSearch;
+  final VoidCallback onClearSearch;
+  final VoidCallback onResetFilters;
+  final Function(PatientFilters) onFilterChange;
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: EdgeInsets.all(30),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.folder_open,
-              size: 80,
-              color: HospitalTheme.secondary.withOpacity(0.5),
-            ),
-          ),
-          SizedBox(height: 24),
-          Text(
-            'No Discharged Patients',
-            style: GoogleFonts.poppins(
-              color: HospitalTheme.primary,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          SizedBox(height: 12),
-          Container(
-            width: 400,
-            child: Text(
-              'All patients are currently checked in or your filters have no matching results',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(
-                color: Colors.grey.shade600,
-                fontSize: 16,
-              ),
-            ),
-          ),
-          SizedBox(height: 32),
-          ElevatedButton.icon(
-            icon: Icon(Icons.refresh),
-            label: Text('Refresh Data'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: HospitalTheme.primary,
-              foregroundColor: Colors.white,
-              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              elevation: 4,
-              shadowColor: Colors.black26,
-              textStyle: GoogleFonts.poppins(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            onPressed: () {
-              ref.read(dischargedPatientsProvider.notifier).manualRefresh();
+  const _FiltersSection({
+    required this.searchController,
+    required this.searchFocusNode,
+    required this.filters,
+    required this.isWideScreen,
+    required this.onSearch,
+    required this.onClearSearch,
+    required this.onResetFilters,
+    required this.onFilterChange,
+  });
 
-              // Also clear any filters
-              _searchController.clear();
-              ref.read(patientFiltersProvider.notifier).state =
-                  PatientFilters();
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildErrorState(Object error) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: EdgeInsets.all(30),
-            decoration: BoxDecoration(
-              color: Colors.red.shade50,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.error_outline,
-              size: 80,
-              color: Colors.red.shade300,
-            ),
-          ),
-          SizedBox(height: 24),
-          Text(
-            'Unable to Load Patients',
-            style: GoogleFonts.poppins(
-              color: Colors.red.shade700,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          SizedBox(height: 12),
-          Container(
-            width: 400,
-            child: Text(
-              'There was a problem connecting to the server. Please check your connection and try again.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(
-                color: Colors.grey.shade700,
-                fontSize: 16,
-              ),
-            ),
-          ),
-          SizedBox(height: 32),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              OutlinedButton.icon(
-                icon: Icon(Icons.support_agent),
-                label: Text('Get Help'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: HospitalTheme.primary,
-                  side: BorderSide(color: HospitalTheme.primary),
-                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  textStyle: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                onPressed: () {
-                  // Show help or support dialog
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                        content: Text(
-                            'Contact system administrator for assistance')),
-                  );
-                },
-              ),
-              SizedBox(width: 16),
-              ElevatedButton.icon(
-                icon: Icon(Icons.refresh),
-                label: Text('Try Again'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: HospitalTheme.primary,
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 4,
-                  shadowColor: Colors.black26,
-                  textStyle: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                onPressed: () {
-                  ref.read(dischargedPatientsProvider.notifier).manualRefresh();
-                },
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBottomStatusBar(
-      int totalPatients, int totalInternal, int totalExternal) {
-    return BottomAppBar(
-      color: Colors.transparent,
-      elevation: 0,
-      height: 94,
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              HospitalTheme.primaryDark,
-              HospitalTheme.secondary,
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 8,
-              offset: Offset(0, -3),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _buildStatusCounter(
-              label: 'All Patients',
-              count: totalPatients,
-              icon: Icons.people,
-            ),
-            Container(
-                height: 30, width: 1, color: Colors.white.withOpacity(0.3)),
-            _buildStatusCounter(
-              label: 'Internal',
-              count: totalInternal,
-              icon: Icons.person,
-            ),
-            Container(
-                height: 30, width: 1, color: Colors.white.withOpacity(0.3)),
-            _buildStatusCounter(
-              label: 'External',
-              count: totalExternal,
-              icon: Icons.person_outline,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatusCounter({
-    required String label,
-    required int count,
-    required IconData icon,
-  }) {
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: isWideScreen ? _buildWideLayout() : _buildNarrowLayout(),
+    );
+  }
+
+  Widget _buildWideLayout() {
+    return Row(
+      children: [
+        Expanded(
+          flex: 3,
+          child: _buildSearchField(),
+        ),
+        const SizedBox(width: 12),
+        Expanded(child: _buildPatientTypeFilter()),
+        const SizedBox(width: 12),
+        Expanded(child: _buildAdmissionTypeFilter()),
+        const SizedBox(width: 12),
+        Expanded(child: _buildDoctorTypeFilter()),
+        const SizedBox(width: 12),
+        Expanded(child: _buildDateRangeFilter()),
+        const SizedBox(width: 16),
+        _buildResetButton(),
+      ],
+    );
+  }
+
+  Widget _buildNarrowLayout() {
+    return Column(
+      children: [
+        _buildSearchField(),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(child: _buildPatientTypeFilter()),
+            const SizedBox(width: 8),
+            Expanded(child: _buildAdmissionTypeFilter()),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(child: _buildDoctorTypeFilter()),
+            const SizedBox(width: 8),
+            Expanded(child: _buildDateRangeFilter()),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _buildResetButton(),
+      ],
+    );
+  }
+
+  Widget _buildSearchField() {
+    return TextField(
+      controller: searchController,
+      focusNode: searchFocusNode,
+      decoration: InputDecoration(
+        prefixIcon: Icon(Icons.search, color: HospitalTheme.primary),
+        hintText: 'Search by name, ID, contact, OPD/IPD number... (Ctrl+F)',
+        filled: true,
+        fillColor: HospitalTheme.background,
+        border: HospitalTheme.radiusSmall.let(
+          (radius) => OutlineInputBorder(
+            borderRadius: radius,
+            borderSide: BorderSide(color: HospitalTheme.border),
+          ),
+        ),
+        enabledBorder: HospitalTheme.radiusSmall.let(
+          (radius) => OutlineInputBorder(
+            borderRadius: radius,
+            borderSide: BorderSide(color: HospitalTheme.border),
+          ),
+        ),
+        focusedBorder: HospitalTheme.radiusSmall.let(
+          (radius) => OutlineInputBorder(
+            borderRadius: radius,
+            borderSide: BorderSide(color: HospitalTheme.primary, width: 2),
+          ),
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        suffixIcon: searchController.text.isNotEmpty
+            ? IconButton(
+                icon: const Icon(Icons.clear),
+                onPressed: onClearSearch,
+              )
+            : null,
+      ),
+      onChanged: onSearch,
+    );
+  }
+
+  Widget _buildAdmissionTypeFilter() {
+    return _CustomDropdown(
+      value: filters.admissionType,
+      hint: 'Admission',
+      icon: Icons.local_hospital,
+      items: const [
+        {'value': 'All', 'label': 'All Types'},
+        {'value': 'IPD', 'label': 'IPD Only'},
+        {'value': 'OPD', 'label': 'OPD Only'},
+      ],
+      onChanged: (value) {
+        if (value != null) {
+          onFilterChange(filters.copyWith(admissionType: value));
+        }
+      },
+    );
+  }
+
+  Widget _buildPatientTypeFilter() {
+    return _CustomDropdown(
+      value: filters.patientType,
+      hint: 'Patient Type',
+      icon: Icons.people,
+      items: const [
+        {'value': 'All', 'label': 'All Types'},
+        {'value': 'Internal', 'label': 'Internal'},
+        {'value': 'External', 'label': 'External'},
+      ],
+      onChanged: (value) {
+        if (value != null) {
+          onFilterChange(filters.copyWith(patientType: value));
+        }
+      },
+    );
+  }
+
+  Widget _buildDoctorTypeFilter() {
+    return _CustomDropdown(
+      value: filters.doctorType,
+      hint: 'Doctor Type',
+      icon: Icons.medical_services,
+      items: const [
+        {'value': 'All', 'label': 'All Doctors'},
+        {'value': 'doctor', 'label': 'Internal'},
+        {'value': 'external', 'label': 'External'},
+      ],
+      onChanged: (value) {
+        if (value != null) {
+          onFilterChange(filters.copyWith(doctorType: value));
+        }
+      },
+    );
+  }
+
+  Widget _buildDateRangeFilter() {
+    return _CustomDropdown(
+      value: filters.dateRange,
+      hint: 'Date Range',
+      icon: Icons.date_range,
+      items: const [
+        {'value': 'All Time', 'label': 'All Time'},
+        {'value': 'Today', 'label': 'Today'},
+        {'value': 'Last 7 Days', 'label': 'Last 7 Days'},
+        {'value': 'This Week', 'label': 'This Week'},
+        {'value': 'Last 30 Days', 'label': 'Last 30 Days'},
+        {'value': 'This Month', 'label': 'This Month'},
+      ],
+      onChanged: (value) {
+        if (value != null) {
+          onFilterChange(filters.copyWith(dateRange: value));
+        }
+      },
+    );
+  }
+
+  Widget _buildResetButton() {
+    return ElevatedButton.icon(
+      icon: const Icon(Icons.filter_list_off),
+      label: const Text('Reset'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: HospitalTheme.primary,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        shape: RoundedRectangleBorder(borderRadius: HospitalTheme.radiusSmall),
+      ),
+      onPressed: onResetFilters,
+    );
+  }
+}
+
+// Custom dropdown component
+class _CustomDropdown extends StatelessWidget {
+  final String value;
+  final String hint;
+  final IconData icon;
+  final List<Map<String, String>> items;
+  final Function(String?) onChanged;
+
+  const _CustomDropdown({
+    required this.value,
+    required this.hint,
+    required this.icon,
+    required this.items,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: HospitalTheme.background,
+        borderRadius: HospitalTheme.radiusSmall,
+        border: Border.all(color: HospitalTheme.border),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          isExpanded: true,
+          value: value,
+          hint: Row(
+            children: [
+              Icon(icon, size: 16, color: HospitalTheme.textMedium),
+              const SizedBox(width: 8),
+              Text(hint),
+            ],
+          ),
+          icon: Icon(Icons.arrow_drop_down, color: HospitalTheme.primary),
+          onChanged: onChanged,
+          items: items
+              .map((item) => DropdownMenuItem<String>(
+                    value: item['value'],
+                    child: Text(
+                      item['label']!,
+                      style: TextStyle(
+                        color: HospitalTheme.textDark,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ))
+              .toList(),
+        ),
+      ),
+    );
+  }
+}
+
+// Patient list view component
+class _PatientListView extends StatelessWidget {
+  final AsyncValue<Map<String, List<PatientDischarge>>> patientsAsync;
+  final String listKey;
+  final ScrollController scrollController;
+  final bool isWideScreen;
+
+  const _PatientListView({
+    super.key,
+    required this.patientsAsync,
+    required this.listKey,
+    required this.scrollController,
+    required this.isWideScreen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return patientsAsync.when(
+      data: (patientsMap) {
+        final patients = patientsMap[listKey] ?? [];
+
+        if (patients.isEmpty) {
+          return _EmptyState(onRefresh: () {
+            // Refresh logic would be handled by parent
+          });
+        }
+
+        return Scrollbar(
+          controller: scrollController,
+          thumbVisibility: true,
+          child: ListView.builder(
+            controller: scrollController,
+            padding: EdgeInsets.all(isWideScreen ? 24 : 16),
+            itemCount: patients.length,
+            itemBuilder: (context, index) => _PatientCard(
+              patient: patients[index],
+              isWideScreen: isWideScreen,
+            ),
+          ),
+        );
+      },
+      loading: () => const _LoadingState(),
+      error: (error, _) => _ErrorState(
+        error: error,
+        onRetry: () {
+          // Retry logic would be handled by parent
+        },
+      ),
+    );
+  }
+}
+
+// Patient card component with enhanced navigation
+class _PatientCard extends ConsumerWidget {
+  final PatientDischarge patient;
+  final bool isWideScreen;
+
+  const _PatientCard({
+    required this.patient,
+    required this.isWideScreen,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isInternal =
+        patient.lastRecord.patientType?.toLowerCase() == 'internal';
+    final doctorType = patient.lastRecord.doctor?.usertype ?? 'unknown';
+    final formattedDate = _formatDate(patient.lastRecord.dischargeDate);
+    final admissionType = patient.lastRecord.admissionType;
+    final isIpdAdmission = patient.lastRecord.isIpdAdmission;
+
+    return HospitalTheme.buildCard(
+      padding: EdgeInsets.zero,
+      child: InkWell(
+        onTap: () => _navigateToDetails(context, ref),
+        borderRadius: HospitalTheme.radiusMedium,
+        child: Column(
+          children: [
+            // Header with enhanced information
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: HospitalTheme.surfaceLight,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  topRight: Radius.circular(12),
+                ),
+              ),
+              child: Column(
+                children: [
+                  // First row: Patient ID and main tags
+                  Row(
+                    children: [
+                      Icon(Icons.badge, size: 18, color: HospitalTheme.primary),
+                      const SizedBox(width: 8),
+                      Text(
+                        'ID: ${patient.patientId}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: HospitalTheme.primary,
+                        ),
+                      ),
+                      const Spacer(),
+                      _buildTypeChip(
+                        label: isInternal ? 'Internal' : 'External',
+                        color: isInternal ? Colors.blue : Colors.orange,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildTypeChip(
+                        label: doctorType.capitalizeFirst(),
+                        color: doctorType == 'doctor'
+                            ? Colors.green
+                            : Colors.purple,
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Second row: Admission numbers and type
+                  Row(
+                    children: [
+                      // Admission type badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isIpdAdmission
+                              ? Colors.red.withOpacity(0.1)
+                              : Colors.teal.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isIpdAdmission ? Colors.red : Colors.teal,
+                            width: 2,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              isIpdAdmission ? Icons.hotel : Icons.assignment,
+                              size: 16,
+                              color: isIpdAdmission ? Colors.red : Colors.teal,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              admissionType,
+                              style: TextStyle(
+                                color:
+                                    isIpdAdmission ? Colors.red : Colors.teal,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(width: 16),
+
+                      // Numbers display
+                      if (patient.lastRecord.opdNumber != null)
+                        _buildNumberChip(
+                          label: 'OPD',
+                          number: patient.lastRecord.opdNumber!,
+                          color: Colors.teal,
+                        ),
+
+                      if (patient.lastRecord.ipdNumber != null &&
+                          patient.lastRecord.ipdNumber! > 0) ...[
+                        if (patient.lastRecord.opdNumber != null)
+                          const SizedBox(width: 8),
+                        _buildNumberChip(
+                          label: 'IPD',
+                          number: patient.lastRecord.ipdNumber!,
+                          color: Colors.red,
+                        ),
+                      ],
+
+                      const Spacer(),
+
+                      // Status
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _getStatusColor(patient.lastRecord.status)
+                              .withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color:
+                                  _getStatusColor(patient.lastRecord.status)),
+                        ),
+                        child: Text(
+                          patient.lastRecord.status.capitalizeFirst(),
+                          style: TextStyle(
+                            color: _getStatusColor(patient.lastRecord.status),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // Content
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundColor: HospitalTheme.primary.withOpacity(0.1),
+                    child: Icon(
+                      Icons.person,
+                      size: 32,
+                      color: HospitalTheme.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                patient.name,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.green),
+                              ),
+                              child: const Text(
+                                'Discharged',
+                                style: TextStyle(
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 16,
+                          runSpacing: 8,
+                          children: [
+                            _InfoItem(
+                              icon: Icons.person,
+                              label: 'Gender',
+                              value: patient.gender,
+                              color: Colors.blue,
+                            ),
+                            _InfoItem(
+                              icon: Icons.phone,
+                              label: 'Contact',
+                              value: patient.contact,
+                              color: Colors.deepPurple,
+                            ),
+                            _InfoItem(
+                              icon: Icons.calendar_today,
+                              label: 'Discharged',
+                              value: formattedDate,
+                              color: Colors.teal,
+                            ),
+                            if (patient.lastRecord.doctor != null)
+                              _InfoItem(
+                                icon: Icons.medical_services,
+                                label: 'Doctor',
+                                value: patient.lastRecord.doctor!.name,
+                                color: Colors.orange,
+                              ),
+                            if (patient.lastRecord.amountToBePayed > 0)
+                              _InfoItem(
+                                icon: Icons.attach_money,
+                                label: 'Amount',
+                                value:
+                                    '₹${patient.lastRecord.amountToBePayed.toStringAsFixed(0)}',
+                                color: Colors.indigo,
+                              ),
+                            if (patient.lastRecord.admitNotes != null &&
+                                patient.lastRecord.admitNotes!.isNotEmpty)
+                              _InfoItem(
+                                icon: Icons.note,
+                                label: 'Notes',
+                                value: patient.lastRecord.admitNotes!,
+                                color: Colors.brown,
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNumberChip(
+      {required String label, required int number, required Color color}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            padding: EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              shape: BoxShape.circle,
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 11,
             ),
-            child: Icon(icon, color: Colors.white, size: 18),
           ),
-          SizedBox(width: 12),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(width: 4),
+          Text(
+            '#$number',
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'admitted':
+        return Colors.orange;
+      case 'pending':
+        return Colors.amber;
+      case 'discharged':
+        return Colors.green;
+      case 'cancelled':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Widget _buildTypeChip({required String label, required Color color}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) return 'Unknown';
+
+    try {
+      final parts = dateStr.split(' ');
+      if (parts.isNotEmpty) {
+        final datePart = parts[0];
+        final dateComponents = datePart.split('-');
+        if (dateComponents.length == 3) {
+          final date = DateTime(
+            int.parse(dateComponents[0]),
+            int.parse(dateComponents[1]),
+            int.parse(dateComponents[2]),
+          );
+          return DateFormat.yMMMd().format(date);
+        }
+      }
+      return dateStr;
+    } catch (e) {
+      return dateStr;
+    }
+  }
+
+  // ENHANCED: Navigation method that handles return value and triggers refresh
+  Future<void> _navigateToDetails(BuildContext context, WidgetRef ref) async {
+    // Navigate to patient details and wait for result
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (context) => PatientDetailsScreen(patient: patient),
+      ),
+    );
+
+    // If result is true (indicating changes were made), refresh the data
+    if (result == true && context.mounted) {
+      // Access the provider through the ref to trigger refresh
+      ref.read(dischargedPatientsProvider.notifier).refresh();
+
+      // Show a brief feedback to user
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
             children: [
-              Text(
-                label,
-                style: GoogleFonts.poppins(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              Text(
-                count.toString(),
-                style: GoogleFonts.poppins(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              Icon(Icons.refresh, color: Colors.white, size: 20),
+              SizedBox(width: 8),
+              Text('Patient data refreshed'),
             ],
+          ),
+          backgroundColor: HospitalTheme.primary,
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      );
+    }
+  }
+}
+
+// Info item component
+class _InfoItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  const _InfoItem({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, size: 14, color: color),
+        ),
+        const SizedBox(width: 6),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: HospitalTheme.textMedium,
+                fontSize: 11,
+              ),
+            ),
+            Text(
+              value,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+// Loading state component
+class _LoadingState extends StatelessWidget {
+  const _LoadingState();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: 16),
+          Text('Loading patients...'),
+        ],
+      ),
+    );
+  }
+}
+
+// Error state component
+class _ErrorState extends StatelessWidget {
+  final Object error;
+  final VoidCallback onRetry;
+
+  const _ErrorState({
+    required this.error,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
+          const SizedBox(height: 16),
+          const Text('Failed to load patients'),
+          const SizedBox(height: 8),
+          Text(
+            error.toString(),
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.grey),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: onRetry,
+            child: const Text('Retry'),
           ),
         ],
       ),
@@ -1551,7 +1462,172 @@ class _DischargedPatientsScreenState
   }
 }
 
-// Patient Details Screen for viewing individual patient information
+// Empty state component
+class _EmptyState extends StatelessWidget {
+  final VoidCallback onRefresh;
+
+  const _EmptyState({required this.onRefresh});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.folder_open, size: 64, color: Colors.grey.shade400),
+          const SizedBox(height: 16),
+          const Text('No patients found'),
+          const SizedBox(height: 8),
+          const Text(
+            'Try adjusting your filters or refresh the data',
+            style: TextStyle(color: Colors.grey),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: onRefresh,
+            child: const Text('Refresh'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Bottom status bar component
+class _BottomStatusBar extends StatelessWidget {
+  final AsyncValue<Map<String, List<PatientDischarge>>> filteredPatientsAsync;
+
+  const _BottomStatusBar({
+    required this.filteredPatientsAsync,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return filteredPatientsAsync.when(
+      data: (patientsMap) {
+        final totalAll = patientsMap['all']?.length ?? 0;
+        final totalInternal = patientsMap['internal']?.length ?? 0;
+        final totalExternal = patientsMap['external']?.length ?? 0;
+
+        // Calculate IPD and OPD counts
+        final allPatients = patientsMap['all'] ?? [];
+        final totalIpd =
+            allPatients.where((p) => p.lastRecord.isIpdAdmission).length;
+        final totalOpd =
+            allPatients.where((p) => !p.lastRecord.isIpdAdmission).length;
+
+        return Container(
+          height: 80,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [HospitalTheme.primaryDark, HospitalTheme.secondary],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _StatusCounter(
+                label: 'All',
+                count: totalAll,
+                icon: Icons.people,
+              ),
+              Container(height: 40, width: 1, color: Colors.white30),
+              _StatusCounter(
+                label: 'Internal',
+                count: totalInternal,
+                icon: Icons.person,
+              ),
+              Container(height: 40, width: 1, color: Colors.white30),
+              _StatusCounter(
+                label: 'External',
+                count: totalExternal,
+                icon: Icons.person_outline,
+              ),
+              Container(height: 40, width: 1, color: Colors.white30),
+              _StatusCounter(
+                label: 'IPD',
+                count: totalIpd,
+                icon: Icons.hotel,
+              ),
+              Container(height: 40, width: 1, color: Colors.white30),
+              _StatusCounter(
+                label: 'OPD',
+                count: totalOpd,
+                icon: Icons.assignment,
+              ),
+            ],
+          ),
+        );
+      },
+      loading: () => const SizedBox(height: 80),
+      error: (_, __) => const SizedBox(height: 80),
+    );
+  }
+}
+
+// Status counter component
+class _StatusCounter extends StatelessWidget {
+  final String label;
+  final int count;
+  final IconData icon;
+
+  const _StatusCounter({
+    required this.label,
+    required this.count,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: Colors.white, size: 18),
+        const SizedBox(width: 8),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+              ),
+            ),
+            Text(
+              count.toString(),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+// Extension for String
+extension StringExtension on String {
+  String capitalizeFirst() {
+    if (isEmpty) return this;
+    return '${this[0].toUpperCase()}${substring(1).toLowerCase()}';
+  }
+}
+
+// Extension for BorderRadius
+extension BorderRadiusExtension on BorderRadius {
+  T let<T>(T Function(BorderRadius) transform) {
+    return transform(this);
+  }
+}
+
+// ENHANCED: Patient Details Screen with proper return handling
 class PatientDetailsScreen extends StatefulWidget {
   final PatientDischarge patient;
 
@@ -1567,6 +1643,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
       TextEditingController();
   final TextEditingController _amountPaidController = TextEditingController();
   bool _isDischargedByReception = false;
+  bool _hasChanges = false; // Track if any changes were made
 
   @override
   void initState() {
@@ -1657,7 +1734,8 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
       );
 
       if (response.statusCode == 200) {
-        // Update the UI to reflect the discharge status
+        // Mark that changes were made
+        _hasChanges = true;
         _showSnackBar(context, "Patient discharged successfully.");
       } else {
         setState(() {
@@ -1685,7 +1763,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
         context: context,
         barrierDismissible: false,
         builder: (BuildContext ctx) {
-          dialogContext = ctx; // Store the dialog context
+          dialogContext = ctx;
           return AlertDialog(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
@@ -1726,7 +1804,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
             '${KVM_URL}/reception/generateDischargeSummary/${widget.patient.patientId}'),
       );
 
-      // Close loading dialog using the stored context
+      // Close loading dialog
       if (dialogContext != null && Navigator.of(dialogContext!).canPop()) {
         Navigator.of(dialogContext!).pop();
         dialogContext = null;
@@ -1740,7 +1818,10 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
           final String fileName =
               responseData['data']['fileName'] ?? 'Discharge Summary';
 
-          // Show success dialog with PDF link and action buttons
+          // Mark that changes were made (summary generated)
+          _hasChanges = true;
+
+          // Show success dialog
           showDialog(
             context: context,
             barrierDismissible: true,
@@ -1824,7 +1905,6 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                   ],
                 ),
                 actions: [
-                  // Close Button
                   TextButton(
                     onPressed: () {
                       Navigator.of(successDialogContext).pop();
@@ -1846,8 +1926,6 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                       ),
                     ),
                   ),
-
-                  // Open PDF Button
                   ElevatedButton.icon(
                     onPressed: () {
                       Navigator.of(successDialogContext).pop();
@@ -1884,7 +1962,6 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
             'Failed to generate discharge summary. Status: ${response.statusCode}');
       }
     } catch (e) {
-      // Close loading dialog if still showing using stored context
       if (dialogContext != null && Navigator.of(dialogContext!).canPop()) {
         Navigator.of(dialogContext!).pop();
       }
@@ -1902,117 +1979,124 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
     final isWideScreen = screenSize.width > 1200;
     final isMediumScreen = screenSize.width > 800 && screenSize.width <= 1200;
 
-    return Scaffold(
-      backgroundColor: HospitalTheme.background,
-      appBar: _buildAppBar(context),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                _buildPatientHeader(),
-                const SizedBox(height: 20),
-                // Responsive layout based on screen width
-                if (isWideScreen) ...[
-                  // Wide screen layout - two columns side by side
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Left column - Patient & Admission details
-                      Expanded(
-                        flex: 1,
-                        child: Column(
-                          children: [
-                            _buildInfoCard(
-                              'Patient Information',
-                              Icons.person_outline,
-                              _buildPatientInfoContent(),
-                            ),
-                            const SizedBox(height: 16),
-                            _buildInfoCard(
-                              'Admission Details',
-                              Icons.medical_services,
-                              _buildAdmissionDetailsContent(record),
-                            ),
-                          ],
+    return WillPopScope(
+      // ENHANCED: Handle back button to return changes flag
+      onWillPop: () async {
+        Navigator.of(context).pop(_hasChanges);
+        return false;
+      },
+      child: Scaffold(
+        backgroundColor: HospitalTheme.background,
+        appBar: _buildAppBar(context),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  _buildPatientHeader(),
+                  const SizedBox(height: 20),
+                  // Responsive layout based on screen width
+                  if (isWideScreen) ...[
+                    // Wide screen layout - two columns side by side
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Left column - Patient & Admission details
+                        Expanded(
+                          flex: 1,
+                          child: Column(
+                            children: [
+                              _buildInfoCard(
+                                'Patient Information',
+                                Icons.person_outline,
+                                _buildPatientInfoContent(),
+                              ),
+                              const SizedBox(height: 16),
+                              _buildInfoCard(
+                                'Admission Details',
+                                Icons.medical_services,
+                                _buildAdmissionDetailsContent(record),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 16),
-                      // Right column - Medical overview, discharge & actions
-                      Expanded(
-                        flex: 1,
-                        child: Column(
-                          children: [
-                            _buildMedicalInfoCard(record),
-                            const SizedBox(height: 16),
-                            _buildDischargeSection(),
-                            const SizedBox(height: 16),
-                            _buildActionButtons(record),
-                          ],
+                        const SizedBox(width: 16),
+                        // Right column - Medical overview, discharge & actions
+                        Expanded(
+                          flex: 1,
+                          child: Column(
+                            children: [
+                              _buildMedicalInfoCard(record),
+                              const SizedBox(height: 16),
+                              _buildDischargeSection(),
+                              const SizedBox(height: 16),
+                              _buildActionButtons(record),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ] else if (isMediumScreen) ...[
-                  // Medium screen layout - staggered columns
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Left column - Patient info & Medical overview
-                      Expanded(
-                        child: Column(
-                          children: [
-                            _buildInfoCard(
-                              'Patient Information',
-                              Icons.person_outline,
-                              _buildPatientInfoContent(),
-                            ),
-                            const SizedBox(height: 16),
-                            _buildMedicalInfoCard(record),
-                          ],
+                      ],
+                    ),
+                  ] else if (isMediumScreen) ...[
+                    // Medium screen layout - staggered columns
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Left column - Patient info & Medical overview
+                        Expanded(
+                          child: Column(
+                            children: [
+                              _buildInfoCard(
+                                'Patient Information',
+                                Icons.person_outline,
+                                _buildPatientInfoContent(),
+                              ),
+                              const SizedBox(height: 16),
+                              _buildMedicalInfoCard(record),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 16),
-                      // Right column - Admission details, discharge & actions
-                      Expanded(
-                        child: Column(
-                          children: [
-                            _buildInfoCard(
-                              'Admission Details',
-                              Icons.medical_services,
-                              _buildAdmissionDetailsContent(record),
-                            ),
-                            const SizedBox(height: 16),
-                            _buildDischargeSection(),
-                            const SizedBox(height: 16),
-                            _buildActionButtons(record),
-                          ],
+                        const SizedBox(width: 16),
+                        // Right column - Admission details, discharge & actions
+                        Expanded(
+                          child: Column(
+                            children: [
+                              _buildInfoCard(
+                                'Admission Details',
+                                Icons.medical_services,
+                                _buildAdmissionDetailsContent(record),
+                              ),
+                              const SizedBox(height: 16),
+                              _buildDischargeSection(),
+                              const SizedBox(height: 16),
+                              _buildActionButtons(record),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ] else ...[
-                  // Mobile/small screen layout - single column
-                  _buildInfoCard(
-                    'Patient Information',
-                    Icons.person_outline,
-                    _buildPatientInfoContent(),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildInfoCard(
-                    'Admission Details',
-                    Icons.medical_services,
-                    _buildAdmissionDetailsContent(record),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildMedicalInfoCard(record),
-                  const SizedBox(height: 16),
-                  _buildDischargeSection(),
-                  const SizedBox(height: 16),
-                  _buildActionButtons(record),
+                      ],
+                    ),
+                  ] else ...[
+                    // Mobile/small screen layout - single column
+                    _buildInfoCard(
+                      'Patient Information',
+                      Icons.person_outline,
+                      _buildPatientInfoContent(),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildInfoCard(
+                      'Admission Details',
+                      Icons.medical_services,
+                      _buildAdmissionDetailsContent(record),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildMedicalInfoCard(record),
+                    const SizedBox(height: 16),
+                    _buildDischargeSection(),
+                    const SizedBox(height: 16),
+                    _buildActionButtons(record),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),
@@ -2048,10 +2132,10 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
         _buildInfoRow('Admission ID', record.admissionId),
         _buildInfoRow('Admission Date', record.admissionDate),
         _buildInfoRow('Discharge Date', record.dischargeDate),
-        _buildInfoRow('Reason', record.reasonForAdmission),
+        _buildInfoRow('Reason', record.reasonForAdmission ?? 'Not specified'),
+        _buildInfoRow('Symptoms', record.symptoms ?? 'Not specified'),
+        _buildInfoRow('Diagnosis', record.initialDiagnosis ?? 'Not specified'),
         _buildInfoRow('Condition', record.conditionAtDischarge),
-        _buildInfoRow('Symptoms', record.symptoms),
-        _buildInfoRow('Diagnosis', record.initialDiagnosis),
       ],
     );
   }
@@ -2062,7 +2146,8 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
       backgroundColor: HospitalTheme.primary,
       leading: IconButton(
         icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
-        onPressed: () => Navigator.pop(context, true),
+        // ENHANCED: Return changes flag when back button is pressed
+        onPressed: () => Navigator.pop(context, _hasChanges),
       ),
       title: Text(
         widget.patient.name,
@@ -2323,16 +2408,14 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                       'Weight', '${record.weight} kg', Icons.line_weight),
                 ),
                 Expanded(
-                  child: _buildMedicalStat(
-                      'Previous Balance',
-                      '\$${record.previousRemainingAmount}',
-                      Icons.attach_money),
+                  child: _buildMedicalStat('Previous Balance',
+                      '${record.previousRemainingAmount}', Icons.attach_money),
                 ),
               ],
             ),
             SizedBox(height: 12),
             _buildMedicalStat(
-                'Amount Due', '\$${record.amountToBePayed}', Icons.payment),
+                'Amount Due', '${record.amountToBePayed}', Icons.payment),
           ],
         ),
       ),
@@ -2486,42 +2569,43 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                     'Generate Bill',
                     Icons.receipt_long,
                     Colors.blue,
-                    () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => GenerateIpdBillScreen(
-                            patientId: widget.patient.patientId),
-                      ),
-                    ),
+                    () async {
+                      final result = await Navigator.push<bool>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => GenerateIpdBillScreen(
+                              patientId: widget.patient.patientId),
+                        ),
+                      );
+                      // Mark changes if bill was generated
+                      if (result == true) {
+                        setState(() {
+                          _hasChanges = true;
+                        });
+                      }
+                    },
                   ),
                   _buildActionButton(
                     'Generate OPD Bill',
                     Icons.assignment,
                     Colors.orange,
-                    () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
+                    () async {
+                      final result = await Navigator.push<bool>(
+                        context,
+                        MaterialPageRoute(
                           builder: (context) => OpdBillingScreen(
-                                patientId: widget.patient.patientId,
-                              )),
-                    ),
+                            patientId: widget.patient.patientId,
+                          ),
+                        ),
+                      );
+                      // Mark changes if bill was generated
+                      if (result == true) {
+                        setState(() {
+                          _hasChanges = true;
+                        });
+                      }
+                    },
                   ),
-                  // _buildActionButton(
-                  //   'Generate IPD Receipt',
-                  //   Icons.summarize,
-                  //   Colors.teal,
-                  //   () => Navigator.push(
-                  //     context,
-                  //     MaterialPageRoute(
-                  //         builder: (context) => GenerateIpdBillScreen(
-                  //               patientId: widget.patient.patientId,
-                  //               remainingAmount:
-                  //                   record.previousRemainingAmount.toString(),
-                  //               amountTobePaid:
-                  //                   record.amountToBePayed.toString(),
-                  //             )),
-                  //   ),
-                  // ),
                   _buildActionButton(
                     'View History',
                     Icons.history,
@@ -2535,41 +2619,32 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                     ),
                   ),
                   _buildActionButton(
-                    'Export Data',
-                    Icons.file_download,
-                    Colors.deepPurple,
-                    () {
-                      // Export functionality here
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Export feature coming soon')),
-                      );
-                    },
-                  ),
-                  _buildActionButton(
                     'Print Summary',
                     Icons.print,
                     Colors.blueGrey,
                     () {
-                      _generateDischargeSummary(); // Updated to call the new method
-
-                      // Print functionality here
+                      _generateDischargeSummary();
                     },
                   ),
                   _buildActionButton(
                     'Generate Manual Summary',
                     Icons.print,
                     Colors.blueGrey,
-
-                    // Updated to call the new method
-                    () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ManualDischargeSummaryScreen(
-                            patientId: widget.patient.patientId),
-                      ),
-                    ),
-
-                    // Print functionality here
+                    () async {
+                      final result = await Navigator.push<bool>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ManualDischargeSummaryScreen(
+                              patientId: widget.patient.patientId),
+                        ),
+                      );
+                      // Mark changes if summary was generated
+                      if (result == true) {
+                        setState(() {
+                          _hasChanges = true;
+                        });
+                      }
+                    },
                   ),
                 ],
               ),
@@ -2607,13 +2682,5 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
         shadowColor: Colors.black12,
       ),
     );
-  }
-}
-
-// String extension to capitalize first letter
-extension StringExtension on String {
-  String capitalizeFirst() {
-    if (this.isEmpty) return this;
-    return this[0].toUpperCase() + this.substring(1);
   }
 }

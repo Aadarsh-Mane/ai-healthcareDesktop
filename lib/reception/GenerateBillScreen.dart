@@ -556,7 +556,7 @@ class IpdBillNotifier extends StateNotifier<IpdBillState> {
       };
 
       final response = await http.post(
-        Uri.parse('${KVM_URL}/reception/generateOpdReceiptx'),
+        Uri.parse('${KVM_URL}/reception/generateOpdReceipt'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(requestBody),
       );
@@ -2043,30 +2043,30 @@ class _GenerateIpdBillScreenState extends ConsumerState<GenerateIpdBillScreen> {
                                 const SizedBox(height: 8),
 
                                 // Generate Another Receipt Button
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: OutlinedButton.icon(
-                                    onPressed: () {
-                                      // Reset receipt state
-                                      notifier.state = notifier.state.copyWith(
-                                        generatedReceipt: null,
-                                        receiptAmount:
-                                            bill.billSummary.finalAmount,
-                                        amountPaid:
-                                            bill.billSummary.finalAmount,
-                                      );
-                                      _receiptAmountController.text = bill
-                                          .billSummary.finalAmount
-                                          .toString();
-                                      _amountPaidController.text = bill
-                                          .billSummary.finalAmount
-                                          .toString();
-                                    },
-                                    icon: const Icon(Icons.add),
-                                    label:
-                                        const Text('Generate Another Receipt'),
-                                  ),
-                                ),
+                                // SizedBox(
+                                //   width: double.infinity,
+                                //   child: OutlinedButton.icon(
+                                //     onPressed: () {
+                                //       // Reset receipt state
+                                //       notifier.state = notifier.state.copyWith(
+                                //         generatedReceipt: null,
+                                //         receiptAmount:
+                                //             bill.billSummary.finalAmount,
+                                //         amountPaid:
+                                //             bill.billSummary.finalAmount,
+                                //       );
+                                //       _receiptAmountController.text = bill
+                                //           .billSummary.finalAmount
+                                //           .toString();
+                                //       _amountPaidController.text = bill
+                                //           .billSummary.finalAmount
+                                //           .toString();
+                                //     },
+                                //     icon: const Icon(Icons.add),
+                                //     label:
+                                //         const Text('Generate Another Receipt'),
+                                //   ),
+                                // ),
                               ],
                             ),
                           ),

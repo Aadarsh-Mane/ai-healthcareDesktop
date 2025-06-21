@@ -30,13 +30,13 @@ final availableBedsProvider =
     StateNotifierProvider<AvailableBedsNotifier, List<int>>(
         (ref) => AvailableBedsNotifier());
 
-// Deposit providers
+// Deposit providers - Updated for multiple deposits
 final depositFormProvider =
     StateNotifierProvider<DepositFormNotifier, DepositFormData>(
         (ref) => DepositFormNotifier());
-final depositReceiptProvider =
-    StateNotifierProvider<DepositReceiptNotifier, DepositReceipt?>(
-        (ref) => DepositReceiptNotifier());
+final depositSummaryProvider =
+    StateNotifierProvider<DepositSummaryNotifier, DepositSummary?>(
+        (ref) => DepositSummaryNotifier());
 
 // Filtered patients provider
 final filteredPatientsProvider = Provider<List<Patient>>((ref) {
@@ -58,34 +58,31 @@ class UIState {
   final bool isLoadingPatients;
   final bool isLoadingSections;
   final bool isProcessing;
-  final bool isCheckingDeposit;
+  final bool isLoadingDepositSummary;
   final bool isCreatingDeposit;
-  final bool isCancellingDeposit;
 
-  UIState({
+  const UIState({
     this.isLoadingPatients = false,
     this.isLoadingSections = false,
     this.isProcessing = false,
-    this.isCheckingDeposit = false,
+    this.isLoadingDepositSummary = false,
     this.isCreatingDeposit = false,
-    this.isCancellingDeposit = false,
   });
 
   UIState copyWith({
     bool? isLoadingPatients,
     bool? isLoadingSections,
     bool? isProcessing,
-    bool? isCheckingDeposit,
+    bool? isLoadingDepositSummary,
     bool? isCreatingDeposit,
-    bool? isCancellingDeposit,
   }) {
     return UIState(
       isLoadingPatients: isLoadingPatients ?? this.isLoadingPatients,
       isLoadingSections: isLoadingSections ?? this.isLoadingSections,
       isProcessing: isProcessing ?? this.isProcessing,
-      isCheckingDeposit: isCheckingDeposit ?? this.isCheckingDeposit,
+      isLoadingDepositSummary:
+          isLoadingDepositSummary ?? this.isLoadingDepositSummary,
       isCreatingDeposit: isCreatingDeposit ?? this.isCreatingDeposit,
-      isCancellingDeposit: isCancellingDeposit ?? this.isCancellingDeposit,
     );
   }
 }
@@ -97,7 +94,7 @@ class FormData {
   final String? selectedSectionId;
   final int? selectedBedNumber;
 
-  FormData({
+  const FormData({
     this.reason,
     this.symptoms,
     this.diagnosis,
@@ -116,7 +113,7 @@ class FormData {
     bool clearAll = false,
   }) {
     if (clearAll) {
-      return FormData();
+      return const FormData();
     }
 
     return FormData(
@@ -140,7 +137,7 @@ class DepositFormData {
   final String? chequeNumber;
   final String? bankName;
 
-  DepositFormData({
+  const DepositFormData({
     this.depositAmount,
     this.paymentMethod,
     this.remarks,
@@ -159,7 +156,7 @@ class DepositFormData {
     bool clearAll = false,
   }) {
     if (clearAll) {
-      return DepositFormData();
+      return const DepositFormData();
     }
 
     return DepositFormData(
@@ -180,45 +177,73 @@ class DepositFormData {
   }
 }
 
-class DepositReceipt {
-  final String receiptId;
-  final double depositAmount;
-  final String paymentMethod;
-  final DateTime generatedAt;
-  final String? receiptUrl;
-  final bool? isCancelled;
-  final String? cancelReason;
-  final DateTime? cancelledAt;
+// New classes for multiple deposits
+class DepositSummary {
+  final bool hasDeposits;
+  final double totalAmount;
+  final String formattedTotalAmount;
+  final int depositsCount;
+  final List<DepositRecord> deposits;
+  final DateTime? firstDeposit;
+  final DateTime? lastDeposit;
 
-  DepositReceipt({
-    required this.receiptId,
-    required this.depositAmount,
-    required this.paymentMethod,
-    required this.generatedAt,
-    this.receiptUrl,
-    this.isCancelled,
-    this.cancelReason,
-    this.cancelledAt,
+  const DepositSummary({
+    required this.hasDeposits,
+    required this.totalAmount,
+    required this.formattedTotalAmount,
+    required this.depositsCount,
+    required this.deposits,
+    this.firstDeposit,
+    this.lastDeposit,
   });
 
-  factory DepositReceipt.fromJson(Map<String, dynamic> json) {
-    return DepositReceipt(
+  factory DepositSummary.fromJson(Map<String, dynamic> json) {
+    return DepositSummary(
+      hasDeposits: json['hasDeposits'] ?? false,
+      totalAmount: (json['totalAmount'] ?? 0.0).toDouble(),
+      formattedTotalAmount: json['formattedTotalAmount'] ?? '₹0.00',
+      depositsCount: json['depositsCount'] ?? 0,
+      deposits: json['deposits'] != null
+          ? (json['deposits'] as List)
+              .map((deposit) => DepositRecord.fromJson(deposit))
+              .toList()
+          : [],
+      firstDeposit: json['firstDeposit'] != null
+          ? DateTime.tryParse(json['firstDeposit'])
+          : null,
+      lastDeposit: json['lastDeposit'] != null
+          ? DateTime.tryParse(json['lastDeposit'])
+          : null,
+    );
+  }
+}
+
+class DepositRecord {
+  final String receiptId;
+  final double amount;
+  final String formattedAmount;
+  final String paymentMethod;
+  final DateTime generatedAt;
+  final int sequenceNumber;
+
+  const DepositRecord({
+    required this.receiptId,
+    required this.amount,
+    required this.formattedAmount,
+    required this.paymentMethod,
+    required this.generatedAt,
+    required this.sequenceNumber,
+  });
+
+  factory DepositRecord.fromJson(Map<String, dynamic> json) {
+    return DepositRecord(
       receiptId: json['receiptId'] ?? '',
-      depositAmount: (json['depositAmount'] is String)
-          ? double.tryParse(json['depositAmount']
-                  .toString()
-                  .replaceAll(RegExp(r'[^\d.]'), '')) ??
-              0.0
-          : (json['depositAmount'] ?? 0.0).toDouble(),
+      amount: (json['amount'] ?? 0.0).toDouble(),
+      formattedAmount: json['formattedAmount'] ?? '₹0.00',
       paymentMethod: json['paymentMethod'] ?? '',
       generatedAt:
           DateTime.tryParse(json['generatedAt'] ?? '') ?? DateTime.now(),
-      receiptUrl: json['receiptUrl'],
-      isCancelled: json['isCancelled'] ?? false,
-      cancelReason: json['cancelReason'],
-      cancelledAt: json['cancelledAt'] != null
-          ? DateTime.tryParse(json['cancelledAt'])
-          : null,
+      sequenceNumber: json['sequenceNumber'] ?? 0,
     );
   }
 }
@@ -249,7 +274,7 @@ class SelectedPatientNotifier extends StateNotifier<Patient?> {
 }
 
 class UIStateNotifier extends StateNotifier<UIState> {
-  UIStateNotifier() : super(UIState());
+  UIStateNotifier() : super(const UIState());
 
   void setLoadingPatients(bool isLoading) {
     state = state.copyWith(isLoadingPatients: isLoading);
@@ -263,21 +288,17 @@ class UIStateNotifier extends StateNotifier<UIState> {
     state = state.copyWith(isProcessing: isProcessing);
   }
 
-  void setCheckingDeposit(bool isChecking) {
-    state = state.copyWith(isCheckingDeposit: isChecking);
+  void setLoadingDepositSummary(bool isLoading) {
+    state = state.copyWith(isLoadingDepositSummary: isLoading);
   }
 
   void setCreatingDeposit(bool isCreating) {
     state = state.copyWith(isCreatingDeposit: isCreating);
   }
-
-  void setCancellingDeposit(bool isCancelling) {
-    state = state.copyWith(isCancellingDeposit: isCancelling);
-  }
 }
 
 class FormDataNotifier extends StateNotifier<FormData> {
-  FormDataNotifier() : super(FormData());
+  FormDataNotifier() : super(const FormData());
 
   void setReason(String reason) {
     state = state.copyWith(reason: reason);
@@ -332,7 +353,7 @@ class AvailableBedsNotifier extends StateNotifier<List<int>> {
 }
 
 class DepositFormNotifier extends StateNotifier<DepositFormData> {
-  DepositFormNotifier() : super(DepositFormData());
+  DepositFormNotifier() : super(const DepositFormData());
 
   void setDepositAmount(double amount) {
     state = state.copyWith(depositAmount: amount);
@@ -363,14 +384,14 @@ class DepositFormNotifier extends StateNotifier<DepositFormData> {
   }
 }
 
-class DepositReceiptNotifier extends StateNotifier<DepositReceipt?> {
-  DepositReceiptNotifier() : super(null);
+class DepositSummaryNotifier extends StateNotifier<DepositSummary?> {
+  DepositSummaryNotifier() : super(null);
 
-  void setReceipt(DepositReceipt? receipt) {
-    state = receipt;
+  void setSummary(DepositSummary? summary) {
+    state = summary;
   }
 
-  void clearReceipt() {
+  void clearSummary() {
     state = null;
   }
 }
@@ -394,9 +415,6 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
   final TextEditingController transactionIdController = TextEditingController();
   final TextEditingController chequeNumberController = TextEditingController();
   final TextEditingController bankNameController = TextEditingController();
-
-  // Cancel reason controller
-  final TextEditingController cancelReasonController = TextEditingController();
 
   // Focus node for keyboard shortcuts
   final FocusNode _shortcutFocusNode = FocusNode();
@@ -492,7 +510,6 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
     transactionIdController.dispose();
     chequeNumberController.dispose();
     bankNameController.dispose();
-    cancelReasonController.dispose();
     _shortcutFocusNode.dispose();
     super.dispose();
   }
@@ -560,197 +577,34 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
     }
   }
 
-  Future<void> checkDepositReceipt(String patientId, String admissionId) async {
-    ref.read(uiStateProvider.notifier).setCheckingDeposit(true);
-    ref.read(depositReceiptProvider.notifier).clearReceipt();
+  // Updated method to fetch deposit summary instead of checking single receipt
+  Future<void> fetchDepositSummary(String admissionId) async {
+    ref.read(uiStateProvider.notifier).setLoadingDepositSummary(true);
+    ref.read(depositSummaryProvider.notifier).clearSummary();
 
     try {
       final response = await http.get(
         Uri.parse(
-            '${KVM_URL}/reception/checkDepositReceiptExists/$patientId/$admissionId'),
+            '${KVM_URL}/reception/getAdmissionDepositSummary/$admissionId'),
       );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
 
-        if (data['exists'] == true && data['data'] != null) {
-          final receipt = DepositReceipt.fromJson(data['data']);
-          ref.read(depositReceiptProvider.notifier).setReceipt(receipt);
+        if (data['success'] == true && data['data'] != null) {
+          final summary = DepositSummary.fromJson(data['data']);
+          ref.read(depositSummaryProvider.notifier).setSummary(summary);
         } else {
-          ref.read(depositReceiptProvider.notifier).clearReceipt();
+          ref.read(depositSummaryProvider.notifier).clearSummary();
         }
       } else {
-        throw Exception('Failed to check deposit receipt');
+        throw Exception('Failed to fetch deposit summary');
       }
     } catch (e) {
-      showErrorSnackBar('Error checking deposit: $e');
+      showErrorSnackBar('Error fetching deposit summary: $e');
     } finally {
-      ref.read(uiStateProvider.notifier).setCheckingDeposit(false);
+      ref.read(uiStateProvider.notifier).setLoadingDepositSummary(false);
     }
-  }
-
-  Future<void> cancelDepositReceipt() async {
-    final existingReceipt = ref.read(depositReceiptProvider);
-
-    if (existingReceipt == null) {
-      showErrorSnackBar('No receipt found to cancel');
-      return;
-    }
-
-    // Show cancel reason dialog
-    final String? cancelReason = await _showCancelReasonDialog();
-
-    if (cancelReason == null || cancelReason.trim().isEmpty) {
-      return; // User cancelled or didn't provide reason
-    }
-
-    ref.read(uiStateProvider.notifier).setCancellingDeposit(true);
-
-    try {
-      final response = await http.patch(
-        Uri.parse(
-            '${KVM_URL}/reception/cancelDepositReceipt/${existingReceipt.receiptId}'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'reason': cancelReason.trim(),
-        }),
-      );
-      print('Response status: ${response.body}');
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-
-        if (data['success'] == true) {
-          showSuccessSnackBar('Deposit receipt cancelled successfully');
-
-          // Clear the receipt from state
-          ref.read(depositReceiptProvider.notifier).clearReceipt();
-
-          // Re-check deposit status to get updated info
-          final patient = ref.read(selectedPatientProvider);
-          if (patient != null && patient.admissionRecords.isNotEmpty) {
-            await checkDepositReceipt(
-                patient.patientId, patient.admissionRecords.first.id);
-          }
-        } else {
-          throw Exception(
-              data['message'] ?? 'Failed to cancel deposit receipt');
-        }
-      } else {
-        final errorData = json.decode(response.body);
-        throw Exception(
-            errorData['message'] ?? 'Failed to cancel deposit receipt');
-      }
-    } catch (e) {
-      showErrorSnackBar('Error cancelling deposit receipt: $e');
-    } finally {
-      ref.read(uiStateProvider.notifier).setCancellingDeposit(false);
-    }
-  }
-
-  Future<String?> _showCancelReasonDialog() async {
-    cancelReasonController.clear();
-
-    return showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext dialogContext) {
-        return Dialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: Container(
-            width: MediaQuery.of(dialogContext).size.width * 0.4,
-            constraints: const BoxConstraints(maxWidth: 500),
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: HospitalTheme.warning.withOpacity(0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.warning_amber,
-                        color: HospitalTheme.warning,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    const Expanded(
-                      child: Text(
-                        'Cancel Deposit Receipt',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: HospitalTheme.textDark,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Please provide a reason for cancelling this deposit receipt:',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: HospitalTheme.textMedium,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: cancelReasonController,
-                  maxLines: 3,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    hintText: 'Enter cancellation reason...',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(
-                          color: HospitalTheme.primary, width: 2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.of(dialogContext).pop(null),
-                      child: const Text(
-                        'Cancel',
-                        style: TextStyle(color: HospitalTheme.textMedium),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    ElevatedButton(
-                      onPressed: () {
-                        final reason = cancelReasonController.text.trim();
-                        if (reason.isNotEmpty) {
-                          Navigator.of(dialogContext).pop(reason);
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: HospitalTheme.error,
-                        foregroundColor: Colors.white,
-                      ),
-                      child: const Text('Confirm Cancel'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
   }
 
   Future<void> createDepositReceipt() async {
@@ -807,18 +661,15 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
         final data = json.decode(response.body);
 
         if (data['success'] == true) {
-          // Update the existing receipt in state FIRST
-          if (data['data'] != null) {
-            final receipt = DepositReceipt.fromJson(data['data']);
-            ref.read(depositReceiptProvider.notifier).setReceipt(receipt);
-          }
-
           showSuccessSnackBar('Deposit receipt created successfully!');
 
           // Clear the deposit form
           clearDepositForm();
 
-          // ALWAYS show the dialog regardless of existing receipt state
+          // Refresh the deposit summary to show the new deposit
+          await fetchDepositSummary(admissionId);
+
+          // Show the success dialog
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted && context.mounted) {
               _showReceiptDetailsDialog(data);
@@ -1131,9 +982,9 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
       fetchAvailableBeds(formData.selectedSectionId!);
     }
 
-    // Check for existing deposit receipt
+    // Fetch deposit summary for this admission
     if (patient.admissionRecords.isNotEmpty) {
-      checkDepositReceipt(patient.patientId, patient.admissionRecords.first.id);
+      fetchDepositSummary(patient.admissionRecords.first.id);
     }
   }
 
@@ -1255,7 +1106,6 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
       builder: (context, ref, _) {
         final patients = ref.watch(patientsProvider);
         final filteredPatients = ref.watch(filteredPatientsProvider);
-        final searchQuery = ref.watch(searchQueryProvider);
 
         return Container(
           padding: const EdgeInsets.all(16),
@@ -1320,10 +1170,10 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
         }
 
         if (filteredPatients.isEmpty) {
-          return Center(
+          return const Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
+              children: [
                 Icon(Icons.search_off,
                     size: 48, color: HospitalTheme.textMedium),
                 SizedBox(height: 16),
@@ -1564,10 +1414,10 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
   }
 
   Widget _buildNoPatientSelectedView() {
-    return Center(
+    return const Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
+        children: [
           Icon(
             Icons.personal_injury,
             size: 80,
@@ -1997,13 +1847,14 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
     );
   }
 
+  // Updated deposit management section to show all deposits
   Widget _buildDepositManagementSection() {
     return Consumer(
       builder: (context, ref, _) {
         final patient = ref.watch(selectedPatientProvider);
         final uiState = ref.watch(uiStateProvider);
         final depositForm = ref.watch(depositFormProvider);
-        final existingReceipt = ref.watch(depositReceiptProvider);
+        final depositSummary = ref.watch(depositSummaryProvider);
 
         if (patient == null || patient.admissionRecords.isEmpty) {
           return const SizedBox.shrink();
@@ -2023,7 +1874,7 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
                     color: HospitalTheme.textDark,
                   ),
                 ),
-                if (uiState.isCheckingDeposit)
+                if (uiState.isLoadingDepositSummary)
                   const SizedBox(
                     width: 20,
                     height: 20,
@@ -2033,8 +1884,8 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Existing deposit receipt display
-            if (existingReceipt != null && existingReceipt.isCancelled != true)
+            // Existing deposits display
+            if (depositSummary != null && depositSummary.hasDeposits) ...[
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
@@ -2049,381 +1900,456 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
                     Row(
                       children: [
                         const Icon(
-                          Icons.check_circle,
+                          Icons.account_balance_wallet,
                           color: HospitalTheme.success,
                           size: 24,
                         ),
                         const SizedBox(width: 12),
-                        const Text(
-                          'Deposit Receipt Exists',
-                          style: TextStyle(
+                        Text(
+                          'Deposit Summary (${depositSummary.depositsCount} ${depositSummary.depositsCount == 1 ? 'Receipt' : 'Receipts'})',
+                          style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: HospitalTheme.success,
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildReceiptInfoRow(
-                                  'Receipt ID:', existingReceipt.receiptId),
-                              _buildReceiptInfoRow('Amount:',
-                                  '₹${existingReceipt.depositAmount.toStringAsFixed(2)}'),
-                              _buildReceiptInfoRow('Payment Method:',
-                                  existingReceipt.paymentMethod),
-                              _buildReceiptInfoRow(
-                                  'Generated:',
-                                  existingReceipt.generatedAt
-                                      .toString()
-                                      .split('.')[0]),
-                            ],
-                          ),
-                        ),
-                        Column(
-                          children: [
-                            if (existingReceipt.receiptUrl != null)
-                              ElevatedButton.icon(
-                                onPressed: () {
-                                  Methods()
-                                      .openPdf(existingReceipt.receiptUrl!);
-                                  showSuccessSnackBar('Opening receipt...');
-                                },
-                                icon: const Icon(Icons.picture_as_pdf),
-                                label: const Text('View Receipt'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: HospitalTheme.primary,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 8),
-                                ),
-                              ),
-                            const SizedBox(height: 8),
-                            ElevatedButton.icon(
-                              onPressed: uiState.isCancellingDeposit
-                                  ? null
-                                  : cancelDepositReceipt,
-                              icon: uiState.isCancellingDeposit
-                                  ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                                Colors.white),
-                                      ),
-                                    )
-                                  : const Icon(Icons.cancel_outlined),
-                              label: Text(
-                                uiState.isCancellingDeposit
-                                    ? 'Cancelling...'
-                                    : 'Cancel Receipt',
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: HospitalTheme.error,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 8),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              )
-            else if (existingReceipt != null &&
-                existingReceipt.isCancelled == true)
-              // Show cancelled receipt info
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: HospitalTheme.error.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: HospitalTheme.error),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.cancel,
-                          color: HospitalTheme.error,
-                          size: 24,
-                        ),
-                        const SizedBox(width: 12),
-                        const Text(
-                          'Deposit Receipt Cancelled',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: HospitalTheme.error,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildReceiptInfoRow(
-                            'Receipt ID:', existingReceipt.receiptId),
-                        _buildReceiptInfoRow('Amount:',
-                            '₹${existingReceipt.depositAmount.toStringAsFixed(2)}'),
-                        _buildReceiptInfoRow(
-                            'Payment Method:', existingReceipt.paymentMethod),
-                        if (existingReceipt.cancelReason != null)
-                          _buildReceiptInfoRow(
-                              'Cancel Reason:', existingReceipt.cancelReason!),
-                        if (existingReceipt.cancelledAt != null)
-                          _buildReceiptInfoRow(
-                              'Cancelled At:',
-                              existingReceipt.cancelledAt
-                                  .toString()
-                                  .split('.')[0]),
-                      ],
-                    ),
-                  ],
-                ),
-              )
-            else
-              // New deposit form
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: HospitalTheme.border),
-                  boxShadow: HospitalTheme.shadowSmall,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.account_balance_wallet,
-                          color: HospitalTheme.primary,
-                          size: 24,
-                        ),
-                        const SizedBox(width: 12),
-                        const Text(
-                          'Create Deposit Receipt',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: HospitalTheme.textDark,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Deposit Amount
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildFormField(
-                            label: 'Deposit Amount *',
-                            hint: 'Enter deposit amount',
-                            controller: depositAmountController,
-                            icon: Icons.currency_rupee,
-                            keyboardType: TextInputType.number,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Payment Method *',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: HospitalTheme.textDark,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              DropdownButtonFormField<String>(
-                                decoration: const InputDecoration(
-                                  border: OutlineInputBorder(),
-                                  prefixIcon: Icon(Icons.payment),
-                                ),
-                                value: depositForm.paymentMethod,
-                                hint: const Text('Select payment method'),
-                                onChanged: (value) {
-                                  if (value != null) {
-                                    ref
-                                        .read(depositFormProvider.notifier)
-                                        .setPaymentMethod(value);
-                                  }
-                                },
-                                items: paymentMethods.map((method) {
-                                  return DropdownMenuItem<String>(
-                                    value: method,
-                                    child: Text(method),
-                                  );
-                                }).toList(),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Conditional fields based on payment method
-                    if (depositForm.paymentMethod == 'UPI' ||
-                        depositForm.paymentMethod == 'Net Banking')
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: _buildFormField(
-                          label: 'Transaction ID',
-                          hint: 'Enter transaction ID',
-                          controller: transactionIdController,
-                          icon: Icons.receipt_long,
-                        ),
-                      ),
-
-                    if (depositForm.paymentMethod == 'Cheque')
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: _buildFormField(
-                                label: 'Cheque Number',
-                                hint: 'Enter cheque number',
-                                controller: chequeNumberController,
-                                icon: Icons.receipt,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: _buildFormField(
-                                label: 'Bank Name',
-                                hint: 'Enter bank name',
-                                controller: bankNameController,
-                                icon: Icons.account_balance,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                    // Remarks
-                    _buildFormField(
-                      label: 'Remarks',
-                      hint: 'Enter any remarks (optional)',
-                      controller: remarksController,
-                      icon: Icons.note,
-                      maxLines: 2,
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Create deposit button
-                    Center(
-                      child: ElevatedButton.icon(
-                        onPressed:
-                            (uiState.isCreatingDeposit || !depositForm.isValid)
-                                ? null
-                                : createDepositReceipt,
-                        icon: uiState.isCreatingDeposit
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white),
-                                ),
-                              )
-                            : const Icon(Icons.receipt_long),
-                        label: Text(
-                          uiState.isCreatingDeposit
-                              ? 'Creating Receipt...'
-                              : 'Create Deposit Receipt',
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: HospitalTheme.primary,
+                        const Spacer(),
+                        Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 32, vertical: 16),
-                          textStyle: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold),
+                              horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: HospitalTheme.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: HospitalTheme.primary),
+                          ),
+                          child: Text(
+                            'Total: ${depositSummary.formattedTotalAmount}',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: HospitalTheme.primary,
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // List of all deposits
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: depositSummary.deposits.length,
+                      separatorBuilder: (context, index) =>
+                          const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final deposit = depositSummary.deposits[index];
+                        return _buildDepositCard(deposit);
+                      },
                     ),
 
-                    if (!depositForm.isValid &&
-                        depositForm.paymentMethod != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 12),
+                    const SizedBox(height: 12),
+
+                    // Summary info
+                    if (depositSummary.firstDeposit != null &&
+                        depositSummary.lastDeposit != null)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.7),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                         child: Row(
                           children: [
-                            const Icon(Icons.info,
-                                color: HospitalTheme.warning, size: 16),
-                            const SizedBox(width: 8),
-                            Text(
-                              depositForm.depositAmount == null ||
-                                      depositForm.depositAmount! <= 0
-                                  ? 'Please enter a valid deposit amount'
-                                  : 'Please fill in all required fields',
-                              style: const TextStyle(
-                                color: HospitalTheme.warning,
-                                fontSize: 14,
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'First Deposit',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: HospitalTheme.textMedium,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  Text(
+                                    _formatDateTime(
+                                        depositSummary.firstDeposit!),
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: HospitalTheme.textDark,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
+                            if (depositSummary.depositsCount > 1)
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Last Deposit',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: HospitalTheme.textMedium,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    Text(
+                                      _formatDateTime(
+                                          depositSummary.lastDeposit!),
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: HospitalTheme.textDark,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                           ],
                         ),
                       ),
                   ],
                 ),
               ),
+              const SizedBox(height: 20),
+            ],
+
+            // New deposit form
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: HospitalTheme.border),
+                boxShadow: HospitalTheme.shadowSmall,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.add_card,
+                        color: HospitalTheme.primary,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        depositSummary?.hasDeposits == true
+                            ? 'Add New Deposit Receipt'
+                            : 'Create Deposit Receipt',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: HospitalTheme.textDark,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Deposit Amount
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildFormField(
+                          label: 'Deposit Amount *',
+                          hint: 'Enter deposit amount',
+                          controller: depositAmountController,
+                          icon: Icons.currency_rupee,
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Payment Method *',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: HospitalTheme.textDark,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            DropdownButtonFormField<String>(
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.payment),
+                              ),
+                              value: depositForm.paymentMethod,
+                              hint: const Text('Select payment method'),
+                              onChanged: (value) {
+                                if (value != null) {
+                                  ref
+                                      .read(depositFormProvider.notifier)
+                                      .setPaymentMethod(value);
+                                }
+                              },
+                              items: paymentMethods.map((method) {
+                                return DropdownMenuItem<String>(
+                                  value: method,
+                                  child: Text(method),
+                                );
+                              }).toList(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Conditional fields based on payment method
+                  if (depositForm.paymentMethod == 'UPI' ||
+                      depositForm.paymentMethod == 'Net Banking')
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: _buildFormField(
+                        label: 'Transaction ID',
+                        hint: 'Enter transaction ID',
+                        controller: transactionIdController,
+                        icon: Icons.receipt_long,
+                      ),
+                    ),
+
+                  if (depositForm.paymentMethod == 'Cheque')
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _buildFormField(
+                              label: 'Cheque Number',
+                              hint: 'Enter cheque number',
+                              controller: chequeNumberController,
+                              icon: Icons.receipt,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _buildFormField(
+                              label: 'Bank Name',
+                              hint: 'Enter bank name',
+                              controller: bankNameController,
+                              icon: Icons.account_balance,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  // Remarks
+                  _buildFormField(
+                    label: 'Remarks',
+                    hint: 'Enter any remarks (optional)',
+                    controller: remarksController,
+                    icon: Icons.note,
+                    maxLines: 2,
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Create deposit button
+                  Center(
+                    child: ElevatedButton.icon(
+                      onPressed:
+                          (uiState.isCreatingDeposit || !depositForm.isValid)
+                              ? null
+                              : createDepositReceipt,
+                      icon: uiState.isCreatingDeposit
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : const Icon(Icons.receipt_long),
+                      label: Text(
+                        uiState.isCreatingDeposit
+                            ? 'Creating Receipt...'
+                            : depositSummary?.hasDeposits == true
+                                ? 'Add Another Deposit'
+                                : 'Create Deposit Receipt',
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: HospitalTheme.primary,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 32, vertical: 16),
+                        textStyle: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+
+                  if (!depositForm.isValid && depositForm.paymentMethod != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info,
+                              color: HospitalTheme.warning, size: 16),
+                          const SizedBox(width: 8),
+                          Text(
+                            depositForm.depositAmount == null ||
+                                    depositForm.depositAmount! <= 0
+                                ? 'Please enter a valid deposit amount'
+                                : 'Please fill in all required fields',
+                            style: const TextStyle(
+                              color: HospitalTheme.warning,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ],
         );
       },
     );
   }
 
-  Widget _buildReceiptInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+  Widget _buildDepositCard(DepositRecord deposit) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: HospitalTheme.border.withOpacity(0.5)),
+      ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                color: HospitalTheme.textMedium,
+          // Sequence number circle
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: HospitalTheme.primary.withOpacity(0.1),
+              shape: BoxShape.circle,
+              border: Border.all(color: HospitalTheme.primary),
+            ),
+            child: Center(
+              child: Text(
+                '${deposit.sequenceNumber}',
+                style: const TextStyle(
+                  color: HospitalTheme.primary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
               ),
             ),
           ),
+          const SizedBox(width: 12),
+
+          // Deposit details
           Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: HospitalTheme.textDark,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      deposit.formattedAmount,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: HospitalTheme.textDark,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _getPaymentMethodColor(deposit.paymentMethod)
+                            .withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                            color:
+                                _getPaymentMethodColor(deposit.paymentMethod)),
+                      ),
+                      child: Text(
+                        deposit.paymentMethod,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: _getPaymentMethodColor(deposit.paymentMethod),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Receipt ID: ${deposit.receiptId}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: HospitalTheme.textMedium,
+                  ),
+                ),
+                Text(
+                  _formatDateTime(deposit.generatedAt),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: HospitalTheme.textMedium,
+                  ),
+                ),
+              ],
             ),
+          ),
+
+          // View receipt button
+          IconButton(
+            onPressed: () {
+              // You can implement view receipt functionality here
+              showSuccessSnackBar('Receipt viewing feature coming soon');
+            },
+            icon: const Icon(
+              Icons.visibility_outlined,
+              color: HospitalTheme.primary,
+              size: 20,
+            ),
+            tooltip: 'View Receipt',
           ),
         ],
       ),
     );
+  }
+
+  Color _getPaymentMethodColor(String paymentMethod) {
+    switch (paymentMethod.toLowerCase()) {
+      case 'cash':
+        return HospitalTheme.success;
+      case 'card':
+        return HospitalTheme.primary;
+      case 'upi':
+        return HospitalTheme.secondary;
+      case 'net banking':
+        return HospitalTheme.info;
+      case 'cheque':
+        return HospitalTheme.warning;
+      default:
+        return HospitalTheme.textMedium;
+    }
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
   Widget _buildActionButtons(UIState uiState, FormData formData, bool hasBed) {
@@ -2519,7 +2445,7 @@ class Patient {
   final int pendingAmount;
   final List<AdmissionRecord> admissionRecords;
 
-  Patient({
+  const Patient({
     required this.id,
     required this.patientId,
     required this.name,
@@ -2559,7 +2485,7 @@ class SectionInfo {
   final String name;
   final String type;
 
-  SectionInfo({
+  const SectionInfo({
     required this.id,
     required this.name,
     required this.type,
@@ -2586,7 +2512,7 @@ class AdmissionRecord {
   final SectionInfo? section;
   final bool ipdDetailsUpdated;
 
-  AdmissionRecord({
+  const AdmissionRecord({
     required this.id,
     required this.admissionDate,
     required this.status,
@@ -2626,7 +2552,7 @@ class Section {
   final int availableBeds;
   final bool isActive;
 
-  Section({
+  const Section({
     required this.id,
     required this.name,
     required this.type,

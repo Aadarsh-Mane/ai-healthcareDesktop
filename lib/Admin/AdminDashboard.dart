@@ -4,8 +4,10 @@ import 'package:doctordesktop/Admin/BillTrackTableView.dart';
 import 'package:doctordesktop/Admin/DepositTrackingScreen.dart';
 import 'package:doctordesktop/Admin/PatientBillingScreen.dart';
 import 'package:doctordesktop/Admin/PatientManagement.dart';
+import 'package:doctordesktop/Admin/SummaryTrackScreen.dart';
 import 'package:doctordesktop/Check.dart';
 import 'package:doctordesktop/Doctor/Dashboard/HomeScreen.dart';
+import 'package:doctordesktop/Doctor/PatientListScreen.dart';
 import 'package:doctordesktop/Doctor/SeeNurseAttendace.dart';
 import 'package:doctordesktop/Doctor/fetchDoctor.dart';
 import 'package:doctordesktop/External/ExternalSidebar.dart';
@@ -16,6 +18,7 @@ import 'package:doctordesktop/main.dart';
 import 'package:doctordesktop/pharmacy/pharmaTheme.dart';
 import 'package:doctordesktop/reception/BillingAnalyticsDashboard.dart';
 import 'package:doctordesktop/reception/CreateAppointment.dart';
+import 'package:doctordesktop/reception/DepositTrackScreen.dart';
 import 'package:doctordesktop/reception/ExternalDoctorRegistration.dart';
 import 'package:doctordesktop/reception/PatientAllDischargedScreen.dart';
 import 'package:doctordesktop/reception/PatientRegister.dart';
@@ -73,7 +76,10 @@ class _MainLayoutState extends State<MainLayout> {
     BillingAnalyticsDashboard(),
     BillsTrackScreen(),
     BillsTableScreen(),
-    DepositsTrackingScreen()
+    // DepositsTrackingScreen(),
+    PatientDepositsScreen(),
+    DischargeSummariesScreen(),
+    PatientListScreen1()
   ];
   // Add this new public method
   void navigateTo(int index) {
@@ -283,6 +289,20 @@ class SidebarWidget extends StatelessWidget {
                   label: 'Deposits Track',
                   isSelected: selectedIndex == 10,
                   onTap: () => onItemSelected(10),
+                ),
+                _buildNavItemWithLabel(
+                  index: 11,
+                  icon: Icons.medical_services,
+                  label: 'Track Summary',
+                  isSelected: selectedIndex == 11,
+                  onTap: () => onItemSelected(11),
+                ),
+                _buildNavItemWithLabel(
+                  index: 12,
+                  icon: Icons.medical_services,
+                  label: 'Track Patients',
+                  isSelected: selectedIndex == 12,
+                  onTap: () => onItemSelected(12),
                 ),
               ],
             ),

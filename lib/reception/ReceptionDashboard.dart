@@ -2,6 +2,7 @@ import 'package:doctordesktop/Admin/BedManagement.dart';
 import 'package:doctordesktop/Admin/PatientBillingScreen.dart';
 import 'package:doctordesktop/Check.dart';
 import 'package:doctordesktop/Doctor/Dashboard/HomeScreen.dart';
+import 'package:doctordesktop/Doctor/PatientListScreen.dart';
 import 'package:doctordesktop/Doctor/SeeNurseAttendace.dart';
 import 'package:doctordesktop/Doctor/fetchDoctor.dart';
 import 'package:doctordesktop/External/ExternalSidebar.dart';
@@ -64,6 +65,7 @@ class _MainLayoutState extends State<MainLayout> {
     PatientAssignmentScreen(),
     DoctorListScreen(),
     PatientListScreen(),
+    PatientListScreen1(),
     ReceptionBedManagementScreen(),
     ExternalSideBar(),
     const ReceptionMainScreen(),
@@ -241,45 +243,52 @@ class SidebarWidget extends StatelessWidget {
                 ),
                 _buildNavItemWithLabel(
                   index: 5,
-                  icon: Icons.inventory_2_outlined,
-                  label: 'Bed Assignment',
+                  icon: Icons.settings_outlined,
+                  label: 'Track Patients',
                   isSelected: selectedIndex == 5,
                   onTap: () => onItemSelected(5),
                 ),
                 _buildNavItemWithLabel(
                   index: 6,
-                  icon: Icons.local_shipping_outlined,
-                  label: 'External Doctor',
+                  icon: Icons.inventory_2_outlined,
+                  label: 'Bed Assignment',
                   isSelected: selectedIndex == 6,
                   onTap: () => onItemSelected(6),
                 ),
                 _buildNavItemWithLabel(
                   index: 7,
-                  icon: Icons.medical_services,
-                  label: 'Create Appointment',
+                  icon: Icons.local_shipping_outlined,
+                  label: 'External Doctor',
                   isSelected: selectedIndex == 7,
                   onTap: () => onItemSelected(7),
                 ),
                 _buildNavItemWithLabel(
                   index: 8,
-                  icon: Icons.medication_outlined,
-                  label: 'Bed Management',
+                  icon: Icons.medical_services,
+                  label: 'Create Appointment',
                   isSelected: selectedIndex == 8,
                   onTap: () => onItemSelected(8),
                 ),
                 _buildNavItemWithLabel(
                   index: 9,
                   icon: Icons.medication_outlined,
-                  label: 'Billing',
+                  label: 'Bed Management',
                   isSelected: selectedIndex == 9,
                   onTap: () => onItemSelected(9),
                 ),
                 _buildNavItemWithLabel(
                   index: 10,
                   icon: Icons.medication_outlined,
-                  label: 'Anyalysis',
+                  label: 'Billing',
                   isSelected: selectedIndex == 10,
                   onTap: () => onItemSelected(10),
+                ),
+                _buildNavItemWithLabel(
+                  index: 11,
+                  icon: Icons.medication_outlined,
+                  label: 'Anyalysis',
+                  isSelected: selectedIndex == 11,
+                  onTap: () => onItemSelected(11),
                 ),
               ],
             ),
