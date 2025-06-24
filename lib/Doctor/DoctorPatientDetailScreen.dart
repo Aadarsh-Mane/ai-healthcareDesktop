@@ -535,11 +535,11 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
             ),
             TextButton(
               onPressed: () async {
-                final String currentDateTime =
-                    DateFormat('yyyy-MM-dd hh:mm:ss a').format(DateTime.now());
+                // final String currentDateTime =
+                //     DateFormat('yyyy-MM-dd hh:mm:ss a').format(DateTime.now());
 
                 // Append the current date and time to the 'other' field, placing it on a new line
-                final String otherWithDateTime = '${other.text}';
+                // final String otherWithDateTime = '${other.text}';
                 final vitals = Vitals(
                   temperature: temperature.text,
                   pulse: pulse.text,

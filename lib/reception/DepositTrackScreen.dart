@@ -1,5 +1,6 @@
 import 'package:doctordesktop/constants/HospitalTheme.dart';
 import 'package:doctordesktop/constants/Methods.dart';
+import 'package:doctordesktop/constants/Url.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -221,7 +222,7 @@ class DepositFilters {
 // Providers
 final depositsProvider = FutureProvider<DepositsResponse>((ref) async {
   final response = await http.get(
-    Uri.parse('http://localhost:5001/reception/getAllPatientsDeposits'),
+    Uri.parse('${KVM_URL}/reception/getAllPatientsDeposits'),
     headers: {'Content-Type': 'application/json'},
   );
 

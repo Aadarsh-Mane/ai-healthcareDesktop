@@ -1,6 +1,7 @@
 // discharge_summaries_screen.dart
 import 'package:doctordesktop/constants/HospitalTheme.dart';
 import 'package:doctordesktop/constants/Methods.dart';
+import 'package:doctordesktop/constants/Url.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -270,7 +271,7 @@ class SummaryFilters {
 
 // API Service
 class DischargeSummaryService {
-  static const String baseUrl = 'http://localhost:5001';
+  static const String baseUrl = '${KVM_URL}';
 
   static Future<DischargeSummariesResponse> getAllDischargeSummaries(
       SummaryFilters filters) async {

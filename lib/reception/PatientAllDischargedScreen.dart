@@ -312,8 +312,7 @@ class DischargedPatientsNotifier
     fetchDischargedPatients();
   }
 
-  static const String apiUrl =
-      'http://localhost:5001/reception/getAllDischargedPatient';
+  static const String apiUrl = '${KVM_URL}/reception/getAllDischargedPatient';
 
   Future<void> fetchDischargedPatients() async {
     try {

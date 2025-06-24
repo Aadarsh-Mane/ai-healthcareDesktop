@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:doctordesktop/constants/HospitalTheme.dart';
+import 'package:doctordesktop/constants/Url.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -204,7 +205,7 @@ class PatientListNotifier
     try {
       state = const AsyncValue.loading();
 
-      final uri = Uri.parse('http://localhost:5001/doctors/getPatientsList')
+      final uri = Uri.parse('${KVM_URL}/doctors/getPatientsList')
           .replace(queryParameters: {
         if (search.isNotEmpty) 'search': search,
         'filterType': filterType,
