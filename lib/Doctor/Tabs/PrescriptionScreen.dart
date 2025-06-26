@@ -1,6 +1,7 @@
 import 'package:doctordesktop/Doctor/AddPrescriptionDialod.dart';
 import 'package:doctordesktop/constants/Methods.dart';
 import 'package:doctordesktop/constants/Url.dart';
+import 'package:doctordesktop/core/utils/PdfViewerScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -12,7 +13,7 @@ import 'package:doctordesktop/repositories/doctor_repository.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:intl/intl.dart';
+import 'package:doctordesktop/constants/hospitalTheme.dart';
 
 // Provider to manage prescriptions data state
 final prescriptionsProvider = StateNotifierProvider<PrescriptionsNotifier,
@@ -73,16 +74,6 @@ class DoctorPrescriptionsScreen extends ConsumerStatefulWidget {
 class _DoctorPrescriptionsScreenState
     extends ConsumerState<DoctorPrescriptionsScreen> {
   final doctor = DoctorRepository();
-  // Key colors from HospitalTheme
-  final Color primaryColor = const Color(0xFF005F9E);
-  final Color accentColor = const Color(0xFF00B8D4);
-  final Color backgroundColor = const Color(0xFFF8FBFD);
-  final Color cardBackground = Colors.white;
-  final Color textDark = const Color(0xFF2D3748);
-  final Color textMedium = const Color(0xFF5A6B7F);
-  final Color success = const Color(0xFF43A047);
-  final Color error = const Color(0xFFE53935);
-  final Color warning = const Color(0xFFFFA000);
 
   // Form controllers
   final TextEditingController medicineNameController = TextEditingController();
@@ -90,6 +81,8 @@ class _DoctorPrescriptionsScreenState
   final TextEditingController afternoonDoseController = TextEditingController();
   final TextEditingController nightDoseController = TextEditingController();
   final TextEditingController commentController = TextEditingController();
+
+  bool _isPrescriptionLoading = false;
 
   @override
   void initState() {
@@ -112,13 +105,29 @@ class _DoctorPrescriptionsScreenState
     super.dispose();
   }
 
-  bool _isPrescriptionLoading = false;
-
   @override
   Widget build(BuildContext context) {
     final prescriptionsState = ref.watch(prescriptionsProvider);
     final screenSize = MediaQuery.of(context).size;
 
+    return PdfViewerWidget(
+      primaryColor: HospitalTheme.primary,
+      appBarTitle: 'Prescription PDF',
+      child: Scaffold(
+        appBar: HospitalTheme.buildAppBar(
+          context: context,
+          title: 'Patient Prescriptions',
+          centerTitle: false,
+        ),
+        body: _buildMainContent(context, prescriptionsState, screenSize),
+      ),
+    );
+  }
+
+  Widget _buildMainContent(
+      BuildContext context,
+      AsyncValue<List<DoctorPrescription>> prescriptionsState,
+      Size screenSize) {
     return LayoutBuilder(
       builder: (context, constraints) {
         // Responsive column count
@@ -130,19 +139,19 @@ class _DoctorPrescriptionsScreenState
 
         return Container(
           decoration: BoxDecoration(
-            color: backgroundColor,
+            color: HospitalTheme.background,
             image: DecorationImage(
               image: const AssetImage('assets/images/bb1.png'),
               fit: BoxFit.cover,
               opacity: 0.1,
               colorFilter: ColorFilter.mode(
-                primaryColor.withOpacity(0.05),
+                HospitalTheme.primary.withOpacity(0.05),
                 BlendMode.lighten,
               ),
             ),
           ),
           child: Padding(
-            padding: EdgeInsets.all(24.0),
+            padding: const EdgeInsets.all(24.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -161,6 +170,12 @@ class _DoctorPrescriptionsScreenState
                             prescriptionsList, columnCount),
                   ),
                 ),
+
+                // PDF Status Bar using common widget
+                const PdfStatusBar(
+                  errorColor: HospitalTheme.error,
+                  infoColor: HospitalTheme.primary,
+                ),
               ],
             ),
           ),
@@ -168,31 +183,27 @@ class _DoctorPrescriptionsScreenState
       },
     );
   }
-// Add these imports at the top of your file
 
-// Update the _fetchDoctorAdvice method in your DoctorPrescriptionsScreen class
-// Add these imports at the top of your file
-
-// Update the _fetchDoctorAdvice method in your DoctorPrescriptionsScreen class
-  Future<void> _fetchDoctorAdvice(
-      BuildContext context, patientId, admissionId) async {
+  Future<void> _fetchDoctorAdvice(BuildContext context) async {
     setState(() => _isPrescriptionLoading = true);
 
     try {
       final url =
-          '${KVM_URL}/reception/getDoctorAdvice/${patientId}/${admissionId}';
+          '${KVM_URL}/reception/getDoctorAdvice/${widget.patientId}/${widget.admissionId}';
 
       final response = await http.get(Uri.parse(url));
       final data = jsonDecode(response.body);
       final fileLink = data['fileLink'];
 
       if (fileLink != null) {
-        // Show options dialog for Open or Print
-        // _showPdfActionDialog(context, fileLink);
-        Methods().openPdf(fileLink);
+        // Use common PDF viewer to load and show PDF
+        await ref.read(pdfViewerProvider.notifier).loadAndShowPdf(
+              fileLink,
+              title: 'Prescription Document',
+            );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No file link found in the response')),
+          const SnackBar(content: Text('No file link found in the response')),
         );
       }
     } catch (e) {
@@ -204,25 +215,10 @@ class _DoctorPrescriptionsScreenState
     }
   }
 
-// Add this new method to show PDF action dialog
-
-// Add this method to handle PDF printing
-
-// Add this method to show print options with better error handling
-
   Widget _buildHeaderSection() {
-    return Container(
-      decoration: BoxDecoration(
-        color: cardBackground,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    final pdfState = ref.watch(pdfViewerProvider);
+
+    return HospitalTheme.buildCard(
       padding: const EdgeInsets.all(20),
       child: Row(
         children: [
@@ -231,11 +227,11 @@ class _DoctorPrescriptionsScreenState
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [primaryColor, accentColor],
+                colors: [HospitalTheme.primary, HospitalTheme.accent],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: HospitalTheme.radiusMedium,
             ),
             child: const Icon(FontAwesomeIcons.pills,
                 color: Colors.white, size: 24),
@@ -250,14 +246,14 @@ class _DoctorPrescriptionsScreenState
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: textDark,
+                    color: HospitalTheme.textDark,
                   ),
                 ),
                 Text(
                   'Manage medications and dosage instructions',
                   style: TextStyle(
                     fontSize: 14,
-                    color: textMedium,
+                    color: HospitalTheme.textMedium,
                   ),
                 ),
               ],
@@ -270,38 +266,45 @@ class _DoctorPrescriptionsScreenState
               _buildActionButton(
                 icon: Icons.medication,
                 label: 'Prescription',
-                color: Colors.purple,
+                color: HospitalTheme.medical,
                 isLoading: _isPrescriptionLoading,
-                onPressed: () async {
-                  // The loading state is now managed inside _fetchDoctorAdvice
-                  await _fetchDoctorAdvice(
-                      context, widget.patientId, widget.admissionId);
-                },
+                onPressed: () => _fetchDoctorAdvice(context),
               ),
               const SizedBox(width: 12),
-              _buildActionButton(
-                  icon: Icons.add,
-                  label: 'Add Prescription',
-                  color: primaryColor,
-                  onPressed: () async {
-                    // Navigate and wait for result
-                    final result = await Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => AddPrescriptionScreen(
-                          patientId: widget.patientId,
-                          admissionId: widget.admissionId,
-                        ),
-                      ),
-                    );
 
-                    // If returning from the AddPrescriptionScreen, refresh the data
-                    if (result == true || result == null) {
-                      ref
-                          .read(prescriptionsProvider.notifier)
-                          .fetchPrescriptions(
-                              widget.patientId, widget.admissionId);
-                    }
-                  }),
+              // PDF Preview Toggle Button (only show when PDF is loaded)
+              if (pdfState.pdfBytes != null)
+                _buildActionButton(
+                  icon: Icons.picture_as_pdf,
+                  label: 'PDF Preview',
+                  color: HospitalTheme.info,
+                  onPressed: () => ref.read(pdfViewerProvider.notifier).show(),
+                ),
+
+              if (pdfState.pdfBytes != null) const SizedBox(width: 12),
+
+              _buildActionButton(
+                icon: Icons.add,
+                label: 'Add Prescription',
+                color: HospitalTheme.primary,
+                onPressed: () async {
+                  // Navigate and wait for result
+                  final result = await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => AddPrescriptionScreen(
+                        patientId: widget.patientId,
+                        admissionId: widget.admissionId,
+                      ),
+                    ),
+                  );
+
+                  // If returning from the AddPrescriptionScreen, refresh the data
+                  if (result == true || result == null) {
+                    ref.read(prescriptionsProvider.notifier).fetchPrescriptions(
+                        widget.patientId, widget.admissionId);
+                  }
+                },
+              ),
             ],
           ),
         ],
@@ -370,7 +373,6 @@ class _DoctorPrescriptionsScreenState
         crossAxisCount: columnCount,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
-        // Use mainAxisExtent instead of childAspectRatio to set a fixed height
         mainAxisExtent: 280, // Fixed height for each card
       ),
       itemCount: prescriptionsList.length,
@@ -381,7 +383,6 @@ class _DoctorPrescriptionsScreenState
     );
   }
 
-// Update this method in your code:
   String _formatDate(String dateString) {
     if (dateString.isEmpty) return 'Today';
 
@@ -396,22 +397,8 @@ class _DoctorPrescriptionsScreenState
   }
 
   Widget _buildPrescriptionCard(DoctorPrescription prescription) {
-    return Container(
-      decoration: BoxDecoration(
-        color: cardBackground,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-        border: Border.all(
-          color: const Color(0xFFDFEAF4),
-          width: 1,
-        ),
-      ),
+    return HospitalTheme.buildCard(
+      padding: const EdgeInsets.all(0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -421,15 +408,15 @@ class _DoctorPrescriptionsScreenState
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  primaryColor.withOpacity(0.9),
-                  accentColor.withOpacity(0.9)
+                  HospitalTheme.primary.withOpacity(0.9),
+                  HospitalTheme.accent.withOpacity(0.9)
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
+              borderRadius: BorderRadius.only(
+                topLeft: HospitalTheme.radiusMedium.topLeft,
+                topRight: HospitalTheme.radiusMedium.topRight,
               ),
             ),
             child: Row(
@@ -469,22 +456,21 @@ class _DoctorPrescriptionsScreenState
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Column(
-                  mainAxisSize:
-                      MainAxisSize.min, // Important to prevent expansion
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildPrescriptionRow(
                       icon: FontAwesomeIcons.pills,
                       label: 'Medicine',
                       value: prescription.medicine.name ?? '',
-                      color: primaryColor,
+                      color: HospitalTheme.primary,
                     ),
                     const SizedBox(height: 8),
                     _buildPrescriptionRow(
                       icon: Icons.wb_sunny_outlined,
                       label: 'Morning',
                       value: prescription.medicine.morning ?? '',
-                      color: Colors.orange,
+                      color: HospitalTheme.warning,
                       suffix: 'tablet(s)',
                     ),
                     const SizedBox(height: 8),
@@ -492,7 +478,7 @@ class _DoctorPrescriptionsScreenState
                       icon: Icons.wb_twighlight,
                       label: 'Afternoon',
                       value: prescription.medicine.afternoon ?? '',
-                      color: accentColor,
+                      color: HospitalTheme.accent,
                       suffix: 'tablet(s)',
                     ),
                     const SizedBox(height: 8),
@@ -500,7 +486,7 @@ class _DoctorPrescriptionsScreenState
                       icon: Icons.nightlight_outlined,
                       label: 'Night',
                       value: prescription.medicine.night ?? '',
-                      color: primaryColor.withOpacity(0.7),
+                      color: HospitalTheme.primary.withOpacity(0.7),
                       suffix: 'tablet(s)',
                     ),
                     if (prescription.medicine.comment != null &&
@@ -512,7 +498,7 @@ class _DoctorPrescriptionsScreenState
                         icon: FontAwesomeIcons.notesMedical,
                         label: 'Notes',
                         value: prescription.medicine.comment ?? '',
-                        color: textMedium,
+                        color: HospitalTheme.textMedium,
                       ),
                     ],
                   ],
@@ -536,7 +522,7 @@ class _DoctorPrescriptionsScreenState
     final displayValue = value.isEmpty
         ? 'Not specified'
         : (suffix != null && value.isNotEmpty ? '$value $suffix' : value);
-    final displayColor = value.isEmpty ? textMedium : color;
+    final displayColor = value.isEmpty ? HospitalTheme.textMedium : color;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -545,7 +531,7 @@ class _DoctorPrescriptionsScreenState
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
             color: displayColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: HospitalTheme.radiusSmall,
           ),
           child: Icon(icon, color: displayColor, size: 14),
         ),
@@ -558,7 +544,7 @@ class _DoctorPrescriptionsScreenState
                 label,
                 style: TextStyle(
                   fontSize: 11,
-                  color: textMedium,
+                  color: HospitalTheme.textMedium,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -568,7 +554,9 @@ class _DoctorPrescriptionsScreenState
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: value.isEmpty ? textMedium.withOpacity(0.7) : textDark,
+                  color: value.isEmpty
+                      ? HospitalTheme.textMedium.withOpacity(0.7)
+                      : HospitalTheme.textDark,
                   fontStyle:
                       value.isEmpty ? FontStyle.italic : FontStyle.normal,
                 ),
@@ -598,7 +586,7 @@ class _DoctorPrescriptionsScreenState
           child: Container(
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: HospitalTheme.radiusMedium,
             ),
           ),
         );
@@ -611,20 +599,20 @@ class _DoctorPrescriptionsScreenState
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.error_outline, size: 48, color: Colors.red),
+          const Icon(Icons.error_outline, size: 48, color: HospitalTheme.error),
           const SizedBox(height: 16),
-          Text(
+          const Text(
             'Error loading prescriptions data',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.red,
+              color: HospitalTheme.error,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             error.toString(),
-            style: TextStyle(color: textMedium),
+            style: TextStyle(color: HospitalTheme.textMedium),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
@@ -637,11 +625,11 @@ class _DoctorPrescriptionsScreenState
             icon: const Icon(Icons.refresh),
             label: const Text('Retry'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: primaryColor,
+              backgroundColor: HospitalTheme.primary,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: HospitalTheme.radiusMedium,
               ),
             ),
           ),
@@ -658,13 +646,13 @@ class _DoctorPrescriptionsScreenState
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: primaryColor.withOpacity(0.1),
+              color: HospitalTheme.primary.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
               FontAwesomeIcons.pills,
               size: 48,
-              color: primaryColor,
+              color: HospitalTheme.primary,
             ),
           ),
           const SizedBox(height: 24),
@@ -673,7 +661,7 @@ class _DoctorPrescriptionsScreenState
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: textDark,
+              color: HospitalTheme.textDark,
             ),
           ),
           const SizedBox(height: 16),
@@ -681,7 +669,7 @@ class _DoctorPrescriptionsScreenState
             'Start managing patient medications by adding the first prescription',
             style: TextStyle(
               fontSize: 16,
-              color: textMedium,
+              color: HospitalTheme.textMedium,
             ),
             textAlign: TextAlign.center,
           ),
@@ -691,11 +679,11 @@ class _DoctorPrescriptionsScreenState
             icon: const Icon(Icons.add),
             label: const Text('Add First Prescription'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: primaryColor,
+              backgroundColor: HospitalTheme.primary,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: HospitalTheme.radiusMedium,
               ),
             ),
           ),
@@ -718,7 +706,7 @@ class _DoctorPrescriptionsScreenState
       builder: (BuildContext context) {
         return Dialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: HospitalTheme.radiusMedium,
           ),
           child: Container(
             width: 500, // Fixed width for desktop
@@ -728,49 +716,38 @@ class _DoctorPrescriptionsScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Header
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [primaryColor, accentColor],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(12),
+                HospitalTheme.buildSectionHeader(
+                  'Add New Prescription',
+                  trailing: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [HospitalTheme.primary, HospitalTheme.accent],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      child: const Icon(
-                        FontAwesomeIcons.pills,
-                        color: Colors.white,
-                        size: 24,
-                      ),
+                      borderRadius: HospitalTheme.radiusMedium,
                     ),
-                    const SizedBox(width: 16),
-                    Text(
-                      'Add New Prescription',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: textDark,
-                      ),
+                    child: const Icon(
+                      FontAwesomeIcons.pills,
+                      color: Colors.white,
+                      size: 24,
                     ),
-                  ],
+                  ),
                 ),
-                const SizedBox(height: 16),
 
                 // Required fields info text
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(8),
+                    color: HospitalTheme.surfaceLight,
+                    borderRadius: HospitalTheme.radiusSmall,
                   ),
                   child: Row(
                     children: [
                       Icon(
                         Icons.info_outline,
-                        color: textMedium,
+                        color: HospitalTheme.textMedium,
                         size: 16,
                       ),
                       const SizedBox(width: 8),
@@ -779,7 +756,7 @@ class _DoctorPrescriptionsScreenState
                           'Only Medicine Name is required. Other fields are optional.',
                           style: TextStyle(
                             fontSize: 12,
-                            color: textMedium,
+                            color: HospitalTheme.textMedium,
                           ),
                         ),
                       ),
@@ -849,7 +826,7 @@ class _DoctorPrescriptionsScreenState
                       onPressed: () => Navigator.of(context).pop(),
                       child: Text(
                         'Cancel',
-                        style: TextStyle(color: textMedium),
+                        style: TextStyle(color: HospitalTheme.textMedium),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -861,12 +838,12 @@ class _DoctorPrescriptionsScreenState
                         }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
+                        backgroundColor: HospitalTheme.primary,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
                             horizontal: 24, vertical: 12),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: HospitalTheme.radiusMedium,
                         ),
                       ),
                       child: const Text('Save Prescription'),
@@ -900,7 +877,7 @@ class _DoctorPrescriptionsScreenState
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
-                color: textDark,
+                color: HospitalTheme.textDark,
               ),
             ),
             if (isRequired) ...[
@@ -910,7 +887,7 @@ class _DoctorPrescriptionsScreenState
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: error,
+                  color: HospitalTheme.error,
                 ),
               ),
             ],
@@ -922,26 +899,26 @@ class _DoctorPrescriptionsScreenState
           keyboardType: keyboardType,
           maxLines: maxLines,
           decoration: InputDecoration(
-            prefixIcon: Icon(prefix, size: 18, color: primaryColor),
+            prefixIcon: Icon(prefix, size: 18, color: HospitalTheme.primary),
             suffixText: suffix,
-            suffixStyle:
-                TextStyle(color: textMedium, fontWeight: FontWeight.bold),
+            suffixStyle: TextStyle(
+                color: HospitalTheme.textMedium, fontWeight: FontWeight.bold),
             hintText: isRequired ? 'Required' : 'Optional',
             hintStyle: TextStyle(
-              color: textMedium.withOpacity(0.5),
+              color: HospitalTheme.textMedium.withOpacity(0.5),
               fontStyle: FontStyle.italic,
             ),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: const Color(0xFFDFEAF4)),
+              borderRadius: HospitalTheme.radiusMedium,
+              borderSide: BorderSide(color: HospitalTheme.border),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: const Color(0xFFDFEAF4)),
+              borderRadius: HospitalTheme.radiusMedium,
+              borderSide: BorderSide(color: HospitalTheme.border),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: primaryColor, width: 2),
+              borderRadius: HospitalTheme.radiusMedium,
+              borderSide: BorderSide(color: HospitalTheme.primary, width: 2),
             ),
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -958,8 +935,8 @@ class _DoctorPrescriptionsScreenState
     if (medicineNameController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Please enter Medicine Name'),
-          backgroundColor: error,
+          content: const Text('Please enter Medicine Name'),
+          backgroundColor: HospitalTheme.error,
         ),
       );
       return false;
@@ -999,15 +976,15 @@ class _DoctorPrescriptionsScreenState
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Prescription added successfully'),
-          backgroundColor: success,
+          content: const Text('Prescription added successfully'),
+          backgroundColor: HospitalTheme.success,
         ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error adding prescription: $e'),
-          backgroundColor: error,
+          backgroundColor: HospitalTheme.error,
         ),
       );
     }
@@ -1019,15 +996,16 @@ class _DoctorPrescriptionsScreenState
       builder: (BuildContext context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: HospitalTheme.radiusMedium,
           ),
-          title: Text('Delete Prescription'),
-          content: Text(
+          title: const Text('Delete Prescription'),
+          content: const Text(
               'Are you sure you want to delete this prescription? This action cannot be undone.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text('Cancel', style: TextStyle(color: textMedium)),
+              child: Text('Cancel',
+                  style: TextStyle(color: HospitalTheme.textMedium)),
             ),
             ElevatedButton(
               onPressed: () {
@@ -1039,10 +1017,10 @@ class _DoctorPrescriptionsScreenState
                 Navigator.of(context).pop();
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: error,
+                backgroundColor: HospitalTheme.error,
                 foregroundColor: Colors.white,
               ),
-              child: Text('Delete'),
+              child: const Text('Delete'),
             ),
           ],
         );

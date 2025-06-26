@@ -1,13 +1,14 @@
 import 'package:doctordesktop/constants/HospitalTheme.dart';
 import 'package:doctordesktop/constants/Methods.dart';
 import 'package:doctordesktop/constants/Url.dart';
+import 'package:doctordesktop/core/utils/PdfViewerScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-// Models
+// Models (keeping existing models)
 class ServiceItem {
   final String name;
   final int quantity;
@@ -62,8 +63,8 @@ class BillResponse {
   });
 
   factory BillResponse.fromJson(Map<String, dynamic> json) {
-    final data = json['data'];
-    final billInfo = data['billInfo'];
+    final data = json['data'] ?? {};
+    final billInfo = data['billInfo'] ?? {};
 
     return BillResponse(
       fileName: data['fileName'] ?? '',
@@ -101,7 +102,7 @@ class ReceiptResponse {
   }
 }
 
-// State Management
+// State Management (keeping existing state)
 class OpdBillingState {
   final Map<String, ServiceItem> services;
   final double consultationFee;
@@ -143,7 +144,9 @@ class OpdBillingState {
     bool? uploadToDriveFlag,
     bool? isLoading,
     BillResponse? billResponse,
+    bool clearBillResponse = false,
     ReceiptResponse? receiptResponse,
+    bool clearReceiptResponse = false,
     double? billingAmount,
     double? amountPaid,
     bool? isGeneratingReceipt,
@@ -157,8 +160,11 @@ class OpdBillingState {
       notes: notes ?? this.notes,
       uploadToDriveFlag: uploadToDriveFlag ?? this.uploadToDriveFlag,
       isLoading: isLoading ?? this.isLoading,
-      billResponse: billResponse,
-      receiptResponse: receiptResponse,
+      billResponse:
+          clearBillResponse ? null : (billResponse ?? this.billResponse),
+      receiptResponse: clearReceiptResponse
+          ? null
+          : (receiptResponse ?? this.receiptResponse),
       billingAmount: billingAmount ?? this.billingAmount,
       amountPaid: amountPaid ?? this.amountPaid,
       isGeneratingReceipt: isGeneratingReceipt ?? this.isGeneratingReceipt,
@@ -209,7 +215,9 @@ class OpdBillingNotifier extends StateNotifier<OpdBillingState> {
         ));
 
   void updateServiceQuantity(String serviceKey, int quantity) {
-    final currentService = state.services[serviceKey]!;
+    final currentService = state.services[serviceKey];
+    if (currentService == null) return;
+
     final updatedServices = Map<String, ServiceItem>.from(state.services);
     updatedServices[serviceKey] = ServiceItem(
       name: currentService.name,
@@ -221,7 +229,9 @@ class OpdBillingNotifier extends StateNotifier<OpdBillingState> {
   }
 
   void updateServiceRate(String serviceKey, double rate) {
-    final currentService = state.services[serviceKey]!;
+    final currentService = state.services[serviceKey];
+    if (currentService == null) return;
+
     final updatedServices = Map<String, ServiceItem>.from(state.services);
     updatedServices[serviceKey] = ServiceItem(
       name: currentService.name,
@@ -244,6 +254,8 @@ class OpdBillingNotifier extends StateNotifier<OpdBillingState> {
   }
 
   void removeAdditionalCharge(int index) {
+    if (index < 0 || index >= state.additionalCharges.length) return;
+
     final updatedCharges = List<AdditionalCharge>.from(state.additionalCharges);
     updatedCharges.removeAt(index);
     state = state.copyWith(additionalCharges: updatedCharges);
@@ -339,9 +351,11 @@ class OpdBillingNotifier extends StateNotifier<OpdBillingState> {
         final responseData = jsonDecode(response.body);
         final receiptResponse = ReceiptResponse.fromJson(responseData);
 
+        // Keep the existing billResponse and only update receiptResponse
         state = state.copyWith(
           receiptResponse: receiptResponse,
           isGeneratingReceipt: false,
+          // Don't clear billResponse - keep it as is
         );
       } else {
         throw Exception('Failed to generate receipt: ${response.statusCode}');
@@ -366,7 +380,7 @@ class OpdBillingNotifier extends StateNotifier<OpdBillingState> {
   }
 }
 
-// Main Screen
+// Enhanced Main Screen with PDF Viewer Integration
 class OpdBillingScreen extends ConsumerStatefulWidget {
   final String patientId;
 
@@ -402,6 +416,7 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(opdBillingProvider(widget.patientId));
     final notifier = ref.read(opdBillingProvider(widget.patientId).notifier);
+    final screenSize = MediaQuery.of(context).size;
 
     // Update controllers when state changes
     if (_billingAmountController.text != state.billingAmount.toString()) {
@@ -411,50 +426,117 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
       _amountPaidController.text = state.amountPaid.toString();
     }
 
-    return Scaffold(
-      appBar: HospitalTheme.buildAppBar(
-        context: context,
-        title: 'OPD Billing - ${widget.patientId}',
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => notifier.reset(),
-            tooltip: 'Reset Form',
-          ),
-          const SizedBox(width: 16),
-        ],
-      ),
-      body: CallbackShortcuts(
-        bindings: {
-          const SingleActivator(LogicalKeyboardKey.keyS, control: true): () =>
-              _generateBill(notifier),
-          const SingleActivator(LogicalKeyboardKey.keyR, control: true): () =>
-              _generateReceipt(notifier),
-        },
-        child: Focus(
-          autofocus: true,
-          child: Row(
-            children: [
-              // Left Panel - Billing Form
-              Expanded(
-                flex: 3,
-                child: _buildBillingForm(context, state, notifier),
-              ),
-
-              // Divider
-              Container(
-                width: 1,
-                color: HospitalTheme.border,
-              ),
-
-              // Right Panel - Bill Preview & Receipt Generation
-              Expanded(
-                flex: 2,
-                child: _buildRightPanel(context, state, notifier),
-              ),
-            ],
+    return PdfViewerWidget(
+      primaryColor: HospitalTheme.primary,
+      appBarTitle: 'OPD Bill Preview',
+      child: Scaffold(
+        appBar: HospitalTheme.buildAppBar(
+          context: context,
+          title: 'OPD Billing - ${widget.patientId}',
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: () => notifier.reset(),
+              tooltip: 'Reset Form (F5)',
+            ),
+            const SizedBox(width: 16),
+          ],
+        ),
+        body: CallbackShortcuts(
+          bindings: {
+            const SingleActivator(LogicalKeyboardKey.keyS, control: true): () =>
+                _generateBill(notifier),
+            const SingleActivator(LogicalKeyboardKey.keyR, control: true): () =>
+                _generateReceipt(notifier),
+            const SingleActivator(LogicalKeyboardKey.keyP, control: true): () =>
+                _openPdfPreview(state),
+            const SingleActivator(LogicalKeyboardKey.f5): () =>
+                notifier.reset(),
+          },
+          child: Focus(
+            autofocus: true,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // Responsive layout based on screen width
+                if (constraints.maxWidth > 1200) {
+                  return _buildDesktopLayout(context, state, notifier);
+                } else if (constraints.maxWidth > 800) {
+                  return _buildTabletLayout(context, state, notifier);
+                } else {
+                  return _buildMobileLayout(context, state, notifier);
+                }
+              },
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopLayout(BuildContext context, OpdBillingState state,
+      OpdBillingNotifier notifier) {
+    return Row(
+      children: [
+        // Left Panel - Billing Form
+        Expanded(
+          flex: 3,
+          child: _buildBillingForm(context, state, notifier),
+        ),
+
+        // Divider
+        Container(
+          width: 1,
+          color: HospitalTheme.border,
+        ),
+
+        // Right Panel - Bill Preview & Receipt Generation
+        Expanded(
+          flex: 2,
+          child: _buildRightPanel(context, state, notifier),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTabletLayout(BuildContext context, OpdBillingState state,
+      OpdBillingNotifier notifier) {
+    return Row(
+      children: [
+        Expanded(
+          flex: 2,
+          child: _buildBillingForm(context, state, notifier),
+        ),
+        Container(width: 1, color: HospitalTheme.border),
+        Expanded(
+          child: _buildRightPanel(context, state, notifier),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileLayout(BuildContext context, OpdBillingState state,
+      OpdBillingNotifier notifier) {
+    return DefaultTabController(
+      length: 2,
+      child: Column(
+        children: [
+          TabBar(
+            tabs: const [
+              Tab(text: 'Billing Form', icon: Icon(Icons.edit_document)),
+              Tab(text: 'Bill Summary', icon: Icon(Icons.receipt_long)),
+            ],
+            labelColor: HospitalTheme.primary,
+            unselectedLabelColor: HospitalTheme.textMedium,
+          ),
+          Expanded(
+            child: TabBarView(
+              children: [
+                _buildBillingForm(context, state, notifier),
+                _buildRightPanel(context, state, notifier),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -468,95 +550,26 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
         children: [
           HospitalTheme.buildSectionHeader('Medical Services'),
 
-          // Services Grid
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 2.5,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-            ),
-            itemCount: state.services.length,
-            itemBuilder: (context, index) {
-              final entry = state.services.entries.elementAt(index);
-              final service = entry.value;
-
-              return HospitalTheme.buildCard(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          _getServiceIcon(entry.key),
-                          size: 20,
-                          color: HospitalTheme.primary,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            service.name,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            initialValue: service.quantity.toString(),
-                            decoration: const InputDecoration(
-                              labelText: 'Qty',
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 8),
-                            ),
-                            keyboardType: TextInputType.number,
-                            onChanged: (value) {
-                              final quantity = int.tryParse(value) ?? 0;
-                              notifier.updateServiceQuantity(
-                                  entry.key, quantity);
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextFormField(
-                            initialValue: service.rate.toString(),
-                            decoration: const InputDecoration(
-                              labelText: 'Rate',
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 8),
-                            ),
-                            keyboardType: TextInputType.number,
-                            onChanged: (value) {
-                              final rate = double.tryParse(value) ?? 0;
-                              notifier.updateServiceRate(entry.key, rate);
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Total: ₹${service.total.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: HospitalTheme.primary,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
+          // Services Grid - Responsive grid
+          LayoutBuilder(
+            builder: (context, constraints) {
+              int crossAxisCount = constraints.maxWidth > 800 ? 2 : 1;
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  childAspectRatio: crossAxisCount == 2 ? 2.5 : 3.5,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
                 ),
+                itemCount: state.services.length,
+                itemBuilder: (context, index) {
+                  final entry = state.services.entries.elementAt(index);
+                  final service = entry.value;
+
+                  return _buildServiceCard(entry.key, service, notifier);
+                },
               );
             },
           ),
@@ -568,52 +581,32 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
           HospitalTheme.buildCard(
             child: Column(
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        initialValue: state.consultationFee.toString(),
-                        decoration: const InputDecoration(
-                          labelText: 'Consultation Fee',
-                          prefixText: '₹ ',
-                        ),
-                        keyboardType: TextInputType.number,
-                        onChanged: (value) {
-                          final fee = double.tryParse(value) ?? 0;
-                          notifier.updateConsultationFee(fee);
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: state.paymentMode,
-                        decoration: const InputDecoration(
-                          labelText: 'Payment Mode',
-                        ),
-                        items: ['Cash', 'Card', 'UPI', 'Bank Transfer']
-                            .map((mode) => DropdownMenuItem(
-                                  value: mode,
-                                  child: Text(mode),
-                                ))
-                            .toList(),
-                        onChanged: (value) {
-                          if (value != null) notifier.updatePaymentMode(value);
-                        },
-                      ),
-                    ),
-                  ],
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    if (constraints.maxWidth > 600) {
+                      return Row(
+                        children: [
+                          Expanded(
+                              child:
+                                  _buildConsultationFeeField(state, notifier)),
+                          const SizedBox(width: 16),
+                          Expanded(
+                              child: _buildPaymentModeField(state, notifier)),
+                        ],
+                      );
+                    } else {
+                      return Column(
+                        children: [
+                          _buildConsultationFeeField(state, notifier),
+                          const SizedBox(height: 16),
+                          _buildPaymentModeField(state, notifier),
+                        ],
+                      );
+                    }
+                  },
                 ),
                 const SizedBox(height: 16),
-                TextFormField(
-                  controller: _notesController,
-                  decoration: const InputDecoration(
-                    labelText: 'Notes (Optional)',
-                    hintText: 'Add any additional notes for this bill',
-                  ),
-                  maxLines: 3,
-                  onChanged: notifier.updateNotes,
-                ),
+                _buildNotesField(notifier),
               ],
             ),
           ),
@@ -621,155 +614,12 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
           const SizedBox(height: 32),
 
           // Additional Charges
-          HospitalTheme.buildSectionHeader(
-            'Additional Charges',
-            trailing: IconButton(
-              icon: const Icon(Icons.add_circle_outline),
-              onPressed: () => _showAddChargeDialog(context, notifier),
-              tooltip: 'Add Charge',
-            ),
-          ),
-
-          if (state.additionalCharges.isNotEmpty) ...[
-            HospitalTheme.buildCard(
-              child: Column(
-                children: state.additionalCharges.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final charge = entry.value;
-
-                  return Padding(
-                    padding: EdgeInsets.only(
-                        bottom: index < state.additionalCharges.length - 1
-                            ? 16
-                            : 0),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          flex: 3,
-                          child: Text(
-                            charge.name,
-                            style: const TextStyle(fontWeight: FontWeight.w500),
-                          ),
-                        ),
-                        Expanded(
-                          child: Text('Qty: ${charge.quantity}'),
-                        ),
-                        Expanded(
-                          child: Text('Rate: ₹${charge.rate}'),
-                        ),
-                        Expanded(
-                          child: Text(
-                            'Total: ₹${charge.total}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: HospitalTheme.primary,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.delete_outline,
-                              color: HospitalTheme.error),
-                          onPressed: () =>
-                              notifier.removeAdditionalCharge(index),
-                          tooltip: 'Remove',
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-          ] else ...[
-            Container(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.receipt_long_outlined,
-                    size: 48,
-                    color: HospitalTheme.textLight,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No additional charges added',
-                    style: TextStyle(
-                      color: HospitalTheme.textMedium,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+          _buildAdditionalChargesSection(context, state, notifier),
 
           const SizedBox(height: 32),
 
           // Discount and Options
-          HospitalTheme.buildCard(
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        initialValue: state.discount.toString(),
-                        decoration: const InputDecoration(
-                          labelText: 'Discount (%)',
-                          suffixText: '%',
-                        ),
-                        keyboardType: TextInputType.number,
-                        onChanged: (value) {
-                          final discount = double.tryParse(value) ?? 0;
-                          notifier.updateDiscount(discount);
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: HospitalTheme.surfaceLight,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Discount Amount',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: HospitalTheme.textMedium,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '₹${state.discountAmount.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Checkbox(
-                      value: state.uploadToDriveFlag,
-                      onChanged: (value) =>
-                          notifier.updateUploadToDriveFlag(value ?? true),
-                    ),
-                    const SizedBox(width: 8),
-                    const Text('Upload bill to Google Drive'),
-                  ],
-                ),
-              ],
-            ),
-          ),
+          _buildDiscountSection(state, notifier),
 
           const SizedBox(height: 32),
 
@@ -798,6 +648,362 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
     );
   }
 
+  Widget _buildServiceCard(
+      String serviceKey, ServiceItem service, OpdBillingNotifier notifier) {
+    return HospitalTheme.buildCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                _getServiceIcon(serviceKey),
+                size: 20,
+                color: HospitalTheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  service.name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  initialValue: service.quantity.toString(),
+                  decoration: const InputDecoration(
+                    labelText: 'Qty',
+                    isDense: true,
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  onChanged: (value) {
+                    final quantity = int.tryParse(value) ?? 0;
+                    notifier.updateServiceQuantity(serviceKey, quantity);
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextFormField(
+                  initialValue: service.rate.toString(),
+                  decoration: const InputDecoration(
+                    labelText: 'Rate',
+                    isDense: true,
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))
+                  ],
+                  onChanged: (value) {
+                    final rate = double.tryParse(value) ?? 0;
+                    notifier.updateServiceRate(serviceKey, rate);
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Total: ₹${service.total.toStringAsFixed(2)}',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: HospitalTheme.primary,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConsultationFeeField(
+      OpdBillingState state, OpdBillingNotifier notifier) {
+    return TextFormField(
+      initialValue: state.consultationFee.toString(),
+      decoration: const InputDecoration(
+        labelText: 'Consultation Fee',
+        prefixText: '₹ ',
+      ),
+      keyboardType: TextInputType.number,
+      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+      onChanged: (value) {
+        final fee = double.tryParse(value) ?? 0;
+        notifier.updateConsultationFee(fee);
+      },
+    );
+  }
+
+  Widget _buildPaymentModeField(
+      OpdBillingState state, OpdBillingNotifier notifier) {
+    return DropdownButtonFormField<String>(
+      value: state.paymentMode,
+      decoration: const InputDecoration(
+        labelText: 'Payment Mode',
+      ),
+      items: ['Cash', 'Card', 'UPI', 'Bank Transfer']
+          .map((mode) => DropdownMenuItem(
+                value: mode,
+                child: Text(mode),
+              ))
+          .toList(),
+      onChanged: (value) {
+        if (value != null) notifier.updatePaymentMode(value);
+      },
+    );
+  }
+
+  Widget _buildNotesField(OpdBillingNotifier notifier) {
+    return TextFormField(
+      controller: _notesController,
+      decoration: const InputDecoration(
+        labelText: 'Notes (Optional)',
+        hintText: 'Add any additional notes for this bill',
+      ),
+      maxLines: 3,
+      onChanged: notifier.updateNotes,
+    );
+  }
+
+  Widget _buildAdditionalChargesSection(BuildContext context,
+      OpdBillingState state, OpdBillingNotifier notifier) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        HospitalTheme.buildSectionHeader(
+          'Additional Charges',
+          trailing: IconButton(
+            icon: const Icon(Icons.add_circle_outline),
+            onPressed: () => _showAddChargeDialog(context, notifier),
+            tooltip: 'Add Charge',
+          ),
+        ),
+        if (state.additionalCharges.isNotEmpty) ...[
+          HospitalTheme.buildCard(
+            child: Column(
+              children: state.additionalCharges.asMap().entries.map((entry) {
+                final index = entry.key;
+                final charge = entry.value;
+
+                return _buildAdditionalChargeItem(charge, index, notifier,
+                    isLast: index == state.additionalCharges.length - 1);
+              }).toList(),
+            ),
+          ),
+        ] else ...[
+          _buildEmptyAdditionalCharges(),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildAdditionalChargeItem(
+      AdditionalCharge charge, int index, OpdBillingNotifier notifier,
+      {required bool isLast}) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth > 600) {
+            return Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    charge.name,
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                ),
+                Expanded(child: Text('Qty: ${charge.quantity}')),
+                Expanded(child: Text('Rate: ₹${charge.rate}')),
+                Expanded(
+                  child: Text(
+                    'Total: ₹${charge.total}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: HospitalTheme.primary,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.delete_outline, color: HospitalTheme.error),
+                  onPressed: () => notifier.removeAdditionalCharge(index),
+                  tooltip: 'Remove',
+                ),
+              ],
+            );
+          } else {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        charge.name,
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.delete_outline,
+                          color: HospitalTheme.error),
+                      onPressed: () => notifier.removeAdditionalCharge(index),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Qty: ${charge.quantity}'),
+                    Text('Rate: ₹${charge.rate}'),
+                    Text(
+                      'Total: ₹${charge.total}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: HospitalTheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _buildEmptyAdditionalCharges() {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        children: [
+          Icon(
+            Icons.receipt_long_outlined,
+            size: 48,
+            color: HospitalTheme.textLight,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No additional charges added',
+            style: TextStyle(
+              color: HospitalTheme.textMedium,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDiscountSection(
+      OpdBillingState state, OpdBillingNotifier notifier) {
+    return HospitalTheme.buildCard(
+      child: Column(
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth > 600) {
+                return Row(
+                  children: [
+                    Expanded(child: _buildDiscountField(state, notifier)),
+                    const SizedBox(width: 16),
+                    Expanded(child: _buildDiscountAmountDisplay(state)),
+                  ],
+                );
+              } else {
+                return Column(
+                  children: [
+                    _buildDiscountField(state, notifier),
+                    const SizedBox(height: 16),
+                    _buildDiscountAmountDisplay(state),
+                  ],
+                );
+              }
+            },
+          ),
+          const SizedBox(height: 16),
+          _buildUploadToDriveCheckbox(state, notifier),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDiscountField(
+      OpdBillingState state, OpdBillingNotifier notifier) {
+    return TextFormField(
+      initialValue: state.discount.toString(),
+      decoration: const InputDecoration(
+        labelText: 'Discount (%)',
+        suffixText: '%',
+      ),
+      keyboardType: TextInputType.number,
+      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+      onChanged: (value) {
+        final discount = double.tryParse(value) ?? 0;
+        notifier.updateDiscount(discount);
+      },
+    );
+  }
+
+  Widget _buildDiscountAmountDisplay(OpdBillingState state) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: HospitalTheme.surfaceLight,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Discount Amount',
+            style: TextStyle(
+              fontSize: 12,
+              color: HospitalTheme.textMedium,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '₹${state.discountAmount.toStringAsFixed(2)}',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUploadToDriveCheckbox(
+      OpdBillingState state, OpdBillingNotifier notifier) {
+    return Row(
+      children: [
+        Checkbox(
+          value: state.uploadToDriveFlag,
+          onChanged: (value) => notifier.updateUploadToDriveFlag(value ?? true),
+        ),
+        const SizedBox(width: 8),
+        const Expanded(child: Text('Upload bill to Google Drive')),
+      ],
+    );
+  }
+
   Widget _buildRightPanel(BuildContext context, OpdBillingState state,
       OpdBillingNotifier notifier) {
     return SingleChildScrollView(
@@ -806,244 +1012,409 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Bill Summary
-          HospitalTheme.buildSectionHeader('Bill Summary'),
-          HospitalTheme.buildCard(
-            child: Column(
-              children: [
-                _buildSummaryRow('Services Total',
-                    '₹${state.servicesTotal.toStringAsFixed(2)}'),
-                _buildSummaryRow('Consultation Fee',
-                    '₹${state.consultationFee.toStringAsFixed(2)}'),
-                if (state.additionalChargesTotal > 0)
-                  _buildSummaryRow('Additional Charges',
-                      '₹${state.additionalChargesTotal.toStringAsFixed(2)}'),
-                const Divider(),
-                _buildSummaryRow(
-                    'Subtotal', '₹${state.subtotal.toStringAsFixed(2)}'),
-                if (state.discount > 0)
-                  _buildSummaryRow('Discount (${state.discount}%)',
-                      '-₹${state.discountAmount.toStringAsFixed(2)}',
-                      isNegative: true),
-                const Divider(),
-                _buildSummaryRow(
-                  'Grand Total',
-                  '₹${state.grandTotal.toStringAsFixed(2)}',
-                  isTotal: true,
-                ),
-              ],
-            ),
-          ),
+          _buildBillSummarySection(state),
 
           const SizedBox(height: 24),
 
-          // Bill Response Section
+          // PDF Status
+          const PdfStatusBar(),
+
+          // Bill Response Section - Always show if bill exists
           if (state.billResponse != null) ...[
-            HospitalTheme.buildSectionHeader('Generated Bill'),
-            HospitalTheme.buildCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.check_circle, color: HospitalTheme.success),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Bill Generated Successfully!',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  _buildInfoRow('Bill Number', state.billResponse!.billNumber),
-                  _buildInfoRow(
-                      'Patient Name', state.billResponse!.patientName),
-                  _buildInfoRow(
-                      'Payment Mode', state.billResponse!.paymentMode),
-                  _buildInfoRow('Grand Total',
-                      '₹${state.billResponse!.grandTotal.toStringAsFixed(2)}'),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () =>
-                          Methods().openPdf(state.billResponse!.driveLink),
-                      icon: const Icon(Icons.picture_as_pdf),
-                      label: const Text('View Bill PDF'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
             const SizedBox(height: 24),
-
-            // Receipt Generation Section
-            HospitalTheme.buildSectionHeader('Generate Receipt'),
-            HospitalTheme.buildCard(
-              child: Column(
-                children: [
-                  TextFormField(
-                    controller: _billingAmountController,
-                    decoration: const InputDecoration(
-                      labelText: 'Billing Amount',
-                      prefixText: '₹ ',
-                    ),
-                    keyboardType: TextInputType.number,
-                    onChanged: (value) {
-                      final amount = double.tryParse(value) ?? 0;
-                      notifier.updateBillingAmount(amount);
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _amountPaidController,
-                    decoration: const InputDecoration(
-                      labelText: 'Amount Paid',
-                      prefixText: '₹ ',
-                    ),
-                    keyboardType: TextInputType.number,
-                    onChanged: (value) {
-                      final amount = double.tryParse(value) ?? 0;
-                      notifier.updateAmountPaid(amount);
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Text(
-                        'Balance: ',
-                        style: TextStyle(
-                          color: HospitalTheme.textMedium,
-                          fontSize: 14,
-                        ),
-                      ),
-                      Text(
-                        '₹${(state.billingAmount - state.amountPaid).toStringAsFixed(2)}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: (state.billingAmount - state.amountPaid) > 0
-                              ? HospitalTheme.warning
-                              : HospitalTheme.success,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: state.isGeneratingReceipt
-                          ? null
-                          : () => _generateReceipt(notifier),
-                      icon: state.isGeneratingReceipt
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.receipt),
-                      label: Text(state.isGeneratingReceipt
-                          ? 'Generating Receipt...'
-                          : 'Generate Receipt (Ctrl+R)'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: HospitalTheme.success,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            _buildGeneratedBillSection(state),
           ],
 
-          // Receipt Response Section
+          // Receipt Generation Section - Show if bill exists
+          if (state.billResponse != null) ...[
+            const SizedBox(height: 24),
+            _buildReceiptGenerationSection(state, notifier),
+          ],
+
+          // Receipt Response Section - Show if receipt exists
           if (state.receiptResponse != null) ...[
             const SizedBox(height: 24),
-            HospitalTheme.buildSectionHeader('Receipt Generated'),
-            HospitalTheme.buildCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.check_circle, color: HospitalTheme.success),
-                      const SizedBox(width: 8),
-                      const Expanded(
-                        child: Text(
-                          'Receipt Generated Successfully!',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  _buildInfoRow('Pending Amount',
-                      '₹${state.receiptResponse!.pendingAmount.toStringAsFixed(2)}'),
-                  _buildInfoRow('Remaining Amount',
-                      '₹${state.receiptResponse!.remainingAmount.toStringAsFixed(2)}'),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => Methods()
-                              .openPdf(state.receiptResponse!.fileLink),
-                          icon: const Icon(Icons.picture_as_pdf),
-                          label: const Text('View Receipt'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => _showSuccessDialog(context),
-                          icon: const Icon(Icons.done_all),
-                          label: const Text('Complete'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: HospitalTheme.success,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+            _buildReceiptGeneratedSection(context, state),
           ],
 
-          // Empty state for right panel
+          // Empty state for right panel - Only show if no bill
           if (state.billResponse == null) ...[
-            Container(
-              height: 300,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+            const SizedBox(height: 24),
+            _buildEmptyBillState(),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBillSummarySection(OpdBillingState state) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        HospitalTheme.buildSectionHeader('Bill Summary'),
+        HospitalTheme.buildCard(
+          child: Column(
+            children: [
+              _buildSummaryRow('Services Total',
+                  '₹${state.servicesTotal.toStringAsFixed(2)}'),
+              _buildSummaryRow('Consultation Fee',
+                  '₹${state.consultationFee.toStringAsFixed(2)}'),
+              if (state.additionalChargesTotal > 0)
+                _buildSummaryRow('Additional Charges',
+                    '₹${state.additionalChargesTotal.toStringAsFixed(2)}'),
+              const Divider(),
+              _buildSummaryRow(
+                  'Subtotal', '₹${state.subtotal.toStringAsFixed(2)}'),
+              if (state.discount > 0)
+                _buildSummaryRow('Discount (${state.discount}%)',
+                    '-₹${state.discountAmount.toStringAsFixed(2)}',
+                    isNegative: true),
+              const Divider(),
+              _buildSummaryRow(
+                'Grand Total',
+                '₹${state.grandTotal.toStringAsFixed(2)}',
+                isTotal: true,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGeneratedBillSection(OpdBillingState state) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        HospitalTheme.buildSectionHeader('Generated Bill'),
+        HospitalTheme.buildCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Icon(
-                    Icons.receipt_long_outlined,
-                    size: 64,
-                    color: HospitalTheme.textLight,
+                  Icon(Icons.check_circle, color: HospitalTheme.success),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Bill Generated Successfully!',
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 16),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _buildInfoRow('Bill Number', state.billResponse!.billNumber),
+              _buildInfoRow('Patient Name', state.billResponse!.patientName),
+              _buildInfoRow('Payment Mode', state.billResponse!.paymentMode),
+              _buildInfoRow('Grand Total',
+                  '₹${state.billResponse!.grandTotal.toStringAsFixed(2)}'),
+              const SizedBox(height: 16),
+
+              // Enhanced PDF action buttons with unified preview
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  if (constraints.maxWidth > 400) {
+                    return Row(
+                      children: [
+                        Expanded(child: _buildViewPdfButton(state)),
+                        const SizedBox(width: 12),
+                        Expanded(child: _buildPreviewPdfButton(state, 'bill')),
+                      ],
+                    );
+                  } else {
+                    return Column(
+                      children: [
+                        SizedBox(
+                          width: double.infinity,
+                          child: _buildViewPdfButton(state),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: _buildPreviewPdfButton(state, 'bill'),
+                        ),
+                      ],
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildViewPdfButton(OpdBillingState state) {
+    return OutlinedButton.icon(
+      onPressed: () => Methods().openPdf(state.billResponse!.driveLink),
+      icon: const Icon(Icons.open_in_new),
+      label: const Text('Open PDF'),
+    );
+  }
+
+  Widget _buildPreviewPdfButton(OpdBillingState state, String type) {
+    final url = type == 'bill'
+        ? state.billResponse?.driveLink
+        : state.receiptResponse?.fileLink;
+    final title = type == 'bill'
+        ? 'Bill - ${state.billResponse?.billNumber ?? ''}'
+        : 'Receipt - ${widget.patientId}';
+
+    return ElevatedButton.icon(
+      onPressed: () => _openPdfPreview(state, type),
+      icon: const Icon(Icons.preview),
+      label: const Text('Preview & Print'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: HospitalTheme.primary,
+        foregroundColor: Colors.white,
+      ),
+    );
+  }
+
+  Widget _buildReceiptGenerationSection(
+      OpdBillingState state, OpdBillingNotifier notifier) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        HospitalTheme.buildSectionHeader('Generate Receipt'),
+        HospitalTheme.buildCard(
+          child: Column(
+            children: [
+              TextFormField(
+                controller: _billingAmountController,
+                decoration: const InputDecoration(
+                  labelText: 'Billing Amount',
+                  prefixText: '₹ ',
+                ),
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))
+                ],
+                onChanged: (value) {
+                  final amount = double.tryParse(value) ?? 0;
+                  notifier.updateBillingAmount(amount);
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _amountPaidController,
+                decoration: const InputDecoration(
+                  labelText: 'Amount Paid',
+                  prefixText: '₹ ',
+                ),
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))
+                ],
+                onChanged: (value) {
+                  final amount = double.tryParse(value) ?? 0;
+                  notifier.updateAmountPaid(amount);
+                },
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
                   Text(
-                    'Generate Bill',
+                    'Balance: ',
                     style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
                       color: HospitalTheme.textMedium,
+                      fontSize: 14,
                     ),
                   ),
-                  const SizedBox(height: 8),
                   Text(
-                    'Fill in the billing details and click\n"Generate Bill" to create the bill',
-                    textAlign: TextAlign.center,
+                    '₹${(state.billingAmount - state.amountPaid).toStringAsFixed(2)}',
                     style: TextStyle(
-                      color: HospitalTheme.textLight,
+                      fontWeight: FontWeight.bold,
+                      color: (state.billingAmount - state.amountPaid) > 0
+                          ? HospitalTheme.warning
+                          : HospitalTheme.success,
+                      fontSize: 16,
                     ),
                   ),
                 ],
               ),
+              const SizedBox(height: 16),
+
+              // Show loading state during receipt generation
+              if (state.isGeneratingReceipt) ...[
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: HospitalTheme.surfaceLight,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Generating receipt, please wait...',
+                        style: TextStyle(
+                          color: HospitalTheme.textMedium,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: state.isGeneratingReceipt
+                      ? null
+                      : () => _generateReceipt(notifier),
+                  icon: state.isGeneratingReceipt
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.receipt),
+                  label: Text(state.isGeneratingReceipt
+                      ? 'Generating Receipt...'
+                      : 'Generate Receipt (Ctrl+R)'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: HospitalTheme.success,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReceiptGeneratedSection(
+      BuildContext context, OpdBillingState state) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        HospitalTheme.buildSectionHeader('Receipt Generated'),
+        HospitalTheme.buildCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.check_circle, color: HospitalTheme.success),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Receipt Generated Successfully!',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _buildInfoRow('Pending Amount',
+                  '₹${state.receiptResponse!.pendingAmount.toStringAsFixed(2)}'),
+              _buildInfoRow('Remaining Amount',
+                  '₹${state.receiptResponse!.remainingAmount.toStringAsFixed(2)}'),
+              const SizedBox(height: 16),
+
+              // Enhanced receipt action buttons with unified preview
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  if (constraints.maxWidth > 400) {
+                    return Row(
+                      children: [
+                        Expanded(child: _buildViewReceiptButton(state)),
+                        const SizedBox(width: 12),
+                        Expanded(
+                            child: _buildPreviewPdfButton(state, 'receipt')),
+                      ],
+                    );
+                  } else {
+                    return Column(
+                      children: [
+                        SizedBox(
+                          width: double.infinity,
+                          child: _buildViewReceiptButton(state),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: _buildPreviewPdfButton(state, 'receipt'),
+                        ),
+                      ],
+                    );
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _showSuccessDialog(context),
+                  icon: const Icon(Icons.done_all),
+                  label: const Text('Complete Billing'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: HospitalTheme.success,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildViewReceiptButton(OpdBillingState state) {
+    return OutlinedButton.icon(
+      onPressed: () => Methods().openPdf(state.receiptResponse!.fileLink),
+      icon: const Icon(Icons.open_in_new),
+      label: const Text('Open Receipt'),
+    );
+  }
+
+  Widget _buildEmptyBillState() {
+    return SizedBox(
+      height: 300,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.receipt_long_outlined,
+            size: 64,
+            color: HospitalTheme.textLight,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Generate Bill',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: HospitalTheme.textMedium,
             ),
-          ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Fill in the billing details and click\n"Generate Bill" to create the bill',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: HospitalTheme.textLight,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Shortcuts: Ctrl+S to Generate • Ctrl+P to Preview',
+            style: TextStyle(
+              fontSize: 12,
+              color: HospitalTheme.textLight,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
         ],
       ),
     );
@@ -1152,6 +1523,7 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
                         labelText: 'Quantity',
                       ),
                       keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -1163,6 +1535,9 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
                         prefixText: '₹ ',
                       ),
                       keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))
+                      ],
                     ),
                   ),
                 ],
@@ -1196,9 +1571,10 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
                 Navigator.pop(context);
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Please fill all fields with valid values'),
-                    backgroundColor: Colors.red,
+                  SnackBar(
+                    content:
+                        const Text('Please fill all fields with valid values'),
+                    backgroundColor: HospitalTheme.error,
                   ),
                 );
               }
@@ -1243,6 +1619,57 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
     );
   }
 
+  /// Unified PDF preview method that handles both bill and receipt
+  /// Unified PDF preview method that handles both bill and receipt
+  void _openPdfPreview(OpdBillingState state, [String? type]) {
+    String? url;
+    String title = 'PDF Document'; // Initialize with default value
+
+    // Determine which PDF to preview based on type or availability
+    if (type == 'receipt' && state.receiptResponse?.fileLink != null) {
+      url = state.receiptResponse!.fileLink;
+      title = 'Receipt - ${widget.patientId}';
+    } else if (type == 'bill' && state.billResponse?.driveLink != null) {
+      url = state.billResponse!.driveLink;
+      title = 'Bill - ${state.billResponse!.billNumber}';
+    } else if (state.receiptResponse?.fileLink != null) {
+      // Default to receipt if available
+      url = state.receiptResponse!.fileLink;
+      title = 'Receipt - ${widget.patientId}';
+    } else if (state.billResponse?.driveLink != null) {
+      // Fallback to bill if receipt not available
+      url = state.billResponse!.driveLink;
+      title = 'Bill - ${state.billResponse!.billNumber}';
+    }
+
+    if (url != null && url.isNotEmpty) {
+      try {
+        final pdfNotifier = ref.read(pdfViewerProvider.notifier);
+        pdfNotifier.loadAndShowPdf(url, title: title);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error opening PDF: $e'),
+              backgroundColor: HospitalTheme.error,
+            ),
+          );
+        }
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(type == 'receipt'
+                ? 'Receipt not available yet. Please generate receipt first.'
+                : 'No PDF available to preview'),
+            backgroundColor: HospitalTheme.warning,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _generateBill(OpdBillingNotifier notifier) async {
     try {
       await notifier.generateBill();
@@ -1252,14 +1679,10 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
             content: const Text('Bill generated successfully!'),
             backgroundColor: HospitalTheme.success,
             action: SnackBarAction(
-              label: 'View',
+              label: 'Preview',
               textColor: Colors.white,
-              onPressed: () {
-                final state = ref.read(opdBillingProvider(widget.patientId));
-                if (state.billResponse != null) {
-                  Methods().openPdf(state.billResponse!.driveLink);
-                }
-              },
+              onPressed: () => _openPdfPreview(
+                  ref.read(opdBillingProvider(widget.patientId)), 'bill'),
             ),
           ),
         );
@@ -1281,9 +1704,9 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
 
     if (state.billingAmount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid billing amount'),
-          backgroundColor: Colors.orange,
+        SnackBar(
+          content: const Text('Please enter a valid billing amount'),
+          backgroundColor: HospitalTheme.warning,
         ),
       );
       return;
@@ -1297,14 +1720,10 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
             content: const Text('Receipt generated successfully!'),
             backgroundColor: HospitalTheme.success,
             action: SnackBarAction(
-              label: 'View',
+              label: 'Preview',
               textColor: Colors.white,
-              onPressed: () {
-                final state = ref.read(opdBillingProvider(widget.patientId));
-                if (state.receiptResponse != null) {
-                  Methods().openPdf(state.receiptResponse!.fileLink);
-                }
-              },
+              onPressed: () => _openPdfPreview(
+                  ref.read(opdBillingProvider(widget.patientId)), 'receipt'),
             ),
           ),
         );
@@ -1321,5 +1740,3 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
     }
   }
 }
-
-// Placeholder Methods class for PDF URL handling

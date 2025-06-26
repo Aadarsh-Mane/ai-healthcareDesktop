@@ -1,14 +1,12 @@
 import 'package:doctordesktop/constants/HospitalTheme.dart';
 import 'package:doctordesktop/constants/Methods.dart';
 import 'package:doctordesktop/constants/Url.dart';
+import 'package:doctordesktop/core/utils/PdfViewerScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-
-// Import your theme
-// import 'hospitalTheme.dart';
 
 class ManualDischargeSummaryScreen extends ConsumerStatefulWidget {
   final String patientId;
@@ -91,6 +89,13 @@ class _ManualDischargeSummaryScreenState
           (HardwareKeyboard.instance.isControlPressed ||
               HardwareKeyboard.instance.isMetaPressed)) {
         _addComplaint();
+        return true;
+      }
+      // Ctrl/Cmd + P to preview PDF
+      if (event.logicalKey == LogicalKeyboardKey.keyP &&
+          (HardwareKeyboard.instance.isControlPressed ||
+              HardwareKeyboard.instance.isMetaPressed)) {
+        _openPdfPreview();
         return true;
       }
     }
@@ -330,10 +335,10 @@ class _ManualDischargeSummaryScreenState
       context: context,
       builder: (context) => AlertDialog(
         title: Row(
-          children: const [
-            Icon(Icons.check_circle, color: Colors.green),
-            SizedBox(width: 8),
-            Text('Success'),
+          children: [
+            Icon(Icons.check_circle, color: HospitalTheme.success),
+            const SizedBox(width: 8),
+            const Text('Success'),
           ],
         ),
         content: SizedBox(
@@ -347,18 +352,38 @@ class _ManualDischargeSummaryScreenState
               if (response['data'] != null) ...[
                 Text('File: ${response['data']['fileName']}'),
                 const SizedBox(height: 8),
-                if (response['data']['driveLink'] != null)
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      // Use Methods().pdfUrl(response['data']['driveLink'])
-                      Methods().openPdf(response['data']['driveLink']);
-                      // For now, just copying to clipboard
-                      Clipboard.setData(
-                          ClipboardData(text: response['data']['driveLink']));
-                    },
-                    icon: const Icon(Icons.open_in_new),
-                    label: const Text('Open PDF'),
+                if (response['data']['driveLink'] != null) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Methods().openPdf(response['data']['driveLink']);
+                          },
+                          icon: const Icon(Icons.open_in_new),
+                          label: const Text('Open PDF'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: HospitalTheme.success,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _openPdfPreview();
+                          },
+                          icon: const Icon(Icons.preview),
+                          label: const Text('Preview & Print'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: HospitalTheme.primary,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
+                ],
               ],
             ],
           ),
@@ -377,11 +402,11 @@ class _ManualDischargeSummaryScreenState
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.error, color: Colors.red),
-            SizedBox(width: 8),
-            Text('Error'),
+            Icon(Icons.error, color: HospitalTheme.error),
+            const SizedBox(width: 8),
+            const Text('Error'),
           ],
         ),
         content: Text(message),
@@ -395,78 +420,142 @@ class _ManualDischargeSummaryScreenState
     );
   }
 
+  /// Unified PDF preview method
+  void _openPdfPreview() {
+    final url = _generatedResponse?['data']?['driveLink'];
+    final fileName =
+        _generatedResponse?['data']?['fileName'] ?? 'Discharge Summary';
+
+    if (url != null && url.isNotEmpty) {
+      try {
+        final pdfNotifier = ref.read(pdfViewerProvider.notifier);
+        pdfNotifier.loadAndShowPdf(url,
+            title: 'Discharge Summary - ${widget.patientId}');
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error opening PDF: $e'),
+              backgroundColor: HospitalTheme.error,
+            ),
+          );
+        }
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+                'No PDF available to preview. Please generate discharge summary first.'),
+            backgroundColor: HospitalTheme.warning,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isTablet = screenWidth < 1200;
 
-    return Scaffold(
-      appBar: HospitalTheme.buildAppBar(
-        context: context,
-        title: 'Manual Discharge Summary - ${widget.patientId}',
-        actions: [
-          if (!_isLoading)
-            Padding(
-              padding: const EdgeInsets.only(right: 16.0),
-              child: ElevatedButton.icon(
-                onPressed: _generateDischargeSummary,
-                icon: const Icon(Icons.generating_tokens),
-                label: const Text('Generate'),
+    return PdfViewerWidget(
+      primaryColor: HospitalTheme.primary,
+      appBarTitle: 'Discharge Summary Preview',
+      child: Scaffold(
+        appBar: HospitalTheme.buildAppBar(
+          context: context,
+          title: 'Manual Discharge Summary - ${widget.patientId}',
+          actions: [
+            if (_generatedResponse != null) ...[
+              IconButton(
+                icon: const Icon(Icons.preview, color: Colors.white),
+                onPressed: _openPdfPreview,
+                tooltip: 'Preview PDF (Ctrl+P)',
               ),
-            ),
-        ],
-      ),
-      body: Form(
-        key: _formKey,
-        child: Row(
-          children: [
-            // Main form area
-            Expanded(
-              flex: isTablet ? 1 : 2,
-              child: Scrollbar(
-                controller: _scrollController,
-                child: SingleChildScrollView(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildMandatorySection(),
-                      const SizedBox(height: 24),
-                      _buildComplaintsSection(),
-                      const SizedBox(height: 24),
-                      _buildPastHistorySection(),
-                      const SizedBox(height: 24),
-                      _buildExamFindingsSection(),
-                      const SizedBox(height: 24),
-                      _buildGeneralExamSection(),
-                      const SizedBox(height: 24),
-                      _buildRadiologySection(),
-                      const SizedBox(height: 24),
-                      _buildPathologySection(),
-                      const SizedBox(height: 24),
-                      _buildOperationSection(),
-                      const SizedBox(height: 24),
-                      _buildTreatmentSection(),
-                      const SizedBox(height: 24),
-                      _buildUploadOptionsSection(),
-                      const SizedBox(height: 32),
-                      _buildActionButtons(),
-                      const SizedBox(
-                          height: 120), // Extra space for better scrolling
-                    ],
+            ],
+            if (!_isLoading)
+              Padding(
+                padding: const EdgeInsets.only(right: 16.0),
+                child: ElevatedButton.icon(
+                  onPressed: _generateDischargeSummary,
+                  icon: const Icon(Icons.generating_tokens),
+                  label: const Text('Generate'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: HospitalTheme.success,
+                    foregroundColor: Colors.white,
                   ),
                 ),
               ),
-            ),
-
-            // Right sidebar - always show on desktop
-            if (!isTablet)
-              Expanded(
-                flex: 1,
-                child: _buildRightSidebar(),
-              ),
           ],
+        ),
+        body: CallbackShortcuts(
+          bindings: {
+            const SingleActivator(LogicalKeyboardKey.keyS, control: true): () =>
+                _generateDischargeSummary(),
+            const SingleActivator(LogicalKeyboardKey.keyN, control: true): () =>
+                _addComplaint(),
+            const SingleActivator(LogicalKeyboardKey.keyP, control: true): () =>
+                _openPdfPreview(),
+            const SingleActivator(LogicalKeyboardKey.f5): () => _resetForm(),
+          },
+          child: Focus(
+            autofocus: true,
+            child: Form(
+              key: _formKey,
+              child: Row(
+                children: [
+                  // Main form area
+                  Expanded(
+                    flex: isTablet ? 1 : 2,
+                    child: Scrollbar(
+                      controller: _scrollController,
+                      child: SingleChildScrollView(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildMandatorySection(),
+                            const SizedBox(height: 24),
+                            _buildComplaintsSection(),
+                            const SizedBox(height: 24),
+                            _buildPastHistorySection(),
+                            const SizedBox(height: 24),
+                            _buildExamFindingsSection(),
+                            const SizedBox(height: 24),
+                            _buildGeneralExamSection(),
+                            const SizedBox(height: 24),
+                            _buildRadiologySection(),
+                            const SizedBox(height: 24),
+                            _buildPathologySection(),
+                            const SizedBox(height: 24),
+                            _buildOperationSection(),
+                            const SizedBox(height: 24),
+                            _buildTreatmentSection(),
+                            const SizedBox(height: 24),
+                            _buildUploadOptionsSection(),
+                            const SizedBox(height: 32),
+                            _buildActionButtons(),
+                            const SizedBox(
+                                height:
+                                    120), // Extra space for better scrolling
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Right sidebar - always show on desktop
+                  if (!isTablet)
+                    Expanded(
+                      flex: 1,
+                      child: _buildRightSidebar(),
+                    ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -543,7 +632,7 @@ class _ManualDischargeSummaryScreenState
                     IconButton(
                       onPressed: () => _removeComplaint(index),
                       icon: const Icon(Icons.remove_circle_outline),
-                      color: Colors.red,
+                      color: HospitalTheme.error,
                     ),
                 ],
               ),
@@ -587,7 +676,7 @@ class _ManualDischargeSummaryScreenState
                     IconButton(
                       onPressed: () => _removePastHistory(index),
                       icon: const Icon(Icons.remove_circle_outline),
-                      color: Colors.red,
+                      color: HospitalTheme.error,
                     ),
                 ],
               ),
@@ -636,7 +725,7 @@ class _ManualDischargeSummaryScreenState
                     IconButton(
                       onPressed: () => _removeExamFinding(index),
                       icon: const Icon(Icons.remove_circle_outline),
-                      color: Colors.red,
+                      color: HospitalTheme.error,
                     ),
                 ],
               ),
@@ -738,7 +827,7 @@ class _ManualDischargeSummaryScreenState
                   IconButton(
                     onPressed: () => _removeRadiology(index),
                     icon: const Icon(Icons.remove_circle_outline),
-                    color: Colors.red,
+                    color: HospitalTheme.error,
                   ),
                 ],
               ),
@@ -781,7 +870,7 @@ class _ManualDischargeSummaryScreenState
                   IconButton(
                     onPressed: () => _removePathology(index),
                     icon: const Icon(Icons.remove_circle_outline),
-                    color: Colors.red,
+                    color: HospitalTheme.error,
                   ),
                 ],
               ),
@@ -888,7 +977,7 @@ class _ManualDischargeSummaryScreenState
                   IconButton(
                     onPressed: () => _removeProcedure(index),
                     icon: const Icon(Icons.remove_circle_outline),
-                    color: Colors.red,
+                    color: HospitalTheme.error,
                   ),
                 ],
               ),
@@ -931,7 +1020,7 @@ class _ManualDischargeSummaryScreenState
                   IconButton(
                     onPressed: () => _removeTreatment(index),
                     icon: const Icon(Icons.remove_circle_outline),
-                    color: Colors.red,
+                    color: HospitalTheme.error,
                   ),
                 ],
               ),
@@ -979,6 +1068,18 @@ class _ManualDischargeSummaryScreenState
           ),
         ),
         const SizedBox(width: 16),
+        if (_generatedResponse != null) ...[
+          ElevatedButton.icon(
+            onPressed: _openPdfPreview,
+            icon: const Icon(Icons.picture_as_pdf),
+            label: const Text('Preview PDF'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: HospitalTheme.primary,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            ),
+          ),
+          const SizedBox(width: 16),
+        ],
         ElevatedButton.icon(
           onPressed: _isLoading ? null : _generateDischargeSummary,
           icon: _isLoading
@@ -987,14 +1088,72 @@ class _ManualDischargeSummaryScreenState
                   height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Icon(Icons.picture_as_pdf),
+              : const Icon(Icons.generating_tokens),
           label: Text(_isLoading ? 'Generating...' : 'Generate Summary'),
           style: ElevatedButton.styleFrom(
+            backgroundColor: HospitalTheme.success,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           ),
         ),
       ],
     );
+  }
+
+  void _resetForm() {
+    setState(() {
+      // Clear all controllers
+      _finalDiagnosisController.clear();
+      _conditionOnDischargeController.clear();
+      _tempController.clear();
+      _pulseController.clear();
+      _bpController.clear();
+      _spo2Controller.clear();
+      _operationTypeController.clear();
+      _operationDateController.clear();
+      _surgeonController.clear();
+      _anaesthetistController.clear();
+      _anaesthesiaTypeController.clear();
+
+      // Reset dynamic lists to single empty controller each
+      for (var controller in _complaintsControllers) {
+        controller.dispose();
+      }
+      _complaintsControllers = [TextEditingController()];
+
+      for (var controller in _pastHistoryControllers) {
+        controller.dispose();
+      }
+      _pastHistoryControllers = [TextEditingController()];
+
+      for (var controller in _examFindingsControllers) {
+        controller.dispose();
+      }
+      _examFindingsControllers = [TextEditingController()];
+
+      for (var controller in _radiologyControllers) {
+        controller.dispose();
+      }
+      _radiologyControllers = [TextEditingController()];
+
+      for (var controller in _pathologyControllers) {
+        controller.dispose();
+      }
+      _pathologyControllers = [TextEditingController()];
+
+      for (var controller in _procedureControllers) {
+        controller.dispose();
+      }
+      _procedureControllers = [TextEditingController()];
+
+      for (var controller in _treatmentControllers) {
+        controller.dispose();
+      }
+      _treatmentControllers = [TextEditingController()];
+
+      // Reset other state
+      _uploadToDrive = true;
+      _generatedResponse = null;
+    });
   }
 
   void _showPreviewDialog() {
@@ -1309,11 +1468,24 @@ class _ManualDischargeSummaryScreenState
                   subtitle: 'Save current progress',
                   onTap: _saveDraft,
                 ),
+                if (_generatedResponse != null)
+                  _buildQuickActionTile(
+                    icon: Icons.picture_as_pdf,
+                    title: 'Preview PDF',
+                    subtitle: 'Preview & print generated PDF',
+                    onTap: _openPdfPreview,
+                  ),
               ],
             ),
           ),
 
           const SizedBox(height: 16),
+
+          // PDF Status
+          if (_generatedResponse != null) ...[
+            const PdfStatusBar(),
+            const SizedBox(height: 16),
+          ],
 
           // Medical Guidelines Card
           HospitalTheme.buildCard(
@@ -1342,35 +1514,6 @@ class _ManualDischargeSummaryScreenState
                     'Exam Findings', 'Include all relevant observations'),
                 _buildGuidelineItem(
                     'Condition', 'STABLE, IMPROVED, or specific status'),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Common Templates Card
-          HospitalTheme.buildCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.library_books, color: HospitalTheme.medical),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Common Templates',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _buildTemplateItem('Appendectomy', Icons.medical_services),
-                _buildTemplateItem('General Surgery', Icons.healing),
-                _buildTemplateItem('Emergency Care', Icons.emergency),
-                _buildTemplateItem('Pediatric Care', Icons.child_care),
               ],
             ),
           ),
@@ -1445,10 +1588,11 @@ class _ManualDischargeSummaryScreenState
                   ],
                 ),
                 const SizedBox(height: 16),
-                _buildTipItem('💡', 'Use Ctrl+S to generate summary'),
-                _buildTipItem('⚡', 'Use Ctrl+N to add new complaint'),
+                _buildTipItem('💾', 'Use Ctrl+S to generate summary'),
+                _buildTipItem('➕', 'Use Ctrl+N to add new complaint'),
+                _buildTipItem('📄', 'Use Ctrl+P to preview PDF'),
+                _buildTipItem('🔄', 'Use F5 to reset form'),
                 _buildTipItem('📝', 'Preview before generating PDF'),
-                _buildTipItem('📋', 'Save drafts for later completion'),
               ],
             ),
           ),
@@ -1546,29 +1690,6 @@ class _ManualDischargeSummaryScreenState
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildTemplateItem(String name, IconData icon) {
-    return InkWell(
-      onTap: () => _loadTemplate(name),
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          children: [
-            Icon(icon, size: 18, color: HospitalTheme.medical),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                name,
-                style: const TextStyle(fontSize: 13),
-              ),
-            ),
-            Icon(Icons.download, size: 16, color: HospitalTheme.textMedium),
-          ],
-        ),
       ),
     );
   }
@@ -1826,26 +1947,34 @@ class _ManualDischargeSummaryScreenState
 
         // Action Buttons
         if (data['driveLink'] != null) ...[
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                Methods().openPdf(data['driveLink']);
-                // For now, copy to clipboard
-                Clipboard.setData(ClipboardData(text: data['driveLink']));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Drive link copied to clipboard'),
-                    duration: Duration(seconds: 2),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Methods().openPdf(data['driveLink']);
+                  },
+                  icon: const Icon(Icons.open_in_new),
+                  label: const Text('Open PDF'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: HospitalTheme.success,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                );
-              },
-              icon: const Icon(Icons.open_in_new),
-              label: const Text('Open PDF'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
               ),
-            ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _openPdfPreview,
+                  icon: const Icon(Icons.preview),
+                  label: const Text('Preview & Print'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: HospitalTheme.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           SizedBox(
@@ -1862,6 +1991,51 @@ class _ManualDischargeSummaryScreenState
               },
               icon: const Icon(Icons.copy),
               label: const Text('Copy Link'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                final emailSubject =
+                    'Discharge Summary - ${data['patientInfo']?['name'] ?? 'Patient'} (${widget.patientId})';
+                final emailBody = '''
+Dear Recipient,
+
+Please find the Discharge Summary details below:
+
+Patient Information:
+- Name: ${data['patientInfo']?['name'] ?? 'N/A'}
+- Patient ID: ${widget.patientId}
+- Age: ${data['patientInfo']?['age'] ?? 'N/A'} years
+- Gender: ${data['patientInfo']?['gender'] ?? 'N/A'}
+
+Summary Information:
+- Final Diagnosis: ${data['summaryData']?['finalDiagnosis'] ?? 'N/A'}
+- Condition on Discharge: ${data['summaryData']?['conditionOnDischarge'] ?? 'N/A'}
+- Consultant: ${data['summaryData']?['consultant'] ?? 'N/A'}
+
+You can access the complete PDF discharge summary using the following link:
+${data['driveLink']}
+
+Generated: ${_formatDateTime(data['generatedAt'])}
+File: ${data['fileName']}
+
+Best regards,
+Bhosale Hospital Team
+                ''';
+
+                Methods().openMail(
+                  subject: emailSubject,
+                  body: emailBody,
+                );
+              },
+              icon: const Icon(Icons.share),
+              label: const Text('Share Summary'),
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
