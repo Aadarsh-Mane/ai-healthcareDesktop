@@ -804,7 +804,7 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
                           icon: const Icon(Icons.picture_as_pdf),
                           label: const Text('View Receipt'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: HospitalTheme.primary,
+                            backgroundColor: HospitalTheme.surfaceLight,
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 24, vertical: 12),
                           ),
@@ -814,7 +814,7 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
                         icon: const Icon(Icons.close),
                         label: const Text('Close'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: HospitalTheme.textMedium,
+                          backgroundColor: HospitalTheme.surfaceLight,
                           padding: const EdgeInsets.symmetric(
                               horizontal: 24, vertical: 12),
                         ),
@@ -2184,7 +2184,7 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
                                 : 'Create Deposit Receipt',
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: HospitalTheme.primary,
+                        backgroundColor: HospitalTheme.surfaceLight,
                         padding: const EdgeInsets.symmetric(
                             horizontal: 32, vertical: 16),
                         textStyle: const TextStyle(
@@ -2321,7 +2321,7 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
             },
             icon: const Icon(
               Icons.visibility_outlined,
-              color: HospitalTheme.primary,
+              color: HospitalTheme.surfaceLight,
               size: 20,
             ),
             tooltip: 'View Receipt',
@@ -2373,7 +2373,7 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
               : 'Update & Assign Bed'),
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            backgroundColor: HospitalTheme.primary,
+            // backgroundColor: HospitalTheme.surfaceLight,
           ),
         ),
         const SizedBox(width: 16),

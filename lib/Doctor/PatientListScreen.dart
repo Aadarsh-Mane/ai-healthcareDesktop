@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:doctordesktop/Doctor/PatientHistoryDetailScreen.dart';
 import 'package:doctordesktop/constants/HospitalTheme.dart';
 import 'package:doctordesktop/constants/Url.dart';
 import 'package:flutter/material.dart';
@@ -298,8 +299,14 @@ class _PatientListScreen1State extends ConsumerState<PatientListScreen1> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isMasterDetail = screenWidth > 1200;
+    final screenSize = MediaQuery.of(context).size;
+    final availableWidth = screenSize.width - 280; // Account for sidebar
+
+    // Force master-detail for debugging (remove this line once working)
+    final isMasterDetail = true; // Change this back to: availableWidth > 1000
+
+    print(
+        'Screen width: ${screenSize.width}, Available width: $availableWidth, Master-detail: $isMasterDetail');
 
     return Scaffold(
       appBar: HospitalTheme.buildAppBar(
@@ -311,7 +318,7 @@ class _PatientListScreen1State extends ConsumerState<PatientListScreen1> {
             onPressed: () =>
                 ref.read(patientListProvider.notifier).refreshPatients(),
             icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
+            tooltip: 'Refresh (Ctrl+R)',
           ),
           const SizedBox(width: 16),
         ],
@@ -353,7 +360,7 @@ class _PatientListScreen1State extends ConsumerState<PatientListScreen1> {
       children: [
         // Master pane
         Expanded(
-          flex: 3,
+          flex: 7,
           child: _buildPatientListPane(),
         ),
         Container(
@@ -362,7 +369,7 @@ class _PatientListScreen1State extends ConsumerState<PatientListScreen1> {
         ),
         // Detail pane
         Expanded(
-          flex: 2,
+          flex: 3,
           child: _buildDetailPane(),
         ),
       ],
@@ -385,62 +392,112 @@ class _PatientListScreen1State extends ConsumerState<PatientListScreen1> {
   }
 
   Widget _buildHeader() {
+    final screenSize = MediaQuery.of(context).size;
+    final isCompact = screenSize.width < 900;
+
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                flex: 3,
-                child: TextField(
-                  controller: _searchController,
-                  focusNode: _searchFocusNode,
-                  decoration: InputDecoration(
-                    hintText:
-                        'Search patients by name, ID, or contact... (Ctrl+F)',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            onPressed: () {
-                              _searchController.clear();
-                              _searchFocusNode.unfocus();
-                            },
-                            icon: const Icon(Icons.clear),
-                          )
-                        : null,
+          if (isCompact) ...[
+            // Stacked layout for smaller screens
+            TextField(
+              controller: _searchController,
+              focusNode: _searchFocusNode,
+              decoration: InputDecoration(
+                hintText: 'Search patients... (Ctrl+F)',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        onPressed: () {
+                          _searchController.clear();
+                          _searchFocusNode.unfocus();
+                        },
+                        icon: const Icon(Icons.clear),
+                      )
+                    : null,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Consumer(
+              builder: (context, ref, child) {
+                final selectedType = ref.watch(selectedPatientTypeProvider);
+                return DropdownButtonFormField<String>(
+                  value: selectedType,
+                  decoration: const InputDecoration(
+                    labelText: 'Filter by Type',
+                    prefixIcon: Icon(Icons.filter_list),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'all', child: Text('All Patients')),
+                    DropdownMenuItem(value: 'ipd', child: Text('IPD Only')),
+                    DropdownMenuItem(value: 'opd', child: Text('OPD Only')),
+                    DropdownMenuItem(
+                        value: 'discharged', child: Text('Discharged')),
+                    DropdownMenuItem(value: 'active', child: Text('Active')),
+                  ],
+                  onChanged: _onPatientTypeChanged,
+                );
+              },
+            ),
+          ] else ...[
+            // Side-by-side layout for larger screens
+            Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: TextField(
+                    controller: _searchController,
+                    focusNode: _searchFocusNode,
+                    decoration: InputDecoration(
+                      hintText:
+                          'Search patients by name, ID, or contact... (Ctrl+F)',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              onPressed: () {
+                                _searchController.clear();
+                                _searchFocusNode.unfocus();
+                              },
+                              icon: const Icon(Icons.clear),
+                            )
+                          : null,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Consumer(
-                  builder: (context, ref, child) {
-                    final selectedType = ref.watch(selectedPatientTypeProvider);
-                    return DropdownButtonFormField<String>(
-                      value: selectedType,
-                      decoration: const InputDecoration(
-                        labelText: 'Patient Type',
-                        prefixIcon: Icon(Icons.filter_list),
-                      ),
-                      items: const [
-                        DropdownMenuItem(
-                            value: 'all', child: Text('All Patients')),
-                        DropdownMenuItem(value: 'ipd', child: Text('IPD Only')),
-                        DropdownMenuItem(value: 'opd', child: Text('OPD Only')),
-                        DropdownMenuItem(
-                            value: 'discharged', child: Text('Discharged')),
-                        DropdownMenuItem(
-                            value: 'active', child: Text('Active')),
-                      ],
-                      onChanged: _onPatientTypeChanged,
-                    );
-                  },
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Consumer(
+                    builder: (context, ref, child) {
+                      final selectedType =
+                          ref.watch(selectedPatientTypeProvider);
+                      return DropdownButtonFormField<String>(
+                        value: selectedType,
+                        decoration: const InputDecoration(
+                          labelText: 'Patient Type',
+                          prefixIcon: Icon(Icons.filter_list),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                              value: 'all', child: Text('All Patients')),
+                          DropdownMenuItem(
+                              value: 'ipd', child: Text('IPD Only')),
+                          DropdownMenuItem(
+                              value: 'opd', child: Text('OPD Only')),
+                          DropdownMenuItem(
+                              value: 'discharged', child: Text('Discharged')),
+                          DropdownMenuItem(
+                              value: 'active', child: Text('Active')),
+                        ],
+                        onChanged: _onPatientTypeChanged,
+                      );
+                    },
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -461,88 +518,186 @@ class _PatientListScreen1State extends ConsumerState<PatientListScreen1> {
   }
 
   Widget _buildStatsCards(Statistics stats) {
+    final screenSize = MediaQuery.of(context).size;
+    final isCompact = screenSize.width < 600;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Row(
-        children: [
-          Expanded(
-            child: HospitalTheme.buildStatCard(
-              title: 'Total Patients',
-              value: stats.totalPatients.toString(),
-              icon: Icons.people,
-              iconColor: HospitalTheme.primary,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: isCompact
+          ? Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: HospitalTheme.buildStatCard(
+                        title: 'Total',
+                        value: stats.totalPatients.toString(),
+                        icon: Icons.people,
+                        iconColor: HospitalTheme.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: HospitalTheme.buildStatCard(
+                        title: 'IPD',
+                        value: stats.ipdPatients.toString(),
+                        icon: Icons.local_hospital,
+                        iconColor: HospitalTheme.medical,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: HospitalTheme.buildStatCard(
+                        title: 'OPD',
+                        value: stats.opdPatients.toString(),
+                        icon: Icons.person_outline,
+                        iconColor: HospitalTheme.pharmacy,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: HospitalTheme.buildStatCard(
+                        title: 'Today',
+                        value: stats.todayAdmissions.toString(),
+                        icon: Icons.login,
+                        iconColor: HospitalTheme.emergency,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            )
+          : Row(
+              children: [
+                Expanded(
+                  child: HospitalTheme.buildStatCard(
+                    title: 'Total Patients',
+                    value: stats.totalPatients.toString(),
+                    icon: Icons.people,
+                    iconColor: HospitalTheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: HospitalTheme.buildStatCard(
+                    title: 'IPD Patients',
+                    value: stats.ipdPatients.toString(),
+                    icon: Icons.local_hospital,
+                    iconColor: HospitalTheme.medical,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: HospitalTheme.buildStatCard(
+                    title: 'OPD Patients',
+                    value: stats.opdPatients.toString(),
+                    icon: Icons.person_outline,
+                    iconColor: HospitalTheme.pharmacy,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: HospitalTheme.buildStatCard(
+                    title: 'Today Admissions',
+                    value: stats.todayAdmissions.toString(),
+                    icon: Icons.login,
+                    iconColor: HospitalTheme.emergency,
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: HospitalTheme.buildStatCard(
-              title: 'IPD Patients',
-              value: stats.ipdPatients.toString(),
-              icon: Icons.local_hospital,
-              iconColor: HospitalTheme.medical,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: HospitalTheme.buildStatCard(
-              title: 'OPD Patients',
-              value: stats.opdPatients.toString(),
-              icon: Icons.person_outline,
-              iconColor: HospitalTheme.pharmacy,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: HospitalTheme.buildStatCard(
-              title: 'Today Admissions',
-              value: stats.todayAdmissions.toString(),
-              icon: Icons.login,
-              iconColor: HospitalTheme.emergency,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
   Widget _buildLoadingStats() {
+    final screenSize = MediaQuery.of(context).size;
+    final isCompact = screenSize.width < 600;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Row(
-        children: [
-          Expanded(
-            child: HospitalTheme.buildStatCard(
-              title: 'Total Patients',
-              value: '---',
-              icon: Icons.people,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: isCompact
+          ? Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: HospitalTheme.buildStatCard(
+                        title: 'Total',
+                        value: '---',
+                        icon: Icons.people,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: HospitalTheme.buildStatCard(
+                        title: 'IPD',
+                        value: '---',
+                        icon: Icons.local_hospital,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: HospitalTheme.buildStatCard(
+                        title: 'OPD',
+                        value: '---',
+                        icon: Icons.person_outline,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: HospitalTheme.buildStatCard(
+                        title: 'Today',
+                        value: '---',
+                        icon: Icons.login,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            )
+          : Row(
+              children: [
+                Expanded(
+                  child: HospitalTheme.buildStatCard(
+                    title: 'Total Patients',
+                    value: '---',
+                    icon: Icons.people,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: HospitalTheme.buildStatCard(
+                    title: 'IPD Patients',
+                    value: '---',
+                    icon: Icons.local_hospital,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: HospitalTheme.buildStatCard(
+                    title: 'OPD Patients',
+                    value: '---',
+                    icon: Icons.person_outline,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: HospitalTheme.buildStatCard(
+                    title: 'Today Admissions',
+                    value: '---',
+                    icon: Icons.login,
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: HospitalTheme.buildStatCard(
-              title: 'IPD Patients',
-              value: '---',
-              icon: Icons.local_hospital,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: HospitalTheme.buildStatCard(
-              title: 'OPD Patients',
-              value: '---',
-              icon: Icons.person_outline,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: HospitalTheme.buildStatCard(
-              title: 'Today Admissions',
-              value: '---',
-              icon: Icons.login,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -598,17 +753,12 @@ class _PatientListScreen1State extends ConsumerState<PatientListScreen1> {
       return _buildEmptyState();
     }
 
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isDesktop = screenWidth > 1200;
-
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         children: [
           Expanded(
-            child: isDesktop
-                ? _buildPatientDataTable(response.patients)
-                : _buildPatientCardList(response.patients),
+            child: _buildOptimizedPatientTable(response.patients),
           ),
           if (response.pagination.totalPages > 1)
             _buildPagination(response.pagination),
@@ -617,35 +767,318 @@ class _PatientListScreen1State extends ConsumerState<PatientListScreen1> {
     );
   }
 
-  Widget _buildPatientDataTable(List<Patient> patients) {
-    return SingleChildScrollView(
-      child: HospitalTheme.buildCard(
-        padding: EdgeInsets.zero,
-        child: DataTable(
-          columnSpacing: 24,
-          horizontalMargin: 24,
-          showCheckboxColumn: false,
-          columns: const [
-            DataColumn(label: Text('Patient')),
-            DataColumn(label: Text('ID')),
-            DataColumn(label: Text('Age/Gender')),
-            DataColumn(label: Text('Contact')),
-            DataColumn(label: Text('Type')),
-            DataColumn(label: Text('Status')),
-            DataColumn(label: Text('Visits')),
-            DataColumn(label: Text('Actions')),
-          ],
-          rows: patients.map((patient) => _buildDataRow(patient)).toList(),
-        ),
+  Widget _buildOptimizedPatientTable(List<Patient> patients) {
+    return HospitalTheme.buildCard(
+      padding: EdgeInsets.zero,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Dynamically adjust table layout based on available width
+          final availableWidth =
+              constraints.maxWidth - 48; // Account for padding
+
+          return SingleChildScrollView(
+            child: Container(
+              width: availableWidth,
+              child: DataTable(
+                columnSpacing: 16,
+                horizontalMargin: 24,
+                showCheckboxColumn: false,
+                headingRowHeight: 56,
+                dataRowHeight: 72,
+                columns: _buildTableColumns(availableWidth),
+                rows: patients
+                    .map((patient) =>
+                        _buildOptimizedDataRow(patient, availableWidth))
+                    .toList(),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
 
-  DataRow _buildDataRow(Patient patient) {
+  List<DataColumn> _buildTableColumns(double availableWidth) {
+    // Responsive column layout based on available width
+    if (availableWidth < 800) {
+      // Compact layout for smaller screens
+      return const [
+        DataColumn(
+          label: Expanded(
+            child: Text('Patient Info',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ),
+        DataColumn(
+          label: Text('Type/Status',
+              style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+        DataColumn(
+          label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+      ];
+    } else if (availableWidth < 1000) {
+      // Medium layout
+      return const [
+        DataColumn(
+          label: Expanded(
+            child:
+                Text('Patient', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ),
+        DataColumn(
+          label: Text('Contact', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+        DataColumn(
+          label: Text('Type', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+        DataColumn(
+          label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+        DataColumn(
+          label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+      ];
+    } else {
+      // Full layout for large screens
+      return const [
+        DataColumn(
+          label: Expanded(
+            child: Text('Patient Information',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ),
+        DataColumn(
+          label:
+              Text('Patient ID', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+        DataColumn(
+          label:
+              Text('Age/Gender', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+        DataColumn(
+          label: Text('Contact', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+        DataColumn(
+          label: Text('Type', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+        DataColumn(
+          label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+        DataColumn(
+          label: Text('Visits', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+        DataColumn(
+          label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+      ];
+    }
+  }
+
+  DataRow _buildOptimizedDataRow(Patient patient, double availableWidth) {
+    if (availableWidth < 800) {
+      return _buildCompactDataRow(patient);
+    } else if (availableWidth < 1000) {
+      return _buildMediumDataRow(patient);
+    } else {
+      return _buildFullDataRow(patient);
+    }
+  }
+
+  // Replace your existing DataRow building methods with these fixed versions:
+
+  DataRow _buildCompactDataRow(Patient patient) {
     return DataRow(
       onSelectChanged: (_) => _selectPatient(patient),
       cells: [
         DataCell(
+          // Remove the GestureDetector wrapper since DataRow already handles selection
+          Container(
+            width: double.infinity,
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: HospitalTheme.surfaceLight,
+                  backgroundImage: patient.imageUrl != null
+                      ? NetworkImage(patient.imageUrl!)
+                      : null,
+                  child: patient.imageUrl == null
+                      ? Icon(Icons.person,
+                          color: HospitalTheme.primary, size: 18)
+                      : null,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        patient.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'ID: ${patient.patientId}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: HospitalTheme.textMedium,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${patient.age}/${patient.gender} • ${patient.contact}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: HospitalTheme.textMedium,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          onTap: () => _selectPatient(
+              patient), // Add onTap here for cell-level selection
+        ),
+        DataCell(
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              HospitalTheme.buildStatusBadge(
+                patient.patientType,
+                color: patient.patientType == 'IPD'
+                    ? HospitalTheme.medical
+                    : HospitalTheme.pharmacy,
+              ),
+              const SizedBox(height: 4),
+              HospitalTheme.buildStatusBadge(
+                patient.discharged ? 'Discharged' : 'Active',
+                color: patient.discharged
+                    ? HospitalTheme.success
+                    : HospitalTheme.warning,
+              ),
+            ],
+          ),
+        ),
+        DataCell(
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                onPressed: () => _viewPatient(patient),
+                icon: const Icon(Icons.visibility, size: 18),
+                tooltip: 'View',
+                constraints: const BoxConstraints(),
+                padding: const EdgeInsets.all(8),
+              ),
+              // IconButton(
+              //   onPressed: () => _editPatient(patient),
+              //   icon: const Icon(Icons.edit, size: 18),
+              //   tooltip: 'Edit',
+              //   constraints: const BoxConstraints(),
+              //   padding: const EdgeInsets.all(8),
+              // ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  DataRow _buildMediumDataRow(Patient patient) {
+    return DataRow(
+      onSelectChanged: (_) => _selectPatient(patient),
+      cells: [
+        DataCell(
+          // Remove GestureDetector wrapper
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: HospitalTheme.surfaceLight,
+                backgroundImage: patient.imageUrl != null
+                    ? NetworkImage(patient.imageUrl!)
+                    : null,
+                child: patient.imageUrl == null
+                    ? Icon(Icons.person, color: HospitalTheme.primary, size: 18)
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      patient.name,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'ID: ${patient.patientId} • ${patient.age}/${patient.gender}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: HospitalTheme.textMedium,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          onTap: () => _selectPatient(patient), // Add onTap here
+        ),
+        DataCell(Text(patient.contact)),
+        DataCell(
+          HospitalTheme.buildStatusBadge(
+            patient.patientType,
+            color: patient.patientType == 'IPD'
+                ? HospitalTheme.medical
+                : HospitalTheme.pharmacy,
+          ),
+        ),
+        DataCell(
+          HospitalTheme.buildStatusBadge(
+            patient.discharged ? 'Discharged' : 'Active',
+            color: patient.discharged
+                ? HospitalTheme.success
+                : HospitalTheme.warning,
+          ),
+        ),
+        DataCell(
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                onPressed: () => _viewPatient(patient),
+                icon: const Icon(Icons.visibility, size: 18),
+                tooltip: 'View',
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  DataRow _buildFullDataRow(Patient patient) {
+    return DataRow(
+      onSelectChanged: (_) => _selectPatient(patient),
+      cells: [
+        DataCell(
+          // Remove GestureDetector wrapper
           Row(
             children: [
               CircleAvatar(
@@ -683,6 +1116,7 @@ class _PatientListScreen1State extends ConsumerState<PatientListScreen1> {
               ),
             ],
           ),
+          onTap: () => _selectPatient(patient), // Add onTap here
         ),
         DataCell(Text(patient.patientId)),
         DataCell(Text('${patient.age}/${patient.gender}')),
@@ -713,11 +1147,6 @@ class _PatientListScreen1State extends ConsumerState<PatientListScreen1> {
                 icon: const Icon(Icons.visibility),
                 tooltip: 'View Details',
               ),
-              IconButton(
-                onPressed: () => _editPatient(patient),
-                icon: const Icon(Icons.edit),
-                tooltip: 'Edit Patient',
-              ),
             ],
           ),
         ),
@@ -725,32 +1154,14 @@ class _PatientListScreen1State extends ConsumerState<PatientListScreen1> {
     );
   }
 
-  Widget _buildPatientCardList(List<Patient> patients) {
-    return ListView.builder(
-      itemCount: patients.length,
-      padding: const EdgeInsets.only(bottom: 16),
-      itemBuilder: (context, index) {
-        final patient = patients[index];
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: HospitalTheme.buildPatientInfoCard(
-            name: patient.name,
-            patientId: patient.patientId,
-            age: patient.age.toString(),
-            gender: patient.gender,
-            phoneNumber: patient.contact,
-            lastVisit: patient.lastDischargeDate != null
-                ? '${patient.lastDischargeDate!.day}/${patient.lastDischargeDate!.month}/${patient.lastDischargeDate!.year}'
-                : null,
-            imageUrl: patient.imageUrl,
-            onTap: () => _selectPatient(patient),
-            onEditPressed: () => _editPatient(patient),
-          ),
-        );
-      },
-    );
+// Also update the _selectPatient method to add debug logging:
+  void _selectPatient(Patient patient) {
+    print('Selecting patient: ${patient.name}'); // Add this for debugging
+    ref.read(selectedPatientProvider.notifier).state = patient;
   }
 
+// And update the build method to force master-detail layout for testing:
+  @override
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -791,8 +1202,11 @@ class _PatientListScreen1State extends ConsumerState<PatientListScreen1> {
   }
 
   Widget _buildPagination(PaginationData pagination) {
-    return Padding(
+    return Container(
       padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: HospitalTheme.border)),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -807,14 +1221,26 @@ class _PatientListScreen1State extends ConsumerState<PatientListScreen1> {
                     ? () => _changePage(pagination.currentPage - 1)
                     : null,
                 icon: const Icon(Icons.chevron_left),
+                tooltip: 'Previous Page',
               ),
-              Text(
-                  'Page ${pagination.currentPage} of ${pagination.totalPages}'),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: HospitalTheme.surfaceLight,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  'Page ${pagination.currentPage} of ${pagination.totalPages}',
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
+              ),
               IconButton(
                 onPressed: pagination.hasNextPage
                     ? () => _changePage(pagination.currentPage + 1)
                     : null,
                 icon: const Icon(Icons.chevron_right),
+                tooltip: 'Next Page',
               ),
             ],
           ),
@@ -837,18 +1263,18 @@ class _PatientListScreen1State extends ConsumerState<PatientListScreen1> {
     );
   }
 
-  void _selectPatient(Patient patient) {
-    ref.read(selectedPatientProvider.notifier).state = patient;
-  }
+  // void _selectPatient(Patient patient) {
+  //   ref.read(selectedPatientProvider.notifier).state = patient;
+  // }
 
   void _viewPatient(Patient patient) {
     _selectPatient(patient);
-    // TODO: Navigate to patient details if not in master-detail layout
   }
 
-  void _editPatient(Patient patient) {
-    // TODO: Navigate to edit patient screen
-  }
+  // void _editPatient(Patient patient) {
+  //   print('Edit patient: ${patient.name}');
+  //   // TODO: Navigate to edit patient screen
+  // }
 
   void _changePage(int page) {
     final search = ref.read(searchQueryProvider);
@@ -910,17 +1336,17 @@ class _PatientDetailPane extends StatelessWidget {
     return Container(
       color: HospitalTheme.background,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildPatientHeader(),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             _buildBasicInfo(),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             _buildMedicalInfo(),
-            const SizedBox(height: 24),
-            _buildActionButtons(),
+            const SizedBox(height: 20),
+            _buildActionButtons(context),
           ],
         ),
       ),
@@ -932,13 +1358,13 @@ class _PatientDetailPane extends StatelessWidget {
       child: Row(
         children: [
           CircleAvatar(
-            radius: 40,
+            radius: 35,
             backgroundColor: HospitalTheme.surfaceLight,
             backgroundImage: patient.imageUrl != null
                 ? NetworkImage(patient.imageUrl!)
                 : null,
             child: patient.imageUrl == null
-                ? Icon(Icons.person, size: 48, color: HospitalTheme.primary)
+                ? Icon(Icons.person, size: 42, color: HospitalTheme.primary)
                 : null,
           ),
           const SizedBox(width: 16),
@@ -949,7 +1375,7 @@ class _PatientDetailPane extends StatelessWidget {
                 Text(
                   patient.name,
                   style: const TextStyle(
-                    fontSize: 24,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -957,12 +1383,14 @@ class _PatientDetailPane extends StatelessWidget {
                 Text(
                   'ID: ${patient.patientId}',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 14,
                     color: HospitalTheme.textMedium,
                   ),
                 ),
                 const SizedBox(height: 8),
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
                   children: [
                     HospitalTheme.buildStatusBadge(
                       patient.patientType,
@@ -970,7 +1398,6 @@ class _PatientDetailPane extends StatelessWidget {
                           ? HospitalTheme.medical
                           : HospitalTheme.pharmacy,
                     ),
-                    const SizedBox(width: 8),
                     HospitalTheme.buildStatusBadge(
                       patient.discharged ? 'Discharged' : 'Active',
                       color: patient.discharged
@@ -1023,7 +1450,7 @@ class _PatientDetailPane extends StatelessWidget {
                   icon: Icons.medical_services,
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
               Expanded(
                 child: HospitalTheme.buildStatCard(
                   title: 'IPD Admissions',
@@ -1058,12 +1485,13 @@ class _PatientDetailPane extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 140,
+            width: 100,
             child: Text(
               '$label:',
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 color: HospitalTheme.textMedium,
+                fontSize: 13,
               ),
             ),
           ),
@@ -1074,6 +1502,7 @@ class _PatientDetailPane extends StatelessWidget {
                 color: valueColor ?? HospitalTheme.textDark,
                 fontWeight:
                     valueColor != null ? FontWeight.w600 : FontWeight.normal,
+                fontSize: 13,
               ),
             ),
           ),
@@ -1082,28 +1511,26 @@ class _PatientDetailPane extends StatelessWidget {
     );
   }
 
-  Widget _buildActionButtons() {
+  Widget _buildActionButtons(BuildContext context) {
     return Row(
       children: [
-        // Expanded(
-        //   child: ElevatedButton.icon(
-        //     onPressed: () {
-        //       // TODO: Navigate to edit patient
-        //     },
-        //     icon: const Icon(Icons.edit),
-        //     label: const Text('Edit Patient'),
-        //   ),
-        // ),
-        // const SizedBox(width: 12),
-        // Expanded(
-        //   child: OutlinedButton.icon(
-        //     onPressed: () {
-        //       // TODO: Navigate to patient history
-        //     },
-        //     icon: const Icon(Icons.history),
-        //     label: const Text('View History'),
-        //   ),
-        // ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PatientHistoryDetailScreen(
+                    patientId: patient.patientId,
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.history),
+            label: const Text('View History'),
+          ),
+        ),
       ],
     );
   }

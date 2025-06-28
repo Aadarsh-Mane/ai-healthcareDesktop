@@ -69,7 +69,7 @@ class _MainLayoutState extends State<MainLayout> {
     const BedManagementDashboard(),
     PatientAssignmentScreen(),
     DoctorListScreen(),
-    PatientListScreen(),
+    PatientListScreen1(),
     DoctorRegisterScreen(),
     NurseRegisterScreen(),
     AdmissionManagementScreen(),
@@ -79,7 +79,6 @@ class _MainLayoutState extends State<MainLayout> {
     // DepositsTrackingScreen(),
     PatientDepositsScreen(),
     DischargeSummariesScreen(),
-    PatientListScreen1()
   ];
   // Add this new public method
   void navigateTo(int index) {
@@ -297,13 +296,13 @@ class SidebarWidget extends StatelessWidget {
                   isSelected: selectedIndex == 11,
                   onTap: () => onItemSelected(11),
                 ),
-                _buildNavItemWithLabel(
-                  index: 12,
-                  icon: Icons.medical_services,
-                  label: 'Track Patients',
-                  isSelected: selectedIndex == 12,
-                  onTap: () => onItemSelected(12),
-                ),
+                // _buildNavItemWithLabel(
+                //   index: 12,
+                //   icon: Icons.medical_services,
+                //   label: 'Track Patients',
+                //   isSelected: selectedIndex == 12,
+                //   onTap: () => onItemSelected(12),
+                // ),
               ],
             ),
           ),

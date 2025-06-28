@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:doctordesktop/Doctor/PatientHistoryDetailScreen.dart';
 import 'package:doctordesktop/reception/ManualDischargeSummaryScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -2612,7 +2613,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                     () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => GenerateIpdBillScreen(
+                        builder: (context) => PatientHistoryDetailScreen(
                             patientId: widget.patient.patientId),
                       ),
                     ),

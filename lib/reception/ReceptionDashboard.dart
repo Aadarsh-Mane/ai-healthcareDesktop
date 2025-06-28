@@ -13,6 +13,7 @@ import 'package:doctordesktop/main.dart';
 import 'package:doctordesktop/pharmacy/pharmaTheme.dart';
 import 'package:doctordesktop/reception/BillingAnalyticsDashboard.dart';
 import 'package:doctordesktop/reception/CreateAppointment.dart';
+import 'package:doctordesktop/reception/DepositTrackScreen.dart';
 import 'package:doctordesktop/reception/ExternalDoctorRegistration.dart';
 import 'package:doctordesktop/reception/PatientAllDischargedScreen.dart';
 import 'package:doctordesktop/reception/PatientRegister.dart';
@@ -64,13 +65,14 @@ class _MainLayoutState extends State<MainLayout> {
     const DischargedPatientsScreen1(),
     PatientAssignmentScreen(),
     DoctorListScreen(),
-    PatientListScreen(),
+    // PatientListScreen(),
     PatientListScreen1(),
-    ReceptionBedManagementScreen(),
+    // ReceptionBedManagementScreen(),
     ExternalSideBar(),
     const ReceptionMainScreen(),
     RegistrationDashboard(),
     PatientBillingScreen(),
+    PatientDepositsScreen(),
     BillingAnalyticsDashboard(),
   ];
 
@@ -234,61 +236,68 @@ class SidebarWidget extends StatelessWidget {
                   ),
                 ],
 
+                // _buildNavItemWithLabel(
+                //   index: 4,
+                //   icon: Icons.settings_outlined,
+                //   label: 'Patients',
+                //   isSelected: selectedIndex == 4,
+                //   onTap: () => onItemSelected(4),
+                // ),
                 _buildNavItemWithLabel(
                   index: 4,
                   icon: Icons.settings_outlined,
-                  label: 'Patients',
+                  label: 'Track Patients',
                   isSelected: selectedIndex == 4,
                   onTap: () => onItemSelected(4),
                 ),
+                // _buildNavItemWithLabel(
+                //   index: 6,
+                //   icon: Icons.inventory_2_outlined,
+                //   label: 'Bed Assignment',
+                //   isSelected: selectedIndex == 6,
+                //   onTap: () => onItemSelected(6),
+                // ),
                 _buildNavItemWithLabel(
                   index: 5,
-                  icon: Icons.settings_outlined,
-                  label: 'Track Patients',
+                  icon: Icons.local_shipping_outlined,
+                  label: 'External Doctor',
                   isSelected: selectedIndex == 5,
                   onTap: () => onItemSelected(5),
                 ),
                 _buildNavItemWithLabel(
                   index: 6,
-                  icon: Icons.inventory_2_outlined,
-                  label: 'Bed Assignment',
+                  icon: Icons.medical_services,
+                  label: 'Create Appointment',
                   isSelected: selectedIndex == 6,
                   onTap: () => onItemSelected(6),
                 ),
                 _buildNavItemWithLabel(
                   index: 7,
-                  icon: Icons.local_shipping_outlined,
-                  label: 'External Doctor',
+                  icon: Icons.medication_outlined,
+                  label: 'Bed Management',
                   isSelected: selectedIndex == 7,
                   onTap: () => onItemSelected(7),
                 ),
                 _buildNavItemWithLabel(
                   index: 8,
-                  icon: Icons.medical_services,
-                  label: 'Create Appointment',
+                  icon: Icons.medication_outlined,
+                  label: 'Billing',
                   isSelected: selectedIndex == 8,
                   onTap: () => onItemSelected(8),
                 ),
                 _buildNavItemWithLabel(
                   index: 9,
                   icon: Icons.medication_outlined,
-                  label: 'Bed Management',
+                  label: 'Deposits Track',
                   isSelected: selectedIndex == 9,
                   onTap: () => onItemSelected(9),
                 ),
                 _buildNavItemWithLabel(
                   index: 10,
                   icon: Icons.medication_outlined,
-                  label: 'Billing',
+                  label: 'Analysis',
                   isSelected: selectedIndex == 10,
                   onTap: () => onItemSelected(10),
-                ),
-                _buildNavItemWithLabel(
-                  index: 11,
-                  icon: Icons.medication_outlined,
-                  label: 'Anyalysis',
-                  isSelected: selectedIndex == 11,
-                  onTap: () => onItemSelected(11),
                 ),
               ],
             ),

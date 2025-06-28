@@ -89,7 +89,8 @@ class _PatientHistoryDetailScreenState extends State<PatientHistoryDetailScreen>
       } else {
         setState(() {
           errorMessage =
-              'Failed to load patient history. Status: ${response.statusCode}';
+              // 'Failed to load patient history. Status: ${response.statusCode}';
+              'Patient history not found for ID: ${widget.patientId} \n OR \n The patient has no history.';
           isLoading = false;
         });
       }
@@ -156,7 +157,7 @@ class _PatientHistoryDetailScreenState extends State<PatientHistoryDetailScreen>
                       ElevatedButton(
                         onPressed: fetchPatientHistory,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: primary,
+                          backgroundColor: Colors.white,
                         ),
                         child: Text('Retry'),
                       ),

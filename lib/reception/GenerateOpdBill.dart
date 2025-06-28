@@ -400,6 +400,38 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
   final _notesController = TextEditingController();
   final _billingAmountController = TextEditingController();
   final _amountPaidController = TextEditingController();
+  final _consultationFeeController = TextEditingController();
+  final _discountController = TextEditingController();
+
+  // Controllers for service quantity and rate fields
+  final Map<String, TextEditingController> _serviceQuantityControllers = {};
+  final Map<String, TextEditingController> _serviceRateControllers = {};
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize service controllers
+    _initializeServiceControllers();
+    _consultationFeeController.text = '500'; // Set default consultation fee
+  }
+
+  void _initializeServiceControllers() {
+    final services = ['ecg', 'xray', 'injection', 'dialysis', 'dressing'];
+    final defaultRates = {
+      'ecg': 150.0,
+      'xray': 300.0,
+      'injection': 50.0,
+      'dialysis': 800.0,
+      'dressing': 100.0
+    };
+
+    for (String serviceKey in services) {
+      _serviceQuantityControllers[serviceKey] = TextEditingController();
+      _serviceRateControllers[serviceKey] = TextEditingController(
+        text: defaultRates[serviceKey]?.toString() ?? '',
+      );
+    }
+  }
 
   @override
   void dispose() {
@@ -409,6 +441,16 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
     _notesController.dispose();
     _billingAmountController.dispose();
     _amountPaidController.dispose();
+    _consultationFeeController.dispose();
+    _discountController.dispose();
+
+    // Dispose service controllers
+    for (var controller in _serviceQuantityControllers.values) {
+      controller.dispose();
+    }
+    for (var controller in _serviceRateControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -418,11 +460,13 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
     final notifier = ref.read(opdBillingProvider(widget.patientId).notifier);
     final screenSize = MediaQuery.of(context).size;
 
-    // Update controllers when state changes
-    if (_billingAmountController.text != state.billingAmount.toString()) {
+    // Update billing amount and amount paid controllers when state changes
+    if (state.billingAmount > 0 &&
+        _billingAmountController.text != state.billingAmount.toString()) {
       _billingAmountController.text = state.billingAmount.toString();
     }
-    if (_amountPaidController.text != state.amountPaid.toString()) {
+    if (state.amountPaid > 0 &&
+        _amountPaidController.text != state.amountPaid.toString()) {
       _amountPaidController.text = state.amountPaid.toString();
     }
 
@@ -436,7 +480,7 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
           actions: [
             IconButton(
               icon: const Icon(Icons.refresh),
-              onPressed: () => notifier.reset(),
+              onPressed: () => _resetForm(notifier),
               tooltip: 'Reset Form (F5)',
             ),
             const SizedBox(width: 16),
@@ -451,7 +495,7 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
             const SingleActivator(LogicalKeyboardKey.keyP, control: true): () =>
                 _openPdfPreview(state),
             const SingleActivator(LogicalKeyboardKey.f5): () =>
-                notifier.reset(),
+                _resetForm(notifier),
           },
           child: Focus(
             autofocus: true,
@@ -679,9 +723,10 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
             children: [
               Expanded(
                 child: TextFormField(
-                  initialValue: service.quantity.toString(),
+                  controller: _serviceQuantityControllers[serviceKey],
                   decoration: const InputDecoration(
                     labelText: 'Qty',
+                    hintText: '0',
                     isDense: true,
                     contentPadding:
                         EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -689,7 +734,7 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   onChanged: (value) {
-                    final quantity = int.tryParse(value) ?? 0;
+                    final quantity = int.tryParse(value.trim()) ?? 0;
                     notifier.updateServiceQuantity(serviceKey, quantity);
                   },
                 ),
@@ -697,7 +742,7 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: TextFormField(
-                  initialValue: service.rate.toString(),
+                  controller: _serviceRateControllers[serviceKey],
                   decoration: const InputDecoration(
                     labelText: 'Rate',
                     isDense: true,
@@ -709,7 +754,7 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
                     FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))
                   ],
                   onChanged: (value) {
-                    final rate = double.tryParse(value) ?? 0;
+                    final rate = double.tryParse(value.trim()) ?? 0;
                     notifier.updateServiceRate(serviceKey, rate);
                   },
                 ),
@@ -733,7 +778,7 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
   Widget _buildConsultationFeeField(
       OpdBillingState state, OpdBillingNotifier notifier) {
     return TextFormField(
-      initialValue: state.consultationFee.toString(),
+      controller: _consultationFeeController,
       decoration: const InputDecoration(
         labelText: 'Consultation Fee',
         prefixText: '₹ ',
@@ -741,7 +786,7 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
       keyboardType: TextInputType.number,
       inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
       onChanged: (value) {
-        final fee = double.tryParse(value) ?? 0;
+        final fee = double.tryParse(value.trim()) ?? 0;
         notifier.updateConsultationFee(fee);
       },
     );
@@ -946,15 +991,16 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
   Widget _buildDiscountField(
       OpdBillingState state, OpdBillingNotifier notifier) {
     return TextFormField(
-      initialValue: state.discount.toString(),
+      controller: _discountController,
       decoration: const InputDecoration(
         labelText: 'Discount (%)',
+        hintText: '0',
         suffixText: '%',
       ),
       keyboardType: TextInputType.number,
       inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
       onChanged: (value) {
-        final discount = double.tryParse(value) ?? 0;
+        final discount = double.tryParse(value.trim()) ?? 0;
         notifier.updateDiscount(discount);
       },
     );
@@ -1191,7 +1237,7 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
                   FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))
                 ],
                 onChanged: (value) {
-                  final amount = double.tryParse(value) ?? 0;
+                  final amount = double.tryParse(value.trim()) ?? 0;
                   notifier.updateBillingAmount(amount);
                 },
               ),
@@ -1207,7 +1253,7 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
                   FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))
                 ],
                 onChanged: (value) {
-                  final amount = double.tryParse(value) ?? 0;
+                  final amount = double.tryParse(value.trim()) ?? 0;
                   notifier.updateAmountPaid(amount);
                 },
               ),
@@ -1495,6 +1541,25 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
     }
   }
 
+  void _resetForm(OpdBillingNotifier notifier) {
+    // Clear all controllers
+    for (var controller in _serviceQuantityControllers.values) {
+      controller.clear();
+    }
+    _additionalChargeNameController.clear();
+    _additionalChargeQuantityController.clear();
+    _additionalChargeRateController.clear();
+    _notesController.clear();
+    _billingAmountController.clear();
+    _amountPaidController.clear();
+    _discountController.clear();
+    _consultationFeeController.text =
+        '500'; // Reset to default consultation fee
+
+    // Reset state
+    notifier.reset();
+  }
+
   void _showAddChargeDialog(BuildContext context, OpdBillingNotifier notifier) {
     showDialog(
       context: context,
@@ -1521,6 +1586,7 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
                       controller: _additionalChargeQuantityController,
                       decoration: const InputDecoration(
                         labelText: 'Quantity',
+                        hintText: '1',
                       ),
                       keyboardType: TextInputType.number,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -1533,6 +1599,7 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Rate',
                         prefixText: '₹ ',
+                        hintText: '100',
                       ),
                       keyboardType: TextInputType.number,
                       inputFormatters: [
@@ -1558,10 +1625,12 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
           ElevatedButton(
             onPressed: () {
               final name = _additionalChargeNameController.text.trim();
-              final quantity =
-                  int.tryParse(_additionalChargeQuantityController.text) ?? 0;
-              final rate =
-                  double.tryParse(_additionalChargeRateController.text) ?? 0;
+              final quantity = int.tryParse(
+                      _additionalChargeQuantityController.text.trim()) ??
+                  0;
+              final rate = double.tryParse(
+                      _additionalChargeRateController.text.trim()) ??
+                  0;
 
               if (name.isNotEmpty && quantity > 0 && rate > 0) {
                 notifier.addAdditionalCharge(name, quantity, rate);
@@ -1610,7 +1679,8 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              ref.read(opdBillingProvider(widget.patientId).notifier).reset();
+              _resetForm(
+                  ref.read(opdBillingProvider(widget.patientId).notifier));
             },
             child: const Text('New Bill'),
           ),
@@ -1619,7 +1689,6 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
     );
   }
 
-  /// Unified PDF preview method that handles both bill and receipt
   /// Unified PDF preview method that handles both bill and receipt
   void _openPdfPreview(OpdBillingState state, [String? type]) {
     String? url;

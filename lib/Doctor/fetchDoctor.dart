@@ -312,7 +312,7 @@ class _DoctorListScreenState extends State<DoctorListScreen> {
       onPressed: () {
         // Navigate to Register Doctor screen using the global key
         MainLayout.globalKey.currentState
-            ?.navigateTo(5); // 5 is the index for DoctorRegisterScreen
+            ?.navigateTo(4); // 5 is the index for DoctorRegisterScreen
       },
     );
   }
