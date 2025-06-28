@@ -1444,7 +1444,7 @@ class _ErrorState extends StatelessWidget {
         children: [
           Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
           const SizedBox(height: 16),
-          const Text('Failed to load patients'),
+          const Text('Please click retry to load patients'),
           const SizedBox(height: 8),
           Text(
             error.toString(),
