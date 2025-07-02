@@ -784,7 +784,7 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
                                     flex: 2,
                                     child: _buildPatientIdResultSection(
                                       patientId: _opdPatientIdResult,
-                                      color: HospitalTheme.pharmacy,
+                                      color: HospitalTheme.primary,
                                     ),
                                   ),
                                 ],
@@ -987,7 +987,7 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
                             selectedGender: _opdSelectedGender,
                             onChanged: (newValue) =>
                                 setState(() => _opdSelectedGender = newValue!),
-                            color: HospitalTheme.pharmacy,
+                            color: HospitalTheme.primary,
                           ),
                         ),
 
@@ -1739,7 +1739,7 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: color,
+            color: HospitalTheme.primary,
           ),
         ),
         Divider(color: color.withOpacity(0.5)),
@@ -2052,7 +2052,7 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen>
     final patientId =
         isIPD ? _ipdPatientIdController.text : _opdPatientIdController.text;
 
-    final themeColor = isIPD ? HospitalTheme.primary : HospitalTheme.pharmacy;
+    final themeColor = isIPD ? HospitalTheme.primary : HospitalTheme.primary;
 
     // Get screen width to handle responsive layout
     final screenWidth = MediaQuery.of(context).size.width;

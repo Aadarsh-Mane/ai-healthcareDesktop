@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:doctordesktop/Admin/BedManagement.dart';
 import 'package:doctordesktop/Check.dart';
 import 'package:doctordesktop/Doctor/Dashboard/HomeScreen.dart';
@@ -36,53 +38,130 @@ import 'package:doctordesktop/screens/ListPatienAssignToDoctor.dart';
 import 'package:doctordesktop/screens/NurseRegister.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class NurseDashBoardScreen extends StatelessWidget {
+// Logout Provider for state management
+final logoutProvider =
+    StateNotifierProvider<LogoutNotifier, AsyncValue<bool>>((ref) {
+  return LogoutNotifier();
+});
+
+class LogoutNotifier extends StateNotifier<AsyncValue<bool>> {
+  LogoutNotifier() : super(const AsyncValue.data(false));
+
+  Future<void> logout() async {
+    state = const AsyncValue.loading();
+
+    try {
+      // Clear all stored user data
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+
+      // Add a small delay for better UX
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      state = const AsyncValue.data(true);
+    } catch (e, stackTrace) {
+      state = AsyncValue.error('Logout failed: ${e.toString()}', stackTrace);
+    }
+  }
+
+  void resetState() {
+    state = const AsyncValue.data(false);
+  }
+}
+
+class NurseDashBoardScreen extends ConsumerWidget {
   const NurseDashBoardScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Listen to logout state changes
+    ref.listen(logoutProvider, (previous, next) {
+      next.when(
+        data: (success) {
+          if (success) {
+            // Navigate back to login/home page
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => HomePage()),
+              (route) => false,
+            );
+          }
+        },
+        loading: () {
+          // Show loading indicator in snackbar
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: const [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  ),
+                  SizedBox(width: 16),
+                  Text('Logging out...'),
+                ],
+              ),
+              backgroundColor: HospitalTheme.info,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        },
+        error: (error, _) {
+          // Show error message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(error.toString()),
+              backgroundColor: HospitalTheme.error,
+              action: SnackBarAction(
+                label: 'Retry',
+                textColor: Colors.white,
+                onPressed: () => ref.read(logoutProvider.notifier).logout(),
+              ),
+            ),
+          );
+        },
+      );
+    });
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Hospital Management System',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        fontFamily: 'Poppins',
-        scaffoldBackgroundColor: const Color(0xFFF8FBFD),
-      ),
+      theme: HospitalTheme.themeData,
       home: MainLayout(key: MainLayout.globalKey),
     );
   }
 }
 
-class MainLayout extends StatefulWidget {
+class MainLayout extends ConsumerStatefulWidget {
   static final GlobalKey<_MainLayoutState> globalKey =
       GlobalKey<_MainLayoutState>();
 
   const MainLayout({Key? key}) : super(key: key);
 
   @override
-  State<MainLayout> createState() => _MainLayoutState();
+  ConsumerState<MainLayout> createState() => _MainLayoutState();
 }
 
-class _MainLayoutState extends State<MainLayout> {
+class _MainLayoutState extends ConsumerState<MainLayout> {
   int _selectedIndex = 0;
   bool _isSidebarCollapsed = false;
 
   // For keyboard shortcut handling
   final Set<LogicalKeyboardKey> _pressedKeys = <LogicalKeyboardKey>{};
 
-  final List<Widget> _screens = [
-    const ActivePatientsScreen(),
-    const PrescriptionToSaleScreen(),
+  final List<Widget> _screens = const [
+    ActivePatientsScreen(),
+    PrescriptionToSaleScreen(),
     MyEmergencyMedicationsScreen(),
     WardTreatmentTasksScreen(),
     NurseWardAssignmentScreen(),
-    InventoryListScreen(),
-    DistributorScreen(),
-    const MedicineScreen(),
-    AllMedicineScreen(),
-    CreateCustomerScreen(),
   ];
 
   @override
@@ -91,18 +170,19 @@ class _MainLayoutState extends State<MainLayout> {
     _setupKeyboardShortcuts();
   }
 
-  // Improved keyboard shortcut setup
+  @override
+  void dispose() {
+    // Clean up keyboard listener if needed
+    super.dispose();
+  }
+
   void _setupKeyboardShortcuts() {
-    // Add keyboard listeners for global shortcuts
     ServicesBinding.instance.keyboard.addHandler((KeyEvent event) {
-      // Handle key down events
       if (event is KeyDownEvent) {
-        // Avoid duplicate KeyDown events for the same key
         if (_pressedKeys.contains(event.logicalKey)) {
           return false;
         }
 
-        // Add key to pressed keys set
         _pressedKeys.add(event.logicalKey);
 
         // Toggle sidebar with Cmd/Ctrl + B
@@ -113,23 +193,33 @@ class _MainLayoutState extends State<MainLayout> {
           return true;
         }
 
+        // Logout with Cmd/Ctrl + Q
+        if (event.logicalKey == LogicalKeyboardKey.keyQ &&
+            (HardwareKeyboard.instance.isControlPressed ||
+                HardwareKeyboard.instance.isMetaPressed)) {
+          _showLogoutDialog();
+          return true;
+        }
+
+        // Back to Home with Cmd/Ctrl + H
+        if (event.logicalKey == LogicalKeyboardKey.keyH &&
+            (HardwareKeyboard.instance.isControlPressed ||
+                HardwareKeyboard.instance.isMetaPressed)) {
+          _navigateToHome();
+          return true;
+        }
+
         // Navigation shortcuts with Cmd/Ctrl + [1-9]
         if (HardwareKeyboard.instance.isControlPressed ||
             HardwareKeyboard.instance.isMetaPressed) {
-          // Define digit keys
           final digitKeys = [
             LogicalKeyboardKey.digit1,
             LogicalKeyboardKey.digit2,
             LogicalKeyboardKey.digit3,
             LogicalKeyboardKey.digit4,
             LogicalKeyboardKey.digit5,
-            LogicalKeyboardKey.digit6,
-            LogicalKeyboardKey.digit7,
-            LogicalKeyboardKey.digit8,
-            LogicalKeyboardKey.digit9,
           ];
 
-          // Check for digit key presses
           for (int i = 0; i < digitKeys.length; i++) {
             if (event.logicalKey == digitKeys[i] && i < _screens.length) {
               navigateTo(i);
@@ -137,15 +227,10 @@ class _MainLayoutState extends State<MainLayout> {
             }
           }
         }
-      }
-
-      // Handle key up events to properly track key states
-      else if (event is KeyUpEvent) {
-        // Remove the key from pressed keys set
+      } else if (event is KeyUpEvent) {
         _pressedKeys.remove(event.logicalKey);
       }
 
-      // Let other handlers process the event
       return false;
     });
   }
@@ -163,20 +248,40 @@ class _MainLayoutState extends State<MainLayout> {
     });
   }
 
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => LogoutDialog(
+        onConfirm: () {
+          Navigator.pop(context);
+          ref.read(logoutProvider.notifier).logout();
+        },
+        onCancel: () => Navigator.pop(context),
+      ),
+    );
+  }
+
+  void _navigateToHome() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => HomePage()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Use MediaQuery to get screen dimensions for responsive design
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 600;
+    final isTablet = screenWidth >= 600 && screenWidth < 1024;
 
-    // For very small screens, automatically collapse the sidebar
+    // Auto-collapse sidebar on small screens
     if (isSmallScreen && !_isSidebarCollapsed) {
-      // Use Future.microtask to avoid changing state during build
       Future.microtask(() => setState(() => _isSidebarCollapsed = true));
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FBFD),
+      backgroundColor: HospitalTheme.background,
       drawer: isSmallScreen ? _buildDrawer() : null,
       body: Row(
         children: [
@@ -185,29 +290,41 @@ class _MainLayoutState extends State<MainLayout> {
             SidebarWidget(
               selectedIndex: _selectedIndex,
               isCollapsed: _isSidebarCollapsed,
-              onItemSelected: (index) {
-                setState(() {
-                  _selectedIndex = index;
-                });
-              },
+              onItemSelected: navigateTo,
               onToggle: _toggleSidebar,
+              onLogout: _showLogoutDialog,
+              onBackToHome: _navigateToHome,
             ),
 
           // Main Content Area
           Expanded(
             child: Column(
               children: [
-                // Navbar with menu toggle
+                // Navbar with responsive design
                 NavbarWidget(
                   onMenuTap: isSmallScreen
                       ? () => Scaffold.of(context).openDrawer()
                       : _toggleSidebar,
+                  onLogout: _showLogoutDialog,
+                  onBackToHome: _navigateToHome,
                 ),
 
-                // Screen Content
+                // Screen Content with smooth transitions
                 Expanded(
                   child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
+                    duration: const Duration(milliseconds: 300),
+                    transitionBuilder: (child, animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0.1, 0.0),
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: child,
+                        ),
+                      );
+                    },
                     child: KeyedSubtree(
                       key: ValueKey<int>(_selectedIndex),
                       child: _screens[_selectedIndex],
@@ -222,32 +339,40 @@ class _MainLayoutState extends State<MainLayout> {
     );
   }
 
-  // Build drawer for small screens
   Widget _buildDrawer() {
     return Drawer(
-      backgroundColor: PharmaTheme.primaryDark,
+      backgroundColor: HospitalTheme.primaryDark,
       child: SidebarWidget(
         selectedIndex: _selectedIndex,
-        isCollapsed: false, // Always expanded in drawer mode
+        isCollapsed: false,
         onItemSelected: (index) {
           setState(() {
             _selectedIndex = index;
           });
-          // Auto-close drawer when item is selected on small screens
           Navigator.pop(context);
         },
-        onToggle: () => Navigator.pop(context), // Close drawer on toggle
+        onToggle: () => Navigator.pop(context),
+        onLogout: () {
+          Navigator.pop(context);
+          _showLogoutDialog();
+        },
+        onBackToHome: () {
+          Navigator.pop(context);
+          _navigateToHome();
+        },
       ),
     );
   }
 }
 
-// Enhanced Sidebar Widget
+// Enhanced Sidebar Widget with both back and logout functionality
 class SidebarWidget extends StatelessWidget {
   final int selectedIndex;
   final bool isCollapsed;
   final Function(int) onItemSelected;
   final VoidCallback onToggle;
+  final VoidCallback onLogout;
+  final VoidCallback onBackToHome;
 
   const SidebarWidget({
     Key? key,
@@ -255,31 +380,38 @@ class SidebarWidget extends StatelessWidget {
     required this.isCollapsed,
     required this.onItemSelected,
     required this.onToggle,
+    required this.onLogout,
+    required this.onBackToHome,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    // Improved widths for better visibility and usability
-    final double collapsedWidth = 80; // Increased for better visibility
-    final double expandedWidth = 260;
+    const double collapsedWidth = 80;
+    const double expandedWidth = 280;
 
-    // Using AnimatedContainer for smooth transitions
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+      duration: const Duration(milliseconds: 300),
       width: isCollapsed ? collapsedWidth : expandedWidth,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF003366), Color(0xFF1E5799)],
+          colors: [HospitalTheme.primaryDark, HospitalTheme.primary],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(2, 0),
+          ),
+        ],
       ),
       child: Column(
         children: [
-          // App Logo and toggle button - better proportions
-          _buildSidebarHeader(context),
+          // Header
+          _buildSidebarHeader(),
 
-          // Minimal divider
+          // Divider
           Container(
             height: 1,
             color: Colors.white24,
@@ -289,10 +421,8 @@ class SidebarWidget extends StatelessWidget {
             ),
           ),
 
-          // User Profile Section - only when expanded
+          // User Profile
           if (!isCollapsed) _buildUserProfile(),
-
-          // Minimal divider when profile is shown
           if (!isCollapsed)
             Container(
               height: 1,
@@ -300,212 +430,121 @@ class SidebarWidget extends StatelessWidget {
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             ),
 
-          // Navigation Items - main content with improved visibility
+          // Navigation Items
           Expanded(
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
-                _buildNavItemWithLabel(
+                _buildNavItem(
                   index: 0,
-                  icon: Icons.dashboard_outlined,
-                  label: 'Active Patients',
-                  isSelected: selectedIndex == 0,
-                  onTap: () => onItemSelected(0),
-                ),
-                _buildNavItemWithLabel(
-                  index: 1,
                   icon: Icons.people_outline,
-                  label: 'Add Emergency Medication',
-                  isSelected: selectedIndex == 1,
-                  onTap: () => onItemSelected(1),
+                  label: 'Active Patients',
                 ),
-                _buildNavItemWithLabel(
+                _buildNavItem(
+                  index: 1,
+                  icon: Icons.medication_liquid_outlined,
+                  label: 'Emergency Medication',
+                ),
+                _buildNavItem(
                   index: 2,
-                  icon: Icons.calendar_today_outlined,
-                  label: 'My Medication',
-                  isSelected: selectedIndex == 2,
-                  onTap: () => onItemSelected(2),
+                  icon: Icons.medical_services_outlined,
+                  label: 'My Medications',
                 ),
-                _buildNavItemWithLabel(
+                _buildNavItem(
                   index: 3,
-                  icon: Icons.medical_services_outlined,
-                  label: 'My Ward Tasks',
-                  isSelected: selectedIndex == 3,
-                  onTap: () => onItemSelected(3),
+                  icon: Icons.assignment_outlined,
+                  label: 'Ward Tasks',
                 ),
-                _buildNavItemWithLabel(
+                _buildNavItem(
                   index: 4,
-                  icon: Icons.medical_services_outlined,
+                  icon: Icons.domain_outlined,
                   label: 'Ward Assignment',
-                  isSelected: selectedIndex == 4,
-                  onTap: () => onItemSelected(4),
                 ),
-
-                // System section header - only when expanded
-                if (!isCollapsed) ...[
-                  const SizedBox(height: 16),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Text(
-                      'SYSTEM',
-                      style: TextStyle(
-                        color: Colors.white38,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-
-                // _buildNavItemWithLabel(
-                //   index: 4,
-                //   icon: Icons.settings_outlined,
-                //   label: 'History',
-                //   isSelected: selectedIndex == 4,
-                //   onTap: () => onItemSelected(4),
-                // ),
-                // _buildNavItemWithLabel(
-                //   index: 5,
-                //   icon: Icons.inventory_2_outlined,
-                //   label: '',
-                //   isSelected: selectedIndex == 5,
-                //   onTap: () => onItemSelected(5),
-                // ),
-                // _buildNavItemWithLabel(
-                //   index: 6,
-                //   icon: Icons.local_shipping_outlined,
-                //   label: '',
-                //   isSelected: selectedIndex == 6,
-                //   onTap: () => onItemSelected(6),
-                // ),
-                // _buildNavItemWithLabel(
-                //   index: 7,
-                //   icon: Icons.medical_services,
-                //   label: '',
-                //   isSelected: selectedIndex == 7,
-                //   onTap: () => onItemSelected(7),
-                // ),
-                // _buildNavItemWithLabel(
-                //   index: 8,
-                //   icon: Icons.medication_outlined,
-                //   label: '',
-                //   isSelected: selectedIndex == 8,
-                //   onTap: () => onItemSelected(8),
-                // ),
-                // _buildNavItemWithLabel(
-                //   index: 9,
-                //   icon: Icons.medication_outlined,
-                //   label: '',
-                //   isSelected: selectedIndex == 9,
-                //   onTap: () => onItemSelected(9),
-                // ),
               ],
             ),
           ),
 
-          // Optimized logout button
-          _buildLogoutButton(context),
+          // Action Buttons (Back and Logout)
+          _buildActionButtons(),
         ],
       ),
     );
   }
 
-  // Enhanced sidebar header with larger toggle button target area
-  Widget _buildSidebarHeader(BuildContext context) {
+  Widget _buildSidebarHeader() {
     return Container(
-      height: 70,
+      height: 80,
       padding: EdgeInsets.symmetric(
         horizontal: isCollapsed ? 8 : 16,
-        vertical: 12,
+        vertical: 16,
       ),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            HospitalTheme.primary,
-            PharmaTheme.accent,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: PharmaTheme.shadowSmall,
+        color: Colors.white.withOpacity(0.1),
       ),
       child: isCollapsed
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Logo with good visibility
-                  // const Icon(
-                  //   Icons.local_hospital_outlined,
-                  //   color: Colors.white,
-                  //   size: 26,
-                  // ),
-                  const SizedBox(height: 8),
-                  // Toggle button with larger tap target
-                  GestureDetector(
-                    onTap: onToggle,
-                    behavior: HitTestBehavior.opaque,
-                    child: Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
-                        borderRadius:
-                            BorderRadius.circular(PharmaTheme.radiusXs),
-                      ),
-                      child: const Icon(
-                        Icons.arrow_forward_ios,
-                        color: Colors.white,
-                        size: 14,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          ? Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
-                        borderRadius:
-                            BorderRadius.circular(PharmaTheme.radiusS),
-                      ),
-                      child: const Icon(
-                        Icons.local_hospital_outlined,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'HMS',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                  ],
+                Icon(
+                  Icons.local_hospital,
+                  color: Colors.white,
+                  size: 28,
                 ),
-                // Toggle button with improved tap area
+                const SizedBox(height: 8),
                 GestureDetector(
                   onTap: onToggle,
-                  behavior: HitTestBehavior.opaque,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Icon(
+                      Icons.chevron_right,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.local_hospital,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Nurse Portal',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: onToggle,
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(PharmaTheme.radiusXs),
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(4),
                     ),
                     child: const Icon(
-                      Icons.arrow_back_ios,
+                      Icons.chevron_left,
                       color: Colors.white,
-                      size: 14,
+                      size: 16,
                     ),
                   ),
                 ),
@@ -514,21 +553,23 @@ class SidebarWidget extends StatelessWidget {
     );
   }
 
-  // User profile section - unchanged
   Widget _buildUserProfile() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(25),
-            child: Container(
-              width: 42,
-              height: 42,
-              color: PharmaTheme.primary.withOpacity(0.2),
-              child: const Center(
-                child: Image(image: AssetImage('${AppImages.logo}')),
-              ),
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withOpacity(0.2),
+              border: Border.all(color: Colors.white.withOpacity(0.3)),
+            ),
+            child: const Icon(
+              Icons.person,
+              color: Colors.white,
+              size: 24,
             ),
           ),
           const SizedBox(width: 12),
@@ -537,16 +578,15 @@ class SidebarWidget extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "${AppStrings.hospitalName}",
+                  'Nurse',
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    overflow: TextOverflow.ellipsis,
+                    fontSize: 16,
                   ),
                 ),
                 Text(
-                  'Nurse',
+                  'HMS Portal',
                   style: TextStyle(
                     color: Colors.white70,
                     fontSize: 12,
@@ -560,104 +600,84 @@ class SidebarWidget extends StatelessWidget {
     );
   }
 
-  // Improved navigation item with small label in collapsed mode for better usability
-  Widget _buildNavItemWithLabel({
+  Widget _buildNavItem({
     required int index,
     required IconData icon,
     required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
   }) {
-    final Color activeColor = HospitalTheme.primary;
-    final Color inactiveColor = Colors.white;
+    final isSelected = selectedIndex == index;
 
     if (isCollapsed) {
-      // Enhanced collapsed view WITH mini labels for better usability
-      return Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
-          child: Container(
-            height: 70, // Taller to accommodate both icon and text
-            margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? PharmaTheme.primary.withOpacity(0.2)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
-              border: isSelected
-                  ? Border.all(
-                      color: PharmaTheme.primary.withOpacity(0.5), width: 1.5)
-                  : null,
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Icon
-                Icon(
-                  icon,
-                  color: isSelected ? Colors.white : inactiveColor,
-                  size: 24,
-                ),
-                const SizedBox(height: 4),
-                // Mini label - truncated if needed
-                Text(
-                  // Show abbreviated version of label
-                  label.length > 10 ? label.substring(0, 7) + '...' : label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : inactiveColor,
-                    fontSize: 10,
-                    fontWeight:
-                        isSelected ? FontWeight.bold : FontWeight.normal,
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => onItemSelected(index),
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              height: 64,
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.white.withOpacity(0.2) : null,
+                borderRadius: BorderRadius.circular(12),
+                border: isSelected
+                    ? Border.all(color: Colors.white.withOpacity(0.3))
+                    : null,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    icon,
+                    color: Colors.white,
+                    size: 20,
                   ),
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  Text(
+                    label.split(' ')[0],
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       );
     }
 
-    // Normal expanded view - no longer using Focus widget
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-          decoration: BoxDecoration(
-            gradient: isSelected
-                ? LinearGradient(
-                    colors: [PharmaTheme.primary, PharmaTheme.primaryLight],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                  )
-                : null,
-            borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => onItemSelected(index),
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+            decoration: BoxDecoration(
+              color: isSelected ? Colors.white.withOpacity(0.2) : null,
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Row(
               children: [
                 Icon(
                   icon,
-                  color: isSelected ? Colors.white : inactiveColor,
+                  color: Colors.white,
                   size: 22,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Text(
                     label,
-                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: isSelected ? Colors.white : inactiveColor,
-                      fontWeight:
-                          isSelected ? FontWeight.bold : FontWeight.normal,
+                      color: Colors.white,
                       fontSize: 14,
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.normal,
                     ),
                   ),
                 ),
@@ -670,22 +690,6 @@ class SidebarWidget extends StatelessWidget {
                       shape: BoxShape.circle,
                     ),
                   ),
-
-                // Show keyboard shortcut hint
-                if (isSelected && index < 9)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 4),
-                    child: Opacity(
-                      opacity: 0.7,
-                      child: Text(
-                        '⌘${index + 1}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ),
-                  ),
               ],
             ),
           ),
@@ -694,231 +698,477 @@ class SidebarWidget extends StatelessWidget {
     );
   }
 
-  // Improved logout button
-  Widget _buildLogoutButton(BuildContext context) {
-    if (isCollapsed) {
-      // Better logout button with text label
-      return Padding(
-        padding: const EdgeInsets.all(8),
-        child: GestureDetector(
-          onTap: () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => HomePage(),
-              ),
-            );
-          },
-          child: Container(
-            height: 50,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.logout,
-                  color: Colors.white,
-                  size: 20,
-                ),
-                const SizedBox(height: 2),
-                const Text(
-                  'Back',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
+  Widget _buildActionButtons() {
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: OutlinedButton.icon(
-        onPressed: () {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => HomePage(),
-            ),
-          );
-        },
-        icon: const Icon(Icons.logout, color: Colors.white),
-        label: const Text(
-          'Back',
-          style: TextStyle(color: Colors.white),
-        ),
-        style: OutlinedButton.styleFrom(
-          side: BorderSide(color: Colors.white.withOpacity(0.3)),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
-          ),
-        ),
+      child: Column(
+        children: [
+          // Back Button
+          isCollapsed
+              ? GestureDetector(
+                  onTap: onBackToHome,
+                  child: Container(
+                    height: 48,
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: HospitalTheme.primary.withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.home, color: Colors.white, size: 18),
+                        SizedBox(height: 2),
+                        Text(
+                          'Home',
+                          style: TextStyle(color: Colors.white, fontSize: 10),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : OutlinedButton.icon(
+                  onPressed: onBackToHome,
+                  icon: const Icon(Icons.home, size: 18),
+                  label: const Text('Back to Home'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: BorderSide(color: Colors.white.withOpacity(0.3)),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+
+          SizedBox(height: isCollapsed ? 0 : 8),
+
+          // Logout Button
+          isCollapsed
+              ? GestureDetector(
+                  onTap: onLogout,
+                  child: Container(
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: HospitalTheme.error.withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.logout, color: Colors.white, size: 18),
+                        SizedBox(height: 2),
+                        Text(
+                          'Logout',
+                          style: TextStyle(color: Colors.white, fontSize: 10),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : ElevatedButton.icon(
+                  onPressed: onLogout,
+                  icon: const Icon(Icons.logout, size: 18),
+                  label: const Text('Logout'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: HospitalTheme.error,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+        ],
       ),
     );
   }
 }
 
-// Updated Navbar Widget with improved menu toggle
-class NavbarWidget extends StatelessWidget {
+// Enhanced Navbar Widget with back and logout options
+class NavbarWidget extends StatefulWidget {
   final VoidCallback onMenuTap;
+  final VoidCallback onLogout;
+  final VoidCallback onBackToHome;
 
   const NavbarWidget({
     Key? key,
     required this.onMenuTap,
+    required this.onLogout,
+    required this.onBackToHome,
   }) : super(key: key);
 
   @override
+  State<NavbarWidget> createState() => _NavbarWidgetState();
+}
+
+class _NavbarWidgetState extends State<NavbarWidget> {
+  String _currentTime = '';
+  late Timer _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateTime();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      _updateTime();
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  void _updateTime() {
+    final now = DateTime.now();
+    setState(() {
+      _currentTime = DateFormat('HH:mm:ss').format(now);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final isSmallScreen = MediaQuery.of(context).size.width < 600;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isCompact = screenWidth < 1200;
 
     return Container(
       height: 70,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: EdgeInsets.symmetric(horizontal: isCompact ? 12 : 24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        gradient: LinearGradient(
+          colors: [
+            Colors.white,
+            const Color(0xFFF8FBFD),
+          ],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 15,
             offset: const Offset(0, 5),
           ),
         ],
+        border: Border(
+          bottom: BorderSide(
+            color: HospitalTheme.border,
+            width: 1,
+          ),
+        ),
       ),
       child: Row(
         children: [
           // Menu toggle button
           IconButton(
             icon: const Icon(Icons.menu),
-            onPressed: onMenuTap,
-            tooltip: isSmallScreen ? 'Open menu' : 'Toggle sidebar',
-            color: const Color(0xFF1E2843),
+            onPressed: widget.onMenuTap,
+            tooltip: 'Toggle sidebar (Ctrl+B)',
+            color: HospitalTheme.textDark,
           ),
 
-          // Search Bar with responsive width
-          Expanded(
-            child: Container(
-              height: 40,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+          const SizedBox(width: 20),
+
+          // Hospital Management System title
+          if (!isCompact)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: const Color(0xFFF5F7FA),
+                color: HospitalTheme.surfaceLight,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade200),
+                border: Border.all(
+                  color: HospitalTheme.border,
+                  width: 1,
+                ),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.gesture_outlined,
-                      color: Colors.grey.shade500, size: 20),
+                  Icon(
+                    Icons.local_hospital_outlined,
+                    size: 16,
+                    color: HospitalTheme.primary,
+                  ),
                   const SizedBox(width: 8),
                   Text(
-                    'Welcome to HMS Pharmacy',
+                    'Hospital Management System',
                     style: TextStyle(
-                      color: Colors.grey.shade500,
-                      fontSize: 14,
+                      fontSize: 13,
+                      color: HospitalTheme.primary,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
               ),
             ),
-          ),
 
-          // Notification button
-          const SizedBox(width: 16),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF5F7FA),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: Stack(
-              children: [
-                const Icon(Icons.notifications_outlined,
-                    color: Color(0xFF1E2843)),
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  child: Container(
+          const Spacer(),
+
+          // System status
+          if (!isCompact)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: HospitalTheme.border,
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
                     width: 8,
                     height: 8,
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
+                    decoration: BoxDecoration(
+                      color: Colors.green,
                       shape: BoxShape.circle,
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Online',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: HospitalTheme.success,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          const SizedBox(width: 16),
+
+          // Action buttons (Back and Logout)
+          Row(
+            children: [
+              // Back to Home button
+              Container(
+                decoration: BoxDecoration(
+                  color: HospitalTheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border:
+                      Border.all(color: HospitalTheme.primary.withOpacity(0.3)),
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.home_outlined),
+                  onPressed: widget.onBackToHome,
+                  color: HospitalTheme.primary,
+                  iconSize: 20,
+                  tooltip: 'Back to Home (Ctrl+H)',
+                ),
+              ),
+
+              const SizedBox(width: 8),
+
+              // Profile menu with logout
+              PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (value == 'logout') {
+                    widget.onLogout();
+                  } else if (value == 'back') {
+                    widget.onBackToHome();
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'profile',
+                    child: Row(
+                      children: [
+                        Icon(Icons.person_outline, size: 18),
+                        SizedBox(width: 8),
+                        Text('Profile'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'settings',
+                    child: Row(
+                      children: [
+                        Icon(Icons.settings_outlined, size: 18),
+                        SizedBox(width: 8),
+                        Text('Settings'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuDivider(),
+                  PopupMenuItem(
+                    value: 'back',
+                    child: Row(
+                      children: [
+                        Icon(Icons.home_outlined,
+                            size: 18, color: HospitalTheme.primary),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Back to Home',
+                          style: TextStyle(color: HospitalTheme.primary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'logout',
+                    child: Row(
+                      children: [
+                        Icon(Icons.logout,
+                            size: 18, color: HospitalTheme.error),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Logout',
+                          style: TextStyle(color: HospitalTheme.error),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: HospitalTheme.surfaceLight,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: HospitalTheme.border),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: HospitalTheme.primary.withOpacity(0.1),
+                        ),
+                        child: Icon(
+                          Icons.person,
+                          color: HospitalTheme.primary,
+                          size: 18,
+                        ),
+                      ),
+                      if (!isCompact) ...[
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Nurse',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(
+                          Icons.keyboard_arrow_down,
+                          size: 16,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(width: 16),
+
+          // Live clock
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  HospitalTheme.primary,
+                  HospitalTheme.primaryLight,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(10),
+              boxShadow: [
+                BoxShadow(
+                  color: HospitalTheme.primary.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
-          ),
-
-          // Email button - hide on small screens
-          if (!isSmallScreen) ...[
-            const SizedBox(width: 12),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF5F7FA),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: const Icon(Icons.email_outlined, color: Color(0xFF1E2843)),
-            ),
-          ],
-
-          // Profile button
-          const SizedBox(width: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF5F7FA),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: Row(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(50),
-                  child: Container(
-                    width: 30,
-                    height: 30,
-                    color: Colors.blue.shade100,
-                    child: const Center(
-                      child: Icon(
-                        Icons.person,
-                        color: Color(0xFF1E2843),
-                        size: 18,
-                      ),
-                    ),
+                Text(
+                  _currentTime,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    height: 1,
                   ),
                 ),
-                if (!isSmallScreen) ...[
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Admin',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF1E2843),
-                    ),
+                Text(
+                  DateFormat('MMM dd').format(DateTime.now()),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.white.withOpacity(0.9),
+                    height: 1,
                   ),
-                  const SizedBox(width: 4),
-                  const Icon(
-                    Icons.keyboard_arrow_down,
-                    size: 16,
-                    color: Color(0xFF1E2843),
-                  ),
-                ],
+                ),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+// Logout Confirmation Dialog
+class LogoutDialog extends StatelessWidget {
+  final VoidCallback onConfirm;
+  final VoidCallback onCancel;
+
+  const LogoutDialog({
+    Key? key,
+    required this.onConfirm,
+    required this.onCancel,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      title: Row(
+        children: [
+          Icon(
+            Icons.logout,
+            color: HospitalTheme.error,
+            size: 24,
+          ),
+          const SizedBox(width: 12),
+          const Text('Confirm Logout'),
+        ],
+      ),
+      content: const Text(
+        'Are you sure you want to logout? You will need to sign in again to access the nurse portal.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: onCancel,
+          child: Text(
+            'Cancel',
+            style: TextStyle(color: HospitalTheme.textMedium),
+          ),
+        ),
+        ElevatedButton(
+          onPressed: onConfirm,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: HospitalTheme.error,
+            foregroundColor: Colors.white,
+          ),
+          child: const Text('Logout'),
+        ),
+      ],
     );
   }
 }

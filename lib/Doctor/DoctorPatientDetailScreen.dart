@@ -7020,11 +7020,20 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
           const SizedBox(height: 20),
 
           // Add Symptom button
-          buildCustomActionButton(
-            label: 'Add Symptom',
-            startColor: Color(0xFF00B8D4),
-            endColor: Color(0xFF00B8D4),
+          ElevatedButton(
             onPressed: _addSymptom,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Color(0xFF00B8D4),
+              foregroundColor: Colors.black,
+              elevation: 4,
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+            ),
+            child: const Text('Add Symptoms',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold, color: Colors.black)),
           ),
         ],
       ),

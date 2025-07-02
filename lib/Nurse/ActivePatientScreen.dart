@@ -378,9 +378,8 @@ class _ActivePatientsScreenState extends ConsumerState<ActivePatientsScreen> {
       onKeyEvent: _handleKeyboardShortcuts,
       child: Scaffold(
         backgroundColor: HospitalTheme.background,
-        appBar: HospitalTheme.buildAppBar(
-          context: context,
-          title: 'Active Patients',
+        appBar: AppBar(
+          title: const Text('Active Patients'),
           actions: [
             IconButton(
               icon: const Icon(Icons.refresh, color: Colors.white),

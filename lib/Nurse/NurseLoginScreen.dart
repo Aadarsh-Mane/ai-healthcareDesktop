@@ -130,9 +130,14 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
   }
 
   Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
-    state = const AsyncValue.data(null);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+      state = const AsyncValue.data(null);
+    } catch (e) {
+      // Handle logout error gracefully
+      state = const AsyncValue.data(null);
+    }
   }
 
   Future<void> checkAuthStatus() async {
@@ -217,7 +222,14 @@ class LoginFormNotifier extends StateNotifier<LoginFormState> {
 
 // Login Screen Widget
 class NurseLoginScreen extends ConsumerStatefulWidget {
-  const NurseLoginScreen({super.key});
+  final bool showBackButton;
+  final VoidCallback? onBackPressed;
+
+  const NurseLoginScreen({
+    super.key,
+    this.showBackButton = true,
+    this.onBackPressed,
+  });
 
   @override
   ConsumerState<NurseLoginScreen> createState() => _NurseLoginScreenState();
@@ -260,6 +272,19 @@ class _NurseLoginScreenState extends ConsumerState<NurseLoginScreen> {
           event.logicalKey == LogicalKeyboardKey.enter) {
         _handleLogin();
       }
+      // Escape key to go back
+      else if (event.logicalKey == LogicalKeyboardKey.escape &&
+          widget.showBackButton) {
+        _handleBackAction();
+      }
+    }
+  }
+
+  void _handleBackAction() {
+    if (widget.onBackPressed != null) {
+      widget.onBackPressed!();
+    } else if (Navigator.canPop(context)) {
+      Navigator.pop(context);
     }
   }
 
@@ -284,7 +309,9 @@ class _NurseLoginScreenState extends ConsumerState<NurseLoginScreen> {
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
     final isDesktop = screenSize.width > 768;
-    final formWidth = isDesktop ? 400.0 : screenSize.width * 0.9;
+    final isTablet = screenSize.width > 600 && screenSize.width <= 768;
+    final formWidth =
+        isDesktop ? 400.0 : (isTablet ? 350.0 : screenSize.width * 0.9);
 
     ref.listen(authStateProvider, (previous, next) {
       next.when(
@@ -302,6 +329,10 @@ class _NurseLoginScreenState extends ConsumerState<NurseLoginScreen> {
               content: Text(error.toString()),
               backgroundColor: HospitalTheme.error,
               behavior: SnackBarBehavior.floating,
+              margin: EdgeInsets.symmetric(
+                horizontal: isDesktop ? 32.0 : 16.0,
+                vertical: 16.0,
+              ),
             ),
           );
         },
@@ -316,6 +347,14 @@ class _NurseLoginScreenState extends ConsumerState<NurseLoginScreen> {
       onKeyEvent: _handleKeyboardShortcuts,
       child: Scaffold(
         backgroundColor: HospitalTheme.background,
+        appBar: widget.showBackButton
+            ? HospitalTheme.buildAppBar(
+                context: context,
+                title: 'Nurse Login',
+                showBackButton: true,
+                onBackPressed: _handleBackAction,
+              )
+            : null,
         body: SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -326,7 +365,8 @@ class _NurseLoginScreenState extends ConsumerState<NurseLoginScreen> {
               child: ConstrainedBox(
                 constraints: BoxConstraints(
                   maxWidth: formWidth,
-                  minHeight: screenSize.height - 48,
+                  minHeight:
+                      screenSize.height - (widget.showBackButton ? 104 : 48),
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -502,17 +542,34 @@ class _NurseLoginScreenState extends ConsumerState<NurseLoginScreen> {
 
             const SizedBox(height: 16.0),
 
-            // Keyboard Shortcut Hint
-            Text(
-              'Tip: Press Ctrl+Enter to sign in quickly',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: HospitalTheme.textLight,
-                  ),
-              textAlign: TextAlign.center,
-            ),
+            // Keyboard Shortcut Hints
+            _buildKeyboardHints(context),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildKeyboardHints(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          'Keyboard Shortcuts:',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: HospitalTheme.textMedium,
+                fontWeight: FontWeight.w600,
+              ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 4.0),
+        Text(
+          'Ctrl+Enter: Sign in • Escape: Go back',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: HospitalTheme.textLight,
+              ),
+          textAlign: TextAlign.center,
+        ),
+      ],
     );
   }
 

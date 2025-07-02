@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:ffi';
 
 import 'package:doctordesktop/Doctor/PatientHistoryDetailScreen.dart';
+import 'package:doctordesktop/pharmacy/pharmaTheme.dart';
 import 'package:doctordesktop/reception/ManualDischargeSummaryScreen.dart';
 import 'package:doctordesktop/reception/MedicalRecordSummaryScreen.dart';
 import 'package:flutter/material.dart';
@@ -1924,6 +1926,7 @@ extension BorderRadiusExtension on BorderRadius {
 }
 
 // ENHANCED: Patient Details Screen with proper return handling
+
 class PatientDetailsScreen extends StatefulWidget {
   final PatientDischarge patient;
 
@@ -1934,26 +1937,76 @@ class PatientDetailsScreen extends StatefulWidget {
   _PatientDetailsScreenState createState() => _PatientDetailsScreenState();
 }
 
-class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
+class _PatientDetailsScreenState extends State<PatientDetailsScreen>
+    with TickerProviderStateMixin {
   final TextEditingController _billingAmountController =
       TextEditingController();
   final TextEditingController _amountPaidController = TextEditingController();
   bool _isDischargedByReception = false;
-  bool _hasChanges = false; // Track if any changes were made
+  bool _hasChanges = false;
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
     _isDischargedByReception = widget.patient.lastRecord.dischargedByReception;
+
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    ));
+
+    _animationController.forward();
   }
 
-  void _showSnackBar(BuildContext context, String message) {
+  @override
+  void dispose() {
+    _animationController.dispose();
+    _billingAmountController.dispose();
+    _amountPaidController.dispose();
+    super.dispose();
+  }
+
+  void _showSnackBar(BuildContext context, String message,
+      {bool isSuccess = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Row(
+          children: [
+            Icon(
+              isSuccess ? Icons.check_circle : Icons.info,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message,
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: isSuccess ? HospitalTheme.success : HospitalTheme.info,
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        margin: const EdgeInsets.all(16),
         action: SnackBarAction(
           label: 'Dismiss',
+          textColor: Colors.white,
           onPressed: () {
             ScaffoldMessenger.of(context).hideCurrentSnackBar();
           },
@@ -1969,7 +2022,6 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
         setState(() {
           _isDischargedByReception = true;
         });
-        // Call the backend to update the discharge status
         await _updateDischargeStatus();
       }
     } else {
@@ -1983,40 +2035,80 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
     return await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: Text(
-              'Confirm Discharge',
-              style: GoogleFonts.poppins(
-                fontWeight: FontWeight.bold,
-                color: HospitalTheme.primary,
-              ),
+            shape: RoundedRectangleBorder(
+              borderRadius: HospitalTheme.radiusLarge,
+            ),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: HospitalTheme.warning.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.warning_amber_rounded,
+                    color: HospitalTheme.warning,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Confirm Discharge',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.bold,
+                      color: HospitalTheme.textDark,
+                      fontSize: 18,
+                    ),
+                  ),
+                ),
+              ],
             ),
             content: Text(
-              'Are you sure you want to discharge this patient?',
-              style: GoogleFonts.poppins(),
+              'Are you sure you want to discharge this patient? This action will update the patient\'s status.',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: HospitalTheme.textMedium,
+                height: 1.5,
+              ),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
+                style: TextButton.styleFrom(
+                  foregroundColor: HospitalTheme.textMedium,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: HospitalTheme.radiusSmall,
+                  ),
+                ),
                 child: Text(
                   'Cancel',
-                  style: GoogleFonts.poppins(color: Colors.grey.shade700),
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
                 ),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(true),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: HospitalTheme.secondary,
+                  backgroundColor: HospitalTheme.warning,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: HospitalTheme.radiusSmall,
+                  ),
+                  elevation: 2,
                 ),
                 child: Text(
                   'Confirm',
-                  style: GoogleFonts.poppins(color: Colors.white),
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            elevation: 4,
           ),
         ) ??
         false;
@@ -2030,12 +2122,11 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
       );
 
       if (response.statusCode == 200) {
-        // Mark that changes were made
         _hasChanges = true;
-        _showSnackBar(context, "Patient discharged successfully.");
+        _showSnackBar(context, "Patient discharged successfully.",
+            isSuccess: true);
       } else {
         setState(() {
-          // Reset the switch if the API call fails
           _isDischargedByReception = false;
         });
         _showSnackBar(
@@ -2043,7 +2134,6 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
       }
     } catch (e) {
       setState(() {
-        // Reset the switch if there's an exception
         _isDischargedByReception = false;
       });
       _showSnackBar(context, "Error: $e");
@@ -2054,7 +2144,6 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
     BuildContext? dialogContext;
 
     try {
-      // Show loading indicator
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -2062,30 +2151,38 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
           dialogContext = ctx;
           return AlertDialog(
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: HospitalTheme.radiusLarge,
             ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                CircularProgressIndicator(
-                  valueColor:
-                      AlwaysStoppedAnimation<Color>(HospitalTheme.primary),
-                  strokeWidth: 3,
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: HospitalTheme.primary.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: CircularProgressIndicator(
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(HospitalTheme.primary),
+                    strokeWidth: 3,
+                  ),
                 ),
-                SizedBox(height: 20),
+                const SizedBox(height: 24),
                 Text(
                   'Generating discharge summary...',
                   style: GoogleFonts.poppins(
                     fontSize: 16,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
+                    color: HospitalTheme.textDark,
                   ),
                 ),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 Text(
                   'Please wait while we prepare your document',
                   style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
+                    fontSize: 13,
+                    color: HospitalTheme.textMedium,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -2100,7 +2197,6 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
             '${KVM_URL}/reception/generateDischargeSummary/${widget.patient.patientId}'),
       );
 
-      // Close loading dialog
       if (dialogContext != null && Navigator.of(dialogContext!).canPop()) {
         Navigator.of(dialogContext!).pop();
         dialogContext = null;
@@ -2114,33 +2210,38 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
           final String fileName =
               responseData['data']['fileName'] ?? 'Discharge Summary';
 
-          // Mark that changes were made (summary generated)
           _hasChanges = true;
 
-          // Show success dialog
           showDialog(
             context: context,
             barrierDismissible: true,
             builder: (BuildContext successDialogContext) {
               return AlertDialog(
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: HospitalTheme.radiusLarge,
                 ),
                 title: Row(
                   children: [
-                    Icon(
-                      Icons.check_circle,
-                      color: Colors.green,
-                      size: 28,
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: HospitalTheme.success.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.check_circle_rounded,
+                        color: HospitalTheme.success,
+                        size: 28,
+                      ),
                     ),
-                    SizedBox(width: 12),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         'Summary Generated',
                         style: GoogleFonts.poppins(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: HospitalTheme.primary,
+                          color: HospitalTheme.textDark,
                         ),
                       ),
                     ),
@@ -2154,48 +2255,77 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                       'Discharge summary has been generated successfully!',
                       style: GoogleFonts.poppins(
                         fontSize: 14,
-                        color: Colors.grey.shade700,
+                        color: HospitalTheme.textMedium,
+                        height: 1.5,
                       ),
                     ),
-                    SizedBox(height: 12),
+                    const SizedBox(height: 16),
                     Container(
-                      padding: EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: HospitalTheme.primary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
+                        gradient: LinearGradient(
+                          colors: [
+                            HospitalTheme.primary.withOpacity(0.1),
+                            HospitalTheme.secondary.withOpacity(0.05),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: HospitalTheme.radiusMedium,
                         border: Border.all(
                           color: HospitalTheme.primary.withOpacity(0.3),
                         ),
                       ),
                       child: Row(
                         children: [
-                          Icon(
-                            Icons.picture_as_pdf,
-                            color: HospitalTheme.primary,
-                            size: 20,
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: HospitalTheme.primary,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.picture_as_pdf,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                           ),
-                          SizedBox(width: 8),
+                          const SizedBox(width: 12),
                           Expanded(
-                            child: Text(
-                              fileName,
-                              style: GoogleFonts.poppins(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: HospitalTheme.primary,
-                              ),
-                              overflow: TextOverflow.ellipsis,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'PDF Document',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 12,
+                                    color: HospitalTheme.textMedium,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                Text(
+                                  fileName,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: HospitalTheme.textDark,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 2,
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
                     ),
-                    SizedBox(height: 16),
+                    const SizedBox(height: 16),
                     Text(
                       'Would you like to open the PDF document now?',
                       style: GoogleFonts.poppins(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: Colors.grey.shade800,
+                        color: HospitalTheme.textDark,
                       ),
                     ),
                   ],
@@ -2205,14 +2335,15 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                     onPressed: () {
                       Navigator.of(successDialogContext).pop();
                       _showSnackBar(
-                          context, 'Discharge summary saved successfully');
+                          context, 'Discharge summary saved successfully',
+                          isSuccess: true);
                     },
                     style: TextButton.styleFrom(
-                      foregroundColor: Colors.grey.shade600,
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      foregroundColor: HospitalTheme.textMedium,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 12),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: HospitalTheme.radiusSmall,
                       ),
                     ),
                     child: Text(
@@ -2230,14 +2361,14 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: HospitalTheme.primary,
                       foregroundColor: Colors.white,
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 12),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: HospitalTheme.radiusSmall,
                       ),
                       elevation: 2,
                     ),
-                    icon: Icon(Icons.open_in_new, size: 18),
+                    icon: const Icon(Icons.open_in_new, size: 18),
                     label: Text(
                       'Open PDF',
                       style: GoogleFonts.poppins(
@@ -2275,123 +2406,114 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
     final isWideScreen = screenSize.width > 1200;
     final isMediumScreen = screenSize.width > 800 && screenSize.width <= 1200;
 
-    return WillPopScope(
-      // ENHANCED: Handle back button to return changes flag
-      onWillPop: () async {
-        Navigator.of(context).pop(_hasChanges);
-        return false;
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.escape): () {
+          Navigator.of(context).pop(_hasChanges);
+        },
+        const SingleActivator(LogicalKeyboardKey.keyF, control: true): () {
+          // Future: Add search functionality
+        },
       },
-      child: Scaffold(
-        backgroundColor: HospitalTheme.background,
-        appBar: _buildAppBar(context),
-        body: SafeArea(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  _buildPatientHeader(),
-                  const SizedBox(height: 20),
-                  // Responsive layout based on screen width
-                  if (isWideScreen) ...[
-                    // Wide screen layout - two columns side by side
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Left column - Patient & Admission details
-                        Expanded(
-                          flex: 1,
-                          child: Column(
-                            children: [
-                              _buildInfoCard(
-                                'Patient Information',
-                                Icons.person_outline,
-                                _buildPatientInfoContent(),
-                              ),
-                              const SizedBox(height: 16),
-                              _buildInfoCard(
-                                'Admission Details',
-                                Icons.medical_services,
-                                _buildAdmissionDetailsContent(record),
-                              ),
-                            ],
+      child: Focus(
+        autofocus: true,
+        child: WillPopScope(
+          onWillPop: () async {
+            Navigator.of(context).pop(_hasChanges);
+            return false;
+          },
+          child: Scaffold(
+            backgroundColor: const Color(0xFFF0F4F8),
+            appBar: _buildAppBar(context),
+            body: SafeArea(
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      // Header and Medical Overview Row - Always same width and height
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 1,
+                            child: _buildPatientHeader(),
                           ),
-                        ),
-                        const SizedBox(width: 16),
-                        // Right column - Medical overview, discharge & actions
-                        Expanded(
-                          flex: 1,
-                          child: Column(
-                            children: [
-                              _buildMedicalInfoCard(record),
-                              const SizedBox(height: 16),
-                              _buildDischargeSection(),
-                              const SizedBox(height: 16),
-                              _buildActionButtons(record),
-                            ],
+                          const SizedBox(width: 16),
+                          Expanded(
+                            flex: 1,
+                            child: _buildMedicalInfoCard(record),
                           ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 12), // Reduced from 24 to 12
+
+                      if (isWideScreen) ...[
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              flex: 1,
+                              child: Column(
+                                children: [
+                                  _buildPatientInfoCard(),
+                                  const SizedBox(height: 16),
+                                  _buildAdmissionDetailsCard(record),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              flex: 1,
+                              child: Column(
+                                children: [
+                                  _buildDischargeSection(),
+                                  const SizedBox(height: 16),
+                                  _buildActionButtons(record),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
+                      ] else if (isMediumScreen) ...[
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  _buildPatientInfoCard(),
+                                  const SizedBox(height: 16),
+                                  _buildDischargeSection(),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  _buildAdmissionDetailsCard(record),
+                                  const SizedBox(height: 16),
+                                  _buildActionButtons(record),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ] else ...[
+                        _buildPatientInfoCard(),
+                        const SizedBox(height: 16),
+                        _buildAdmissionDetailsCard(record),
+                        const SizedBox(height: 16),
+                        _buildDischargeSection(),
+                        const SizedBox(height: 16),
+                        _buildActionButtons(record),
                       ],
-                    ),
-                  ] else if (isMediumScreen) ...[
-                    // Medium screen layout - staggered columns
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Left column - Patient info & Medical overview
-                        Expanded(
-                          child: Column(
-                            children: [
-                              _buildInfoCard(
-                                'Patient Information',
-                                Icons.person_outline,
-                                _buildPatientInfoContent(),
-                              ),
-                              const SizedBox(height: 16),
-                              _buildMedicalInfoCard(record),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        // Right column - Admission details, discharge & actions
-                        Expanded(
-                          child: Column(
-                            children: [
-                              _buildInfoCard(
-                                'Admission Details',
-                                Icons.medical_services,
-                                _buildAdmissionDetailsContent(record),
-                              ),
-                              const SizedBox(height: 16),
-                              _buildDischargeSection(),
-                              const SizedBox(height: 16),
-                              _buildActionButtons(record),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ] else ...[
-                    // Mobile/small screen layout - single column
-                    _buildInfoCard(
-                      'Patient Information',
-                      Icons.person_outline,
-                      _buildPatientInfoContent(),
-                    ),
-                    const SizedBox(height: 16),
-                    _buildInfoCard(
-                      'Admission Details',
-                      Icons.medical_services,
-                      _buildAdmissionDetailsContent(record),
-                    ),
-                    const SizedBox(height: 16),
-                    _buildMedicalInfoCard(record),
-                    const SizedBox(height: 16),
-                    _buildDischargeSection(),
-                    const SizedBox(height: 16),
-                    _buildActionButtons(record),
-                  ],
-                ],
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -2400,55 +2522,29 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
     );
   }
 
-  // Build the patient info content separately to avoid code duplication
-  Widget _buildPatientInfoContent() {
-    return Column(
-      children: [
-        _buildInfoRow('Patient ID', widget.patient.patientId),
-        _buildInfoRow('Gender', widget.patient.gender),
-        _buildInfoRow('Contact', widget.patient.contact),
-        _buildInfoRow(
-            'Patient Type',
-            widget.patient.lastRecord.patientType?.capitalizeFirst() ??
-                'Unknown'),
-        _buildInfoRow(
-            'Doctor Type',
-            widget.patient.lastRecord.doctor?.usertype?.capitalizeFirst() ??
-                'Unknown'),
-        _buildInfoRow(
-            'Doctor Name', widget.patient.lastRecord.doctor?.name ?? 'Unknown'),
-      ],
-    );
-  }
-
-  // Build the admission details content separately
-  Widget _buildAdmissionDetailsContent(record) {
-    return Column(
-      children: [
-        _buildInfoRow('Admission ID', record.admissionId),
-        _buildInfoRow('Admission Date', record.admissionDate),
-        _buildInfoRow('Discharge Date', record.dischargeDate),
-        _buildInfoRow('Reason', record.reasonForAdmission ?? 'Not specified'),
-        _buildInfoRow('Symptoms', record.symptoms ?? 'Not specified'),
-        _buildInfoRow('Diagnosis', record.initialDiagnosis ?? 'Not specified'),
-        _buildInfoRow('Condition', record.conditionAtDischarge),
-      ],
-    );
-  }
-
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
       elevation: 0,
-      backgroundColor: HospitalTheme.primary,
+      flexibleSpace: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+      ),
       leading: IconButton(
         icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
-        // ENHANCED: Return changes flag when back button is pressed
-        onPressed: () => Navigator.pop(context, _hasChanges),
+        onPressed: () {
+          HapticFeedback.lightImpact();
+          Navigator.pop(context, _hasChanges);
+        },
       ),
       title: Text(
         widget.patient.name,
         style: GoogleFonts.poppins(
-          fontSize: 22,
+          fontSize: 20,
           fontWeight: FontWeight.w600,
           color: Colors.white,
         ),
@@ -2458,19 +2554,18 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
         Tooltip(
           message: 'Print Details',
           child: IconButton(
-            icon: Icon(Icons.print, color: Colors.white),
+            icon: const Icon(Icons.print_rounded, color: Colors.white),
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Print functionality coming soon')),
-              );
+              HapticFeedback.lightImpact();
+              _showSnackBar(context, 'Print functionality coming soon');
             },
           ),
         ),
         Padding(
           padding: const EdgeInsets.only(right: 16.0),
           child: CircleAvatar(
-            backgroundColor: Colors.white24,
-            child: Icon(Icons.person, color: Colors.white),
+            backgroundColor: Colors.white.withOpacity(0.2),
+            child: const Icon(Icons.person_rounded, color: Colors.white),
           ),
         ),
       ],
@@ -2478,126 +2573,201 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
   }
 
   Widget _buildPatientHeader() {
-    // Determine patient and doctor type for the header display
     final isInternalPatient =
         widget.patient.lastRecord.patientType?.toLowerCase() == 'internal';
     final doctorType =
-        widget.patient.lastRecord.doctor?.usertype?.capitalizeFirst() ??
-            'Unknown';
+        widget.patient.lastRecord.doctor?.name?.capitalizeFirst() ?? 'Unknown';
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-            colors: [HospitalTheme.primary, HospitalTheme.secondary],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight),
-        borderRadius: BorderRadius.circular(12),
+        gradient: const LinearGradient(
+          colors: [
+            HospitalTheme.surfaceLight,
+            HospitalTheme.cardBackground,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black12,
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          )
+            color: HospitalTheme.primary.withOpacity(0.4),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          CircleAvatar(
-            radius: 30,
-            backgroundColor: Colors.white24,
-            child: Icon(Icons.person, size: 40, color: Colors.white),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.patient.name,
-                  style: GoogleFonts.poppins(
-                    fontSize: 20,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Patient ID: ${widget.patient.patientId}',
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    color: Colors.white.withOpacity(0.9),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Type badges
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          Row(
             children: [
-              // Patient type badge
               Container(
-                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                width: 80,
+                height: 80,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withOpacity(0.5)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      isInternalPatient ? Icons.person : Icons.person_outline,
-                      color: Colors.white,
-                      size: 14,
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFFE082), Color(0xFFFFB74D)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.orange.withOpacity(0.3),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
                     ),
-                    SizedBox(width: 5),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.person_rounded,
+                  size: 40,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      isInternalPatient
-                          ? 'Internal Patient'
-                          : 'External Patient',
-                      style: TextStyle(
-                        color: Colors.white,
+                      widget.patient.name,
+                      style: GoogleFonts.poppins(
+                        fontSize: 26,
+                        color: Colors.black,
                         fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(20),
+                        border:
+                            Border.all(color: Colors.white.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.badge_rounded,
+                            color: Colors.black,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'ID: ${widget.patient.patientId}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: Colors.black,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
-
-              SizedBox(height: 6),
-
-              // Doctor type badge
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withOpacity(0.5)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      doctorType.toLowerCase() == 'doctor'
-                          ? Icons.medical_services
-                          : Icons.person_pin,
-                      color: Colors.white,
-                      size: 14,
-                    ),
-                    SizedBox(width: 5),
-                    Text(
-                      '$doctorType Doctor',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: isInternalPatient
+                        ? const LinearGradient(
+                            colors: [Color(0xFF2196F3), Color(0xFF64B5F6)])
+                        : const LinearGradient(
+                            colors: [Color(0xFF9C27B0), Color(0xFFBA68C8)]),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (isInternalPatient ? Colors.blue : Colors.purple)
+                            .withOpacity(0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
                       ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        isInternalPatient
+                            ? Icons.home_rounded
+                            : Icons.person_outline_rounded,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        isInternalPatient ? 'Internal' : 'External',
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      Text(
+                        'Patient',
+                        style: GoogleFonts.poppins(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFF5722), Color(0xFFFF8A65)],
                     ),
-                  ],
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.deepOrange.withOpacity(0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.medical_services_rounded,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Doctor',
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      Text(
+                        doctorType,
+                        style: GoogleFonts.poppins(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 12,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -2607,51 +2777,220 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
     );
   }
 
-  Widget _buildInfoCard(String title, IconData icon, Widget content) {
-    return Card(
-      color: HospitalTheme.background,
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: HospitalTheme.primary, size: 24),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: HospitalTheme.primary,
-                  ),
-                ),
-              ],
-            ),
-            Divider(color: Colors.grey.shade200, thickness: 1, height: 24),
-            content,
-          ],
+  Widget _buildPatientInfoCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Colors.white, Color(0xFFFAFBFF)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: HospitalTheme.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [
+                      HospitalTheme.primary,
+                      HospitalTheme.secondary,
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: HospitalTheme.primary.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.person_outline_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Text(
+                'Patient Information',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: HospitalTheme.textDark,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _buildColorfulInfoRow('Patient ID', widget.patient.patientId,
+              Icons.badge_rounded, const Color(0xFF3F51B5)),
+          _buildColorfulInfoRow('Gender', widget.patient.gender,
+              Icons.person_rounded, const Color(0xFFE91E63)),
+          _buildColorfulInfoRow('Contact', widget.patient.contact,
+              Icons.phone_rounded, const Color(0xFF4CAF50)),
+          _buildColorfulInfoRow(
+            'Patient Type',
+            widget.patient.lastRecord.patientType?.capitalizeFirst() ??
+                'Unknown',
+            Icons.category_rounded,
+            const Color(0xFFFF9800),
+          ),
+          _buildColorfulInfoRow(
+            'Doctor Type',
+            widget.patient.lastRecord.doctor?.usertype?.capitalizeFirst() ??
+                'Unknown',
+            Icons.medical_services_rounded,
+            const Color(0xFF9C27B0),
+          ),
+          _buildColorfulInfoRow(
+            'Doctor Name',
+            widget.patient.lastRecord.doctor?.name ?? 'Unknown',
+            Icons.person_pin_rounded,
+            const Color(0xFF795548),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
+  Widget _buildAdmissionDetailsCard(record) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Colors.white, Color(0xFFFAFBFF)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: HospitalTheme.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [HospitalTheme.medical, HospitalTheme.pharmacy],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: HospitalTheme.medical.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.medical_services_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Text(
+                'Admission Details',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: HospitalTheme.textDark,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _buildColorfulInfoRow('Admission ID', record.admissionId,
+              Icons.confirmation_number_rounded, const Color(0xFF2196F3)),
+          _buildColorfulInfoRow('Admission Date', record.admissionDate,
+              Icons.calendar_today_rounded, const Color(0xFF4CAF50)),
+          _buildColorfulInfoRow('Discharge Date', record.dischargeDate,
+              Icons.event_available_rounded, const Color(0xFFFF9800)),
+          _buildColorfulInfoRow(
+              'Reason',
+              record.reasonForAdmission ?? 'Not specified',
+              Icons.description_rounded,
+              const Color(0xFFE91E63)),
+          _buildColorfulInfoRow('Symptoms', record.symptoms ?? 'Not specified',
+              Icons.sick_rounded, const Color(0xFFFF5722)),
+          _buildColorfulInfoRow(
+              'Diagnosis',
+              record.initialDiagnosis ?? 'Not specified',
+              Icons.sick,
+              const Color(0xFF795548)),
+          _buildColorfulInfoRow('Condition', record.conditionAtDischarge,
+              Icons.health_and_safety_rounded, const Color(0xFF607D8B)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildColorfulInfoRow(
+      String label, String value, IconData icon, Color color) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            color.withOpacity(0.05),
+            color.withOpacity(0.02),
+          ],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.1)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [color, color.withOpacity(0.7)],
+              ),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              color: Colors.white,
+              size: 16,
+            ),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             flex: 2,
             child: Text(
               label,
               style: GoogleFonts.poppins(
-                fontSize: 14,
-                color: Colors.grey.shade600,
+                fontSize: 13,
+                color: HospitalTheme.textMedium,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -2661,10 +3000,11 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
             child: Text(
               value,
               style: GoogleFonts.poppins(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-                color: Colors.black87,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: color,
               ),
+              textAlign: TextAlign.end,
             ),
           ),
         ],
@@ -2673,84 +3013,142 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
   }
 
   Widget _buildMedicalInfoCard(record) {
-    return Card(
-      color: HospitalTheme.background,
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.monitor_heart, color: HospitalTheme.primary),
-                const SizedBox(width: 12),
-                Text(
-                  'Medical Overview',
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: HospitalTheme.primary,
-                  ),
-                ),
-              ],
-            ),
-            Divider(color: Colors.grey.shade200, thickness: 1, height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildMedicalStat(
-                      'Weight', '${record.weight} kg', Icons.line_weight),
-                ),
-                Expanded(
-                  child: _buildMedicalStat('Previous Balance',
-                      '${record.previousRemainingAmount}', Icons.attach_money),
-                ),
-              ],
-            ),
-            SizedBox(height: 12),
-            _buildMedicalStat(
-                'Amount Due', '${record.amountToBePayed}', Icons.payment),
-          ],
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Colors.white, Color(0xFFFAFBFF)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: HospitalTheme.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [HospitalTheme.laboratory, HospitalTheme.emergency],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: HospitalTheme.laboratory.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.monitor_heart_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Text(
+                'Medical Overview',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: HospitalTheme.textDark,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: _buildMedicalStat(
+                  'Weight',
+                  '${record.weight} kg',
+                  Icons.line_weight_rounded,
+                  HospitalTheme.info,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildMedicalStat(
+                  'Previous Balance',
+                  '₹${record.previousRemainingAmount}',
+                  Icons.account_balance_wallet_rounded,
+                  HospitalTheme.warning,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildMedicalStat(
+            'Amount Due',
+            '₹${record.amountToBePayed}',
+            Icons.payment_rounded,
+            HospitalTheme.error,
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildMedicalStat(String label, String value, IconData icon) {
+  Widget _buildMedicalStat(
+      String label, String value, IconData icon, Color color) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: HospitalTheme.secondary.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
+        gradient: LinearGradient(
+          colors: [
+            color.withOpacity(0.08),
+            color.withOpacity(0.03),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.15)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: HospitalTheme.secondary, size: 24),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    color: Colors.grey.shade600,
-                  ),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                Text(
-                  value,
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: HospitalTheme.primary,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+                child: Icon(icon, color: Colors.white, size: 16),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  color: HospitalTheme.textMedium,
+                  fontWeight: FontWeight.w500,
                 ),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: color,
             ),
           ),
         ],
@@ -2759,236 +3157,451 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
   }
 
   Widget _buildDischargeSection() {
-    return Card(
-      color: HospitalTheme.background,
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.exit_to_app, color: HospitalTheme.primary),
-                const SizedBox(width: 12),
-                Text(
-                  'Discharge Control',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: HospitalTheme.primary,
-                  ),
-                ),
-              ],
-            ),
-            Divider(color: Colors.grey.shade200, thickness: 1, height: 24),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(
-                'Mark as Discharged',
-                style: GoogleFonts.poppins(fontSize: 15),
-              ),
-              subtitle: Text(
-                'Confirm patient discharge status',
-                style: GoogleFonts.poppins(fontSize: 13),
-              ),
-              activeColor: HospitalTheme.secondary,
-              activeTrackColor: HospitalTheme.secondary.withOpacity(0.2),
-              value: _isDischargedByReception,
-              onChanged: _toggleDischargeByReception,
-            ),
-            if (_isDischargedByReception)
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Colors.white, Color(0xFFFAFBFF)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: HospitalTheme.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
               Container(
-                margin: EdgeInsets.only(top: 12),
-                padding: EdgeInsets.all(12),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.green.shade300),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.check_circle, color: Colors.green),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Patient has been marked as discharged',
-                        style: GoogleFonts.poppins(
-                          color: Colors.green.shade700,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    )
+                  gradient: LinearGradient(
+                    colors: _isDischargedByReception
+                        ? [
+                            HospitalTheme.success,
+                            HospitalTheme.success.withOpacity(0.7)
+                          ]
+                        : [HospitalTheme.secondary, HospitalTheme.accent],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: (_isDischargedByReception
+                              ? HospitalTheme.success
+                              : HospitalTheme.secondary)
+                          .withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
                   ],
                 ),
+                child: Icon(
+                  _isDischargedByReception
+                      ? Icons.check_circle_rounded
+                      : Icons.exit_to_app_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
               ),
-          ],
-        ),
+              const SizedBox(width: 16),
+              Text(
+                'Discharge Control',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: HospitalTheme.textDark,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: _isDischargedByReception
+                    ? [
+                        HospitalTheme.success.withOpacity(0.05),
+                        HospitalTheme.success.withOpacity(0.02)
+                      ]
+                    : [
+                        HospitalTheme.surfaceLight.withOpacity(0.5),
+                        Colors.white
+                      ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _isDischargedByReception
+                    ? HospitalTheme.success.withOpacity(0.2)
+                    : HospitalTheme.border,
+              ),
+            ),
+            child: Column(
+              children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    'Mark as Discharged',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: HospitalTheme.textDark,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Confirm patient discharge status',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      color: HospitalTheme.textMedium,
+                    ),
+                  ),
+                  activeColor: HospitalTheme.success,
+                  activeTrackColor: HospitalTheme.success.withOpacity(0.3),
+                  inactiveThumbColor: HospitalTheme.textLight,
+                  inactiveTrackColor: HospitalTheme.border,
+                  value: _isDischargedByReception,
+                  onChanged: (value) {
+                    HapticFeedback.lightImpact();
+                    _toggleDischargeByReception(value);
+                  },
+                ),
+                if (_isDischargedByReception) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          HospitalTheme.success.withOpacity(0.1),
+                          HospitalTheme.success.withOpacity(0.05),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: HospitalTheme.success.withOpacity(0.2),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: HospitalTheme.success,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Icon(
+                            Icons.check_circle_rounded,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Patient has been marked as discharged',
+                            style: GoogleFonts.poppins(
+                              color: HospitalTheme.success,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildActionButtons(record) {
-    return Card(
-      color: HospitalTheme.background,
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Colors.white, Color(0xFFFAFBFF)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: HospitalTheme.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [HospitalTheme.accent, HospitalTheme.primary],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: HospitalTheme.accent.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.dashboard_customize_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Text(
+                'Quick Actions',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: HospitalTheme.textDark,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.2,
+            children: [
+              _buildModernActionButton(
+                'Generate Bill',
+                Icons.receipt_long_rounded,
+                [const Color(0xFF3B82F6), const Color(0xFF1E40AF)],
+                () async {
+                  HapticFeedback.mediumImpact();
+                  final result = await Navigator.push<bool>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => GenerateIpdBillScreen(
+                          patientId: widget.patient.patientId),
+                    ),
+                  );
+                  if (result == true) {
+                    setState(() {
+                      _hasChanges = true;
+                    });
+                  }
+                },
+              ),
+              _buildModernActionButton(
+                'OPD Bill',
+                Icons.assignment_rounded,
+                [const Color(0xFFF59E0B), const Color(0xFFD97706)],
+                () async {
+                  HapticFeedback.mediumImpact();
+                  final result = await Navigator.push<bool>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => OpdBillingScreen(
+                        patientId: widget.patient.patientId,
+                      ),
+                    ),
+                  );
+                  if (result == true) {
+                    setState(() {
+                      _hasChanges = true;
+                    });
+                  }
+                },
+              ),
+              _buildModernActionButton(
+                'History',
+                Icons.history_rounded,
+                [const Color(0xFF6366F1), const Color(0xFF4F46E5)],
+                () {
+                  HapticFeedback.lightImpact();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PatientHistoryDetailScreen(
+                          patientId: widget.patient.patientId),
+                    ),
+                  );
+                },
+              ),
+              _buildModernActionButton(
+                'Medical Summary',
+                Icons.medical_information_rounded,
+                [const Color(0xFF059669), const Color(0xFF047857)],
+                () {
+                  HapticFeedback.lightImpact();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => MedicalRecordSummaryScreen(
+                          initialPatientId: widget.patient.patientId),
+                    ),
+                  );
+                },
+              ),
+              _buildModernActionButton(
+                'Print Summary',
+                Icons.print_rounded,
+                [const Color(0xFF7C3AED), const Color(0xFF6D28D9)],
+                () {
+                  HapticFeedback.mediumImpact();
+                  _generateDischargeSummary();
+                },
+              ),
+              _buildModernActionButton(
+                'Manual Summary',
+                Icons.edit_note_rounded,
+                [const Color(0xFFDC2626), const Color(0xFFB91C1C)],
+                () async {
+                  HapticFeedback.mediumImpact();
+                  final result = await Navigator.push<bool>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ManualDischargeSummaryScreen(
+                          patientId: widget.patient.patientId),
+                    ),
+                  );
+                  if (result == true) {
+                    setState(() {
+                      _hasChanges = true;
+                    });
+                  }
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModernActionButton(
+    String label,
+    IconData icon,
+    List<Color> gradientColors,
+    VoidCallback onTap,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: gradientColors[0].withOpacity(0.4),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: gradientColors,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Stack(
               children: [
-                Icon(Icons.dashboard_customize, color: HospitalTheme.primary),
-                const SizedBox(width: 12),
-                Text(
-                  'Actions',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: HospitalTheme.primary,
+                // Background patterns
+                Positioned(
+                  right: -20,
+                  bottom: -20,
+                  child: Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withOpacity(0.1),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: -5,
+                  top: -5,
+                  child: Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withOpacity(0.05),
+                    ),
+                  ),
+                ),
+                // Content
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Icon(
+                          icon,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        label,
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-            Divider(color: Colors.grey.shade200, thickness: 1, height: 24),
-            Container(
-              width: double.infinity,
-              child: Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                alignment: WrapAlignment.start,
-                children: [
-                  _buildActionButton(
-                    'Generate Bill',
-                    Icons.receipt_long,
-                    Colors.blue,
-                    () async {
-                      final result = await Navigator.push<bool>(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => GenerateIpdBillScreen(
-                              patientId: widget.patient.patientId),
-                        ),
-                      );
-                      // Mark changes if bill was generated
-                      if (result == true) {
-                        setState(() {
-                          _hasChanges = true;
-                        });
-                      }
-                    },
-                  ),
-                  _buildActionButton(
-                    'Generate OPD Bill',
-                    Icons.assignment,
-                    Colors.orange,
-                    () async {
-                      final result = await Navigator.push<bool>(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => OpdBillingScreen(
-                            patientId: widget.patient.patientId,
-                          ),
-                        ),
-                      );
-                      // Mark changes if bill was generated
-                      if (result == true) {
-                        setState(() {
-                          _hasChanges = true;
-                        });
-                      }
-                    },
-                  ),
-                  _buildActionButton(
-                    'View History',
-                    Icons.history,
-                    Colors.indigo,
-                    () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => PatientHistoryDetailScreen(
-                            patientId: widget.patient.patientId),
-                      ),
-                    ),
-                  ),
-                  _buildActionButton(
-                    'Medical Summary',
-                    Icons.history,
-                    Colors.indigo,
-                    () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => MedicalRecordSummaryScreen(
-                            initialPatientId: widget.patient.patientId),
-                      ),
-                    ),
-                  ),
-                  _buildActionButton(
-                    'Print Summary',
-                    Icons.print,
-                    Colors.blueGrey,
-                    () {
-                      _generateDischargeSummary();
-                    },
-                  ),
-                  _buildActionButton(
-                    'Generate Manual Summary',
-                    Icons.print,
-                    Colors.blueGrey,
-                    () async {
-                      final result = await Navigator.push<bool>(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ManualDischargeSummaryScreen(
-                              patientId: widget.patient.patientId),
-                        ),
-                      );
-                      // Mark changes if summary was generated
-                      if (result == true) {
-                        setState(() {
-                          _hasChanges = true;
-                        });
-                      }
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildActionButton(
-      String text, IconData icon, Color color, VoidCallback onTap) {
-    final isSmallScreen = MediaQuery.of(context).size.width < 600;
-
-    return ElevatedButton.icon(
-      icon: Icon(icon, size: isSmallScreen ? 16 : 20),
-      label: Text(
-        text,
-        style: GoogleFonts.poppins(
-          fontWeight: FontWeight.w500,
-          fontSize: isSmallScreen ? 12 : 14,
-        ),
-      ),
-      onPressed: onTap,
-      style: ElevatedButton.styleFrom(
-        foregroundColor: Colors.white,
-        backgroundColor: color,
-        padding: EdgeInsets.symmetric(
-            vertical: isSmallScreen ? 12 : 16,
-            horizontal: isSmallScreen ? 12 : 20),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-        elevation: 3,
-        shadowColor: Colors.black12,
       ),
     );
   }
 }
+
+// Extension for capitalizing first letter

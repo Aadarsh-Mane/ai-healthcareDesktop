@@ -471,9 +471,8 @@ class _MyEmergencyMedicationsScreenState
       onKeyEvent: _handleKeyboardShortcuts,
       child: Scaffold(
         backgroundColor: HospitalTheme.background,
-        appBar: HospitalTheme.buildAppBar(
-          context: context,
-          title: 'My Emergency Medications',
+        appBar: AppBar(
+          title: const Text('My Emergency Medications'),
           actions: [
             IconButton(
               icon: const Icon(Icons.refresh, color: Colors.white),

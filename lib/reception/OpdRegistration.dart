@@ -20,8 +20,9 @@ class OPDRegistrationScreen extends StatefulWidget {
   State<OPDRegistrationScreen> createState() => _OPDRegistrationScreenState();
 }
 
-class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
-  // OPD Controllers and State Variables
+class _OPDRegistrationScreenState extends State<OPDRegistrationScreen>
+    with TickerProviderStateMixin {
+  // Controllers and State Variables
   final TextEditingController _searchController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
@@ -30,6 +31,7 @@ class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _weightController = TextEditingController();
   final TextEditingController _patientIdController = TextEditingController();
+
   File? _selectedImage;
   String _selectedGender = "Male";
   bool _isReturnVisit = false;
@@ -37,8 +39,70 @@ class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
   List<String> _patientSuggestions = [];
   bool _isSubmitting = false;
 
+  // Animation Controllers
+  late AnimationController _fadeController;
+  late AnimationController _slideController;
+  late AnimationController _glowController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+  late Animation<double> _glowAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeAnimations();
+  }
+
+  void _initializeAnimations() {
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+
+    _slideController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+
+    _glowController = AnimationController(
+      duration: const Duration(milliseconds: 2000),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeInOut,
+    ));
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.2),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _slideController,
+      curve: Curves.easeOutCubic,
+    ));
+
+    _glowAnimation = Tween<double>(
+      begin: 0.3,
+      end: 0.8,
+    ).animate(CurvedAnimation(
+      parent: _glowController,
+      curve: Curves.easeInOut,
+    ));
+
+    // Start animations
+    _fadeController.forward();
+    _slideController.forward();
+  }
+
   @override
   void dispose() {
+    _fadeController.dispose();
+    _slideController.dispose();
+    _glowController.dispose();
     _searchController.dispose();
     _nameController.dispose();
     _ageController.dispose();
@@ -49,6 +113,7 @@ class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
     super.dispose();
   }
 
+  // API methods remain unchanged
   Future<void> _fetchPatientId() async {
     final name = _searchController.text.trim();
     if (name.isEmpty) {
@@ -69,7 +134,6 @@ class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
         final data = jsonDecode(response.body);
         setState(() {
           _patientIdResult = data['patientId'];
-          // Auto-fill patient information
           _nameController.text = data['name'] ?? '';
           _ageController.text = data['age']?.toString() ?? '';
           _selectedGender = data['gender'] ?? 'Male';
@@ -125,7 +189,6 @@ class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
         _selectedImage = File(result.files.single.path!);
       });
     } else {
-      // Only show toast if context is still valid
       if (mounted) {
         ToastMessage().showToast(
             context, 'No image selected', '', ToastificationType.warning);
@@ -135,398 +198,48 @@ class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Get screen width to handle responsive layout
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 1000;
 
-    return Scaffold(
-      backgroundColor: HospitalTheme.background,
-      appBar: AppBar(
-        title: Text(
-          "OPD Patient Registration",
-          style: TextStyle(
-            color: HospitalTheme.textDark,
-            fontWeight: FontWeight.bold,
+    return AnimatedBuilder(
+      animation:
+          Listenable.merge([_fadeAnimation, _slideAnimation, _glowAnimation]),
+      builder: (context, child) {
+        return Scaffold(
+          backgroundColor: Colors.white, // Clean white background
+          body: FadeTransition(
+            opacity: _fadeAnimation,
+            child: SlideTransition(
+              position: _slideAnimation,
+              child: _buildEnhancedOPDForm(isSmallScreen),
+            ),
           ),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: _buildOPDForm(isSmallScreen),
+        );
+      },
     );
   }
 
-  Widget _buildOPDForm(bool isSmallScreen) {
+  Widget _buildEnhancedOPDForm(bool isSmallScreen) {
     return SafeArea(
-      child: Center(
-        child: Container(
-          color: HospitalTheme.background,
-          constraints:
-              BoxConstraints(maxWidth: isSmallScreen ? double.infinity : 1000),
-          child: Card(
-            color: HospitalTheme.background,
-            margin: EdgeInsets.all(isSmallScreen ? 8 : 16),
-            elevation: 4,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+      child: Container(
+        color: Colors.white, // Ensure clean white background
+        child: Center(
+          child: Container(
+            constraints: BoxConstraints(
+              maxWidth: isSmallScreen ? double.infinity : 1200,
             ),
             child: SingleChildScrollView(
-              padding: EdgeInsets.all(isSmallScreen ? 16.0 : 24.0),
+              padding: EdgeInsets.all(isSmallScreen ? 16 : 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Header section
-                  _buildHeaderSection(
-                    title: "OPD Patient Registration",
-                    subtitle:
-                        "Enter patient details for out-patient department",
-                    icon: Icons.local_hospital_outlined,
-                    color: HospitalTheme.pharmacy,
-                    isSmallScreen: isSmallScreen,
-                  ),
+                  // Enhanced Header
+                  _buildPremiumHeader(isSmallScreen),
 
-                  Divider(
-                    color: HospitalTheme.border,
-                    height: 32,
-                  ),
+                  const SizedBox(height: 32),
 
-                  // Form section
-                  Form(
-                    key: _formKey,
-                    child: Column(
-                      children: [
-                        // Search and Patient ID Row - Stacks vertically on small screens
-                        isSmallScreen
-                            ? Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildSearchSection(
-                                    label: "Search Existing Patient",
-                                    controller: _searchController,
-                                    searchFn: _fetchPatientId,
-                                    suggestions: _patientSuggestions,
-                                    fetchSuggestions: _fetchSuggestions,
-                                    color: HospitalTheme.pharmacy,
-                                  ),
-                                  SizedBox(height: 16),
-                                  _buildPatientIdResultSection(
-                                    patientId: _patientIdResult,
-                                    color: HospitalTheme.pharmacy,
-                                  ),
-                                ],
-                              )
-                            : Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    flex: 3,
-                                    child: _buildSearchSection(
-                                      label: "Search Existing Patient",
-                                      controller: _searchController,
-                                      searchFn: _fetchPatientId,
-                                      suggestions: _patientSuggestions,
-                                      fetchSuggestions: _fetchSuggestions,
-                                      color: HospitalTheme.pharmacy,
-                                    ),
-                                  ),
-                                  SizedBox(width: 16),
-                                  Expanded(
-                                    flex: 2,
-                                    child: _buildPatientIdResultSection(
-                                      patientId: _patientIdResult,
-                                      color: HospitalTheme.pharmacy,
-                                    ),
-                                  ),
-                                ],
-                              ),
-
-                        SizedBox(height: 24),
-
-                        // Personal Information Section
-                        _buildInfoSection(
-                          title: "Personal Information",
-                          color: HospitalTheme.pharmacy,
-                          isSmallScreen: isSmallScreen,
-                          content: isSmallScreen
-                              ? Column(
-                                  children: [
-                                    _buildStyledField(
-                                      label: "Full Name",
-                                      controller: _nameController,
-                                      hintText: 'Enter patient full name',
-                                      icon: Icons.person,
-                                      color: HospitalTheme.pharmacy,
-                                      validator: (value) {
-                                        if (value == null || value.isEmpty) {
-                                          return 'Please enter patient name';
-                                        }
-                                        return null;
-                                      },
-                                    ),
-                                    SizedBox(height: 16),
-                                    _buildStyledField(
-                                      label: "Age",
-                                      controller: _ageController,
-                                      hintText: 'Age in years',
-                                      keyboardType: TextInputType.number,
-                                      icon: Icons.calendar_today,
-                                      color: HospitalTheme.pharmacy,
-                                      validator: (value) {
-                                        if (value == null || value.isEmpty) {
-                                          return 'Enter age';
-                                        }
-                                        return null;
-                                      },
-                                    ),
-                                    SizedBox(height: 16),
-                                    _buildStyledField(
-                                      label: "Weight (kg)",
-                                      controller: _weightController,
-                                      hintText: 'Weight in kg',
-                                      keyboardType: TextInputType.number,
-                                      icon: Icons.monitor_weight,
-                                      color: HospitalTheme.pharmacy,
-                                      validator: (value) {
-                                        if (value == null || value.isEmpty) {
-                                          return 'Enter weight';
-                                        }
-                                        return null;
-                                      },
-                                    ),
-                                    SizedBox(height: 16),
-                                    _buildStyledField(
-                                      label: "Phone Number",
-                                      controller: _contactController,
-                                      hintText: 'Enter contact number',
-                                      keyboardType: TextInputType.phone,
-                                      icon: Icons.phone,
-                                      color: HospitalTheme.pharmacy,
-                                      validator: (value) {
-                                        if (value == null || value.isEmpty) {
-                                          return 'Enter phone number';
-                                        }
-                                        return null;
-                                      },
-                                    ),
-                                    SizedBox(height: 16),
-                                    _buildStyledField(
-                                      label: "Address",
-                                      controller: _addressController,
-                                      hintText: 'Enter home address',
-                                      icon: Icons.home,
-                                      color: HospitalTheme.pharmacy,
-                                      validator: (value) {
-                                        if (value == null || value.isEmpty) {
-                                          return 'Enter address';
-                                        }
-                                        return null;
-                                      },
-                                    ),
-                                  ],
-                                )
-                              : Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // Left column
-                                    Expanded(
-                                      child: Column(
-                                        children: [
-                                          _buildStyledField(
-                                            label: "Full Name",
-                                            controller: _nameController,
-                                            hintText: 'Enter patient full name',
-                                            icon: Icons.person,
-                                            color: HospitalTheme.pharmacy,
-                                            validator: (value) {
-                                              if (value == null ||
-                                                  value.isEmpty) {
-                                                return 'Please enter patient name';
-                                              }
-                                              return null;
-                                            },
-                                          ),
-                                          SizedBox(height: 16),
-                                          Row(
-                                            children: [
-                                              Expanded(
-                                                child: _buildStyledField(
-                                                  label: "Age",
-                                                  controller: _ageController,
-                                                  hintText: 'Age in years',
-                                                  keyboardType:
-                                                      TextInputType.number,
-                                                  icon: Icons.calendar_today,
-                                                  color: HospitalTheme.pharmacy,
-                                                  validator: (value) {
-                                                    if (value == null ||
-                                                        value.isEmpty) {
-                                                      return 'Enter age';
-                                                    }
-                                                    return null;
-                                                  },
-                                                ),
-                                              ),
-                                              SizedBox(width: 16),
-                                              Expanded(
-                                                child: _buildStyledField(
-                                                  label: "Weight (kg)",
-                                                  controller: _weightController,
-                                                  hintText: 'Weight in kg',
-                                                  keyboardType:
-                                                      TextInputType.number,
-                                                  icon: Icons.monitor_weight,
-                                                  color: HospitalTheme.pharmacy,
-                                                  validator: (value) {
-                                                    if (value == null ||
-                                                        value.isEmpty) {
-                                                      return 'Enter weight';
-                                                    }
-                                                    return null;
-                                                  },
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    SizedBox(width: 16),
-                                    // Right column
-                                    Expanded(
-                                      child: Column(
-                                        children: [
-                                          _buildStyledField(
-                                            label: "Phone Number",
-                                            controller: _contactController,
-                                            hintText: 'Enter contact number',
-                                            keyboardType: TextInputType.phone,
-                                            icon: Icons.phone,
-                                            color: HospitalTheme.pharmacy,
-                                            validator: (value) {
-                                              if (value == null ||
-                                                  value.isEmpty) {
-                                                return 'Enter phone number';
-                                              }
-                                              return null;
-                                            },
-                                          ),
-                                          SizedBox(height: 16),
-                                          _buildStyledField(
-                                            label: "Address",
-                                            controller: _addressController,
-                                            hintText: 'Enter home address',
-                                            icon: Icons.home,
-                                            color: HospitalTheme.pharmacy,
-                                            validator: (value) {
-                                              if (value == null ||
-                                                  value.isEmpty) {
-                                                return 'Enter address';
-                                              }
-                                              return null;
-                                            },
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                          footer: _buildGenderSelection(
-                            selectedGender: _selectedGender,
-                            onChanged: (newValue) =>
-                                setState(() => _selectedGender = newValue!),
-                            color: HospitalTheme.pharmacy,
-                          ),
-                        ),
-
-                        SizedBox(height: 24),
-
-                        // Visit Information Section
-                        _buildInfoSection(
-                          title: "Visit Information",
-                          color: HospitalTheme.pharmacy,
-                          isSmallScreen: isSmallScreen,
-                          content: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Return visit toggle
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.rotate_left,
-                                        color: HospitalTheme.pharmacy,
-                                      ),
-                                      SizedBox(width: 8),
-                                      Text(
-                                        "Is this a return visit?",
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: HospitalTheme.textDark,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Switch(
-                                    value: _isReturnVisit,
-                                    onChanged: (value) {
-                                      setState(() {
-                                        _isReturnVisit = value;
-                                      });
-                                    },
-                                    activeColor: HospitalTheme.success,
-                                  ),
-                                ],
-                              ),
-                              // Patient ID field for return visit
-                              if (_isReturnVisit)
-                                _buildStyledField(
-                                  label: "Previous Patient ID",
-                                  controller: _patientIdController,
-                                  hintText: 'Enter previous patient ID',
-                                  icon: Icons.badge,
-                                  color: HospitalTheme.pharmacy,
-                                  validator: (value) {
-                                    if (_isReturnVisit &&
-                                        (value == null || value.isEmpty)) {
-                                      return 'Patient ID is required for return patients';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                            ],
-                          ),
-                        ),
-
-                        SizedBox(height: 24),
-
-                        // Patient Photo Section
-                        _buildPatientPhotoSection(
-                          image: _selectedImage,
-                          onPick: () => pickImage(),
-                          onRemove: () => setState(() => _selectedImage = null),
-                          color: HospitalTheme.pharmacy,
-                          isSmallScreen: isSmallScreen,
-                        ),
-
-                        SizedBox(height: 32),
-
-                        // Submit button
-                        _buildSubmitButton(
-                          isSubmitting: _isSubmitting,
-                          onPressed: () {
-                            if (_formKey.currentState!.validate()) {
-                              _showConfirmationDialog(context);
-                            }
-                          },
-                          color: HospitalTheme.pharmacy,
-                          text: "Register OPD Patient",
-                        ),
-                      ],
-                    ),
-                  ),
+                  // Main Form Container
+                  _buildPremiumFormContainer(isSmallScreen),
                 ],
               ),
             ),
@@ -536,164 +249,361 @@ class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
     );
   }
 
-  // Header section with logo and title
-  Widget _buildHeaderSection({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-    required bool isSmallScreen,
-  }) {
-    return isSmallScreen
-        ? Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 32,
-                ),
-              ),
-              SizedBox(height: 12),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: HospitalTheme.textDark,
-                ),
-              ),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  color: HospitalTheme.textMedium,
-                ),
-              ),
-              SizedBox(height: 12),
-              Center(
-                child: Image.asset("${AppImages.logo}", height: 40),
-              ),
-            ],
-          )
-        : Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 32,
-                ),
-              ),
-              SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: HospitalTheme.textDark,
-                      ),
-                    ),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        color: HospitalTheme.textMedium,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(width: 16),
-              Container(
-                height: 50,
-                child: Center(
-                  child: Image.asset("${AppImages.logo}", height: 50),
-                ),
-              ),
-            ],
-          );
+  Widget _buildPremiumHeader(bool isSmallScreen) {
+    return Container(
+      padding: EdgeInsets.all(isSmallScreen ? 20 : 32),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            HospitalTheme.primary,
+            HospitalTheme.primary.withOpacity(0.8),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: HospitalTheme.primary.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+            spreadRadius: 2,
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: isSmallScreen
+          ? Column(
+              children: [
+                _buildHeaderIcon(),
+                const SizedBox(height: 16),
+                _buildHeaderText(),
+                const SizedBox(height: 16),
+                _buildHeaderLogo(),
+              ],
+            )
+          : Row(
+              children: [
+                _buildHeaderIcon(),
+                const SizedBox(width: 24),
+                Expanded(child: _buildHeaderText()),
+                const SizedBox(width: 24),
+                _buildHeaderLogo(),
+              ],
+            ),
+    );
   }
 
-  // Search section with autocomplete
-  Widget _buildSearchSection({
-    required String label,
-    required TextEditingController controller,
-    required VoidCallback searchFn,
-    required List<String> suggestions,
-    required Function(String) fetchSuggestions,
-    required Color color,
-  }) {
+  Widget _buildHeaderIcon() {
+    return AnimatedBuilder(
+      animation: _glowAnimation,
+      builder: (context, child) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(_glowAnimation.value * 0.9),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.white.withOpacity(0.5),
+                blurRadius: 20,
+                offset: const Offset(0, 0),
+              ),
+            ],
+          ),
+          child: Icon(
+            Icons.local_hospital_outlined,
+            color: HospitalTheme.primary,
+            size: 48,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildHeaderText() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: HospitalTheme.textDark,
+        ShaderMask(
+          shaderCallback: (bounds) => const LinearGradient(
+            colors: [Colors.white, Color(0xFFe0e0e0)],
+          ).createShader(bounds),
+          child: Text(
+            "OPD Patient Registration",
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
         ),
-        SizedBox(height: 8),
-        Autocomplete<String>(
-          optionsBuilder: (TextEditingValue textEditingValue) {
-            fetchSuggestions(textEditingValue.text);
-            return suggestions.where((option) => option
-                .toLowerCase()
-                .contains(textEditingValue.text.toLowerCase()));
-          },
-          onSelected: (String selectedPatient) async {
-            controller.text = selectedPatient;
-            searchFn();
-          },
-          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-            return Container(
-              height: 50,
-              child: TextField(
-                controller: controller,
-                focusNode: focusNode,
-                decoration: InputDecoration(
-                  labelText: "Patient Name",
-                  hintText: "Search by patient name",
-                  prefixIcon: Icon(
-                    Icons.search,
-                    color: color,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: HospitalTheme.border),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: color),
-                  ),
-                ),
-              ),
-            );
-          },
+        const SizedBox(height: 8),
+        Text(
+          "Enter patient details for out-patient department",
+          style: TextStyle(
+            fontSize: 16,
+            color: Colors.white.withOpacity(0.9),
+          ),
         ),
       ],
     );
   }
 
-  // Patient ID Result Section
-  Widget _buildPatientIdResultSection({
-    required String? patientId,
-    required Color color,
-  }) {
+  Widget _buildHeaderLogo() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Image.asset(
+        AppImages.logo,
+        height: 60,
+      ),
+    );
+  }
+
+  Widget _buildPremiumFormContainer(bool isSmallScreen) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: HospitalTheme.primary.withOpacity(0.1),
+            blurRadius: 30,
+            offset: const Offset(0, 10),
+            spreadRadius: 5,
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          children: [
+            // Search Section
+            _buildPremiumSearchSection(isSmallScreen),
+
+            // Divider with gradient
+            _buildGradientDivider(),
+
+            // Personal Information
+            _buildPremiumPersonalInfo(isSmallScreen),
+
+            // Visit Information
+            _buildPremiumVisitInfo(isSmallScreen),
+
+            // Photo Section
+            _buildPremiumPhotoSection(isSmallScreen),
+
+            // Submit Section
+            _buildPremiumSubmitSection(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPremiumSearchSection(bool isSmallScreen) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white, // Clean white background
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(24),
+          topRight: Radius.circular(24),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionTitle("Search Existing Patient", Icons.search),
+          const SizedBox(height: 20),
+          isSmallScreen
+              ? Column(
+                  children: [
+                    _buildEnhancedSearchField(),
+                    const SizedBox(height: 16),
+                    _buildEnhancedPatientIdResult(),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: _buildEnhancedSearchField(),
+                    ),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      flex: 2,
+                      child: _buildEnhancedPatientIdResult(),
+                    ),
+                  ],
+                ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title, IconData icon) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                HospitalTheme.primary,
+                HospitalTheme.primary.withOpacity(0.8),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            icon,
+            color: Colors.white,
+            size: 20,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: HospitalTheme.textDark,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGradientDivider() {
+    return Container(
+      height: 1,
+      margin: const EdgeInsets.symmetric(horizontal: 24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.transparent,
+            HospitalTheme.primary.withOpacity(0.3),
+            Colors.transparent,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEnhancedSearchField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "Search Patient",
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: HospitalTheme.textDark,
+            fontSize: 16,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: HospitalTheme.primary.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Autocomplete<String>(
+            optionsBuilder: (TextEditingValue textEditingValue) {
+              _fetchSuggestions(textEditingValue.text);
+              return _patientSuggestions.where((option) => option
+                  .toLowerCase()
+                  .contains(textEditingValue.text.toLowerCase()));
+            },
+            onSelected: (String selectedPatient) async {
+              _searchController.text = selectedPatient;
+              _fetchPatientId();
+            },
+            fieldViewBuilder:
+                (context, controller, focusNode, onFieldSubmitted) {
+              return TextField(
+                controller: controller,
+                focusNode: focusNode,
+                decoration: InputDecoration(
+                  labelText: "Patient Name",
+                  hintText: "Search by patient name",
+                  prefixIcon: Container(
+                    margin: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          HospitalTheme.primary,
+                          HospitalTheme.primary.withOpacity(0.8),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      Icons.search,
+                      color: Colors.white,
+                    ),
+                  ),
+                  suffixIcon: IconButton(
+                    onPressed: _fetchPatientId,
+                    icon: Icon(
+                      Icons.send,
+                      color: HospitalTheme.primary,
+                    ),
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(
+                      color: HospitalTheme.border,
+                      width: 2,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(
+                      color: HospitalTheme.primary,
+                      width: 2,
+                    ),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEnhancedPatientIdResult() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -702,38 +612,67 @@ class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
           style: TextStyle(
             fontWeight: FontWeight.w600,
             color: HospitalTheme.textDark,
+            fontSize: 16,
           ),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         Container(
-          height: 50,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: HospitalTheme.surfaceLight,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: HospitalTheme.border),
+            gradient: _patientIdResult != null
+                ? LinearGradient(
+                    colors: [
+                      HospitalTheme.primary.withOpacity(0.1),
+                      HospitalTheme.primary.withOpacity(0.05),
+                    ],
+                  )
+                : LinearGradient(
+                    colors: [
+                      HospitalTheme.surfaceLight,
+                      Colors.white,
+                    ],
+                  ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: _patientIdResult != null
+                  ? HospitalTheme.primary.withOpacity(0.3)
+                  : HospitalTheme.border,
+              width: 2,
+            ),
           ),
           child: Row(
             children: [
+              Icon(
+                _patientIdResult != null ? Icons.check_circle : Icons.info,
+                color: _patientIdResult != null
+                    ? HospitalTheme.primary
+                    : HospitalTheme.textMedium,
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: SelectableText(
-                  patientId != null ? "$patientId" : "No patient found",
+                  _patientIdResult != null
+                      ? "$_patientIdResult"
+                      : "No patient found",
                   style: TextStyle(
-                    color: patientId != null ? color : HospitalTheme.textMedium,
+                    color: _patientIdResult != null
+                        ? HospitalTheme.primary
+                        : HospitalTheme.textMedium,
                     fontWeight: FontWeight.w600,
+                    fontSize: 16,
                   ),
                 ),
               ),
-              if (patientId != null)
+              if (_patientIdResult != null)
                 IconButton(
-                  icon: Icon(Icons.copy, color: color),
+                  icon: Icon(Icons.copy, color: HospitalTheme.primary),
                   onPressed: () {
-                    Clipboard.setData(ClipboardData(text: patientId));
+                    Clipboard.setData(ClipboardData(text: _patientIdResult!));
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text("Patient ID copied to clipboard!"),
-                          backgroundColor: HospitalTheme.success,
+                          backgroundColor: HospitalTheme.primary,
                         ),
                       );
                     }
@@ -746,52 +685,190 @@ class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
     );
   }
 
-  // Information Section Container
-  Widget _buildInfoSection({
-    required String title,
-    required Color color,
-    required Widget content,
-    required bool isSmallScreen,
-    Widget? footer,
-  }) {
+  Widget _buildPremiumPersonalInfo(bool isSmallScreen) {
     return Container(
-      padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
-      decoration: BoxDecoration(
-        color: HospitalTheme.background,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: HospitalTheme.border),
-      ),
+      padding: const EdgeInsets.all(24),
+      color: Colors.white, // Clean white background
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          SizedBox(height: 16),
-          content,
-          if (footer != null) ...[
-            SizedBox(height: 16),
-            footer,
-          ],
+          _buildSectionTitle("Personal Information", Icons.person),
+          const SizedBox(height: 20),
+          isSmallScreen
+              ? Column(
+                  children: [
+                    _buildEnhancedTextField(
+                      label: "Full Name",
+                      controller: _nameController,
+                      hintText: 'Enter patient full name',
+                      icon: Icons.person,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter patient name';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildEnhancedTextField(
+                            label: "Age",
+                            controller: _ageController,
+                            hintText: 'Age in years',
+                            keyboardType: TextInputType.number,
+                            icon: Icons.calendar_today,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Enter age';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildEnhancedTextField(
+                            label: "Weight (kg)",
+                            controller: _weightController,
+                            hintText: 'Weight in kg',
+                            keyboardType: TextInputType.number,
+                            icon: Icons.monitor_weight,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Enter weight';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    _buildEnhancedTextField(
+                      label: "Phone Number",
+                      controller: _contactController,
+                      hintText: 'Enter contact number',
+                      keyboardType: TextInputType.phone,
+                      icon: Icons.phone,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Enter phone number';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    _buildEnhancedTextField(
+                      label: "Address",
+                      controller: _addressController,
+                      hintText: 'Enter home address',
+                      icon: Icons.home,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Enter address';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                )
+              : Column(
+                  children: [
+                    _buildEnhancedTextField(
+                      label: "Full Name",
+                      controller: _nameController,
+                      hintText: 'Enter patient full name',
+                      icon: Icons.person,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter patient name';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildEnhancedTextField(
+                            label: "Age",
+                            controller: _ageController,
+                            hintText: 'Age in years',
+                            keyboardType: TextInputType.number,
+                            icon: Icons.calendar_today,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Enter age';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: _buildEnhancedTextField(
+                            label: "Weight (kg)",
+                            controller: _weightController,
+                            hintText: 'Weight in kg',
+                            keyboardType: TextInputType.number,
+                            icon: Icons.monitor_weight,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Enter weight';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: _buildEnhancedTextField(
+                            label: "Phone Number",
+                            controller: _contactController,
+                            hintText: 'Enter contact number',
+                            keyboardType: TextInputType.phone,
+                            icon: Icons.phone,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Enter phone number';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    _buildEnhancedTextField(
+                      label: "Address",
+                      controller: _addressController,
+                      hintText: 'Enter home address',
+                      icon: Icons.home,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Enter address';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+          const SizedBox(height: 24),
+          _buildPremiumGenderSelection(),
         ],
       ),
     );
   }
 
-  // Helper widget for styled form fields
-  Widget _buildStyledField({
+  Widget _buildEnhancedTextField({
     required String label,
     required TextEditingController controller,
     required String hintText,
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
     String? Function(String?)? validator,
-    Color color = HospitalTheme.primary,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -801,32 +878,82 @@ class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
           style: TextStyle(
             fontWeight: FontWeight.w600,
             color: HospitalTheme.textDark,
+            fontSize: 16,
           ),
         ),
-        SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          keyboardType: keyboardType,
-          validator: validator,
-          decoration: InputDecoration(
-            hintText: hintText,
-            prefixIcon: Icon(icon, color: color),
-            contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: HospitalTheme.border),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: color, width: 2),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: HospitalTheme.error),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: HospitalTheme.error, width: 2),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: HospitalTheme.primary.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: TextFormField(
+            controller: controller,
+            keyboardType: keyboardType,
+            validator: validator,
+            decoration: InputDecoration(
+              hintText: hintText,
+              prefixIcon: Container(
+                margin: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      HospitalTheme.primary,
+                      HospitalTheme.primary.withOpacity(0.8),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  icon,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: HospitalTheme.border,
+                  width: 2,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: HospitalTheme.primary,
+                  width: 2,
+                ),
+              ),
+              errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: HospitalTheme.error,
+                  width: 2,
+                ),
+              ),
+              focusedErrorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: HospitalTheme.error,
+                  width: 2,
+                ),
+              ),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 16,
+              ),
             ),
           ),
         ),
@@ -834,12 +961,7 @@ class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
     );
   }
 
-  // Gender selection widget
-  Widget _buildGenderSelection({
-    required String selectedGender,
-    required ValueChanged<String?> onChanged,
-    Color color = HospitalTheme.primary,
-  }) {
+  Widget _buildPremiumGenderSelection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -848,33 +970,34 @@ class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
           style: TextStyle(
             fontWeight: FontWeight.w600,
             color: HospitalTheme.textDark,
+            fontSize: 16,
           ),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 12),
         Row(
           children: [
-            _buildGenderOption(
+            _buildPremiumGenderOption(
               label: "Male",
               icon: Icons.male,
-              isSelected: selectedGender == "Male",
-              onTap: () => onChanged("Male"),
-              color: color,
+              isSelected: _selectedGender == "Male",
+              onTap: () => setState(() => _selectedGender = "Male"),
+              color: HospitalTheme.primary,
             ),
-            SizedBox(width: 16),
-            _buildGenderOption(
+            const SizedBox(width: 12),
+            _buildPremiumGenderOption(
               label: "Female",
               icon: Icons.female,
-              isSelected: selectedGender == "Female",
-              onTap: () => onChanged("Female"),
-              color: color,
+              isSelected: _selectedGender == "Female",
+              onTap: () => setState(() => _selectedGender = "Female"),
+              color: HospitalTheme.primary,
             ),
-            SizedBox(width: 16),
-            _buildGenderOption(
+            const SizedBox(width: 12),
+            _buildPremiumGenderOption(
               label: "Other",
               icon: Icons.transgender,
-              isSelected: selectedGender == "Other",
-              onTap: () => onChanged("Other"),
-              color: color,
+              isSelected: _selectedGender == "Other",
+              onTap: () => setState(() => _selectedGender = "Other"),
+              color: HospitalTheme.primary,
             ),
           ],
         ),
@@ -882,8 +1005,7 @@ class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
     );
   }
 
-  // Gender option widget
-  Widget _buildGenderOption({
+  Widget _buildPremiumGenderOption({
     required String label,
     required IconData icon,
     required bool isSelected,
@@ -893,31 +1015,43 @@ class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
     return Expanded(
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
           decoration: BoxDecoration(
-            color: isSelected ? color.withOpacity(0.1) : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
+            gradient: isSelected
+                ? LinearGradient(colors: [color, color.withOpacity(0.8)])
+                : null,
+            color: isSelected ? null : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: isSelected ? color : HospitalTheme.border,
-              width: isSelected ? 2 : 1,
+              color: isSelected ? Colors.transparent : HospitalTheme.border,
+              width: 2,
             ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: color.withOpacity(0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          child: Column(
             children: [
               Icon(
                 icon,
-                color: isSelected ? color : HospitalTheme.textMedium,
-                size: 20,
+                color: isSelected ? Colors.white : HospitalTheme.textMedium,
+                size: 24,
               ),
-              SizedBox(width: 8),
+              const SizedBox(height: 8),
               Text(
                 label,
                 style: TextStyle(
-                  color: isSelected ? color : HospitalTheme.textDark,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected ? Colors.white : HospitalTheme.textDark,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                  fontSize: 14,
                 ),
               ),
             ],
@@ -927,255 +1061,360 @@ class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
     );
   }
 
-  // Complete the file with color decoration
-  Widget _buildPatientPhotoSection({
-    required File? image,
-    required VoidCallback onPick,
-    required VoidCallback onRemove,
-    required Color color,
-    required bool isSmallScreen,
-  }) {
+  Widget _buildPremiumVisitInfo(bool isSmallScreen) {
     return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: HospitalTheme.background,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: HospitalTheme.border),
-      ),
+      padding: const EdgeInsets.all(24),
+      color: Colors.white, // Clean white background
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            "Patient Photo",
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: color,
+          _buildSectionTitle("Visit Information", Icons.rotate_left),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: HospitalTheme.border, width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: HospitalTheme.primary.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-          ),
-          SizedBox(height: 16),
-          isSmallScreen
-              ? Column(
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Image container centered
-                    Center(
-                      child: Container(
-                        width: 150,
-                        height: 150,
-                        decoration: BoxDecoration(
-                          color: HospitalTheme.surfaceLight,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: HospitalTheme.border),
-                        ),
-                        child: image != null
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: Image.file(
-                                  image,
-                                  fit: BoxFit.cover,
-                                ),
-                              )
-                            : Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.add_a_photo,
-                                    color: HospitalTheme.textMedium,
-                                    size: 40,
-                                  ),
-                                  SizedBox(height: 8),
-                                  Text(
-                                    "No image selected",
-                                    style: TextStyle(
-                                      color: HospitalTheme.textMedium,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  HospitalTheme.primary,
+                                  HospitalTheme.primary.withOpacity(0.8),
                                 ],
                               ),
-                      ),
-                    ),
-                    SizedBox(height: 16),
-                    // Upload instructions
-                    Text(
-                      "Please upload a clear photo of the patient's face for identification purposes.",
-                      style: TextStyle(
-                        color: HospitalTheme.textMedium,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: 16),
-                    // Upload buttons
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        ElevatedButton.icon(
-                          onPressed: onPick,
-                          icon: Icon(Icons.file_upload),
-                          label: Text("Select Image"),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: color,
-                            foregroundColor: Colors.white,
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: 16),
-                        if (image != null)
-                          TextButton.icon(
-                            onPressed: onRemove,
-                            icon:
-                                Icon(Icons.delete, color: HospitalTheme.error),
-                            label: Text(
-                              "Remove",
-                              style: TextStyle(
-                                color: HospitalTheme.error,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-                )
-              : Row(
-                  children: [
-                    // Image preview
-                    Container(
-                      width: 150,
-                      height: 150,
-                      decoration: BoxDecoration(
-                        color: HospitalTheme.surfaceLight,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: HospitalTheme.border),
-                      ),
-                      child: image != null
-                          ? ClipRRect(
                               borderRadius: BorderRadius.circular(12),
-                              child: Image.file(
-                                image,
-                                fit: BoxFit.cover,
-                              ),
-                            )
-                          : Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.add_a_photo,
-                                  color: HospitalTheme.textMedium,
-                                  size: 40,
-                                ),
-                                SizedBox(height: 8),
-                                Text(
-                                  "No image selected",
-                                  style: TextStyle(
-                                    color: HospitalTheme.textMedium,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
                             ),
-                    ),
-                    SizedBox(width: 24),
-                    // Upload button
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Upload patient photo",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
+                            child: Icon(
+                              Icons.rotate_left,
+                              color: Colors.white,
+                              size: 20,
                             ),
                           ),
-                          SizedBox(height: 8),
-                          Text(
-                            "Please upload a clear photo of the patient's face for identification purposes.",
-                            style: TextStyle(
-                              color: HospitalTheme.textMedium,
-                            ),
-                          ),
-                          SizedBox(height: 16),
-                          Row(
-                            children: [
-                              ElevatedButton.icon(
-                                onPressed: onPick,
-                                icon: Icon(Icons.file_upload),
-                                label: Text("Select Image"),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: color,
-                                  foregroundColor: Colors.white,
-                                  padding: EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 12),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              "Is this a return visit?",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: HospitalTheme.textDark,
+                                fontSize: 16,
                               ),
-                              SizedBox(width: 16),
-                              if (image != null)
-                                TextButton.icon(
-                                  onPressed: onRemove,
-                                  icon: Icon(Icons.delete,
-                                      color: HospitalTheme.error),
-                                  label: Text(
-                                    "Remove",
-                                    style: TextStyle(
-                                      color: HospitalTheme.error,
-                                    ),
-                                  ),
-                                ),
-                            ],
+                            ),
                           ),
                         ],
                       ),
                     ),
+                    Transform.scale(
+                      scale: 1.2,
+                      child: Switch(
+                        value: _isReturnVisit,
+                        onChanged: (value) {
+                          setState(() {
+                            _isReturnVisit = value;
+                          });
+                        },
+                        activeColor: HospitalTheme.primary,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
                   ],
                 ),
+                if (_isReturnVisit) ...[
+                  const SizedBox(height: 20),
+                  _buildEnhancedTextField(
+                    label: "Previous Patient ID",
+                    controller: _patientIdController,
+                    hintText: 'Enter previous patient ID',
+                    icon: Icons.badge,
+                    validator: (value) {
+                      if (_isReturnVisit && (value == null || value.isEmpty)) {
+                        return 'Patient ID is required for return patients';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  // Submit Button
-  Widget _buildSubmitButton({
-    required bool isSubmitting,
-    required VoidCallback onPressed,
-    required Color color,
-    required String text,
-  }) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        ElevatedButton.icon(
-          onPressed: isSubmitting ? null : onPressed,
-          icon: isSubmitting
-              ? SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2,
-                  ),
-                )
-              : Icon(Icons.save),
-          label: Text(isSubmitting ? "Processing..." : text),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: color,
-            foregroundColor: Colors.white,
-            padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(30),
+  Widget _buildPremiumPhotoSection(bool isSmallScreen) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      color: Colors.white, // Clean white background
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionTitle("Patient Photo", Icons.add_a_photo),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: HospitalTheme.border,
+                width: 2,
+              ),
             ),
+            child: isSmallScreen
+                ? Column(
+                    children: [
+                      _buildPhotoPreview(),
+                      const SizedBox(height: 20),
+                      _buildPhotoInstructions(),
+                      const SizedBox(height: 20),
+                      _buildPhotoButtons(),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      _buildPhotoPreview(),
+                      const SizedBox(width: 24),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildPhotoInstructions(),
+                            const SizedBox(height: 20),
+                            _buildPhotoButtons(),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPhotoPreview() {
+    return Container(
+      width: 160,
+      height: 160,
+      decoration: BoxDecoration(
+        color: _selectedImage != null ? null : HospitalTheme.surfaceLight,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: HospitalTheme.primary.withOpacity(0.3),
+          width: 3,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: HospitalTheme.primary.withOpacity(0.1),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: _selectedImage != null
+          ? ClipRRect(
+              borderRadius: BorderRadius.circular(17),
+              child: Image.file(
+                _selectedImage!,
+                fit: BoxFit.cover,
+              ),
+            )
+          : Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        HospitalTheme.primary.withOpacity(0.2),
+                        HospitalTheme.primary.withOpacity(0.1),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(
+                    Icons.add_a_photo,
+                    color: HospitalTheme.primary,
+                    size: 32,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  "No image selected",
+                  style: TextStyle(
+                    color: HospitalTheme.textMedium,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildPhotoInstructions() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "Upload patient photo",
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: HospitalTheme.textDark,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          "Please upload a clear photo of the patient's face for identification purposes. The image should be well-lit and show the patient's full face clearly.",
+          style: TextStyle(
+            color: HospitalTheme.textMedium,
+            fontSize: 14,
+            height: 1.5,
           ),
         ),
       ],
     );
   }
 
-  // Confirmation section header
+  Widget _buildPhotoButtons() {
+    return Row(
+      children: [
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: pickImage,
+            icon: const Icon(Icons.file_upload),
+            label: const Text("Select Image"),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: HospitalTheme.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 3,
+            ),
+          ),
+        ),
+        if (_selectedImage != null) ...[
+          const SizedBox(width: 12),
+          Expanded(
+            child: TextButton.icon(
+              onPressed: () => setState(() => _selectedImage = null),
+              icon: Icon(Icons.delete, color: HospitalTheme.error),
+              label: Text(
+                "Remove",
+                style: TextStyle(color: HospitalTheme.error),
+              ),
+              style: TextButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: HospitalTheme.error),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildPremiumSubmitSection() {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: Colors.white, // Clean white background
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(24),
+          bottomRight: Radius.circular(24),
+        ),
+      ),
+      child: Center(
+        child: AnimatedBuilder(
+          animation: _glowAnimation,
+          builder: (context, child) {
+            return Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(50),
+                boxShadow: [
+                  BoxShadow(
+                    color: HospitalTheme.primary
+                        .withOpacity(_glowAnimation.value * 0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: ElevatedButton.icon(
+                onPressed: _isSubmitting
+                    ? null
+                    : () {
+                        if (_formKey.currentState!.validate()) {
+                          _showConfirmationDialog(context);
+                        }
+                      },
+                icon: _isSubmitting
+                    ? SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Icon(Icons.save, size: 24),
+                label: Text(
+                  _isSubmitting ? "Processing..." : "Register OPD Patient",
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: HospitalTheme.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 40,
+                    vertical: 20,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(50),
+                  ),
+                  elevation: 8,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  // Helper methods for confirmation dialog
   Widget _buildConfirmationSectionHeader(String title, Color color) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1194,7 +1433,6 @@ class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
     );
   }
 
-  // Confirmation row
   Widget _buildConfirmationRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
@@ -1225,9 +1463,7 @@ class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
     );
   }
 
-  // Add OPD Patient
   Future<void> _addOPDPatient(BuildContext context) async {
-    // Get and store the current context before async operations
     final navigatorContext = context;
 
     setState(() {
@@ -1239,7 +1475,6 @@ class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
       print("OPD Request URL: $uri");
       final request = http.MultipartRequest('POST', uri);
 
-      // Add OPD-specific fields
       request.fields['name'] = _nameController.text;
       request.fields['age'] = _ageController.text;
       request.fields['gender'] = _selectedGender;
@@ -1296,12 +1531,9 @@ class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
           print(
               "OPD Navigation data: patientId=$patientId, admissionId=$admissionId");
 
-          // FIXED NAVIGATION: Use a post-frame callback for reliable navigation
           if (mounted) {
-            // First, pop all routes back to where we need to be
             Navigator.of(navigatorContext).popUntil((route) => route.isFirst);
 
-            // Then push the AssignScreen as a completely new route
             WidgetsBinding.instance.addPostFrameCallback((_) {
               Navigator.of(navigatorContext).pushReplacement(
                 MaterialPageRoute(
@@ -1351,7 +1583,6 @@ class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
     }
   }
 
-  // Confirmation dialog
   void _showConfirmationDialog(BuildContext context) {
     final name = _nameController.text;
     final age = _ageController.text;
@@ -1362,18 +1593,16 @@ class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
     final isReturnVisit = _isReturnVisit;
     final patientId = _patientIdController.text;
 
-    final themeColor = HospitalTheme.pharmacy;
-
-    // Get screen width to handle responsive layout
+    final themeColor = HospitalTheme.primary;
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 768;
 
     showDialog(
       context: context,
-      barrierDismissible: true, // Allow dismissal by tapping outside
+      barrierDismissible: true,
       builder: (BuildContext dialogContext) => Dialog(
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(20),
         ),
         child: Container(
           width: isSmallScreen ? double.infinity : 500,
@@ -1381,31 +1610,46 @@ class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
             maxWidth: 500,
             maxHeight: MediaQuery.of(context).size.height * 0.85,
           ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            color: Colors.white,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Header
+              // Enhanced Header
               Container(
-                padding: EdgeInsets.all(16),
+                padding: EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: themeColor,
+                  gradient: LinearGradient(
+                    colors: [themeColor, themeColor.withOpacity(0.8)],
+                  ),
                   borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(12),
-                    topRight: Radius.circular(12),
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
                   ),
                 ),
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.medical_information,
-                      color: Colors.white,
+                    Container(
+                      padding: EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.medical_information,
+                        color: Colors.white,
+                        size: 24,
+                      ),
                     ),
-                    SizedBox(width: 8),
+                    SizedBox(width: 12),
                     Text(
                       "Confirm Patient Details",
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
+                        fontSize: 18,
                       ),
                     ),
                   ],
@@ -1414,7 +1658,7 @@ class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
               // Content
               Flexible(
                 child: SingleChildScrollView(
-                  padding: EdgeInsets.all(16),
+                  padding: EdgeInsets.all(20),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1425,8 +1669,15 @@ class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
                             width: 120,
                             height: 120,
                             decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(60),
-                              border: Border.all(color: themeColor, width: 2),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: themeColor, width: 3),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: themeColor.withOpacity(0.3),
+                                  blurRadius: 10,
+                                  offset: Offset(0, 4),
+                                ),
+                              ],
                               image: DecorationImage(
                                 image: FileImage(_selectedImage!),
                                 fit: BoxFit.cover,
@@ -1434,7 +1685,7 @@ class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
                             ),
                           ),
                         ),
-                      SizedBox(height: 16),
+                      SizedBox(height: 20),
                       _buildConfirmationSectionHeader(
                           "Personal Information", themeColor),
                       _buildConfirmationRow("Full Name", name),
@@ -1454,14 +1705,14 @@ class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
                   ),
                 ),
               ),
-              // Footer with action buttons
+              // Enhanced Footer
               Container(
-                padding: EdgeInsets.all(16),
+                padding: EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: Colors.grey.shade50,
                   borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(12),
-                    bottomRight: Radius.circular(12),
+                    bottomLeft: Radius.circular(20),
+                    bottomRight: Radius.circular(20),
                   ),
                 ),
                 child: Row(
@@ -1469,18 +1720,25 @@ class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
                   children: [
                     TextButton(
                       onPressed: () => Navigator.pop(dialogContext),
+                      style: TextButton.styleFrom(
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
                       child: Text(
                         "Edit",
-                        style: TextStyle(color: HospitalTheme.textMedium),
+                        style: TextStyle(
+                          color: HospitalTheme.textMedium,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                    SizedBox(width: 16),
+                    SizedBox(width: 12),
                     ElevatedButton(
                       onPressed: () {
-                        // Pop the dialog first to prevent stacking issues
                         Navigator.pop(dialogContext);
-
-                        // Brief delay to ensure dialog is dismissed
                         Future.delayed(Duration(milliseconds: 100), () {
                           _addOPDPatient(context);
                         });
@@ -1489,12 +1747,16 @@ class _OPDRegistrationScreenState extends State<OPDRegistrationScreen> {
                         backgroundColor: themeColor,
                         foregroundColor: Colors.white,
                         padding:
-                            EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(10),
                         ),
+                        elevation: 3,
                       ),
-                      child: Text("Confirm & Register"),
+                      child: Text(
+                        "Confirm & Register",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ],
                 ),

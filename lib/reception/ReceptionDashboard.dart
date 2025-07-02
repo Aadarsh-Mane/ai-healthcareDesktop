@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:doctordesktop/Admin/BedManagement.dart';
 import 'package:doctordesktop/Admin/BillTrackTableView.dart';
 import 'package:doctordesktop/Admin/PatientBillingScreen.dart';
@@ -25,7 +27,9 @@ import 'package:doctordesktop/reception/RegistrationSideBar.dart';
 import 'package:doctordesktop/screens/DoctorRegister.dart';
 import 'package:doctordesktop/screens/ListPatienAssignToDoctor.dart';
 import 'package:doctordesktop/screens/NurseRegister.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class ReceptionDashBoard extends StatelessWidget {
   const ReceptionDashBoard({Key? key}) : super(key: key);
@@ -164,14 +168,14 @@ class SidebarWidget extends StatelessWidget {
           _buildSidebarHeader(context),
 
           // Minimal divider
-          Container(
-            height: 1,
-            color: Colors.white24,
-            margin: EdgeInsets.symmetric(
-              horizontal: isCollapsed ? 8 : 16,
-              vertical: 8,
-            ),
-          ),
+          // Container(
+          //   height: 1,
+          //   color: Colors.white24,
+          //   margin: EdgeInsets.symmetric(
+          //     horizontal: isCollapsed ? 8 : 16,
+          //     vertical: 8,
+          //   ),
+          // ),
 
           // User Profile Section - only when expanded
           if (!isCollapsed) _buildUserProfile(),
@@ -374,7 +378,7 @@ class SidebarWidget extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     const Text(
-                      'HMS',
+                      'DocNex',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -658,8 +662,10 @@ class SidebarWidget extends StatelessWidget {
 }
 // Updated Sidebar Widget
 
-// Updated Navbar Widget with menu toggle
-class NavbarWidget extends StatelessWidget {
+// Enhanced Navbar Widget with professional showoff details
+// Enhanced Navbar Widget with professional showoff details
+// Minimal Universal Navbar Widget
+class NavbarWidget extends StatefulWidget {
   final VoidCallback onMenuTap;
 
   const NavbarWidget({
@@ -668,31 +674,187 @@ class NavbarWidget extends StatelessWidget {
   }) : super(key: key);
 
   @override
+  State<NavbarWidget> createState() => _NavbarWidgetState();
+}
+
+class _NavbarWidgetState extends State<NavbarWidget> {
+  String _currentTime = '';
+  late Timer _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateTime();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      _updateTime();
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  void _updateTime() {
+    final now = DateTime.now();
+    setState(() {
+      _currentTime = DateFormat('HH:mm:ss').format(now);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isCompact = screenWidth < 1200;
+
     return Container(
       height: 70,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: EdgeInsets.symmetric(horizontal: isCompact ? 12 : 24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        gradient: LinearGradient(
+          colors: [
+            Colors.white,
+            const Color(0xFFF8FBFD),
+          ],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 15,
             offset: const Offset(0, 5),
           ),
         ],
+        border: Border(
+          bottom: BorderSide(
+            color: HospitalTheme.border,
+            width: 1,
+          ),
+        ),
       ),
       child: Row(
         children: [
           // Menu toggle button
-          IconButton(
-            icon: const Icon(Icons.menu),
-            onPressed: onMenuTap,
-            tooltip: 'Toggle sidebar',
-            color: const Color(0xFF1E2843),
-          ),
 
-          // Remaining navbar items (unchanged)
+          const SizedBox(width: 20),
+
+          // Hospital Management System title
+          if (!isCompact)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: HospitalTheme.surfaceLight,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: HospitalTheme.border,
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.local_hospital_outlined,
+                    size: 16,
+                    color: HospitalTheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Hospital Management System',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: HospitalTheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          const Spacer(),
+
+          // System status
+          if (!isCompact)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: HospitalTheme.border,
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'DocNex',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.cyan,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          const SizedBox(width: 16),
+
+          // Live clock
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  HospitalTheme.primary,
+                  HospitalTheme.primaryLight,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(10),
+              boxShadow: [
+                BoxShadow(
+                  color: HospitalTheme.primary.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _currentTime,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    height: 1,
+                  ),
+                ),
+                Text(
+                  DateFormat('MMM dd').format(DateTime.now()),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.white.withOpacity(0.9),
+                    height: 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
