@@ -379,119 +379,105 @@ class _HomePageState extends ConsumerState<HomePage>
       Color primaryColor,
       Color textColor,
       Color shadowColor) {
-    final bool isSmallScreen = screenWidth < 1200;
+    // Enhanced responsive breakpoints
+    final bool isExtraLarge = screenWidth >= 1920; // 4K and ultra-wide
+    final bool isLarge =
+        screenWidth >= 1600 && screenWidth < 1920; // Large desktop
+    final bool isMedium =
+        screenWidth >= 1400 && screenWidth < 1600; // Medium desktop
+    final bool isSmall =
+        screenWidth >= 1200 && screenWidth < 1400; // Small desktop
+    final bool isCompact =
+        screenWidth < 1200; // Compact (fallback to mobile-like)
 
-    if (isSmallScreen) {
-      // Stack content for small screens
+    if (isCompact) {
+      // Stack content for very small screens
       return SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Clock widget
             _buildClockWidget(cardColor, primaryColor, textColor, shadowColor),
             const SizedBox(height: 16),
-            // To-do list
             _buildToDoList(cardColor, primaryColor, textColor),
             const SizedBox(height: 16),
-            // Applications
             _buildApplications(
-                cardColor, primaryColor, textColor, shadowColor, isSmallScreen),
+                cardColor, primaryColor, textColor, shadowColor, true),
             const SizedBox(height: 16),
-            // Quote widget
             _buildQuoteWidget(cardColor, textColor),
             const SizedBox(height: 16),
-            // Music player
-            _buildMusicPlayer(cardColor, textColor),
-            const SizedBox(height: 16),
-            // Photos
             _buildPhotosSection(cardColor, textColor),
-            const SizedBox(height: 16),
-            // Folders
-            // _buildFoldersSection(cardColor, textColor),
           ],
         ),
       );
     } else {
-      // Two-column layout for larger screens
-      return Column(
-        children: [
-          // First row: Clock, To-Do List, Applications
-          Expanded(
-            flex: 5,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Clock widget (left)
-                Expanded(
-                  flex: 5,
-                  child: _buildLogoWidget(
-                      cardColor, primaryColor, textColor, shadowColor),
-                ),
-                const SizedBox(
-                  height: 16,
-                  width: 16,
-                ),
+      // Responsive two-column layout for all desktop sizes
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          // Calculate dynamic spacing based on available width
+          final double horizontalSpacing =
+              constraints.maxWidth * 0.015; // 1.5% of width
+          final double verticalSpacing =
+              constraints.maxHeight * 0.02; // 2% of height
 
-                Expanded(
-                  flex: 3,
-                  child: _buildClockWidget(
-                      cardColor, primaryColor, textColor, shadowColor),
-                ),
-                const SizedBox(width: 16),
-                // To-Do List (middle)
-                // Expanded(
-                //   flex: 3,
-                //   child: _buildToDoList(cardColor, primaryColor, textColor),
-                // ),
-                // const SizedBox(width: 16),
-                // Applications (right)
-                Expanded(
-                  flex: 5,
-                  child: _buildApplications(cardColor, primaryColor, textColor,
-                      shadowColor, isSmallScreen),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Second row: Quote, Music, Photos and Folders
-          Expanded(
-            flex: 4,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Quote widget (left)
-                Expanded(
-                  flex: 3,
-                  child: _buildQuoteWidget(cardColor, textColor),
-                ),
-                const SizedBox(width: 16),
-                // Music player (middle)
+          return Column(
+            children: [
+              // First row with dynamic flex ratios
+              Expanded(
+                flex: isExtraLarge ? 6 : 5, // More space for larger screens
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Logo widget - responsive flex
+                    Expanded(
+                      flex: isExtraLarge ? 6 : (isLarge ? 5 : 5),
+                      child: _buildLogoWidget(
+                          cardColor, primaryColor, textColor, shadowColor),
+                    ),
+                    SizedBox(width: horizontalSpacing),
 
-                const SizedBox(width: 16),
-                // Photos and folders (right)
-                Expanded(
-                  flex: 7,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Photos - No fixed height constraint
-                      Flexible(
-                        flex: 1,
-                        child: _buildPhotosSection(cardColor, textColor),
-                      ),
-                      const SizedBox(height: 16),
-                      // Folders - If you had this section
-                      // Flexible(
-                      //   child: _buildFoldersSection(cardColor, textColor),
-                      // ),
-                    ],
-                  ),
+                    // Clock widget - consistent size across screens
+                    Expanded(
+                      flex: isExtraLarge ? 3 : (isLarge ? 3 : 3),
+                      child: _buildClockWidget(
+                          cardColor, primaryColor, textColor, shadowColor),
+                    ),
+                    SizedBox(width: horizontalSpacing),
+
+                    // Applications - adaptive flex
+                    Expanded(
+                      flex: isExtraLarge ? 5 : (isLarge ? 5 : 5),
+                      child: _buildApplications(cardColor, primaryColor,
+                          textColor, shadowColor, false),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-        ],
+              ),
+              SizedBox(height: verticalSpacing),
+
+              // Second row with responsive layout
+              Expanded(
+                flex: isExtraLarge ? 4 : 4,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Quote widget
+                    Expanded(
+                      flex: isExtraLarge ? 3 : (isLarge ? 3 : 3),
+                      child: _buildQuoteWidget(cardColor, textColor),
+                    ),
+                    SizedBox(width: horizontalSpacing),
+
+                    // Photos section - takes remaining space
+                    Expanded(
+                      flex: isExtraLarge ? 8 : (isLarge ? 7 : 7),
+                      child: _buildPhotosSection(cardColor, textColor),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       );
     }
   }
@@ -989,6 +975,197 @@ class _HomePageState extends ConsumerState<HomePage>
     );
   }
 
+  Widget _buildResponsiveAppItem(
+    String name,
+    IconData icon,
+    String screenName,
+    Color itemColor,
+    Color textColor,
+    Color shadowColor,
+    bool isPremium,
+    BoxConstraints constraints,
+  ) {
+    final List<Color> goldGradientColors = const [
+      Color(0xFFF9DB9D),
+      Color(0xFFEABF56),
+    ];
+
+    // Calculate responsive sizes
+    final double iconSize = constraints.maxWidth > 1600 ? 26 : 24;
+    final double nameSize = constraints.maxWidth > 1600 ? 17 : 16;
+    final double premiumIconSize = constraints.maxWidth > 1600 ? 15 : 14;
+    final double premiumTextSize = constraints.maxWidth > 1600 ? 11 : 10;
+    final double backgroundIconSize = constraints.maxWidth > 1600 ? 90 : 80;
+    final double paddingSize = constraints.maxWidth > 1600 ? 14 : 12;
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: itemColor.withOpacity(0.15),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Material(
+          color: itemColor,
+          child: InkWell(
+            onTap: () => _handleAppNavigation(screenName),
+            child: Stack(
+              children: [
+                // Background icon
+                Positioned(
+                  right: -15,
+                  bottom: -15,
+                  child: Icon(
+                    icon,
+                    size: backgroundIconSize,
+                    color: Colors.white.withOpacity(0.1),
+                  ),
+                ),
+
+                // Content
+                Padding(
+                  padding: EdgeInsets.all(paddingSize),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Icon container
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: itemColor.withOpacity(0.2),
+                              blurRadius: 6,
+                              spreadRadius: 0,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          icon,
+                          color: itemColor,
+                          size: iconSize,
+                        ),
+                      ),
+                      // App name and underline
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: TextStyle(
+                              fontSize: nameSize,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 3),
+                          Container(
+                            height: 3,
+                            width: 30,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.5),
+                              borderRadius: BorderRadius.circular(1.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Premium badge
+                if (isPremium)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: constraints.maxWidth > 1600 ? 9 : 8,
+                        vertical: constraints.maxWidth > 1600 ? 5 : 4,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: goldGradientColors,
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                        ),
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(16),
+                          bottomRight: Radius.circular(12),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.workspace_premium,
+                            color: const Color(0xFF5D4037),
+                            size: premiumIconSize,
+                          ),
+                          SizedBox(width: constraints.maxWidth > 1600 ? 4 : 3),
+                          Text(
+                            'PREMIUM',
+                            style: TextStyle(
+                              color: const Color(0xFF5D4037),
+                              fontWeight: FontWeight.w800,
+                              fontSize: premiumTextSize,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _handleAppNavigation(String screenName) {
+    // Add your existing navigation logic here
+    switch (screenName) {
+      case 'HospitalScreen':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => SplashScreen1()),
+        );
+        break;
+      case 'PatientsScreen':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => ReceptionDashBoard()),
+        );
+        break;
+      // Add other cases as needed...
+      default:
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Opening $screenName')),
+        );
+    }
+  }
+
 // Updated _buildAppItem method with premium badge
   Widget _buildAppItem(String name, IconData icon, String screenName,
       Color itemColor, Color textColor, Color shadowColor, bool isPremium) {
@@ -1412,43 +1589,47 @@ class _HomePageState extends ConsumerState<HomePage>
   }
 
   Widget _buildPhotosSection(Color cardColor, Color textColor) {
-    // Define panel items with image, title, and description
-    final List<Map<String, dynamic>> panels = [
+    // Define promotional content items
+    final List<Map<String, dynamic>> promoItems = [
       {
-        'title': 'Doctors',
-        'icon': Icons.medical_services,
-        'description': 'Manage specialist profiles',
-        'color': const Color(0xFF2196F3)
+        'title': 'AI Diagnostics',
+        'subtitle': 'Coming Soon',
+        'description': 'Revolutionary AI-powered medical diagnostics',
+        'icon': Icons.psychology,
+        'gradient': [const Color(0xFF667eea), const Color(0xFF764ba2)],
+        'isNew': true,
       },
       {
-        'title': 'Nurses',
-        'icon': Icons.health_and_safety,
-        'description': 'Staff scheduling & care',
-        'color': const Color(0xFF4CAF50)
+        'title': 'Mobile App',
+        'subtitle': 'On-the-Go',
+        'description': 'Access DocNeX from anywhere',
+        'icon': Icons.phone_android,
+        'gradient': [const Color(0xFFf093fb), const Color(0xFFf5576c)],
+        'isNew': true,
       },
       {
-        'title': 'Patients',
-        'icon': Icons.people_alt,
-        'description': 'Records & appointments',
-        'color': const Color(0xFFF44336)
+        'title': 'Smart Reports',
+        'subtitle': 'Analytics+',
+        'description': 'Advanced insights & predictive analytics',
+        'icon': Icons.trending_up,
+        'gradient': [const Color(0xFFfb2b69), const Color(0xFFff5858)],
+        'isNew': true,
       },
       {
-        'title': 'Lab Tests',
-        'icon': Icons.biotech,
-        'description': 'Results & diagnostics',
-        'color': const Color(0xFFFF9800)
+        'title': 'Cloud Backup',
+        'subtitle': 'Secure',
+        'description': 'Automatic data backup & recovery',
+        'icon': Icons.cloud_done,
+        'gradient': [const Color(0xFF4568dc), const Color(0xFFb06ab3)],
+        'isNew': false,
       },
       {
-        'title': 'Appointments',
-        'icon': Icons.calendar_today,
-        'description': 'Schedule management',
-        'color': const Color(0xFF9C27B0)
-      },
-      {
-        'title': 'Reports',
-        'icon': Icons.analytics,
-        'description': 'Analytics & insights',
-        'color': const Color(0xFF795548)
+        'title': 'Telemedicine',
+        'subtitle': 'Go Digital',
+        'description': 'Connect with patients remotely',
+        'icon': Icons.video_call,
+        'gradient': [const Color(0xFF11998e), const Color(0xFF38ef7d)],
+        'isNew': false,
       },
     ];
 
@@ -1469,73 +1650,280 @@ class _HomePageState extends ConsumerState<HomePage>
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Modern header section
+          // Enhanced header section with animation-like effect
           Container(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
+              gradient: const LinearGradient(
                 colors: [
-                  const Color(0xFF005F9E),
-                  const Color(0xFF0288D1),
+                  Color(0xFF005F9E),
+                  Color(0xFF0288D1),
+                  Color(0xFF00B8D4),
                 ],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF005F9E).withOpacity(0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.dashboard,
-                  color: Colors.white,
-                  size: 20,
-                ),
-                SizedBox(width: 8),
-                Text(
-                  'DocNex Panels ',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.auto_awesome,
                     color: Colors.white,
-                    letterSpacing: 0.5,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Discover What\'s Inside',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      Text(
+                        'We Proivde You With The Best',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEABF56),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'PREMIUM',
+                    style: TextStyle(
+                      color: Color(0xFF5D4037),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                      letterSpacing: 0.5,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
 
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
 
-          // Action buttons row
-          Row(
-            children: [
-              Spacer(),
-            ],
-          ),
-
-          SizedBox(height: 16),
-
-          // Panels section with fixed height
+          // Promotional cards section
           SizedBox(
-            height: 140, // Further reduced height
+            height: 140,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              itemCount: panels.length,
+              itemCount: promoItems.length,
               itemBuilder: (context, index) {
                 return Padding(
                   padding: const EdgeInsets.only(right: 16.0),
-                  child: _buildPanelItem(
-                    panels[index]['title'],
-                    panels[index]['icon'],
-                    panels[index]['description'],
-                    panels[index]['color'],
+                  child: _buildPromoCard(
+                    promoItems[index]['title'],
+                    promoItems[index]['subtitle'],
+                    promoItems[index]['description'],
+                    promoItems[index]['icon'],
+                    promoItems[index]['gradient'],
+                    promoItems[index]['isNew'],
                   ),
                 );
               },
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPromoCard(
+    String title,
+    String subtitle,
+    String description,
+    IconData icon,
+    List<Color> gradientColors,
+    bool isNew,
+  ) {
+    return Container(
+      width: 200,
+      height: 140,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: gradientColors,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: gradientColors[0].withOpacity(0.4),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
+          children: [
+            // Background pattern
+            Positioned(
+              right: -30,
+              bottom: -30,
+              child: Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.1),
+                ),
+              ),
+            ),
+            Positioned(
+              right: -10,
+              top: -10,
+              child: Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.05),
+                ),
+              ),
+            ),
+
+            // Content with proper overflow protection
+            Positioned.fill(
+              child: Padding(
+                padding: const EdgeInsets.all(14.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Icon and badge row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            icon,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        ),
+                        if (isNew)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEABF56),
+                              borderRadius: BorderRadius.circular(10),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Text(
+                              'NEW',
+                              style: TextStyle(
+                                color: Color(0xFF5D4037),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 9,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    // Flexible content area to prevent overflow
+                    Flexible(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Title
+                          Text(
+                            title,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              height: 1.1,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          // Subtitle
+                          Text(
+                            subtitle,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.white.withOpacity(0.9),
+                              fontWeight: FontWeight.w600,
+                              height: 1.1,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          // Description
+                          Flexible(
+                            child: Text(
+                              description,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.white.withOpacity(0.8),
+                                height: 1.2,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

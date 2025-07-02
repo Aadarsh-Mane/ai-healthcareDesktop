@@ -327,6 +327,46 @@ class AuthRepository {
     }
   }
 
+  Future<DoctorProfile> updateDoctorProfile({
+    required String doctorName,
+    String? speciality,
+    int? experience,
+    String? department,
+    String? phoneNumber,
+    String? imageUrl,
+  }) async {
+    final token = await getToken();
+    if (token == null) {
+      throw Exception('Authentication token not found');
+    }
+
+    final body = {
+      'doctorName': doctorName,
+      if (speciality != null) 'speciality': speciality,
+      if (experience != null) 'experience': experience,
+      if (department != null) 'department': department,
+      if (phoneNumber != null) 'phoneNumber': phoneNumber,
+      if (imageUrl != null) 'imageUrl': imageUrl,
+    };
+
+    final response = await http.patch(
+      Uri.parse('${KVM_URL}/doctors/updateProfile'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(body),
+    );
+    print(response.body);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return DoctorProfile.fromJson(data['doctorProfile']);
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['message'] ?? 'Failed to update profile');
+    }
+  }
+
   Future<List<Patient1>> getAdmittedPatients() async {
     try {
       // Retrieve the stored token

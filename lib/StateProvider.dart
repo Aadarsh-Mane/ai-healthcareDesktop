@@ -46,6 +46,44 @@ class DoctorProfileNotifier extends StateNotifier<DoctorProfile?> {
       throw Exception('Failed to fetch doctor profile: $e');
     }
   }
+
+  // Update doctor profile and refresh state
+  Future<void> updateDoctorProfile({
+    required String doctorName,
+    String? speciality,
+    int? experience,
+    String? department,
+    String? phoneNumber,
+    String? imageUrl,
+  }) async {
+    try {
+      // Call your update API through authRepository
+      final updatedProfile = await authRepository.updateDoctorProfile(
+        doctorName: doctorName,
+        speciality: speciality,
+        experience: experience,
+        department: department,
+        phoneNumber: phoneNumber,
+        imageUrl: imageUrl,
+      );
+
+      // Update the state with new data
+      state = updatedProfile;
+      print('Doctor profile updated successfully: $updatedProfile');
+    } catch (e) {
+      throw Exception('Failed to update doctor profile: $e');
+    }
+  }
+
+  // Force refresh the profile data
+  Future<void> refreshProfile() async {
+    await getDoctorProfile();
+  }
+
+  // Clear profile (for logout)
+  void clearProfile() {
+    state = null;
+  }
 }
 
 class AssignedPatientsNotifier

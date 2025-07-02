@@ -1,3 +1,5 @@
+// admin/BillTrackScreen.dart
+
 import 'package:doctordesktop/constants/HospitalTheme.dart';
 import 'package:doctordesktop/constants/Methods.dart';
 import 'package:doctordesktop/constants/Url.dart';
@@ -1705,44 +1707,44 @@ class BillDetailView extends ConsumerWidget {
                 icon: const Icon(Icons.picture_as_pdf),
                 label: const Text('View PDF'),
               ),
-              ElevatedButton.icon(
-                onPressed: () => _printBill(),
-                icon: const Icon(Icons.print),
-                label: const Text('Print'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: HospitalTheme.info,
-                ),
-              ),
-              ElevatedButton.icon(
-                onPressed: () => _sendEmail(),
-                icon:
-                    Icon(bill.emailSent ? Icons.mark_email_read : Icons.email),
-                label: Text(bill.emailSent ? 'Email Sent' : 'Send Email'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: bill.emailSent
-                      ? HospitalTheme.success
-                      : HospitalTheme.secondary,
-                ),
-              ),
-              ElevatedButton.icon(
-                onPressed: () => _sendSMS(),
-                icon: Icon(bill.smsSent ? Icons.check_circle : Icons.sms),
-                label: Text(bill.smsSent ? 'SMS Sent' : 'Send SMS'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: bill.smsSent
-                      ? HospitalTheme.success
-                      : HospitalTheme.pharmacy,
-                ),
-              ),
-              if (bill.financials.dueAmount > 0)
-                ElevatedButton.icon(
-                  onPressed: () => _addPayment(),
-                  icon: const Icon(Icons.payment),
-                  label: const Text('Add Payment'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: HospitalTheme.warning,
-                  ),
-                ),
+              // ElevatedButton.icon(
+              //   onPressed: () => _printBill(),
+              //   icon: const Icon(Icons.print),
+              //   label: const Text('Print'),
+              //   style: ElevatedButton.styleFrom(
+              //     backgroundColor: HospitalTheme.info,
+              //   ),
+              // ),
+              // ElevatedButton.icon(
+              //   onPressed: () => _sendEmail(),
+              //   icon:
+              //       Icon(bill.emailSent ? Icons.mark_email_read : Icons.email),
+              //   label: Text(bill.emailSent ? 'Email Sent' : 'Send Email'),
+              //   style: ElevatedButton.styleFrom(
+              //     backgroundColor: bill.emailSent
+              //         ? HospitalTheme.success
+              //         : HospitalTheme.secondary,
+              //   ),
+              // ),
+              // ElevatedButton.icon(
+              //   onPressed: () => _sendSMS(),
+              //   icon: Icon(bill.smsSent ? Icons.check_circle : Icons.sms),
+              //   label: Text(bill.smsSent ? 'SMS Sent' : 'Send SMS'),
+              //   style: ElevatedButton.styleFrom(
+              //     backgroundColor: bill.smsSent
+              //         ? HospitalTheme.success
+              //         : HospitalTheme.pharmacy,
+              //   ),
+              // ),
+              // if (bill.financials.dueAmount > 0)
+              //   ElevatedButton.icon(
+              //     onPressed: () => _addPayment(),
+              //     icon: const Icon(Icons.payment),
+              //     label: const Text('Add Payment'),
+              //     style: ElevatedButton.styleFrom(
+              //       backgroundColor: HospitalTheme.warning,
+              //     ),
+              //   ),
             ],
           ),
           if (bill.files != null) ...[

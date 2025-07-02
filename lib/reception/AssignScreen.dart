@@ -1,3 +1,5 @@
+// /lib/reception/AsignScreen.dart
+
 import 'dart:convert';
 import 'package:doctordesktop/constants/HospitalTheme.dart';
 import 'package:doctordesktop/constants/Methods.dart';
@@ -29,6 +31,7 @@ class _AssignScreenState extends State<AssignScreen> {
   bool _hasError = false;
   String _errorMessage = '';
   String? _selectedDoctorId;
+  String _selectedSpeciality = 'All Doctors';
 
   @override
   void initState() {
@@ -276,7 +279,70 @@ class _AssignScreenState extends State<AssignScreen> {
     );
   }
 
+  Widget _buildFilterChips() {
+    final specialities = _doctors
+        .map((doctor) => doctor['speciality'] as String)
+        .toSet()
+        .toList();
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          HospitalTheme.buildSpecialtyChip(
+            label: 'All Doctors',
+            icon: Icons.people_outline,
+            isSelected: _selectedSpeciality == 'All Doctors',
+            onTap: () {
+              setState(() {
+                _selectedSpeciality = 'All Doctors';
+              });
+            },
+          ),
+          SizedBox(width: 8),
+          ...specialities.map((speciality) => Padding(
+                padding: EdgeInsets.only(right: 8),
+                child: HospitalTheme.buildSpecialtyChip(
+                  label: speciality,
+                  icon: _getSpecialtyIcon(speciality),
+                  isSelected: _selectedSpeciality == speciality,
+                  onTap: () {
+                    setState(() {
+                      _selectedSpeciality = speciality;
+                    });
+                  },
+                ),
+              )),
+        ],
+      ),
+    );
+  }
+
+  IconData _getSpecialtyIcon(String speciality) {
+    switch (speciality.toLowerCase()) {
+      case 'cardiology':
+        return Icons.favorite;
+      case 'neurology':
+        return Icons.psychology;
+      case 'pediatrics':
+        return Icons.child_care;
+      case 'orthopedics':
+        return Icons.accessibility_new;
+      case 'general':
+        return Icons.medical_services;
+      default:
+        return Icons.local_hospital;
+    }
+  }
+
   Widget _buildContent() {
+    // Filter doctors by selected specialty
+    final filteredDoctors = _selectedSpeciality == 'All Doctors'
+        ? _doctors
+        : _doctors
+            .where((d) => d['speciality'] == _selectedSpeciality)
+            .toList();
+
     return Column(
       children: [
         // Patient info panel
@@ -350,7 +416,7 @@ class _AssignScreenState extends State<AssignScreen> {
 
         // Doctors grid
         Expanded(
-          child: _doctors.isEmpty
+          child: filteredDoctors.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -384,9 +450,9 @@ class _AssignScreenState extends State<AssignScreen> {
                       mainAxisSpacing: 16.0,
                       childAspectRatio: 0.8,
                     ),
-                    itemCount: _doctors.length,
+                    itemCount: filteredDoctors.length,
                     itemBuilder: (context, index) {
-                      final doctor = _doctors[index];
+                      final doctor = filteredDoctors[index];
                       return _buildDoctorCard(doctor);
                     },
                   ),
@@ -394,55 +460,6 @@ class _AssignScreenState extends State<AssignScreen> {
         ),
       ],
     );
-  }
-
-  Widget _buildFilterChips() {
-    // Extract unique specialities
-    final specialities = _doctors
-        .map((doctor) => doctor['speciality'] as String)
-        .toSet()
-        .toList();
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          HospitalTheme.buildSpecialtyChip(
-            label: 'All Doctors',
-            icon: Icons.people_outline,
-            isSelected: true,
-            onTap: () {},
-          ),
-          SizedBox(width: 8),
-          ...specialities.map((speciality) => Padding(
-                padding: EdgeInsets.only(right: 8),
-                child: HospitalTheme.buildSpecialtyChip(
-                  label: speciality,
-                  icon: _getSpecialtyIcon(speciality),
-                  isSelected: false,
-                  onTap: () {},
-                ),
-              )),
-        ],
-      ),
-    );
-  }
-
-  IconData _getSpecialtyIcon(String speciality) {
-    switch (speciality.toLowerCase()) {
-      case 'cardiology':
-        return Icons.favorite;
-      case 'neurology':
-        return Icons.psychology;
-      case 'pediatrics':
-        return Icons.child_care;
-      case 'orthopedics':
-        return Icons.accessibility_new;
-      case 'general':
-        return Icons.medical_services;
-      default:
-        return Icons.local_hospital;
-    }
   }
 
   Widget _buildDoctorCard(Map<String, dynamic> doctor) {

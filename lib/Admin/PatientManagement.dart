@@ -207,7 +207,6 @@ class AdmissionApiService {
             '$KVM_URL/reception/getPatientsWithAdmissions?page=$page&limit=$limit'),
         headers: {'Content-Type': 'application/json'},
       );
-      print(response.body);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return PatientResponse.fromJson(data);
@@ -227,7 +226,6 @@ class AdmissionApiService {
         headers: {'Content-Type': 'application/json'},
         body: json.encode(updates),
       );
-      print(response.body);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return Patient.fromJson(data['data']);
@@ -241,15 +239,12 @@ class AdmissionApiService {
 
   static Future<void> deleteAdmissionRecord(
       String patientId, String admissionId) async {
-    print('$KVM_URL/reception/deleteAdmissionRecord/$patientId/$admissionId');
     try {
       final response = await http.delete(
         Uri.parse(
             '$KVM_URL/reception/deleteAdmissionRecord/$patientId/$admissionId'),
         headers: {'Content-Type': 'application/json'},
       );
-      print(response.body);
-
       if (response.statusCode != 200) {
         throw Exception(
             'Failed to delete admission record: ${response.statusCode}');
@@ -306,6 +301,25 @@ class _AdmissionManagementScreenState
     extends ConsumerState<AdmissionManagementScreen> {
   final _searchController = TextEditingController();
 
+  Patient _createEmptyPatient() {
+    return Patient(
+      id: '',
+      patientId: '',
+      name: '',
+      age: 0,
+      gender: 'Male',
+      contact: '',
+      address: '',
+      imageUrl: '',
+      discharged: false,
+      pendingAmount: 0.0,
+      admissionRecords: [],
+      admissionCount: 0,
+      latestAdmission: null,
+      hasActiveAdmissions: false,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -326,17 +340,31 @@ class _AdmissionManagementScreenState
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
-      appBar: HospitalTheme.buildAppBar(
-        context: context,
-        title: 'Admission Management',
-        showBackButton: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white),
-            onPressed: () => _refreshData(),
-            tooltip: 'Refresh (Ctrl+R)',
-          ),
-          const SizedBox(width: 16),
+      appBar: AppBar(
+        backgroundColor: HospitalTheme.primary,
+        elevation: 0,
+        leadingWidth: 120,
+        leading: Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.add, color: Colors.white),
+              tooltip: 'Add Patient',
+              onPressed: () {
+                ref.read(selectedPatientProvider.notifier).state =
+                    _createEmptyPatient();
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.refresh, color: Colors.white),
+              onPressed: () => _refreshData(),
+              tooltip: 'Refresh (Ctrl+R)',
+            ),
+          ],
+        ),
+        title: const Text('Admission Management',
+            style: TextStyle(color: Colors.white)),
+        actions: const [
+          SizedBox(width: 16),
         ],
       ),
       body: KeyboardListener(
@@ -358,7 +386,6 @@ class _AdmissionManagementScreenState
       if (isCtrlPressed && event.logicalKey == LogicalKeyboardKey.keyR) {
         _refreshData();
       } else if (isCtrlPressed && event.logicalKey == LogicalKeyboardKey.keyF) {
-        // Focus search field
         FocusScope.of(context).requestFocus();
       }
     }
@@ -371,14 +398,11 @@ class _AdmissionManagementScreenState
   Widget _buildDesktopLayout(double screenWidth, double screenHeight) {
     return Row(
       children: [
-        // Master Panel - Patient List
         SizedBox(
           width: screenWidth * 0.4,
           child: _buildMasterPanel(),
         ),
-        // Divider
         const VerticalDivider(width: 1),
-        // Detail Panel - Patient Details
         Expanded(
           child: _buildDetailPanel(),
         ),
@@ -388,7 +412,6 @@ class _AdmissionManagementScreenState
 
   Widget _buildMobileLayout(double screenWidth, double screenHeight) {
     final selectedPatient = ref.watch(selectedPatientProvider);
-
     return selectedPatient == null ? _buildMasterPanel() : _buildDetailPanel();
   }
 
@@ -399,7 +422,6 @@ class _AdmissionManagementScreenState
 
     return Column(
       children: [
-        // Search and Filters
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -410,7 +432,6 @@ class _AdmissionManagementScreenState
           ),
           child: Column(
             children: [
-              // Search Bar
               TextField(
                 controller: _searchController,
                 decoration: InputDecoration(
@@ -427,7 +448,6 @@ class _AdmissionManagementScreenState
                 ),
               ),
               const SizedBox(height: 12),
-              // Stats Row
               patientsAsync.when(
                 data: (patientResponse) => Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -455,7 +475,6 @@ class _AdmissionManagementScreenState
             ],
           ),
         ),
-        // Patient List
         Expanded(
           child: patientsAsync.when(
             data: (patientResponse) => filteredPatients.isEmpty
@@ -473,7 +492,6 @@ class _AdmissionManagementScreenState
             error: (error, stackTrace) => _buildErrorState(error.toString()),
           ),
         ),
-        // Pagination
         patientsAsync.when(
           data: (patientResponse) =>
               _buildPagination(patientResponse.pagination),
@@ -496,13 +514,10 @@ class _AdmissionManagementScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Patient Header
           _buildPatientHeader(selectedPatient),
           const SizedBox(height: 24),
-          // Patient Details
           _buildPatientDetails(selectedPatient),
           const SizedBox(height: 24),
-          // Admission Records
           _buildAdmissionRecords(selectedPatient),
         ],
       ),
@@ -547,69 +562,68 @@ class _AdmissionManagementScreenState
         border: isSelected ? Border.all(color: HospitalTheme.primary) : null,
       ),
       child: ListTile(
-        onTap: () {
-          ref.read(selectedPatientProvider.notifier).state = patient;
-        },
-        leading: CircleAvatar(
-          backgroundColor: patient.hasActiveAdmissions
-              ? HospitalTheme.success.withOpacity(0.1)
-              : HospitalTheme.textLight.withOpacity(0.1),
-          child: Icon(
-            patient.hasActiveAdmissions ? Icons.local_hospital : Icons.person,
-            color: patient.hasActiveAdmissions
-                ? HospitalTheme.success
-                : HospitalTheme.textMedium,
-          ),
-        ),
-        title: Text(
-          patient.name,
-          style: TextStyle(
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-            color: HospitalTheme.textDark,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'ID: ${patient.patientId} • ${patient.age}y ${patient.gender}',
-              style: const TextStyle(fontSize: 12),
-            ),
-            if (patient.pendingAmount > 0) ...[
-              const SizedBox(height: 2),
-              Text(
-                'Pending: ₹${patient.pendingAmount.toStringAsFixed(2)}',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: HospitalTheme.warning,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ],
-        ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            HospitalTheme.buildStatusBadge(
-              patient.hasActiveAdmissions ? 'Admitted' : 'Discharged',
+          onTap: () {
+            ref.read(selectedPatientProvider.notifier).state = patient;
+          },
+          leading: CircleAvatar(
+            backgroundColor: patient.hasActiveAdmissions
+                ? HospitalTheme.success.withOpacity(0.1)
+                : HospitalTheme.textLight.withOpacity(0.1),
+            child: Icon(
+              patient.hasActiveAdmissions ? Icons.local_hospital : Icons.person,
               color: patient.hasActiveAdmissions
                   ? HospitalTheme.success
-                  : HospitalTheme.info,
+                  : HospitalTheme.textMedium,
             ),
-            if (patient.admissionCount > 0) ...[
-              const SizedBox(height: 4),
+          ),
+          title: Text(
+            patient.name,
+            style: TextStyle(
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+              color: HospitalTheme.textDark,
+            ),
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Text(
-                '${patient.admissionCount} visits',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: HospitalTheme.textLight,
-                ),
+                'ID: ${patient.patientId} • ${patient.age}y ${patient.gender}',
+                style: const TextStyle(fontSize: 12),
               ),
+              if (patient.pendingAmount > 0) ...[
+                const SizedBox(height: 2),
+                Text(
+                  'Pending: ₹${patient.pendingAmount.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: HospitalTheme.warning,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ],
-          ],
-        ),
-      ),
+          ),
+          trailing: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              HospitalTheme.buildStatusBadge(
+                patient.hasActiveAdmissions ? 'Admitted' : 'Discharged',
+                color: patient.hasActiveAdmissions
+                    ? HospitalTheme.success
+                    : HospitalTheme.info,
+              ),
+              if (patient.admissionCount > 0) ...[
+                const SizedBox(height: 4),
+                Text(
+                  '${patient.admissionCount} visits',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: HospitalTheme.textLight,
+                  ),
+                ),
+              ],
+            ],
+          )),
     );
   }
 
@@ -617,7 +631,6 @@ class _AdmissionManagementScreenState
     return HospitalTheme.buildCard(
       child: Row(
         children: [
-          // Avatar
           Container(
             width: 80,
             height: 80,
@@ -640,7 +653,6 @@ class _AdmissionManagementScreenState
                 : null,
           ),
           const SizedBox(width: 20),
-          // Patient Info
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -703,7 +715,6 @@ class _AdmissionManagementScreenState
               ],
             ),
           ),
-          // Actions
           Column(
             children: [
               ElevatedButton.icon(

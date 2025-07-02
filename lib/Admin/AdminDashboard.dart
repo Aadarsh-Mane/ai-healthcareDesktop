@@ -704,115 +704,88 @@ class NavbarWidget extends StatelessWidget {
             color: const Color(0xFF1E2843),
           ),
 
-          // Search Bar
-          Expanded(
-            child: Container(
-              height: 40,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF5F7FA),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.gesture_outlined,
-                      color: Colors.grey.shade500, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Welcome to HMS',
-                    style: TextStyle(
-                      color: Colors.grey.shade500,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          // // Remaining navbar items (unchanged)
+          // const SizedBox(width: 16),
+          // Container(
+          //   padding: const EdgeInsets.all(8),
+          //   decoration: BoxDecoration(
+          //     color: const Color(0xFFF5F7FA),
+          //     borderRadius: BorderRadius.circular(8),
+          //     border: Border.all(color: Colors.grey.shade200),
+          //   ),
+          //   child: Stack(
+          //     children: [
+          //       const Icon(Icons.notifications_outlined,
+          //           color: Color(0xFF1E2843)),
+          //       Positioned(
+          //         right: 0,
+          //         top: 0,
+          //         child: Container(
+          //           width: 8,
+          //           height: 8,
+          //           decoration: const BoxDecoration(
+          //             color: Colors.red,
+          //             shape: BoxShape.circle,
+          //           ),
+          //         ),
+          //       ),
+          //     ],
+          //   ),
+          // ),
 
-          // Remaining navbar items (unchanged)
-          const SizedBox(width: 16),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF5F7FA),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: Stack(
-              children: [
-                const Icon(Icons.notifications_outlined,
-                    color: Color(0xFF1E2843)),
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          // const SizedBox(width: 12),
+          // Container(
+          //   padding: const EdgeInsets.all(8),
+          //   decoration: BoxDecoration(
+          //     color: const Color(0xFFF5F7FA),
+          //     borderRadius: BorderRadius.circular(8),
+          //     border: Border.all(color: Colors.grey.shade200),
+          //   ),
+          //   child: const Icon(Icons.email_outlined, color: Color(0xFF1E2843)),
+          // ),
 
-          const SizedBox(width: 12),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF5F7FA),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: const Icon(Icons.email_outlined, color: Color(0xFF1E2843)),
-          ),
-
-          const SizedBox(width: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF5F7FA),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(50),
-                  child: Container(
-                    width: 30,
-                    height: 30,
-                    color: Colors.blue.shade100,
-                    child: const Center(
-                      child: Icon(
-                        Icons.person,
-                        color: Color(0xFF1E2843),
-                        size: 18,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Admin',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF1E2843),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                const Icon(
-                  Icons.keyboard_arrow_down,
-                  size: 16,
-                  color: Color(0xFF1E2843),
-                ),
-              ],
-            ),
-          ),
+          // const SizedBox(width: 12),
+          // Container(
+          //   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          //   decoration: BoxDecoration(
+          //     color: const Color(0xFFF5F7FA),
+          //     borderRadius: BorderRadius.circular(8),
+          //     border: Border.all(color: Colors.grey.shade200),
+          //   ),
+          //   child: Row(
+          //     children: [
+          //       ClipRRect(
+          //         borderRadius: BorderRadius.circular(50),
+          //         child: Container(
+          //           width: 30,
+          //           height: 30,
+          //           color: Colors.blue.shade100,
+          //           child: const Center(
+          //             child: Icon(
+          //               Icons.person,
+          //               color: Color(0xFF1E2843),
+          //               size: 18,
+          //             ),
+          //           ),
+          //         ),
+          //       ),
+          //       const SizedBox(width: 8),
+          //       const Text(
+          //         'Admin',
+          //         style: TextStyle(
+          //           fontWeight: FontWeight.w500,
+          //           color: Color(0xFF1E2843),
+          //         ),
+          //       ),
+          //       const SizedBox(width: 4),
+          //       const Icon(
+          //         Icons.keyboard_arrow_down,
+          //         size: 16,
+          //         color: Color(0xFF1E2843),
+          //       ),
+          //     ],
+          //   ),
+          // ),
         ],
       ),
     );

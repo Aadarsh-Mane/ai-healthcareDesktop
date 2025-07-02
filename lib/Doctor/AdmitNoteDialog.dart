@@ -1,3 +1,5 @@
+// doctor/AdmitNoteDialog.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -38,10 +40,21 @@ class _AdmitPatientDialogState extends State<AdmitPatientDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Specify where patient ${widget.patientName} should be admitted:',
+              'Specify where patient',
               style: TextStyle(fontSize: 16),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 4),
+            Text(
+              widget.patientName,
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF005F9E),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 18),
 
             // Radio options for admission locations
             RadioListTile<String>(
@@ -98,6 +111,7 @@ class _AdmitPatientDialogState extends State<AdmitPatientDialog> {
                           BorderSide(color: Color(0xFF005F9E), width: 2),
                     ),
                   ),
+                  maxLines: 1,
                 ),
               ),
           ],
@@ -111,8 +125,17 @@ class _AdmitPatientDialogState extends State<AdmitPatientDialog> {
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: Color(0xFF005F9E),
+            foregroundColor:
+                Colors.white, // <-- ensures text is white and visible
           ),
           onPressed: () {
+            if (_showOtherField &&
+                _otherLocationController.text.trim().isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Please specify a location.')),
+              );
+              return;
+            }
             final String admitNote = _showOtherField
                 ? 'Other: ${_otherLocationController.text.trim()}'
                 : _selectedLocation;

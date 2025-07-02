@@ -1292,62 +1292,9 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                                     // Advanced Action Buttons with Hover Effects
                                     Row(
                                       children: [
-                                        // Notification Button with Badge
-                                        Stack(
-                                          children: [
-                                            IconButton(
-                                              icon: Icon(
-                                                Icons.notifications_outlined,
-                                                color: Colors.grey.shade700,
-                                              ),
-                                              onPressed: () {
-                                                // Notification handling
-                                              },
-                                              // Hover effect
-                                              hoverColor: Color(0xFF1E2843)
-                                                  .withOpacity(0.1),
-                                            ),
-                                            // Notification Badge
-                                            Positioned(
-                                              right: 5,
-                                              top: 5,
-                                              child: Container(
-                                                padding: EdgeInsets.all(4),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.red,
-                                                  shape: BoxShape.circle,
-                                                ),
-                                                child: Text(
-                                                  '3', // Number of notifications
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 10,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-
                                         SizedBox(width: 10),
 
                                         // Settings Button with Tooltip
-                                        Tooltip(
-                                          message: 'Open Settings',
-                                          child: IconButton(
-                                            icon: Icon(
-                                              Icons.settings_outlined,
-                                              color: Colors.grey.shade700,
-                                            ),
-                                            onPressed: () {
-                                              // Settings handling
-                                            },
-                                            // Hover effect
-                                            hoverColor: Color(0xFF1E2843)
-                                                .withOpacity(0.1),
-                                          ),
-                                        ),
 
                                         SizedBox(width: 20),
 
@@ -1368,7 +1315,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                                                   CrossAxisAlignment.start,
                                               children: [
                                                 Text(
-                                                  'Dr. John Doe', // Current user name
+                                                  'DocNex', // Current user name
                                                   style: TextStyle(
                                                     fontSize: 14,
                                                     fontWeight: FontWeight.w600,
@@ -1376,7 +1323,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                                                   ),
                                                 ),
                                                 Text(
-                                                  'Physician', // User role
+                                                  'Care', // User role
                                                   style: TextStyle(
                                                     fontSize: 12,
                                                     color: Colors.grey.shade600,
@@ -1397,25 +1344,18 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                                                   value: 'profile',
                                                   child: Text('Profile'),
                                                 ),
-                                                PopupMenuItem(
-                                                  value: 'logout',
-                                                  child: Text('Logout'),
-                                                ),
                                               ],
                                               onSelected: (String value) {
                                                 // Handle user actions
                                                 switch (value) {
                                                   case 'profile':
-                                                    // Navigator.push(
-                                                    //     context,
-                                                    //     MaterialPageRoute(
-                                                    //       builder: (context) =>
-                                                    //           DoctorProfileScreen(),
-                                                    //     ));
+                                                    Navigator.push(
+                                                        context,
+                                                        MaterialPageRoute(
+                                                          builder: (context) =>
+                                                              DoctorProfileScreen(),
+                                                        ));
                                                     // Navigate to profile
-                                                    break;
-                                                  case 'logout':
-                                                    // Logout logic
                                                     break;
                                                 }
                                               },
@@ -1479,38 +1419,160 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                     distance: 100.0,
                     type: ExpandableFabType.up,
                     children: [
-                      FloatingActionButton.extended(
-                        label: const Text('Add Diagnosis'),
-                        heroTag: 'fab1',
-                        onPressed: () {
-                          openAddDiagnosisScreen(widget.patient.patientId,
-                              widget.patient.admissionRecords.first.id);
-                        },
-                      ),
-                      FloatingActionButton.extended(
-                        label: const Text('Add Doctor Consulting'),
-                        heroTag: 'fab2',
-                        onPressed: () {
-                          _openAddDoctorConsultingScreen(
+                      // Add Diagnosis - Gradient Red
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFE53E3E), Color(0xFFFC8181)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(28),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFE53E3E).withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: FloatingActionButton.extended(
+                          label: const Text(
+                            'Add Diagnosis',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          icon: const Icon(Icons.medical_information, size: 20),
+                          heroTag: 'fab1',
+                          backgroundColor: Colors.transparent,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          onPressed: () {
+                            openAddDiagnosisScreen(
                               widget.patient.patientId,
-                              widget.patient.admissionRecords.first.id);
-                        },
+                              widget.patient.admissionRecords.first.id,
+                            );
+                          },
+                        ),
                       ),
-                      FloatingActionButton.extended(
-                        label: const Text('Add Prescription'),
-                        heroTag: 'fab3',
-                        onPressed: () {
-                          _openAddPrescriptionScreen(widget.patient.patientId,
-                              widget.patient.admissionRecords.first.id);
-                        },
+
+                      // Add Doctor Consulting - Gradient Blue
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF3182CE), Color(0xFF63B3ED)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(28),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF3182CE).withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: FloatingActionButton.extended(
+                          label: const Text(
+                            'Add Doctor Consulting',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          icon: const Icon(Icons.supervisor_account, size: 20),
+                          heroTag: 'fab2',
+                          backgroundColor: Colors.transparent,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          onPressed: () {
+                            _openAddDoctorConsultingScreen(
+                              widget.patient.patientId,
+                              widget.patient.admissionRecords.first.id,
+                            );
+                          },
+                        ),
                       ),
-                      FloatingActionButton.extended(
-                        label: const Text('Add Vitals'),
-                        heroTag: 'fab4',
-                        onPressed: () {
-                          _openAddVitalsDialog(widget.patient.patientId,
-                              widget.patient.admissionRecords.first.id);
-                        },
+
+                      // Add Prescription - Gradient Green
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF38A169), Color(0xFF68D391)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(28),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF38A169).withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: FloatingActionButton.extended(
+                          label: const Text(
+                            'Add Prescription',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          icon: const Icon(Icons.medication, size: 20),
+                          heroTag: 'fab3',
+                          backgroundColor: Colors.transparent,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          onPressed: () {
+                            _openAddPrescriptionScreen(
+                              widget.patient.patientId,
+                              widget.patient.admissionRecords.first.id,
+                            );
+                          },
+                        ),
+                      ),
+
+                      // Add Vitals - Gradient Orange
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFED8936), Color(0xFFFBB040)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(28),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFED8936).withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: FloatingActionButton.extended(
+                          label: const Text(
+                            'Add Vitals',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          icon: const Icon(Icons.favorite, size: 20),
+                          heroTag: 'fab4',
+                          backgroundColor: Colors.transparent,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          onPressed: () {
+                            _openAddVitalsDialog(
+                              widget.patient.patientId,
+                              widget.patient.admissionRecords.first.id,
+                            );
+                          },
+                        ),
                       ),
                     ],
                   ),
@@ -3876,7 +3938,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Colors.teal,
+                color: Color(0xFF00B8D4),
               ),
             ),
             const SizedBox(height: 10),
@@ -3912,7 +3974,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                   onPressed: _addVitals,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Color(0xFF00B8D4),
-                    foregroundColor: Colors.white,
+                    foregroundColor: Colors.black,
                     elevation: 4,
                     padding: const EdgeInsets.symmetric(
                         vertical: 14, horizontal: 24),
@@ -4033,7 +4095,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
         // Define fixed heights for sections on laptop screens
         // INCREASED HEIGHT for left column sections (was 200)
         final double leftColumnSectionHeight = isMediumScreen
-            ? 350
+            ? 362
             : double.infinity; // Increased height for left sections
         final double rightColumnHeight = isMediumScreen
             ? 750
@@ -4805,7 +4867,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                   child: Text('Open Database'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Color(0xFF00B8D4),
-                    foregroundColor: Colors.white,
+                    foregroundColor: Colors.black,
                     elevation: 4,
                     padding: const EdgeInsets.symmetric(
                         vertical: 14, horizontal: 24),
@@ -5043,8 +5105,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
               icon: Icon(Icons.add_circle_outline),
               label: Text('Add Prescription'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFF1E2843),
-                foregroundColor: Colors.white,
+                backgroundColor: Color(0xFF00B8D4),
                 padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -6961,8 +7022,8 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
           // Add Symptom button
           buildCustomActionButton(
             label: 'Add Symptom',
-            startColor: Colors.deepPurpleAccent,
-            endColor: Colors.pinkAccent,
+            startColor: Color(0xFF00B8D4),
+            endColor: Color(0xFF00B8D4),
             onPressed: _addSymptom,
           ),
         ],

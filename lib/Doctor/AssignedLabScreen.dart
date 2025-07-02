@@ -73,8 +73,7 @@ class _LaboratoryAssignmentsScreenState
       } else {
         setState(() {
           _isLoading = false;
-          _errorMessage =
-              'Failed to load lab assignments: ${response.statusCode}';
+          _errorMessage = 'No lab assignments found or an error occurred.';
         });
       }
     } catch (e) {
