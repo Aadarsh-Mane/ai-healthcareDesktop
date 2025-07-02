@@ -823,7 +823,7 @@ class _AdmittedPatientsScreenState
                         items: [
                           'Discharged',
                           "Transferred",
-                          "D.M.A.",
+                          "D.A.M.A.",
                           "Absconded",
                           "Expired"
                         ].map((String value) {

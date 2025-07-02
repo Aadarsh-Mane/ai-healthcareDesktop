@@ -38,6 +38,16 @@ final depositSummaryProvider =
     StateNotifierProvider<DepositSummaryNotifier, DepositSummary?>(
         (ref) => DepositSummaryNotifier());
 
+// Bill storage provider
+final billStorageProvider =
+    StateNotifierProvider<BillStorageNotifier, BillStorageState>(
+        (ref) => BillStorageNotifier());
+
+// Generated bill data provider
+final generatedBillProvider =
+    StateNotifierProvider<GeneratedBillNotifier, GeneratedBillData?>(
+        (ref) => GeneratedBillNotifier());
+
 // Filtered patients provider
 final filteredPatientsProvider = Provider<List<Patient>>((ref) {
   final patients = ref.watch(patientsProvider);
@@ -60,6 +70,7 @@ class UIState {
   final bool isProcessing;
   final bool isLoadingDepositSummary;
   final bool isCreatingDeposit;
+  final bool isGeneratingBill;
 
   const UIState({
     this.isLoadingPatients = false,
@@ -67,6 +78,7 @@ class UIState {
     this.isProcessing = false,
     this.isLoadingDepositSummary = false,
     this.isCreatingDeposit = false,
+    this.isGeneratingBill = false,
   });
 
   UIState copyWith({
@@ -75,6 +87,7 @@ class UIState {
     bool? isProcessing,
     bool? isLoadingDepositSummary,
     bool? isCreatingDeposit,
+    bool? isGeneratingBill,
   }) {
     return UIState(
       isLoadingPatients: isLoadingPatients ?? this.isLoadingPatients,
@@ -83,6 +96,7 @@ class UIState {
       isLoadingDepositSummary:
           isLoadingDepositSummary ?? this.isLoadingDepositSummary,
       isCreatingDeposit: isCreatingDeposit ?? this.isCreatingDeposit,
+      isGeneratingBill: isGeneratingBill ?? this.isGeneratingBill,
     );
   }
 }
@@ -174,6 +188,68 @@ class DepositFormData {
         depositAmount! > 0 &&
         paymentMethod != null &&
         paymentMethod!.isNotEmpty;
+  }
+}
+
+// Bill storage state classes
+class BillStorageState {
+  final bool isStoringBill;
+  final String? errorMessage;
+  final bool billStored;
+
+  const BillStorageState({
+    this.isStoringBill = false,
+    this.errorMessage,
+    this.billStored = false,
+  });
+
+  BillStorageState copyWith({
+    bool? isStoringBill,
+    String? errorMessage,
+    bool? billStored,
+    bool clearError = false,
+  }) {
+    return BillStorageState(
+      isStoringBill: isStoringBill ?? this.isStoringBill,
+      errorMessage: clearError ? null : errorMessage ?? this.errorMessage,
+      billStored: billStored ?? this.billStored,
+    );
+  }
+}
+
+class GeneratedBillData {
+  final String fileName;
+  final String? driveLink;
+  final int pdfSize;
+  final DateTime generatedAt;
+  final Map<String, dynamic> patientInfo;
+  final Map<String, dynamic> admissionDetails;
+  final Map<String, dynamic> billSummary;
+  final Map<String, dynamic> billData;
+
+  const GeneratedBillData({
+    required this.fileName,
+    this.driveLink,
+    required this.pdfSize,
+    required this.generatedAt,
+    required this.patientInfo,
+    required this.admissionDetails,
+    required this.billSummary,
+    required this.billData,
+  });
+
+  factory GeneratedBillData.fromJson(Map<String, dynamic> json) {
+    return GeneratedBillData(
+      fileName: json['fileName'] ?? '',
+      driveLink: json['driveLink'],
+      pdfSize: json['pdfSize'] ?? 0,
+      generatedAt:
+          DateTime.tryParse(json['generatedAt'] ?? '') ?? DateTime.now(),
+      patientInfo: json['patientInfo'] ?? {},
+      admissionDetails: json['admissionDetails'] ?? {},
+      billSummary: json['billSummary'] ?? {},
+      billData: json['billData'] ?? {},
+    );
   }
 }
 
@@ -295,6 +371,10 @@ class UIStateNotifier extends StateNotifier<UIState> {
   void setCreatingDeposit(bool isCreating) {
     state = state.copyWith(isCreatingDeposit: isCreating);
   }
+
+  void setGeneratingBill(bool isGenerating) {
+    state = state.copyWith(isGeneratingBill: isGenerating);
+  }
 }
 
 class FormDataNotifier extends StateNotifier<FormData> {
@@ -392,6 +472,38 @@ class DepositSummaryNotifier extends StateNotifier<DepositSummary?> {
   }
 
   void clearSummary() {
+    state = null;
+  }
+}
+
+class BillStorageNotifier extends StateNotifier<BillStorageState> {
+  BillStorageNotifier() : super(const BillStorageState());
+
+  void setStoringBill(bool isStoring) {
+    state = state.copyWith(isStoringBill: isStoring, clearError: true);
+  }
+
+  void setBillStored(bool stored) {
+    state = state.copyWith(billStored: stored);
+  }
+
+  void setError(String error) {
+    state = state.copyWith(errorMessage: error, isStoringBill: false);
+  }
+
+  void clearState() {
+    state = const BillStorageState();
+  }
+}
+
+class GeneratedBillNotifier extends StateNotifier<GeneratedBillData?> {
+  GeneratedBillNotifier() : super(null);
+
+  void setBillData(GeneratedBillData? billData) {
+    state = billData;
+  }
+
+  void clearBillData() {
     state = null;
   }
 }
@@ -691,6 +803,390 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
     }
   }
 
+  // New method to generate IPD bill
+  Future<void> generateIpdBill() async {
+    final patient = ref.read(selectedPatientProvider);
+
+    if (patient == null || patient.admissionRecords.isEmpty) {
+      showErrorSnackBar('No patient or admission record selected');
+      return;
+    }
+
+    ref.read(uiStateProvider.notifier).setGeneratingBill(true);
+
+    try {
+      // You can customize charges as needed
+      final requestBody = {
+        'charges': {
+          'admissionFees': {'rate': 500, 'days': 1},
+          'generalWardCharges': {'rate': 1000, 'days': 3},
+          'doctorCharges': {'rate': 2000, 'days': 1},
+          // Add other charges as needed
+        },
+        'discount': 0,
+        'advance': 0,
+      };
+
+      final response = await http.post(
+        Uri.parse('${KVM_URL}/reception/generateIpdBill/${patient.patientId}'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(requestBody),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+
+        if (data['success'] == true && data['data'] != null) {
+          final billData = GeneratedBillData.fromJson(data['data']);
+          ref.read(generatedBillProvider.notifier).setBillData(billData);
+
+          showSuccessSnackBar('IPD bill generated successfully!');
+
+          // Show bill preview
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && context.mounted) {
+              _showBillPreviewDialog(billData);
+            }
+          });
+        } else {
+          throw Exception(data['message'] ?? 'Failed to generate IPD bill');
+        }
+      } else {
+        final errorData = json.decode(response.body);
+        throw Exception(errorData['message'] ?? 'Failed to generate IPD bill');
+      }
+    } catch (e) {
+      showErrorSnackBar('Error generating IPD bill: $e');
+    } finally {
+      ref.read(uiStateProvider.notifier).setGeneratingBill(false);
+    }
+  }
+
+  // New method to store IPD bill
+  Future<void> storeIpdBill(Map<String, dynamic> billData) async {
+    ref.read(billStorageProvider.notifier).setStoringBill(true);
+
+    try {
+      final response = await http.post(
+        Uri.parse('${KVM_URL}/reception/storeIpdBill'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'billData': billData}),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = json.decode(response.body);
+
+        if (data['success'] == true) {
+          ref.read(billStorageProvider.notifier).setBillStored(true);
+          showSuccessSnackBar('IPD bill stored successfully!');
+
+          // Clear the generated bill data
+          ref.read(generatedBillProvider.notifier).clearBillData();
+
+          // Show success dialog with bill details
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && context.mounted) {
+              _showBillStoredDialog(data['data']);
+            }
+          });
+        } else {
+          throw Exception(data['message'] ?? 'Failed to store IPD bill');
+        }
+      } else {
+        final errorData = json.decode(response.body);
+        throw Exception(errorData['message'] ?? 'Failed to store IPD bill');
+      }
+    } catch (e) {
+      ref
+          .read(billStorageProvider.notifier)
+          .setError('Error storing IPD bill: $e');
+      showErrorSnackBar('Error storing IPD bill: $e');
+    } finally {
+      ref.read(billStorageProvider.notifier).setStoringBill(false);
+    }
+  }
+
+  void _showBillPreviewDialog(GeneratedBillData billData) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Container(
+            width: MediaQuery.of(dialogContext).size.width * 0.7,
+            constraints: const BoxConstraints(maxWidth: 800),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.receipt_long,
+                      color: HospitalTheme.primary,
+                      size: 32,
+                    ),
+                    const SizedBox(width: 16),
+                    const Expanded(
+                      child: Text(
+                        'IPD Bill Generated Successfully',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: HospitalTheme.textDark,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 24),
+
+                // Bill details
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: HospitalTheme.surfaceLight,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: HospitalTheme.border),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildBillDetailRow('Patient Name',
+                                    billData.patientInfo['name'] ?? 'N/A'),
+                                _buildBillDetailRow('Patient ID',
+                                    billData.patientInfo['patientId'] ?? 'N/A'),
+                                _buildBillDetailRow(
+                                    'OPD Number',
+                                    billData.admissionDetails['opdNumber']
+                                            ?.toString() ??
+                                        'N/A'),
+                                _buildBillDetailRow(
+                                    'IPD Number',
+                                    billData.admissionDetails['ipdNumber']
+                                            ?.toString() ??
+                                        'N/A'),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 24),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildBillDetailRow('Total Charges',
+                                    '₹${billData.billSummary['totalCharges']?.toString() ?? '0'}'),
+                                _buildBillDetailRow('Discount',
+                                    '₹${billData.billSummary['discount']?.toString() ?? '0'}'),
+                                _buildBillDetailRow('Advance',
+                                    '₹${billData.billSummary['advance']?.toString() ?? '0'}'),
+                                _buildBillDetailRow('Final Amount',
+                                    '₹${billData.billSummary['finalAmount']?.toString() ?? '0'}',
+                                    isBold: true),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Action buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    if (billData.driveLink != null &&
+                        billData.driveLink!.isNotEmpty)
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Methods().openPdf(billData.driveLink!);
+                          showSuccessSnackBar('Opening bill PDF...');
+                        },
+                        icon: const Icon(Icons.picture_as_pdf),
+                        label: const Text('View PDF'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: HospitalTheme.info,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 12),
+                        ),
+                      ),
+                    Consumer(
+                      builder: (context, ref, _) {
+                        final billStorageState = ref.watch(billStorageProvider);
+
+                        return ElevatedButton.icon(
+                          onPressed: billStorageState.isStoringBill
+                              ? null
+                              : () {
+                                  Navigator.of(dialogContext).pop();
+                                  storeIpdBill(billData.billData);
+                                },
+                          icon: billStorageState.isStoringBill
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white),
+                                  ),
+                                )
+                              : const Icon(Icons.save),
+                          label: Text(
+                            billStorageState.isStoringBill
+                                ? 'Storing...'
+                                : 'Store Bill',
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: HospitalTheme.success,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 12),
+                          ),
+                        );
+                      },
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                      icon: const Icon(Icons.close),
+                      label: const Text('Close'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
+                        side: const BorderSide(color: HospitalTheme.primary),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showBillStoredDialog(Map<String, dynamic> billData) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Container(
+            width: MediaQuery.of(dialogContext).size.width * 0.5,
+            constraints: const BoxConstraints(maxWidth: 500),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Success icon
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: HospitalTheme.success.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check_circle,
+                    color: HospitalTheme.success,
+                    size: 48,
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                const Text(
+                  'IPD Bill Stored Successfully!',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: HospitalTheme.textDark,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+
+                const SizedBox(height: 24),
+
+                // Bill details
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: HospitalTheme.surfaceLight,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: HospitalTheme.border),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildBillDetailRow(
+                          'Bill Number', billData['billNumber'] ?? 'N/A'),
+                      _buildBillDetailRow(
+                          'Bill ID', billData['billId'] ?? 'N/A'),
+                      _buildBillDetailRow(
+                          'Patient ID', billData['patientId'] ?? 'N/A'),
+                      _buildBillDetailRow('Total Amount',
+                          '₹${billData['totalAmount']?.toString() ?? '0'}'),
+                      _buildBillDetailRow(
+                          'Status', billData['status'] ?? 'N/A'),
+                      _buildBillDetailRow(
+                          'Payment Status', billData['paymentStatus'] ?? 'N/A'),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Action buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.of(dialogContext).pop();
+                        // Optionally refresh data or navigate
+                      },
+                      icon: const Icon(Icons.check),
+                      label: const Text('Continue'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: HospitalTheme.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _showReceiptDetailsDialog(Map<String, dynamic> receiptData) {
     // Extract data safely with null checks
     final data = receiptData['data'] as Map<String, dynamic>? ?? {};
@@ -804,7 +1300,8 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
                           icon: const Icon(Icons.picture_as_pdf),
                           label: const Text('View Receipt'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: HospitalTheme.surfaceLight,
+                            backgroundColor: HospitalTheme.info,
+                            foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 24, vertical: 12),
                           ),
@@ -814,7 +1311,8 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
                         icon: const Icon(Icons.close),
                         label: const Text('Close'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: HospitalTheme.surfaceLight,
+                          backgroundColor: HospitalTheme.primary,
+                          foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(
                               horizontal: 24, vertical: 12),
                         ),
@@ -848,6 +1346,33 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
             style: const TextStyle(
               fontWeight: FontWeight.bold,
               color: HospitalTheme.textDark,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBillDetailRow(String label, String value,
+      {bool isBold = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+              color: HospitalTheme.textMedium,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: isBold ? HospitalTheme.primary : HospitalTheme.textDark,
+              fontSize: isBold ? 16 : 14,
             ),
           ),
         ],
@@ -986,6 +1511,10 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
     if (patient.admissionRecords.isNotEmpty) {
       fetchDepositSummary(patient.admissionRecords.first.id);
     }
+
+    // Clear any previous bill data
+    ref.read(generatedBillProvider.notifier).clearBillData();
+    ref.read(billStorageProvider.notifier).clearState();
   }
 
   void clearForm() {
@@ -996,6 +1525,8 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
     ref.read(selectedPatientProvider.notifier).setPatient(null);
     ref.read(availableBedsProvider.notifier).setBeds([]);
     clearDepositForm();
+    ref.read(generatedBillProvider.notifier).clearBillData();
+    ref.read(billStorageProvider.notifier).clearState();
   }
 
   void clearDepositForm() {
@@ -1632,6 +2163,11 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
 
                 const SizedBox(height: 32),
 
+                // Bill Generation Section
+                _buildBillGenerationSection(),
+
+                const SizedBox(height: 32),
+
                 // Action Buttons
                 _buildActionButtons(uiState, formData, hasBed),
               ],
@@ -2184,7 +2720,8 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
                                 : 'Create Deposit Receipt',
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: HospitalTheme.surfaceLight,
+                        backgroundColor: HospitalTheme.primary,
+                        foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
                             horizontal: 32, vertical: 16),
                         textStyle: const TextStyle(
@@ -2214,6 +2751,256 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
                         ],
                       ),
                     ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildBillGenerationSection() {
+    return Consumer(
+      builder: (context, ref, _) {
+        final patient = ref.watch(selectedPatientProvider);
+        final uiState = ref.watch(uiStateProvider);
+        final generatedBill = ref.watch(generatedBillProvider);
+
+        if (patient == null || patient.admissionRecords.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'IPD Bill Management',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: HospitalTheme.textDark,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: HospitalTheme.border),
+                boxShadow: HospitalTheme.shadowSmall,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.receipt_long,
+                        color: HospitalTheme.primary,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Generate IPD Discharge Bill',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: HospitalTheme.textDark,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  if (generatedBill == null) ...[
+                    const Text(
+                      'Generate a comprehensive IPD discharge bill for this patient including all charges, deposits, and final calculations.',
+                      style: TextStyle(
+                        color: HospitalTheme.textMedium,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Center(
+                      child: ElevatedButton.icon(
+                        onPressed:
+                            uiState.isGeneratingBill ? null : generateIpdBill,
+                        icon: uiState.isGeneratingBill
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white),
+                                ),
+                              )
+                            : const Icon(Icons.picture_as_pdf),
+                        label: Text(
+                          uiState.isGeneratingBill
+                              ? 'Generating Bill...'
+                              : 'Generate IPD Bill',
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: HospitalTheme.info,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 32, vertical: 16),
+                          textStyle: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ] else ...[
+                    // Show generated bill summary
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: HospitalTheme.success.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: HospitalTheme.success),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.check_circle,
+                                color: HospitalTheme.success,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Bill Generated Successfully',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: HospitalTheme.success,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Final Amount: ₹${generatedBill.billSummary['finalAmount']?.toString() ?? '0'}',
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: HospitalTheme.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Generated: ${_formatDateTime(generatedBill.generatedAt)}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: HospitalTheme.textMedium,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Row(
+                                children: [
+                                  if (generatedBill.driveLink != null &&
+                                      generatedBill.driveLink!.isNotEmpty)
+                                    ElevatedButton.icon(
+                                      onPressed: () {
+                                        Methods()
+                                            .openPdf(generatedBill.driveLink!);
+                                        showSuccessSnackBar(
+                                            'Opening bill PDF...');
+                                      },
+                                      icon: const Icon(Icons.picture_as_pdf,
+                                          size: 16),
+                                      label: const Text('View PDF'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: HospitalTheme.info,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 16, vertical: 8),
+                                        textStyle:
+                                            const TextStyle(fontSize: 12),
+                                      ),
+                                    ),
+                                  const SizedBox(width: 8),
+                                  Consumer(
+                                    builder: (context, ref, _) {
+                                      final billStorageState =
+                                          ref.watch(billStorageProvider);
+
+                                      return ElevatedButton.icon(
+                                        onPressed:
+                                            billStorageState.isStoringBill
+                                                ? null
+                                                : () => storeIpdBill(
+                                                    generatedBill.billData),
+                                        icon: billStorageState.isStoringBill
+                                            ? const SizedBox(
+                                                width: 16,
+                                                height: 16,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  valueColor:
+                                                      AlwaysStoppedAnimation<
+                                                          Color>(Colors.white),
+                                                ),
+                                              )
+                                            : const Icon(Icons.save, size: 16),
+                                        label: Text(
+                                          billStorageState.isStoringBill
+                                              ? 'Storing...'
+                                              : 'Store Bill',
+                                        ),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor:
+                                              HospitalTheme.success,
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 16, vertical: 8),
+                                          textStyle:
+                                              const TextStyle(fontSize: 12),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Generate new bill button
+                    Center(
+                      child: TextButton.icon(
+                        onPressed: () {
+                          ref
+                              .read(generatedBillProvider.notifier)
+                              .clearBillData();
+                          ref.read(billStorageProvider.notifier).clearState();
+                        },
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Generate New Bill'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: HospitalTheme.primary,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -2321,7 +3108,7 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
             },
             icon: const Icon(
               Icons.visibility_outlined,
-              color: HospitalTheme.surfaceLight,
+              color: HospitalTheme.primary,
               size: 20,
             ),
             tooltip: 'View Receipt',
@@ -2372,8 +3159,9 @@ class _IpdDetailScreenState extends ConsumerState<IpdDetailScreen> {
               ? 'Update IPD Details'
               : 'Update & Assign Bed'),
           style: ElevatedButton.styleFrom(
+            backgroundColor: HospitalTheme.primary,
+            foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            // backgroundColor: HospitalTheme.surfaceLight,
           ),
         ),
         const SizedBox(width: 16),

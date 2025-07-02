@@ -1,4 +1,5 @@
 import 'package:doctordesktop/Admin/BedManagement.dart';
+import 'package:doctordesktop/Admin/BillTrackTableView.dart';
 import 'package:doctordesktop/Admin/PatientBillingScreen.dart';
 import 'package:doctordesktop/Check.dart';
 import 'package:doctordesktop/Doctor/Dashboard/HomeScreen.dart';
@@ -60,20 +61,17 @@ class _MainLayoutState extends State<MainLayout> {
   bool _isSidebarCollapsed = false; // Add this state variable
 
   final List<Widget> _screens = [
-    // Your existing screens
-    const RegistrationSideBar(),
-    const DischargedPatientsScreen1(),
-    PatientAssignmentScreen(),
-    DoctorListScreen(),
-    // PatientListScreen(),
-    PatientListScreen1(),
-    // ReceptionBedManagementScreen(),
-    ExternalSideBar(),
-    const ReceptionMainScreen(),
-    RegistrationDashboard(),
-    PatientBillingScreen(),
-    PatientDepositsScreen(),
-    BillingAnalyticsDashboard(),
+    const RegistrationSideBar(), //0
+    const DischargedPatientsScreen1(), //1
+    PatientAssignmentScreen(), //2
+    DoctorListScreen(), //3
+    PatientListScreen1(), //4
+    ExternalSideBar(), //5
+    const ReceptionMainScreen(), //6
+    BillsTableScreen(), //7
+
+    PatientDepositsScreen(), //8
+    BillingAnalyticsDashboard(), //9
   ];
 
   // Add this new public method
@@ -250,54 +248,48 @@ class SidebarWidget extends StatelessWidget {
                   isSelected: selectedIndex == 4,
                   onTap: () => onItemSelected(4),
                 ),
-                // _buildNavItemWithLabel(
-                //   index: 6,
-                //   icon: Icons.inventory_2_outlined,
-                //   label: 'Bed Assignment',
-                //   isSelected: selectedIndex == 6,
-                //   onTap: () => onItemSelected(6),
-                // ),
                 _buildNavItemWithLabel(
                   index: 5,
-                  icon: Icons.local_shipping_outlined,
-                  label: 'External Doctor',
+                  icon: Icons.inventory_2_outlined,
+                  label: 'External',
                   isSelected: selectedIndex == 5,
                   onTap: () => onItemSelected(5),
                 ),
                 _buildNavItemWithLabel(
                   index: 6,
-                  icon: Icons.medical_services,
-                  label: 'Create Appointment',
+                  icon: Icons.local_shipping_outlined,
+                  label: 'Appointments',
                   isSelected: selectedIndex == 6,
                   onTap: () => onItemSelected(6),
                 ),
+
+                // _buildNavItemWithLabel(
+                //   index: 7,
+                //   icon: Icons.medication_outlined,
+                //   label: 'Bed Management',
+                //   isSelected: selectedIndex == 7,
+                //   onTap: () => onItemSelected(7),
+                // ),
                 _buildNavItemWithLabel(
                   index: 7,
                   icon: Icons.medication_outlined,
-                  label: 'Bed Management',
+                  label: 'Billing',
                   isSelected: selectedIndex == 7,
                   onTap: () => onItemSelected(7),
                 ),
                 _buildNavItemWithLabel(
                   index: 8,
                   icon: Icons.medication_outlined,
-                  label: 'Billing',
+                  label: 'Deposits Track',
                   isSelected: selectedIndex == 8,
                   onTap: () => onItemSelected(8),
                 ),
                 _buildNavItemWithLabel(
                   index: 9,
                   icon: Icons.medication_outlined,
-                  label: 'Deposits Track',
+                  label: 'Analysis',
                   isSelected: selectedIndex == 9,
                   onTap: () => onItemSelected(9),
-                ),
-                _buildNavItemWithLabel(
-                  index: 10,
-                  icon: Icons.medication_outlined,
-                  label: 'Analysis',
-                  isSelected: selectedIndex == 10,
-                  onTap: () => onItemSelected(10),
                 ),
               ],
             ),

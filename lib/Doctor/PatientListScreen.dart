@@ -181,21 +181,25 @@ class PatientListResponse {
   }
 }
 
-// Providers
-final patientListProvider =
-    StateNotifierProvider<PatientListNotifier, AsyncValue<PatientListResponse>>(
-        (ref) {
+// Providers - Use autoDispose to ensure fresh data on each screen visit
+final patientListProvider = StateNotifierProvider.autoDispose<
+    PatientListNotifier, AsyncValue<PatientListResponse>>((ref) {
   return PatientListNotifier();
 });
 
-final searchQueryProvider = StateProvider<String>((ref) => '');
-final selectedPatientTypeProvider = StateProvider<String>((ref) => 'all');
-final selectedPatientProvider = StateProvider<Patient?>((ref) => null);
+final searchQueryProvider = StateProvider.autoDispose<String>((ref) => '');
+final selectedPatientTypeProvider =
+    StateProvider.autoDispose<String>((ref) => 'all');
+final selectedPatientProvider =
+    StateProvider.autoDispose<Patient?>((ref) => null);
 
 class PatientListNotifier
     extends StateNotifier<AsyncValue<PatientListResponse>> {
   PatientListNotifier() : super(const AsyncValue.loading()) {
-    fetchPatients();
+    // Don't fetch in constructor to avoid conflicts
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      fetchPatients();
+    });
   }
 
   Future<void> fetchPatients({
@@ -241,6 +245,13 @@ class PatientListNotifier
   Future<void> refreshPatients() async {
     await fetchPatients();
   }
+
+  // Force refresh when needed
+  void ensureDataLoaded() {
+    if (state.value == null) {
+      fetchPatients();
+    }
+  }
 }
 
 // Main Screen
@@ -254,11 +265,30 @@ class PatientListScreen1 extends ConsumerStatefulWidget {
 class _PatientListScreen1State extends ConsumerState<PatientListScreen1> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
+  bool _hasInitialized = false;
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(_onSearchChanged);
+
+    // Ensure data is loaded when screen is first visited
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_hasInitialized) {
+        _ensureDataLoaded();
+        _hasInitialized = true;
+      }
+    });
+  }
+
+  void _ensureDataLoaded() {
+    final currentState = ref.read(patientListProvider);
+
+    // If there's no data or it's in error state, force refresh
+    if (currentState.value == null || currentState.hasError) {
+      print('Force refreshing patient data on screen visit');
+      ref.read(patientListProvider.notifier).fetchPatients();
+    }
   }
 
   @override
@@ -297,10 +327,15 @@ class _PatientListScreen1State extends ConsumerState<PatientListScreen1> {
     }
   }
 
+  void _closeDetailPanel() {
+    ref.read(selectedPatientProvider.notifier).state = null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
     final availableWidth = screenSize.width - 280; // Account for sidebar
+    final selectedPatient = ref.watch(selectedPatientProvider);
 
     // Force master-detail for debugging (remove this line once working)
     final isMasterDetail = true; // Change this back to: availableWidth > 1000
@@ -314,12 +349,43 @@ class _PatientListScreen1State extends ConsumerState<PatientListScreen1> {
         title: 'Patient Management',
         showBackButton: false,
         actions: [
-          IconButton(
-            onPressed: () =>
-                ref.read(patientListProvider.notifier).refreshPatients(),
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh (Ctrl+R)',
+          // Add refresh button at the top
+          Consumer(
+            builder: (context, ref, child) {
+              final patientData = ref.watch(patientListProvider);
+              final isLoading = patientData.isLoading;
+
+              return IconButton(
+                onPressed: isLoading
+                    ? null
+                    : () {
+                        ref
+                            .read(patientListProvider.notifier)
+                            .refreshPatients();
+                      },
+                icon: isLoading
+                    ? SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white.withOpacity(0.7),
+                          ),
+                        ),
+                      )
+                    : const Icon(Icons.refresh),
+                tooltip: isLoading ? 'Refreshing...' : 'Refresh (Ctrl+R)',
+              );
+            },
           ),
+          // Show close panel button only when a patient is selected and in master-detail layout
+          if (isMasterDetail && selectedPatient != null)
+            IconButton(
+              onPressed: _closeDetailPanel,
+              icon: const Icon(Icons.close),
+              tooltip: 'Close Detail Panel (Esc)',
+            ),
           const SizedBox(width: 16),
         ],
       ),
@@ -336,6 +402,12 @@ class _PatientListScreen1State extends ConsumerState<PatientListScreen1> {
           },
           const SingleActivator(LogicalKeyboardKey.keyR, meta: true): () {
             ref.read(patientListProvider.notifier).refreshPatients();
+          },
+          // Add Escape key to close detail panel
+          const SingleActivator(LogicalKeyboardKey.escape): () {
+            if (selectedPatient != null) {
+              _closeDetailPanel();
+            }
           },
         },
         child: Focus(
@@ -356,22 +428,26 @@ class _PatientListScreen1State extends ConsumerState<PatientListScreen1> {
   }
 
   Widget _buildMasterDetailLayout() {
+    final selectedPatient = ref.watch(selectedPatientProvider);
+
     return Row(
       children: [
         // Master pane
         Expanded(
-          flex: 7,
+          flex: selectedPatient != null ? 7 : 1,
           child: _buildPatientListPane(),
         ),
-        Container(
-          width: 1,
-          color: HospitalTheme.border,
-        ),
-        // Detail pane
-        Expanded(
-          flex: 3,
-          child: _buildDetailPane(),
-        ),
+        if (selectedPatient != null) ...[
+          Container(
+            width: 1,
+            color: HospitalTheme.border,
+          ),
+          // Detail pane
+          Expanded(
+            flex: 3,
+            child: _buildDetailPane(),
+          ),
+        ],
       ],
     );
   }
@@ -885,14 +961,11 @@ class _PatientListScreen1State extends ConsumerState<PatientListScreen1> {
     }
   }
 
-  // Replace your existing DataRow building methods with these fixed versions:
-
   DataRow _buildCompactDataRow(Patient patient) {
     return DataRow(
       onSelectChanged: (_) => _selectPatient(patient),
       cells: [
         DataCell(
-          // Remove the GestureDetector wrapper since DataRow already handles selection
           Container(
             width: double.infinity,
             child: Row(
@@ -946,8 +1019,7 @@ class _PatientListScreen1State extends ConsumerState<PatientListScreen1> {
               ],
             ),
           ),
-          onTap: () => _selectPatient(
-              patient), // Add onTap here for cell-level selection
+          onTap: () => _selectPatient(patient),
         ),
         DataCell(
           Column(
@@ -981,13 +1053,6 @@ class _PatientListScreen1State extends ConsumerState<PatientListScreen1> {
                 constraints: const BoxConstraints(),
                 padding: const EdgeInsets.all(8),
               ),
-              // IconButton(
-              //   onPressed: () => _editPatient(patient),
-              //   icon: const Icon(Icons.edit, size: 18),
-              //   tooltip: 'Edit',
-              //   constraints: const BoxConstraints(),
-              //   padding: const EdgeInsets.all(8),
-              // ),
             ],
           ),
         ),
@@ -1000,7 +1065,6 @@ class _PatientListScreen1State extends ConsumerState<PatientListScreen1> {
       onSelectChanged: (_) => _selectPatient(patient),
       cells: [
         DataCell(
-          // Remove GestureDetector wrapper
           Row(
             children: [
               CircleAvatar(
@@ -1038,7 +1102,7 @@ class _PatientListScreen1State extends ConsumerState<PatientListScreen1> {
               ),
             ],
           ),
-          onTap: () => _selectPatient(patient), // Add onTap here
+          onTap: () => _selectPatient(patient),
         ),
         DataCell(Text(patient.contact)),
         DataCell(
@@ -1078,7 +1142,6 @@ class _PatientListScreen1State extends ConsumerState<PatientListScreen1> {
       onSelectChanged: (_) => _selectPatient(patient),
       cells: [
         DataCell(
-          // Remove GestureDetector wrapper
           Row(
             children: [
               CircleAvatar(
@@ -1116,7 +1179,7 @@ class _PatientListScreen1State extends ConsumerState<PatientListScreen1> {
               ),
             ],
           ),
-          onTap: () => _selectPatient(patient), // Add onTap here
+          onTap: () => _selectPatient(patient),
         ),
         DataCell(Text(patient.patientId)),
         DataCell(Text('${patient.age}/${patient.gender}')),
@@ -1154,14 +1217,11 @@ class _PatientListScreen1State extends ConsumerState<PatientListScreen1> {
     );
   }
 
-// Also update the _selectPatient method to add debug logging:
   void _selectPatient(Patient patient) {
-    print('Selecting patient: ${patient.name}'); // Add this for debugging
+    print('Selecting patient: ${patient.name}');
     ref.read(selectedPatientProvider.notifier).state = patient;
   }
 
-// And update the build method to force master-detail layout for testing:
-  @override
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -1263,18 +1323,9 @@ class _PatientListScreen1State extends ConsumerState<PatientListScreen1> {
     );
   }
 
-  // void _selectPatient(Patient patient) {
-  //   ref.read(selectedPatientProvider.notifier).state = patient;
-  // }
-
   void _viewPatient(Patient patient) {
     _selectPatient(patient);
   }
-
-  // void _editPatient(Patient patient) {
-  //   print('Edit patient: ${patient.name}');
-  //   // TODO: Navigate to edit patient screen
-  // }
 
   void _changePage(int page) {
     final search = ref.read(searchQueryProvider);
@@ -1335,20 +1386,62 @@ class _PatientDetailPane extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: HospitalTheme.background,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildPatientHeader(),
-            const SizedBox(height: 20),
-            _buildBasicInfo(),
-            const SizedBox(height: 20),
-            _buildMedicalInfo(),
-            const SizedBox(height: 20),
-            _buildActionButtons(context),
-          ],
-        ),
+      child: Column(
+        children: [
+          // Header with close button
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(
+                bottom: BorderSide(color: HospitalTheme.border),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Patient Details',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ),
+                Consumer(
+                  builder: (context, ref, child) {
+                    return IconButton(
+                      onPressed: () {
+                        ref.read(selectedPatientProvider.notifier).state = null;
+                      },
+                      icon: const Icon(Icons.close),
+                      tooltip: 'Close (Esc)',
+                      constraints: const BoxConstraints(),
+                      padding: const EdgeInsets.all(8),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          // Scrollable content
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildPatientHeader(),
+                  const SizedBox(height: 20),
+                  _buildBasicInfo(),
+                  const SizedBox(height: 20),
+                  _buildMedicalInfo(),
+                  const SizedBox(height: 20),
+                  _buildActionButtons(context),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

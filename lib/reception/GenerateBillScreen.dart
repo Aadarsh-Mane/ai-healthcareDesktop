@@ -78,6 +78,7 @@ class GeneratedBillResponse {
   final Map<String, dynamic> patientInfo;
   final Map<String, dynamic> admissionDetails;
   final BillSummary billSummary;
+  final Map<String, dynamic> billData; // Added for storing
 
   const GeneratedBillResponse({
     required this.fileName,
@@ -87,6 +88,7 @@ class GeneratedBillResponse {
     required this.patientInfo,
     required this.admissionDetails,
     required this.billSummary,
+    required this.billData, // Added for storing
   });
 
   factory GeneratedBillResponse.fromJson(Map<String, dynamic> json) {
@@ -105,6 +107,7 @@ class GeneratedBillResponse {
         advance: (data['billSummary']['advance'] ?? 0).toDouble(),
         finalAmount: (data['billSummary']['finalAmount'] ?? 0).toDouble(),
       ),
+      billData: data['billData'] ?? {}, // Added for storing
     );
   }
 }
@@ -132,6 +135,41 @@ class IpdReceiptResponse {
   }
 }
 
+class StoredBillResponse {
+  final String billId;
+  final String billNumber;
+  final int billNo;
+  final String patientId;
+  final double totalAmount;
+  final String status;
+  final String paymentStatus;
+  final DateTime storedAt;
+
+  const StoredBillResponse({
+    required this.billId,
+    required this.billNumber,
+    required this.billNo,
+    required this.patientId,
+    required this.totalAmount,
+    required this.status,
+    required this.paymentStatus,
+    required this.storedAt,
+  });
+
+  factory StoredBillResponse.fromJson(Map<String, dynamic> json) {
+    return StoredBillResponse(
+      billId: json['billId'] ?? '',
+      billNumber: json['billNumber'] ?? '',
+      billNo: json['billNo'] ?? 0,
+      patientId: json['patientId'] ?? '',
+      totalAmount: (json['totalAmount'] ?? 0).toDouble(),
+      status: json['status'] ?? '',
+      paymentStatus: json['paymentStatus'] ?? '',
+      storedAt: DateTime.tryParse(json['storedAt'] ?? '') ?? DateTime.now(),
+    );
+  }
+}
+
 // State Providers
 final ipdBillStateProvider =
     StateNotifierProvider.family<IpdBillNotifier, IpdBillState, String>(
@@ -151,6 +189,8 @@ class IpdBillState {
   final IpdReceiptResponse? generatedReceipt;
   final double receiptAmount;
   final double amountPaid;
+  final bool isStoringBill; // Added for storing bill
+  final StoredBillResponse? storedBill; // Added for stored bill response
 
   const IpdBillState({
     required this.patientId,
@@ -165,6 +205,8 @@ class IpdBillState {
     this.generatedReceipt,
     this.receiptAmount = 0,
     this.amountPaid = 0,
+    this.isStoringBill = false, // Added for storing bill
+    this.storedBill, // Added for stored bill response
   });
 
   IpdBillState copyWith({
@@ -182,6 +224,9 @@ class IpdBillState {
     bool clearGeneratedReceipt = false,
     double? receiptAmount,
     double? amountPaid,
+    bool? isStoringBill, // Added for storing bill
+    StoredBillResponse? storedBill, // Added for stored bill response
+    bool clearStoredBill = false, // Added for clearing stored bill
   }) {
     return IpdBillState(
       patientId: patientId ?? this.patientId,
@@ -199,6 +244,11 @@ class IpdBillState {
           : (generatedReceipt ?? this.generatedReceipt),
       receiptAmount: receiptAmount ?? this.receiptAmount,
       amountPaid: amountPaid ?? this.amountPaid,
+      isStoringBill:
+          isStoringBill ?? this.isStoringBill, // Added for storing bill
+      storedBill: clearStoredBill
+          ? null
+          : (storedBill ?? this.storedBill), // Added for stored bill response
     );
   }
 
@@ -547,6 +597,56 @@ class IpdBillNotifier extends StateNotifier<IpdBillState> {
     }
   }
 
+  // Added method to store bill in database
+  Future<void> storeBill() async {
+    if (state.generatedBill == null) {
+      state = state.copyWith(error: 'No bill generated to store');
+      return;
+    }
+
+    state = state.copyWith(isStoringBill: true, error: null);
+
+    try {
+      final requestBody = {
+        'billData': state.generatedBill!.billData,
+      };
+
+      final response = await http.post(
+        Uri.parse('${KVM_URL}/reception/storeIpdBill'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(requestBody),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseData = json.decode(response.body);
+        if (responseData['success'] == true) {
+          final storedBill = StoredBillResponse.fromJson(responseData['data']);
+          state = state.copyWith(
+            isStoringBill: false,
+            storedBill: storedBill,
+          );
+        } else {
+          state = state.copyWith(
+            isStoringBill: false,
+            error: responseData['message'] ?? 'Failed to store bill',
+          );
+        }
+      } else {
+        final errorData = json.decode(response.body);
+        state = state.copyWith(
+          isStoringBill: false,
+          error: errorData['message'] ??
+              'Failed to store bill: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      state = state.copyWith(
+        isStoringBill: false,
+        error: 'Error storing bill: $e',
+      );
+    }
+  }
+
   Future<void> generateReceipt() async {
     if (state.receiptAmount <= 0) {
       state = state.copyWith(error: 'Please enter a valid billing amount');
@@ -678,6 +778,8 @@ class _GenerateIpdBillScreenState extends ConsumerState<GenerateIpdBillScreen> {
                 notifier.generateReceipt(),
             const SingleActivator(LogicalKeyboardKey.f5): () =>
                 notifier.reset(),
+            const SingleActivator(LogicalKeyboardKey.keyF, control: true): () =>
+                notifier.storeBill(), // Added shortcut for storing bill
           },
           child: Focus(
             autofocus: true,
@@ -1080,7 +1182,7 @@ class _GenerateIpdBillScreenState extends ConsumerState<GenerateIpdBillScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Ctrl+P: Preview\nCtrl+S: Generate Bill\nCtrl+R: Generate Receipt\nF5: Reset',
+                  'Ctrl+P: Preview\nCtrl+S: Generate Bill\nCtrl+R: Generate Receipt\nCtrl+F: Store Final Bill\nF5: Reset',
                   style: TextStyle(
                     color: HospitalTheme.textMedium,
                     fontSize: 11,
@@ -1731,11 +1833,23 @@ class _GenerateIpdBillScreenState extends ConsumerState<GenerateIpdBillScreen> {
           // Bill Response Section - Always show if bill exists
           if (state.generatedBill != null) ...[
             const SizedBox(height: 24),
-            _buildGeneratedBillSection(state),
+            _buildGeneratedBillSection(state, notifier),
           ],
 
-          // Receipt Generation Section - Show if bill exists
-          if (state.generatedBill != null) ...[
+          // Store Bill Section - Show if bill exists but not stored yet
+          if (state.generatedBill != null && state.storedBill == null) ...[
+            const SizedBox(height: 24),
+            _buildStoreBillSection(state, notifier),
+          ],
+
+          // Stored Bill Section - Show if bill is stored
+          if (state.storedBill != null) ...[
+            const SizedBox(height: 24),
+            _buildStoredBillSection(state),
+          ],
+
+          // Receipt Generation Section - Show if bill exists and is stored
+          if (state.generatedBill != null && state.storedBill != null) ...[
             const SizedBox(height: 24),
             _buildReceiptGenerationSection(state, notifier),
           ],
@@ -1804,7 +1918,8 @@ class _GenerateIpdBillScreenState extends ConsumerState<GenerateIpdBillScreen> {
     );
   }
 
-  Widget _buildGeneratedBillSection(IpdBillState state) {
+  Widget _buildGeneratedBillSection(
+      IpdBillState state, IpdBillNotifier notifier) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1858,6 +1973,180 @@ class _GenerateIpdBillScreenState extends ConsumerState<GenerateIpdBillScreen> {
                     );
                   }
                 },
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // NEW: Store Bill Section
+  Widget _buildStoreBillSection(IpdBillState state, IpdBillNotifier notifier) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        HospitalTheme.buildSectionHeader('Store Final Bill'),
+        HospitalTheme.buildCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.save, color: HospitalTheme.primary),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Store Bill in Database',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Review the generated bill and store it permanently in the database. This action will make the bill official and ready for payment processing.',
+                style: TextStyle(
+                  color: HospitalTheme.textMedium,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Show loading state during bill storage
+              if (state.isStoringBill) ...[
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: HospitalTheme.surfaceLight,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Storing bill in database, please wait...',
+                        style: TextStyle(
+                          color: HospitalTheme.textMedium,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed:
+                      state.isStoringBill ? null : () => notifier.storeBill(),
+                  icon: state.isStoringBill
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.save),
+                  label: Text(state.isStoringBill
+                      ? 'Storing Bill...'
+                      : 'Generate Final Bill (Ctrl+F)'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: HospitalTheme.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Note: Once stored, the bill cannot be modified.',
+                style: TextStyle(
+                  color: HospitalTheme.warning,
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // NEW: Stored Bill Section
+  Widget _buildStoredBillSection(IpdBillState state) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        HospitalTheme.buildSectionHeader('Bill Stored Successfully'),
+        HospitalTheme.buildCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.check_circle, color: HospitalTheme.success),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Bill Stored in Database!',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Stored Bill Details
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: HospitalTheme.success.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border:
+                      Border.all(color: HospitalTheme.success.withOpacity(0.3)),
+                ),
+                child: Column(
+                  children: [
+                    _buildInfoRow('Bill ID', state.storedBill!.billId),
+                    _buildInfoRow('Bill Number', state.storedBill!.billNumber),
+                    _buildInfoRow(
+                        'Bill No.', state.storedBill!.billNo.toString()),
+                    _buildInfoRow('Patient ID', state.storedBill!.patientId),
+                    _buildInfoRow('Total Amount',
+                        '₹${state.storedBill!.totalAmount.toStringAsFixed(2)}'),
+                    _buildInfoRow('Status', state.storedBill!.status),
+                    _buildInfoRow(
+                        'Payment Status', state.storedBill!.paymentStatus),
+                    _buildInfoRow('Stored At',
+                        _formatDate(state.storedBill!.storedAt.toString())),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: HospitalTheme.info.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info, color: HospitalTheme.info, size: 16),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Bill has been permanently stored in the database. You can now generate receipt for payment processing.',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),

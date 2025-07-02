@@ -120,7 +120,7 @@ class OpdBillingState {
 
   const OpdBillingState({
     required this.services,
-    this.consultationFee = 500,
+    this.consultationFee = 0,
     this.additionalCharges = const [],
     this.discount = 0,
     this.paymentMode = 'Cash',
@@ -202,6 +202,7 @@ class OpdBillingNotifier extends StateNotifier<OpdBillingState> {
 
   OpdBillingNotifier(this.patientId)
       : super(OpdBillingState(
+          consultationFee: 0,
           services: {
             'ecg': const ServiceItem(name: 'ECG', quantity: 0, rate: 150),
             'xray': const ServiceItem(name: 'X-Ray', quantity: 0, rate: 300),
@@ -323,7 +324,9 @@ class OpdBillingNotifier extends StateNotifier<OpdBillingState> {
           isLoading: false,
         );
       } else {
-        throw Exception('Failed to generate bill: ${response.statusCode}');
+        final errorResponse = jsonDecode(response.body);
+        throw Exception(
+            'Failed to generate bill: ${errorResponse['error'] ?? response.body}');
       }
     } catch (e) {
       state = state.copyWith(isLoading: false);
@@ -368,6 +371,7 @@ class OpdBillingNotifier extends StateNotifier<OpdBillingState> {
 
   void reset() {
     state = OpdBillingState(
+      consultationFee: 0,
       services: {
         'ecg': const ServiceItem(name: 'ECG', quantity: 0, rate: 150),
         'xray': const ServiceItem(name: 'X-Ray', quantity: 0, rate: 300),
@@ -412,7 +416,6 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
     super.initState();
     // Initialize service controllers
     _initializeServiceControllers();
-    _consultationFeeController.text = '500'; // Set default consultation fee
   }
 
   void _initializeServiceControllers() {
@@ -1553,8 +1556,7 @@ class _OpdBillingScreenState extends ConsumerState<OpdBillingScreen> {
     _billingAmountController.clear();
     _amountPaidController.clear();
     _discountController.clear();
-    _consultationFeeController.text =
-        '500'; // Reset to default consultation fee
+    _consultationFeeController.clear();
 
     // Reset state
     notifier.reset();

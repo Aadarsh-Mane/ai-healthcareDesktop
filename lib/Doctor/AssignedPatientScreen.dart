@@ -70,11 +70,11 @@ class _AssignedPatientsScreenState extends ConsumerState<AssignedPatientsScreen>
     });
 
     // Set up the timer to refresh every 1 minute with animation
-    _refreshTimer = Timer.periodic(const Duration(minutes: 1), (_) {
-      if (_mounted) {
-        _fetchData();
-      }
-    });
+    // _refreshTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+    //   if (_mounted) {
+    //     _fetchData();
+    //   }
+    // });
   }
 
   // Method to fetch data with loading animation

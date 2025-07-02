@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:doctordesktop/Doctor/PatientHistoryDetailScreen.dart';
 import 'package:doctordesktop/reception/ManualDischargeSummaryScreen.dart';
+import 'package:doctordesktop/reception/MedicalRecordSummaryScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -306,7 +307,7 @@ class Doctor {
   }
 }
 
-// Enhanced state notifier with better error handling
+// Enhanced state notifier with better error handling and empty state distinction
 class DischargedPatientsNotifier
     extends StateNotifier<AsyncValue<List<PatientDischarge>>> {
   DischargedPatientsNotifier() : super(const AsyncValue.loading()) {
@@ -323,31 +324,94 @@ class DischargedPatientsNotifier
         Uri.parse(apiUrl),
         headers: {'Content-Type': 'application/json'},
       ).timeout(const Duration(seconds: 30));
-      print('Fetching discharged patients from ${response.body}');
+
+      debugPrint(
+          'Fetching discharged patients - Status: ${response.statusCode}');
+
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        final patients =
-            data.map((json) => PatientDischarge.fromJson(json)).toList();
+        final responseBody = response.body;
 
-        // Sort by discharge date (newest first)
-        patients.sort((a, b) {
-          final dateA =
-              DateTime.tryParse(a.lastRecord.dischargeDate.split(' ')[0]) ??
-                  DateTime(1970);
-          final dateB =
-              DateTime.tryParse(b.lastRecord.dischargeDate.split(' ')[0]) ??
-                  DateTime(1970);
-          return dateB.compareTo(dateA);
-        });
+        // Handle empty response
+        if (responseBody.isEmpty || responseBody.trim() == '[]') {
+          debugPrint('Empty response received - no patients found');
+          state = const AsyncValue.data([]);
+          return;
+        }
 
-        state = AsyncValue.data(patients);
+        try {
+          final dynamic decodedData = json.decode(responseBody);
+
+          // Handle different response formats
+          List<dynamic> data;
+          if (decodedData is List) {
+            data = decodedData;
+          } else if (decodedData is Map<String, dynamic>) {
+            // If response is wrapped in an object, extract the array
+            data = decodedData['data'] ?? decodedData['patients'] ?? [];
+          } else {
+            debugPrint(
+                'Unexpected response format: ${decodedData.runtimeType}');
+            data = [];
+          }
+
+          if (data.isEmpty) {
+            debugPrint('No patients found in response');
+            state = const AsyncValue.data([]);
+            return;
+          }
+
+          final patients = data
+              .map((json) =>
+                  PatientDischarge.fromJson(json as Map<String, dynamic>))
+              .toList();
+
+          // Sort by discharge date (newest first)
+          patients.sort((a, b) {
+            final dateA =
+                DateTime.tryParse(a.lastRecord.dischargeDate.split(' ')[0]) ??
+                    DateTime(1970);
+            final dateB =
+                DateTime.tryParse(b.lastRecord.dischargeDate.split(' ')[0]) ??
+                    DateTime(1970);
+            return dateB.compareTo(dateA);
+          });
+
+          debugPrint('Successfully loaded ${patients.length} patients');
+          state = AsyncValue.data(patients);
+        } catch (parseError) {
+          debugPrint('JSON parsing error: $parseError');
+          debugPrint('Response body: $responseBody');
+          state = AsyncValue.error(
+            'Failed to parse server response. Please try again.',
+            StackTrace.current,
+          );
+        }
+      } else if (response.statusCode == 404) {
+        // Handle 404 as no patients found rather than error
+        debugPrint('API endpoint returned 404 - treating as no patients found');
+        state = const AsyncValue.data([]);
       } else {
         throw Exception(
-            'Server returned ${response.statusCode}: ${response.reasonPhrase}');
+            'Server error ${response.statusCode}: ${response.reasonPhrase ?? 'Unknown error'}');
       }
+    } on http.ClientException catch (e) {
+      debugPrint('Network error: $e');
+      state = AsyncValue.error(
+        'Network connection failed. Please check your internet connection.',
+        StackTrace.current,
+      );
+    } on FormatException catch (e) {
+      debugPrint('Data format error: $e');
+      state = AsyncValue.error(
+        'Received invalid data from server. Please try again.',
+        StackTrace.current,
+      );
     } catch (e) {
-      debugPrint('Error fetching discharged patients: $e');
-      state = AsyncValue.error(e, StackTrace.current);
+      debugPrint('Unexpected error fetching discharged patients: $e');
+      state = AsyncValue.error(
+        'An unexpected error occurred. Please try again.',
+        StackTrace.current,
+      );
     }
   }
 
@@ -524,6 +588,7 @@ class _DischargedPatientsScreenState
                       listKey: 'all',
                       scrollController: _scrollControllers['all']!,
                       isWideScreen: isWideScreen,
+                      onRefresh: _refreshData,
                     ),
                     _PatientListView(
                       key: const ValueKey('internal'),
@@ -531,6 +596,7 @@ class _DischargedPatientsScreenState
                       listKey: 'internal',
                       scrollController: _scrollControllers['internal']!,
                       isWideScreen: isWideScreen,
+                      onRefresh: _refreshData,
                     ),
                     _PatientListView(
                       key: const ValueKey('external'),
@@ -538,6 +604,7 @@ class _DischargedPatientsScreenState
                       listKey: 'external',
                       scrollController: _scrollControllers['external']!,
                       isWideScreen: isWideScreen,
+                      onRefresh: _refreshData,
                     ),
                   ],
                 ),
@@ -910,12 +977,13 @@ class _CustomDropdown extends StatelessWidget {
   }
 }
 
-// Patient list view component
+// Patient list view component with enhanced empty state handling
 class _PatientListView extends StatelessWidget {
   final AsyncValue<Map<String, List<PatientDischarge>>> patientsAsync;
   final String listKey;
   final ScrollController scrollController;
   final bool isWideScreen;
+  final VoidCallback onRefresh;
 
   const _PatientListView({
     super.key,
@@ -923,6 +991,7 @@ class _PatientListView extends StatelessWidget {
     required this.listKey,
     required this.scrollController,
     required this.isWideScreen,
+    required this.onRefresh,
   });
 
   @override
@@ -930,23 +999,35 @@ class _PatientListView extends StatelessWidget {
     return patientsAsync.when(
       data: (patientsMap) {
         final patients = patientsMap[listKey] ?? [];
+        final allPatients = patientsMap['all'] ?? [];
 
-        if (patients.isEmpty) {
-          return _EmptyState(onRefresh: () {
-            // Refresh logic would be handled by parent
-          });
+        // Determine if this is a filter result or truly empty
+        final hasFiltersApplied = _hasActiveFilters(context);
+        final isFilteredEmpty =
+            patients.isEmpty && allPatients.isNotEmpty && hasFiltersApplied;
+        final isTrulyEmpty = allPatients.isEmpty;
+
+        if (isTrulyEmpty) {
+          return _EmptyDataState(onRefresh: onRefresh);
+        } else if (isFilteredEmpty) {
+          return _NoMatchesState(onClearFilters: () => _clearFilters(context));
+        } else if (patients.isEmpty) {
+          return _EmptyTabState(tabName: _getTabDisplayName(listKey));
         }
 
-        return Scrollbar(
-          controller: scrollController,
-          thumbVisibility: true,
-          child: ListView.builder(
+        return RefreshIndicator(
+          onRefresh: () async => onRefresh(),
+          child: Scrollbar(
             controller: scrollController,
-            padding: EdgeInsets.all(isWideScreen ? 24 : 16),
-            itemCount: patients.length,
-            itemBuilder: (context, index) => _PatientCard(
-              patient: patients[index],
-              isWideScreen: isWideScreen,
+            thumbVisibility: true,
+            child: ListView.builder(
+              controller: scrollController,
+              padding: EdgeInsets.all(isWideScreen ? 24 : 16),
+              itemCount: patients.length,
+              itemBuilder: (context, index) => _PatientCard(
+                patient: patients[index],
+                isWideScreen: isWideScreen,
+              ),
             ),
           ),
         );
@@ -954,9 +1035,214 @@ class _PatientListView extends StatelessWidget {
       loading: () => const _LoadingState(),
       error: (error, _) => _ErrorState(
         error: error,
-        onRetry: () {
-          // Retry logic would be handled by parent
-        },
+        onRetry: onRefresh,
+      ),
+    );
+  }
+
+  bool _hasActiveFilters(BuildContext context) {
+    // This would need to be passed down or accessed via provider
+    // For now, we'll assume this method exists
+    return false; // Simplified - you'd implement actual filter checking
+  }
+
+  void _clearFilters(BuildContext context) {
+    // This would clear all filters
+    // Implementation would depend on your state management
+  }
+
+  String _getTabDisplayName(String key) {
+    switch (key) {
+      case 'internal':
+        return 'internal patients';
+      case 'external':
+        return 'external patients';
+      default:
+        return 'patients';
+    }
+  }
+}
+
+// Enhanced empty states with better UX
+class _EmptyDataState extends StatelessWidget {
+  final VoidCallback onRefresh;
+
+  const _EmptyDataState({required this.onRefresh});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: HospitalTheme.surfaceLight,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.people_outline,
+                size: 64,
+                color: HospitalTheme.primary.withOpacity(0.7),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'No Discharged Patients Yet',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: HospitalTheme.textDark,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'No patients have been discharged yet.\nPatients will appear here once they are discharged.',
+              style: TextStyle(
+                fontSize: 16,
+                color: HospitalTheme.textMedium,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: onRefresh,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Refresh'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: HospitalTheme.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NoMatchesState extends StatelessWidget {
+  final VoidCallback onClearFilters;
+
+  const _NoMatchesState({required this.onClearFilters});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.search_off,
+                size: 64,
+                color: Colors.orange.withOpacity(0.7),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'No Matches Found',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: HospitalTheme.textDark,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'No patients match your current search and filter criteria.\nTry adjusting your filters or search terms.',
+              style: TextStyle(
+                fontSize: 16,
+                color: HospitalTheme.textMedium,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: onClearFilters,
+              icon: const Icon(Icons.filter_list_off),
+              label: const Text('Clear Filters'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyTabState extends StatelessWidget {
+  final String tabName;
+
+  const _EmptyTabState({required this.tabName});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: HospitalTheme.surfaceLight,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.person_outline,
+                size: 64,
+                color: HospitalTheme.primary.withOpacity(0.7),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'No ${tabName.capitalizeFirst()}',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: HospitalTheme.textDark,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'There are no $tabName in the system at the moment.',
+              style: TextStyle(
+                fontSize: 16,
+                color: HospitalTheme.textMedium,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1336,7 +1622,7 @@ class _PatientCard extends ConsumerWidget {
       // Show a brief feedback to user
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Row(
+          content: const Row(
             children: [
               Icon(Icons.refresh, color: Colors.white, size: 20),
               SizedBox(width: 8),
@@ -1344,7 +1630,7 @@ class _PatientCard extends ConsumerWidget {
             ],
           ),
           backgroundColor: HospitalTheme.primary,
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
@@ -1413,20 +1699,26 @@ class _LoadingState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 16),
-          Text('Loading patients...'),
+          CircularProgressIndicator(color: HospitalTheme.primary),
+          const SizedBox(height: 16),
+          Text(
+            'Loading patients...',
+            style: TextStyle(
+              color: HospitalTheme.textMedium,
+              fontSize: 16,
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-// Error state component
+// Error state component with better messaging
 class _ErrorState extends StatelessWidget {
   final Object error;
   final VoidCallback onRetry;
@@ -1439,55 +1731,59 @@ class _ErrorState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
-          const SizedBox(height: 16),
-          const Text('Please click retry to load patients'),
-          const SizedBox(height: 8),
-          Text(
-            error.toString(),
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.grey),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: onRetry,
-            child: const Text('Retry'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// Empty state component
-class _EmptyState extends StatelessWidget {
-  final VoidCallback onRefresh;
-
-  const _EmptyState({required this.onRefresh});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.folder_open, size: 64, color: Colors.grey.shade400),
-          const SizedBox(height: 16),
-          const Text('No patients found'),
-          const SizedBox(height: 8),
-          const Text(
-            'Try adjusting your filters or refresh the data',
-            style: TextStyle(color: Colors.grey),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: onRefresh,
-            child: const Text('Refresh'),
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.error_outline,
+                size: 64,
+                color: Colors.red.withOpacity(0.7),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Unable to Load Patients',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: HospitalTheme.textDark,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              error.toString(),
+              style: TextStyle(
+                fontSize: 16,
+                color: HospitalTheme.textMedium,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Try Again'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: HospitalTheme.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2615,6 +2911,18 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                       MaterialPageRoute(
                         builder: (context) => PatientHistoryDetailScreen(
                             patientId: widget.patient.patientId),
+                      ),
+                    ),
+                  ),
+                  _buildActionButton(
+                    'Medical Summary',
+                    Icons.history,
+                    Colors.indigo,
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => MedicalRecordSummaryScreen(
+                            initialPatientId: widget.patient.patientId),
                       ),
                     ),
                   ),

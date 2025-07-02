@@ -577,7 +577,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => AddDoctorConsultingScreen(
+        builder: (context) => EnhancedDoctorConsultingScreen(
           patientId: patientId,
           admissionId: admissionId,
         ),
@@ -5797,6 +5797,9 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
   // }
 
 // Optional: Update the _buildDoctorNotes method to be better suited for the floating panel
+// Complete updated doctor notes methods
+
+// Updated _buildDoctorNotes method
   Widget _buildDoctorNotes(
       BuildContext context, String patientId, String admissionId) {
     return FutureBuilder(
@@ -5926,7 +5929,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                       icon: Icon(Icons.add, size: 18),
                       label: Text('Add'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Color(0xFF005F9E),
+                        backgroundColor: Colors.white,
                         padding:
                             EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       ),
@@ -6077,7 +6080,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     );
   }
 
-// Optional: Enhanced add note dialog
+// Updated _showAddNoteDialog method
   void _showAddNoteDialog(
       BuildContext context, String patientId, String admissionId) {
     final textController = TextEditingController();
@@ -6086,7 +6089,8 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) {
+        builder: (context, setDialogState) {
+          // Use setDialogState for dialog updates
           return AlertDialog(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
@@ -6190,7 +6194,8 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                               ? null
                               : () async {
                                   if (textController.text.isNotEmpty) {
-                                    setState(() {
+                                    setDialogState(() {
+                                      // Update dialog state
                                       isSubmitting = true;
                                     });
 
@@ -6199,17 +6204,48 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                                     final formattedDate =
                                         "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}";
 
-                                    // Close dialog first
-                                    Navigator.pop(context);
+                                    try {
+                                      // Add the note
+                                      await _addDoctorNote(
+                                          patientId,
+                                          admissionId,
+                                          textController.text,
+                                          formattedDate);
 
-                                    // Add the note
-                                    await _addDoctorNote(patientId, admissionId,
-                                        textController.text, formattedDate);
+                                      // Close dialog after successful addition
+                                      Navigator.pop(context);
 
-                                    // Refresh the UI by updating state and forcing the FutureBuilder to rebuild
-                                    setState(() {
-                                      _futureBuilderKey = UniqueKey();
-                                    });
+                                      // Refresh the main widget UI
+                                      setState(() {
+                                        _futureBuilderKey = UniqueKey();
+                                      });
+
+                                      // Show success message
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content:
+                                              Text('Note added successfully!'),
+                                          backgroundColor: Colors.green,
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                    } catch (e) {
+                                      // Handle error
+                                      setDialogState(() {
+                                        isSubmitting = false;
+                                      });
+
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content:
+                                              Text('Error adding note: $e'),
+                                          backgroundColor: Colors.red,
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                    }
                                   }
                                 },
                           style: ElevatedButton.styleFrom(
@@ -6244,7 +6280,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     );
   }
 
-// Optional: Enhanced delete confirmation dialog
+// Enhanced delete confirmation dialog
   void _showDeleteConfirmation(BuildContext context, String patientId,
       String admissionId, String noteId) {
     showDialog(
@@ -6345,6 +6381,82 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
         ),
       ),
     );
+  }
+
+// Updated _deleteNote method
+  Future<void> _deleteNote(
+      String patientId, String admissionId, String noteId) async {
+    try {
+      await doctor.deleteDoctorNote(
+        patientId: patientId,
+        admissionId: admissionId,
+        noteId: noteId,
+      );
+
+      // Refresh the UI by updating state and forcing the FutureBuilder to rebuild
+      setState(() {
+        _futureBuilderKey = UniqueKey();
+      });
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Note deleted successfully!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      print("Error deleting note: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error deleting note: $e'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+// Updated _addDoctorNote method
+  Future<void> _addDoctorNote(
+      String patientId, String admissionId, String text, String date) async {
+    try {
+      await doctor.addDoctorNote(
+        patientId: patientId,
+        admissionId: admissionId,
+        text: text,
+        date: date,
+      );
+      // Note: setState will be called from the calling function
+    } catch (e) {
+      print("Error adding note: $e");
+      // Re-throw the error so it can be handled in the UI
+      throw e;
+    }
+  }
+
+// Function to fetch doctor notes
+  Future<List<dynamic>> _fetchDoctorNotes(
+      String patientId, String admissionId) async {
+    final url =
+        Uri.parse('${KVM_URL}/doctors/fetchNotes/$patientId/$admissionId');
+    print(url);
+    try {
+      final response = await http.get(
+        url,
+      );
+      print(response.body);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['doctorNotes'];
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception("Error: ${error['message']}");
+      }
+    } catch (e) {
+      throw Exception("Failed to fetch doctor notes: $e");
+    }
   }
 
 //   Widget _buildFourSquareLayout(BuildContext context, WidgetRef ref,
@@ -6541,63 +6653,63 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
 //   }
 
 // Function to fetch doctor notes
-  Future<List<dynamic>> _fetchDoctorNotes(
-      String patientId, String admissionId) async {
-    final url =
-        Uri.parse('${KVM_URL}/doctors/fetchNotes/$patientId/$admissionId');
-    print(url);
-    try {
-      final response = await http.get(
-        url,
-      );
-      print(response.body);
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['doctorNotes'];
-      } else {
-        final error = jsonDecode(response.body);
-        throw Exception("Error: ${error['message']}");
-      }
-    } catch (e) {
-      throw Exception("Failed to fetch doctor notes: $e");
-    }
-  }
+//   Future<List<dynamic>> _fetchDoctorNotes(
+//       String patientId, String admissionId) async {
+//     final url =
+//         Uri.parse('${KVM_URL}/doctors/fetchNotes/$patientId/$admissionId');
+//     print(url);
+//     try {
+//       final response = await http.get(
+//         url,
+//       );
+//       print(response.body);
+//       if (response.statusCode == 200) {
+//         final data = jsonDecode(response.body);
+//         return data['doctorNotes'];
+//       } else {
+//         final error = jsonDecode(response.body);
+//         throw Exception("Error: ${error['message']}");
+//       }
+//     } catch (e) {
+//       throw Exception("Failed to fetch doctor notes: $e");
+//     }
+//   }
 
-// Function to add a doctor note
-  Future<void> _addDoctorNote(
-      String patientId, String admissionId, String text, String date) async {
-    try {
-      await doctor.addDoctorNote(
-        patientId: patientId,
-        admissionId: admissionId,
-        text: text,
-        date: date,
-      );
+// // Function to add a doctor note
+//   Future<void> _addDoctorNote(
+//       String patientId, String admissionId, String text, String date) async {
+//     try {
+//       await doctor.addDoctorNote(
+//         patientId: patientId,
+//         admissionId: admissionId,
+//         text: text,
+//         date: date,
+//       );
 
-      // The setState call will happen in the calling function
-    } catch (e) {
-      print("Error adding note: $e");
-    }
-  }
+//       // The setState call will happen in the calling function
+//     } catch (e) {
+//       print("Error adding note: $e");
+//     }
+//   }
 
-// Function to delete a doctor note - fixed version
-  Future<void> _deleteNote(
-      String patientId, String admissionId, String noteId) async {
-    try {
-      await doctor.deleteDoctorNote(
-        patientId: patientId,
-        admissionId: admissionId,
-        noteId: noteId,
-      );
+// // Function to delete a doctor note - fixed version
+//   Future<void> _deleteNote(
+//       String patientId, String admissionId, String noteId) async {
+//     try {
+//       await doctor.deleteDoctorNote(
+//         patientId: patientId,
+//         admissionId: admissionId,
+//         noteId: noteId,
+//       );
 
-      // Refresh the UI by updating state and forcing the FutureBuilder to rebuild
-      setState(() {
-        _futureBuilderKey = UniqueKey();
-      });
-    } catch (e) {
-      print("Error deleting note: $e");
-    }
-  }
+//       // Refresh the UI by updating state and forcing the FutureBuilder to rebuild
+//       setState(() {
+//         _futureBuilderKey = UniqueKey();
+//       });
+//     } catch (e) {
+//       print("Error deleting note: $e");
+//     }
+//   }
 
 // In your StatefulWidget class declaration, make sure to add:
   Key _futureBuilderKey = UniqueKey();
