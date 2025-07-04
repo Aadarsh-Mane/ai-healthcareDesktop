@@ -377,7 +377,7 @@ class _ManualDischargeSummaryScreenState
                           icon: const Icon(Icons.preview),
                           label: const Text('Preview & Print'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: HospitalTheme.primary,
+                            backgroundColor: HospitalTheme.surfaceLight,
                           ),
                         ),
                       ),
@@ -1074,7 +1074,7 @@ class _ManualDischargeSummaryScreenState
             icon: const Icon(Icons.picture_as_pdf),
             label: const Text('Preview PDF'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: HospitalTheme.primary,
+              backgroundColor: HospitalTheme.surfaceLight,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             ),
           ),
@@ -1969,7 +1969,7 @@ class _ManualDischargeSummaryScreenState
                   icon: const Icon(Icons.preview),
                   label: const Text('Preview & Print'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: HospitalTheme.primary,
+                    backgroundColor: HospitalTheme.surfaceLight,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),

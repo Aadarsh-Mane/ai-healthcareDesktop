@@ -1550,7 +1550,6 @@ class BillTableRow extends ConsumerWidget {
   void _openPDF(String url) {
     // Use Methods().pdfUrl(url) as specified in requirements
     Methods().openPdf(url);
-    print('Opening PDF: $url');
   }
 
   void _handleAction(BuildContext context, String action) {
@@ -2260,7 +2259,7 @@ class BillDetailView extends StatelessWidget {
                       ),
                       ElevatedButton.icon(
                         onPressed: () {
-                          // Methods().pdfUrl(bill.files!.driveLink);
+                          Methods().openPdf(bill.files!.driveLink);
                           print('Opening PDF: ${bill.files!.driveLink}');
                         },
                         icon: const Icon(Icons.open_in_new, size: 16),
