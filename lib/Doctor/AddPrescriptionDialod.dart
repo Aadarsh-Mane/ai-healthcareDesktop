@@ -442,7 +442,7 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Patient Vitals',
+                  'Patient Prescriptions',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -463,18 +463,19 @@ class _AddPrescriptionScreenState extends State<AddPrescriptionScreen>
           // Quick Actions
           Row(
             children: [
-              _buildActionButton(
-                icon: Icons.print,
-                label: 'Print All',
-                color: accentColor,
-                onPressed: () {
-                  // Implementation for printing
-                },
-              ),
+              // _buildActionButton(
+              //   icon: Icons.print,
+              //   label: 'Print All',
+              //   color: accentColor,
+              //   onPressed: () {
+
+              //     // Implementation for printing
+              //   },
+              // ),
               const SizedBox(width: 12),
               _buildActionButton(
                 icon: Icons.add,
-                label: 'Add Vitals',
+                label: 'Add Prescription',
                 color: primaryColor,
                 onPressed: () => _addPrescription(),
               ),

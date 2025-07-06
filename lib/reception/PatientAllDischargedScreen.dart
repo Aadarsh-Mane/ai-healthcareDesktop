@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:ffi';
 
 import 'package:doctordesktop/Doctor/PatientHistoryDetailScreen.dart';
+import 'package:doctordesktop/core/utils/PdfViewerScreen.dart';
 import 'package:doctordesktop/pharmacy/pharmaTheme.dart';
 import 'package:doctordesktop/reception/ManualDischargeSummaryScreen.dart';
 import 'package:doctordesktop/reception/MedicalRecordSummaryScreen.dart';
@@ -181,6 +182,7 @@ class PatientFilters {
 }
 
 // Enhanced data model with proper null safety
+// Enhanced data model with proper null safety and discharge summary
 class PatientDischarge {
   final String name;
   final String gender;
@@ -229,6 +231,7 @@ class LastRecord {
   final String? followUpAdvice;
   final String? investigations;
   final String? operativeProcedures;
+  final DischargeSummary? dischargeSummary;
 
   const LastRecord({
     required this.admissionId,
@@ -252,6 +255,7 @@ class LastRecord {
     this.followUpAdvice,
     this.investigations,
     this.operativeProcedures,
+    this.dischargeSummary,
   });
 
   factory LastRecord.fromJson(Map<String, dynamic> json) {
@@ -279,6 +283,9 @@ class LastRecord {
       followUpAdvice: json['followUpAdvice']?.toString(),
       investigations: json['investigations']?.toString(),
       operativeProcedures: json['operativeProcedures']?.toString(),
+      dischargeSummary: json['dischargeSummary'] != null
+          ? DischargeSummary.fromJson(json['dischargeSummary'])
+          : null,
     );
   }
 
@@ -287,6 +294,12 @@ class LastRecord {
 
   // Helper method to get admission type
   String get admissionType => isIpdAdmission ? 'IPD' : 'OPD';
+
+  // Helper method to check if discharge summary is available
+  bool get hasDischargeSummary =>
+      dischargeSummary != null &&
+      dischargeSummary!.isGenerated &&
+      dischargeSummary!.driveLink.isNotEmpty;
 }
 
 class Doctor {
@@ -308,6 +321,149 @@ class Doctor {
     );
   }
 }
+
+class DischargeSummary {
+  final bool isGenerated;
+  final bool isDoctorGenerated;
+  final String fileName;
+  final String driveLink;
+  final String generatedBy;
+  final String generatedAt;
+  final String savedAt;
+  final String? finalDiagnosis;
+  final List<String> complaints;
+  final List<String> pastHistory;
+  final List<String> examFindings;
+  final List<String> radiology;
+  final List<String> pathology;
+  final Operation? operation;
+  final List<String> treatmentGiven;
+  final String? conditionOnDischarge;
+  final String template;
+  final String version;
+  final String originalAdmissionId;
+  final String? archivedAt;
+  final String? archiveReason;
+  final String id;
+
+  const DischargeSummary({
+    required this.isGenerated,
+    required this.isDoctorGenerated,
+    required this.fileName,
+    required this.driveLink,
+    required this.generatedBy,
+    required this.generatedAt,
+    required this.savedAt,
+    this.finalDiagnosis,
+    required this.complaints,
+    required this.pastHistory,
+    required this.examFindings,
+    required this.radiology,
+    required this.pathology,
+    this.operation,
+    required this.treatmentGiven,
+    this.conditionOnDischarge,
+    required this.template,
+    required this.version,
+    required this.originalAdmissionId,
+    this.archivedAt,
+    this.archiveReason,
+    required this.id,
+  });
+
+  factory DischargeSummary.fromJson(Map<String, dynamic> json) {
+    return DischargeSummary(
+      isGenerated: json['isGenerated'] as bool? ?? false,
+      isDoctorGenerated: json['isDoctorGenerated'] as bool? ?? false,
+      fileName: json['fileName']?.toString() ?? '',
+      driveLink: json['driveLink']?.toString() ?? '',
+      generatedBy: json['generatedBy']?.toString() ?? '',
+      generatedAt: json['generatedAt']?.toString() ?? '',
+      savedAt: json['savedAt']?.toString() ?? '',
+      finalDiagnosis: json['finalDiagnosis']?.toString(),
+      complaints: (json['complaints'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      pastHistory: (json['pastHistory'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      examFindings: (json['examFindings'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      radiology: (json['radiology'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      pathology: (json['pathology'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      operation: json['operation'] != null
+          ? Operation.fromJson(json['operation'])
+          : null,
+      treatmentGiven: (json['treatmentGiven'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      conditionOnDischarge: json['conditionOnDischarge']?.toString(),
+      template: json['template']?.toString() ?? 'standard',
+      version: json['version']?.toString() ?? '1.0',
+      originalAdmissionId: json['originalAdmissionId']?.toString() ?? '',
+      archivedAt: json['archivedAt']?.toString(),
+      archiveReason: json['archiveReason']?.toString(),
+      id: json['_id']?.toString() ?? '',
+    );
+  }
+
+  // Helper method to format generated date
+  String get formattedGeneratedAt {
+    try {
+      final dateTime = DateTime.parse(generatedAt);
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year} at ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return generatedAt;
+    }
+  }
+
+  // Helper method to get summary of complaints
+  String get complaintsText {
+    if (complaints.isEmpty) return 'Not specified';
+    return complaints.join(', ');
+  }
+
+  // Helper method to get summary of exam findings
+  String get examFindingsText {
+    if (examFindings.isEmpty) return 'Not specified';
+    return examFindings.join(', ');
+  }
+}
+
+class Operation {
+  final List<String> procedure;
+
+  const Operation({
+    required this.procedure,
+  });
+
+  factory Operation.fromJson(Map<String, dynamic> json) {
+    return Operation(
+      procedure: (json['Procedure'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+    );
+  }
+
+  String get procedureText {
+    if (procedure.isEmpty) return 'No procedures';
+    return procedure.join(', ');
+  }
+}
+
+// Extension for capitalizing first letter
 
 // Enhanced state notifier with better error handling and empty state distinction
 class DischargedPatientsNotifier
@@ -1927,17 +2083,18 @@ extension BorderRadiusExtension on BorderRadius {
 
 // ENHANCED: Patient Details Screen with proper return handling
 
-class PatientDetailsScreen extends StatefulWidget {
+class PatientDetailsScreen extends ConsumerStatefulWidget {
   final PatientDischarge patient;
 
   const PatientDetailsScreen({Key? key, required this.patient})
       : super(key: key);
 
   @override
-  _PatientDetailsScreenState createState() => _PatientDetailsScreenState();
+  ConsumerState<PatientDetailsScreen> createState() =>
+      _PatientDetailsScreenState();
 }
 
-class _PatientDetailsScreenState extends State<PatientDetailsScreen>
+class _PatientDetailsScreenState extends ConsumerState<PatientDetailsScreen>
     with TickerProviderStateMixin {
   final TextEditingController _billingAmountController =
       TextEditingController();
@@ -2399,6 +2556,19 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen>
     }
   }
 
+  void _openDischargeSummaryPdf() {
+    final dischargeSummary = widget.patient.lastRecord.dischargeSummary;
+    if (dischargeSummary != null && dischargeSummary.driveLink.isNotEmpty) {
+      final pdfNotifier = ref.read(pdfViewerProvider.notifier);
+      pdfNotifier.loadAndShowPdf(
+        dischargeSummary.driveLink,
+        title: dischargeSummary.fileName.isNotEmpty
+            ? dischargeSummary.fileName
+            : 'Discharge Summary',
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final record = widget.patient.lastRecord;
@@ -2417,101 +2587,111 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen>
       },
       child: Focus(
         autofocus: true,
-        child: WillPopScope(
-          onWillPop: () async {
-            Navigator.of(context).pop(_hasChanges);
-            return false;
-          },
-          child: Scaffold(
-            backgroundColor: const Color(0xFFF0F4F8),
-            appBar: _buildAppBar(context),
-            body: SafeArea(
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      // Header and Medical Overview Row - Always same width and height
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            flex: 1,
-                            child: _buildPatientHeader(),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            flex: 1,
-                            child: _buildMedicalInfoCard(record),
-                          ),
+        child: PdfViewerWidget(
+          primaryColor: HospitalTheme.primary,
+          appBarTitle: 'Discharge Summary - ${widget.patient.name}',
+          child: WillPopScope(
+            onWillPop: () async {
+              Navigator.of(context).pop(_hasChanges);
+              return false;
+            },
+            child: Scaffold(
+              backgroundColor: const Color(0xFFF0F4F8),
+              appBar: _buildAppBar(context),
+              body: SafeArea(
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        // Header and Medical Overview Row - Always same width and height
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              flex: 1,
+                              child: _buildPatientHeader(),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              flex: 1,
+                              child: _buildMedicalInfoCard(record),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // Discharge Summary Section - Always visible at top if available
+                        if (record.hasDischargeSummary) ...[
+                          _buildDischargeSummaryCard(record.dischargeSummary!),
+                          const SizedBox(height: 16),
                         ],
-                      ),
 
-                      const SizedBox(height: 12), // Reduced from 24 to 12
-
-                      if (isWideScreen) ...[
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              flex: 1,
-                              child: Column(
-                                children: [
-                                  _buildPatientInfoCard(),
-                                  const SizedBox(height: 16),
-                                  _buildAdmissionDetailsCard(record),
-                                ],
+                        if (isWideScreen) ...[
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                flex: 1,
+                                child: Column(
+                                  children: [
+                                    _buildPatientInfoCard(),
+                                    const SizedBox(height: 16),
+                                    _buildAdmissionDetailsCard(record),
+                                  ],
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              flex: 1,
-                              child: Column(
-                                children: [
-                                  _buildDischargeSection(),
-                                  const SizedBox(height: 16),
-                                  _buildActionButtons(record),
-                                ],
+                              const SizedBox(width: 16),
+                              Expanded(
+                                flex: 1,
+                                child: Column(
+                                  children: [
+                                    _buildDischargeSection(),
+                                    const SizedBox(height: 16),
+                                    _buildActionButtons(record),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ] else if (isMediumScreen) ...[
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                children: [
-                                  _buildPatientInfoCard(),
-                                  const SizedBox(height: 16),
-                                  _buildDischargeSection(),
-                                ],
+                            ],
+                          ),
+                        ] else if (isMediumScreen) ...[
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  children: [
+                                    _buildPatientInfoCard(),
+                                    const SizedBox(height: 16),
+                                    _buildDischargeSection(),
+                                  ],
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                children: [
-                                  _buildAdmissionDetailsCard(record),
-                                  const SizedBox(height: 16),
-                                  _buildActionButtons(record),
-                                ],
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  children: [
+                                    _buildAdmissionDetailsCard(record),
+                                    const SizedBox(height: 16),
+                                    _buildActionButtons(record),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ] else ...[
-                        _buildPatientInfoCard(),
-                        const SizedBox(height: 16),
-                        _buildAdmissionDetailsCard(record),
-                        const SizedBox(height: 16),
-                        _buildDischargeSection(),
-                        const SizedBox(height: 16),
-                        _buildActionButtons(record),
+                            ],
+                          ),
+                        ] else ...[
+                          _buildPatientInfoCard(),
+                          const SizedBox(height: 16),
+                          _buildAdmissionDetailsCard(record),
+                          const SizedBox(height: 16),
+                          _buildDischargeSection(),
+                          const SizedBox(height: 16),
+                          _buildActionButtons(record),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -2551,6 +2731,18 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen>
       ),
       centerTitle: true,
       actions: [
+        if (widget.patient.lastRecord.hasDischargeSummary)
+          Tooltip(
+            message: 'View Discharge Summary',
+            child: IconButton(
+              icon:
+                  const Icon(Icons.picture_as_pdf_rounded, color: Colors.white),
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                _openDischargeSummaryPdf();
+              },
+            ),
+          ),
         Tooltip(
           message: 'Print Details',
           child: IconButton(
@@ -2566,6 +2758,320 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen>
           child: CircleAvatar(
             backgroundColor: Colors.white.withOpacity(0.2),
             child: const Icon(Icons.person_rounded, color: Colors.white),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDischargeSummaryCard(DischargeSummary dischargeSummary) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16), // Reduced from 20
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            HospitalTheme.success.withOpacity(0.03), // More subtle
+            HospitalTheme.primary.withOpacity(0.01),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12), // Reduced from 16
+        border: Border.all(
+            color: HospitalTheme.success.withOpacity(0.2)), // More subtle
+        boxShadow: [
+          BoxShadow(
+            color: HospitalTheme.success.withOpacity(0.05), // Reduced shadow
+            blurRadius: 8, // Reduced from 15
+            offset: const Offset(0, 2), // Reduced from 5
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Compact Header
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8), // Reduced from 12
+                decoration: BoxDecoration(
+                  color:
+                      HospitalTheme.success, // Solid color instead of gradient
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.assignment_turned_in_rounded,
+                  color: Colors.white,
+                  size: 20, // Reduced from 24
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Discharge Summary Available',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16, // Reduced from 18
+                        fontWeight: FontWeight.bold,
+                        color: HospitalTheme.textDark,
+                      ),
+                    ),
+                    Text(
+                      'Generated on ${dischargeSummary.formattedGeneratedAt}',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12, // Reduced from 13
+                        color: HospitalTheme.textMedium,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Compact badge
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 4), // Reduced padding
+                decoration: BoxDecoration(
+                  color: HospitalTheme.success.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: HospitalTheme.success.withOpacity(0.3),
+                  ),
+                ),
+                child: Text(
+                  dischargeSummary.isDoctorGenerated ? 'Doctor' : 'Auto',
+                  style: GoogleFonts.poppins(
+                    fontSize: 10, // Reduced from 12
+                    fontWeight: FontWeight.w600,
+                    color: HospitalTheme.success,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12), // Reduced from 20
+
+          // Compact Content
+          Container(
+            padding: const EdgeInsets.all(12), // Reduced from 16
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8), // Reduced from 12
+              border: Border.all(color: HospitalTheme.border.withOpacity(0.5)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // PDF Info - Single row
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6), // Reduced from 8
+                      decoration: BoxDecoration(
+                        color: HospitalTheme.primary,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Icon(
+                        Icons.picture_as_pdf_rounded,
+                        color: Colors.white,
+                        size: 16, // Reduced from 20
+                      ),
+                    ),
+                    const SizedBox(width: 8), // Reduced from 12
+                    Expanded(
+                      child: Text(
+                        dischargeSummary.fileName.isNotEmpty
+                            ? dischargeSummary.fileName
+                            : 'Discharge Summary',
+                        style: GoogleFonts.poppins(
+                          fontSize: 13, // Reduced from 14
+                          fontWeight: FontWeight.w600,
+                          color: HospitalTheme.textDark,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Compact medical info - only if available
+                if (dischargeSummary.finalDiagnosis?.isNotEmpty == true ||
+                    dischargeSummary.complaints.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  const Divider(height: 1),
+                  const SizedBox(height: 8),
+
+                  // Show only most important info in compact format
+                  if (dischargeSummary.finalDiagnosis?.isNotEmpty == true)
+                    _buildCompactInfoRow(
+                      'Diagnosis',
+                      dischargeSummary.finalDiagnosis!,
+                      HospitalTheme.medical,
+                    ),
+
+                  if (dischargeSummary.complaints.isNotEmpty)
+                    _buildCompactInfoRow(
+                      'Complaints',
+                      dischargeSummary.complaintsText,
+                      HospitalTheme.emergency,
+                    ),
+                ],
+
+                const SizedBox(height: 8), // Reduced from 16
+
+                // Compact Action Buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _openDischargeSummaryPdf,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: HospitalTheme.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8), // Reduced padding
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(6), // Reduced radius
+                          ),
+                          elevation: 1, // Reduced elevation
+                        ),
+                        icon: const Icon(Icons.visibility_rounded,
+                            size: 16), // Reduced size
+                        label: Text(
+                          'View',
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12, // Reduced font size
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8), // Reduced from 12
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Methods().openPdf(dischargeSummary.driveLink);
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: HospitalTheme.primary,
+                          side: BorderSide(
+                              color: HospitalTheme.primary, width: 1),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8), // Reduced padding
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(6), // Reduced radius
+                          ),
+                        ),
+                        icon: const Icon(Icons.print_rounded,
+                            size: 16), // Reduced size
+                        label: Text(
+                          'Open',
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12, // Reduced font size
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+// Add this helper method for compact info rows
+  Widget _buildCompactInfoRow(String label, String value, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 16,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '$label: ',
+            style: GoogleFonts.poppins(
+              fontSize: 11,
+              color: HospitalTheme.textMedium,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: GoogleFonts.poppins(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryInfoRow(
+      String label, String value, IconData icon, Color color) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Icon(
+            icon,
+            color: color,
+            size: 16,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: HospitalTheme.textMedium,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
         ),
       ],
@@ -3603,5 +4109,3 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen>
     );
   }
 }
-
-// Extension for capitalizing first letter

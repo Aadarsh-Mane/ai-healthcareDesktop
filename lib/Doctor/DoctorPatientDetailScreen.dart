@@ -11,7 +11,9 @@ import 'package:doctordesktop/Doctor/AssignedPatientScreen.dart';
 import 'package:doctordesktop/Doctor/DoctorAdmittedPatientScreen.dart';
 import 'package:doctordesktop/Doctor/DoctorConsultantScreen.dart';
 import 'package:doctordesktop/Doctor/DoctorMainScreen.dart';
+import 'package:doctordesktop/Doctor/DoctorMedicalCertificateScreen.dart';
 import 'package:doctordesktop/Doctor/DoctorProfile.dart';
+import 'package:doctordesktop/Doctor/GenerateDischargeSummaryByDoctorScreen.dart';
 import 'package:doctordesktop/Doctor/PatientHistoryDetailScreen.dart';
 import 'package:doctordesktop/Doctor/Tabs/AdmissionLabReportScreen.dart';
 import 'package:doctordesktop/Doctor/Tabs/CreateInvestigstion.dart';
@@ -1492,6 +1494,52 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                             _openAddDoctorConsultingScreen(
                               widget.patient.patientId,
                               widget.patient.admissionRecords.first.id,
+                            );
+                          },
+                        ),
+                      ),
+
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color.fromARGB(255, 206, 49, 185),
+                              Color(0xFF63B3ED)
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(28),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF3182CE).withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: FloatingActionButton.extended(
+                          label: const Text(
+                            'Generate Discharge Summary',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          icon: const Icon(Icons.supervisor_account, size: 20),
+                          heroTag: 'fab2',
+                          backgroundColor: Colors.transparent,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    GenerateDischargeSummaryByDoctorScreen(
+                                  patientId: widget.patient.patientId,
+                                ),
+                              ),
                             );
                           },
                         ),
@@ -5238,7 +5286,6 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
 
   Widget _buildOverviewSection1(BuildContext context, WidgetRef ref) {
     return Container(
-      // Instead of padding directly, we keep width fluid
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -5285,64 +5332,92 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
 
           const SizedBox(height: 16),
 
-          // Action Buttons with Wrap for better responsiveness
-          Wrap(
-            spacing: 8.0,
-            runSpacing: 8.0,
-            alignment: WrapAlignment.spaceBetween,
-            children: [
-              _buildActionButton(
-                icon: Icons.visibility,
-                label: 'View Details',
-                color: Colors.teal,
-                onPressed: () {
-                  Navigator.of(context).push(MaterialPageRoute(
-                    builder: (context) => PatientHistoryDetailScreen(
-                      patientId: widget.patient.patientId,
-                    ),
-                  ));
-                },
-              ),
-              _buildActionButton(
-                icon: Icons.medication,
-                label: 'Prescription',
-                color: Colors.purple,
-                isLoading: _isPrescriptionLoading,
-                onPressed: () async {
-                  await _fetchDoctorAdvice(context, widget.patient.patientId,
-                      widget.patient.admissionRecords.first.id);
-                },
-              ),
-              _buildActionButton(
-                icon: Icons.local_hospital,
-                label: 'Admit',
-                color: Colors.red,
-                onPressed: () async =>
-                    await _admitPatient(widget.patient, ref, context),
-              ),
-              _buildActionButton(
-                icon: Icons.science,
-                label: 'Lab Assign',
-                color: Colors.orange,
-                onPressed: () async =>
-                    await _handleAssignLab(context, widget.patient, ref),
-              ),
-              _buildActionButton(
-                  icon: Icons.science,
-                  label: 'Investigation',
-                  color: Colors.orange,
-                  onPressed: () async {
-                    Navigator.of(context).push(MaterialPageRoute(
-                      builder: (context) => CreateInvestigationScreen(
-                        patientId: widget.patient.patientId,
-                        admissionId: widget.patient.admissionRecords.first.id,
-                      ),
-                    ));
-                  }),
-            ],
+          // Action Buttons with LayoutBuilder for responsive design
+          LayoutBuilder(
+            builder: (context, constraints) {
+              // Determine how many buttons per row based on available width
+              final buttonWidth = 85.0;
+              final spacing = 8.0;
+              final buttonsPerRow =
+                  ((constraints.maxWidth + spacing) / (buttonWidth + spacing))
+                      .floor();
+
+              return Wrap(
+                spacing: spacing,
+                runSpacing: spacing,
+                alignment:
+                    WrapAlignment.start, // Changed from spaceBetween to start
+                children: [
+                  _buildActionButton(
+                    icon: Icons.visibility,
+                    label: 'View Details',
+                    color: Colors.teal,
+                    onPressed: () {
+                      Navigator.of(context).push(MaterialPageRoute(
+                        builder: (context) => PatientHistoryDetailScreen(
+                          patientId: widget.patient.patientId,
+                        ),
+                      ));
+                    },
+                  ),
+                  _buildActionButton(
+                    icon: Icons.panorama_photosphere,
+                    label: 'Certificate',
+                    color: Colors.cyan,
+                    onPressed: () async {
+                      Navigator.of(context).push(MaterialPageRoute(
+                        builder: (context) => GenerateMedicalCertificateScreen(
+                          patientId: widget.patient.patientId,
+                          admissionId: widget.patient.admissionRecords.first.id,
+                        ),
+                      ));
+                    },
+                  ),
+                  _buildActionButton(
+                    icon: Icons.medication,
+                    label: 'Prescription',
+                    color: Colors.purple,
+                    isLoading: _isPrescriptionLoading,
+                    onPressed: () async {
+                      await _fetchDoctorAdvice(
+                          context,
+                          widget.patient.patientId,
+                          widget.patient.admissionRecords.first.id);
+                    },
+                  ),
+                  _buildActionButton(
+                    icon: Icons.local_hospital,
+                    label: 'Admit',
+                    color: Colors.red,
+                    onPressed: () async =>
+                        await _admitPatient(widget.patient, ref, context),
+                  ),
+                  _buildActionButton(
+                    icon: Icons.science,
+                    label: 'Lab Assign',
+                    color: Colors.orange,
+                    onPressed: () async =>
+                        await _handleAssignLab(context, widget.patient, ref),
+                  ),
+                  _buildActionButton(
+                    icon: Icons.science,
+                    label: 'Investigation',
+                    color: Colors.purpleAccent,
+                    onPressed: () async {
+                      Navigator.of(context).push(MaterialPageRoute(
+                        builder: (context) => CreateInvestigationScreen(
+                          patientId: widget.patient.patientId,
+                          admissionId: widget.patient.admissionRecords.first.id,
+                        ),
+                      ));
+                    },
+                  ),
+                ],
+              );
+            },
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
 
           // Admission Details
           Container(

@@ -690,14 +690,14 @@ class _AdmittedPatientsScreenState
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                Icons.error_outline_rounded,
+                Icons.people,
                 size: 48,
                 color: HospitalTheme.error,
               ),
             ),
             const SizedBox(height: 24),
             Text(
-              'Something went wrong',
+              'No admitted Patient',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
@@ -705,14 +705,14 @@ class _AdmittedPatientsScreenState
               ),
             ),
             const SizedBox(height: 8),
-            Text(
-              error.toString(),
-              style: TextStyle(
-                fontSize: 14,
-                color: HospitalTheme.textMedium,
-              ),
-              textAlign: TextAlign.center,
-            ),
+            // Text(
+            //   error.toString(),
+            //   style: TextStyle(
+            //     fontSize: 14,
+            //     color: HospitalTheme.textMedium,
+            //   ),
+            //   textAlign: TextAlign.center,
+            // ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: _refreshData,
