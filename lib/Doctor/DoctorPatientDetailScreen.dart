@@ -18,6 +18,7 @@ import 'package:doctordesktop/Doctor/PatientHistoryDetailScreen.dart';
 import 'package:doctordesktop/Doctor/Tabs/AdmissionLabReportScreen.dart';
 import 'package:doctordesktop/Doctor/Tabs/CreateInvestigstion.dart';
 import 'package:doctordesktop/Doctor/Tabs/DiagnosisScreen.dart';
+import 'package:doctordesktop/Doctor/Tabs/EmergencyMedication.dart';
 import 'package:doctordesktop/Doctor/Tabs/GetInvestigation.dart';
 import 'package:doctordesktop/Doctor/Tabs/InvestigationScreen.dart';
 import 'package:doctordesktop/Doctor/Tabs/PatientCheck.dart';
@@ -31,6 +32,7 @@ import 'package:doctordesktop/Doctor/Tabs/VitalsScreen.dart';
 import 'package:doctordesktop/Doctor/da.dart';
 import 'package:doctordesktop/Doctor/doctornote.dart';
 import 'package:doctordesktop/Doctor/sub.dart';
+import 'package:doctordesktop/Nurse/EmergencyMedicationScreen.dart';
 import 'package:doctordesktop/StateProvider.dart';
 import 'package:doctordesktop/authProvider/auth_provider.dart';
 import 'package:doctordesktop/constants/HospitalTheme.dart';
@@ -834,7 +836,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => TreatmentDashboard(
+                        builder: (context) => EnhancedTreatmentScreen(
                           patientId: widget.patient.patientId,
                           admissionId: widget.patient.admissionRecords.first.id,
                         ),
@@ -1403,7 +1405,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                                         patientId: widget.patient.patientId,
                                         admissionId: widget
                                             .patient.admissionRecords.first.id),
-                                    TreatmentDashboard(
+                                    EnhancedTreatmentScreen(
                                         patientId: widget.patient.patientId,
                                         admissionId: widget
                                             .patient.admissionRecords.first.id)
@@ -1538,6 +1540,53 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                                 builder: (context) =>
                                     GenerateDischargeSummaryByDoctorScreen(
                                   patientId: widget.patient.patientId,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color.fromARGB(255, 206, 49, 185),
+                              Color(0xFF63B3ED)
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(28),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF3182CE).withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: FloatingActionButton.extended(
+                          label: const Text(
+                            'Emergency Medication',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          icon: const Icon(Icons.supervisor_account, size: 20),
+                          heroTag: 'fab2',
+                          backgroundColor: Colors.transparent,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    DoctorEmergencyMedicationScreen(
+                                  patientId: widget.patient.patientId,
+                                  admissionId:
+                                      widget.patient.admissionRecords.first.id,
                                 ),
                               ),
                             );

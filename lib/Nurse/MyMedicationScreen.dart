@@ -625,7 +625,7 @@ class _MyEmergencyMedicationsScreenState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Medication Details',
+                      'Medication Detail',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             color: HospitalTheme.textDark,
                             fontWeight: FontWeight.bold,

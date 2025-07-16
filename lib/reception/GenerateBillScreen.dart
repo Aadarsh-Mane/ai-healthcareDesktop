@@ -56,6 +56,45 @@ class ChargeItem {
   }
 }
 
+// Custom Charge Item
+class CustomChargeItem {
+  final String id;
+  final String description;
+  final double rate;
+  final int days;
+
+  const CustomChargeItem({
+    required this.id,
+    required this.description,
+    required this.rate,
+    required this.days,
+  });
+
+  CustomChargeItem copyWith({
+    String? id,
+    String? description,
+    double? rate,
+    int? days,
+  }) {
+    return CustomChargeItem(
+      id: id ?? this.id,
+      description: description ?? this.description,
+      rate: rate ?? this.rate,
+      days: days ?? this.days,
+    );
+  }
+
+  double get total => rate * days;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'description': description,
+      'rate': rate,
+      'days': days,
+    };
+  }
+}
+
 class BillSummary {
   final double totalCharges;
   final double discount;
@@ -78,7 +117,7 @@ class GeneratedBillResponse {
   final Map<String, dynamic> patientInfo;
   final Map<String, dynamic> admissionDetails;
   final BillSummary billSummary;
-  final Map<String, dynamic> billData; // Added for storing
+  final Map<String, dynamic> billData;
 
   const GeneratedBillResponse({
     required this.fileName,
@@ -88,7 +127,7 @@ class GeneratedBillResponse {
     required this.patientInfo,
     required this.admissionDetails,
     required this.billSummary,
-    required this.billData, // Added for storing
+    required this.billData,
   });
 
   factory GeneratedBillResponse.fromJson(Map<String, dynamic> json) {
@@ -107,7 +146,7 @@ class GeneratedBillResponse {
         advance: (data['billSummary']['advance'] ?? 0).toDouble(),
         finalAmount: (data['billSummary']['finalAmount'] ?? 0).toDouble(),
       ),
-      billData: data['billData'] ?? {}, // Added for storing
+      billData: data['billData'] ?? {},
     );
   }
 }
@@ -179,6 +218,7 @@ final ipdBillStateProvider =
 class IpdBillState {
   final String patientId;
   final List<ChargeItem> charges;
+  final List<CustomChargeItem> customCharges;
   final double discount;
   final double advance;
   final bool isLoading;
@@ -189,12 +229,13 @@ class IpdBillState {
   final IpdReceiptResponse? generatedReceipt;
   final double receiptAmount;
   final double amountPaid;
-  final bool isStoringBill; // Added for storing bill
-  final StoredBillResponse? storedBill; // Added for stored bill response
+  final bool isStoringBill;
+  final StoredBillResponse? storedBill;
 
   const IpdBillState({
     required this.patientId,
     required this.charges,
+    required this.customCharges,
     this.discount = 0,
     this.advance = 0,
     this.isLoading = false,
@@ -205,13 +246,14 @@ class IpdBillState {
     this.generatedReceipt,
     this.receiptAmount = 0,
     this.amountPaid = 0,
-    this.isStoringBill = false, // Added for storing bill
-    this.storedBill, // Added for stored bill response
+    this.isStoringBill = false,
+    this.storedBill,
   });
 
   IpdBillState copyWith({
     String? patientId,
     List<ChargeItem>? charges,
+    List<CustomChargeItem>? customCharges,
     double? discount,
     double? advance,
     bool? isLoading,
@@ -224,13 +266,14 @@ class IpdBillState {
     bool clearGeneratedReceipt = false,
     double? receiptAmount,
     double? amountPaid,
-    bool? isStoringBill, // Added for storing bill
-    StoredBillResponse? storedBill, // Added for stored bill response
-    bool clearStoredBill = false, // Added for clearing stored bill
+    bool? isStoringBill,
+    StoredBillResponse? storedBill,
+    bool clearStoredBill = false,
   }) {
     return IpdBillState(
       patientId: patientId ?? this.patientId,
       charges: charges ?? this.charges,
+      customCharges: customCharges ?? this.customCharges,
       discount: discount ?? this.discount,
       advance: advance ?? this.advance,
       isLoading: isLoading ?? this.isLoading,
@@ -244,16 +287,19 @@ class IpdBillState {
           : (generatedReceipt ?? this.generatedReceipt),
       receiptAmount: receiptAmount ?? this.receiptAmount,
       amountPaid: amountPaid ?? this.amountPaid,
-      isStoringBill:
-          isStoringBill ?? this.isStoringBill, // Added for storing bill
-      storedBill: clearStoredBill
-          ? null
-          : (storedBill ?? this.storedBill), // Added for stored bill response
+      isStoringBill: isStoringBill ?? this.isStoringBill,
+      storedBill: clearStoredBill ? null : (storedBill ?? this.storedBill),
     );
   }
 
-  double get totalCharges =>
-      charges.where((c) => c.isActive).fold(0, (sum, item) => sum + item.total);
+  double get totalCharges {
+    double total = charges
+        .where((c) => c.isActive)
+        .fold(0, (sum, item) => sum + item.total);
+    total += customCharges.fold(0, (sum, item) => sum + item.total);
+    return total;
+  }
+
   double get finalAmount => totalCharges - discount - advance;
 }
 
@@ -262,6 +308,7 @@ class IpdBillNotifier extends StateNotifier<IpdBillState> {
       : super(IpdBillState(
           patientId: patientId,
           charges: _getDefaultCharges(),
+          customCharges: [],
         ));
 
   static List<ChargeItem> _getDefaultCharges() {
@@ -473,6 +520,19 @@ class IpdBillNotifier extends StateNotifier<IpdBillState> {
           displayName: 'Ophthalmologist Charges',
           rate: 0,
           days: 1),
+      // NEW: Add the new fixed charges
+      const ChargeItem(
+          key: 'pharmacyCharges',
+          displayName: 'Pharmacy Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'pathologyCharges',
+          displayName: 'Pathology Charges',
+          rate: 0,
+          days: 1),
+      const ChargeItem(
+          key: 'otherCharges', displayName: 'Other Charges', rate: 0, days: 1),
     ];
   }
 
@@ -487,6 +547,44 @@ class IpdBillNotifier extends StateNotifier<IpdBillState> {
     );
 
     state = state.copyWith(charges: updatedCharges);
+  }
+
+  void addCustomCharge() {
+    final newCustomCharge = CustomChargeItem(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      description: '',
+      rate: 0,
+      days: 1,
+    );
+
+    final updatedCustomCharges =
+        List<CustomChargeItem>.from(state.customCharges)..add(newCustomCharge);
+
+    state = state.copyWith(customCharges: updatedCustomCharges);
+  }
+
+  void updateCustomCharge(int index,
+      {String? description, double? rate, int? days}) {
+    if (index < 0 || index >= state.customCharges.length) return;
+
+    final updatedCustomCharges =
+        List<CustomChargeItem>.from(state.customCharges);
+    updatedCustomCharges[index] = updatedCustomCharges[index].copyWith(
+      description: description,
+      rate: rate,
+      days: days,
+    );
+
+    state = state.copyWith(customCharges: updatedCustomCharges);
+  }
+
+  void removeCustomCharge(int index) {
+    if (index < 0 || index >= state.customCharges.length) return;
+
+    final updatedCustomCharges =
+        List<CustomChargeItem>.from(state.customCharges)..removeAt(index);
+
+    state = state.copyWith(customCharges: updatedCustomCharges);
   }
 
   void updateDiscount(double discount) {
@@ -513,29 +611,35 @@ class IpdBillNotifier extends StateNotifier<IpdBillState> {
     state = state.copyWith(error: null);
   }
 
-  // Validation method for charges
   String? validateCharges() {
     final activeCharges = state.charges.where((c) => c.isActive).toList();
+    final validCustomCharges = state.customCharges
+        .where((c) => c.description.isNotEmpty && c.rate > 0)
+        .toList();
 
-    if (activeCharges.isEmpty) {
-      return 'Please select at least one charge item';
+    if (activeCharges.isEmpty && validCustomCharges.isEmpty) {
+      return 'Please select at least one charge item or add a custom charge';
     }
 
     final chargesWithoutRate = activeCharges.where((c) => c.rate <= 0).toList();
-
     if (chargesWithoutRate.isNotEmpty) {
       final invalidItems =
           chargesWithoutRate.map((c) => c.displayName).take(3).join(', ');
       final additionalCount = chargesWithoutRate.length - 3;
-
       return 'Selected charges must have valid rates. Items without rates: $invalidItems${additionalCount > 0 ? ' and ${additionalCount} more' : ''}';
+    }
+
+    final invalidCustomCharges = state.customCharges
+        .where((c) => c.description.isNotEmpty && c.rate <= 0)
+        .toList();
+    if (invalidCustomCharges.isNotEmpty) {
+      return 'Custom charges must have valid rates and descriptions';
     }
 
     return null;
   }
 
   Future<void> generateBill() async {
-    // Validate charges first
     final validationError = validateCharges();
     if (validationError != null) {
       state = state.copyWith(error: validationError);
@@ -552,8 +656,14 @@ class IpdBillNotifier extends StateNotifier<IpdBillState> {
         }
       }
 
+      final customCharges = state.customCharges
+          .where((c) => c.description.isNotEmpty && c.rate > 0)
+          .map((c) => c.toJson())
+          .toList();
+
       final requestBody = {
         'charges': activeCharges,
+        'customCharges': customCharges,
         'discount': state.discount,
         'advance': state.advance,
       };
@@ -569,13 +679,11 @@ class IpdBillNotifier extends StateNotifier<IpdBillState> {
         if (responseData['success'] == true) {
           final generatedBill = GeneratedBillResponse.fromJson(responseData);
 
-          // Auto-populate receipt amount with final amount from bill
           state = state.copyWith(
             isLoading: false,
             generatedBill: generatedBill,
             receiptAmount: generatedBill.billSummary.finalAmount,
-            amountPaid: generatedBill
-                .billSummary.finalAmount, // Default to full payment
+            amountPaid: generatedBill.billSummary.finalAmount,
           );
         } else {
           state = state.copyWith(
@@ -597,7 +705,6 @@ class IpdBillNotifier extends StateNotifier<IpdBillState> {
     }
   }
 
-  // Added method to store bill in database
   Future<void> storeBill() async {
     if (state.generatedBill == null) {
       state = state.copyWith(error: 'No bill generated to store');
@@ -677,11 +784,9 @@ class IpdBillNotifier extends StateNotifier<IpdBillState> {
         final responseData = json.decode(response.body);
         final generatedReceipt = IpdReceiptResponse.fromJson(responseData);
 
-        // Keep the existing generatedBill and only update generatedReceipt
         state = state.copyWith(
           isGeneratingReceipt: false,
           generatedReceipt: generatedReceipt,
-          // Don't clear generatedBill - keep it as is
         );
       } else {
         state = state.copyWith(
@@ -701,6 +806,7 @@ class IpdBillNotifier extends StateNotifier<IpdBillState> {
     state = IpdBillState(
       patientId: state.patientId,
       charges: _getDefaultCharges(),
+      customCharges: [],
     );
   }
 }
@@ -726,6 +832,11 @@ class _GenerateIpdBillScreenState extends ConsumerState<GenerateIpdBillScreen> {
   final _receiptAmountController = TextEditingController();
   final _amountPaidController = TextEditingController();
 
+  // Controllers for custom charges
+  final List<TextEditingController> _customDescriptionControllers = [];
+  final List<TextEditingController> _customRateControllers = [];
+  final List<TextEditingController> _customDaysControllers = [];
+
   @override
   void dispose() {
     _scrollController.dispose();
@@ -733,6 +844,18 @@ class _GenerateIpdBillScreenState extends ConsumerState<GenerateIpdBillScreen> {
     _advanceController.dispose();
     _receiptAmountController.dispose();
     _amountPaidController.dispose();
+
+    // Dispose custom charge controllers
+    for (final controller in _customDescriptionControllers) {
+      controller.dispose();
+    }
+    for (final controller in _customRateControllers) {
+      controller.dispose();
+    }
+    for (final controller in _customDaysControllers) {
+      controller.dispose();
+    }
+
     super.dispose();
   }
 
@@ -747,6 +870,9 @@ class _GenerateIpdBillScreenState extends ConsumerState<GenerateIpdBillScreen> {
       _receiptAmountController.text = state.receiptAmount.toString();
       _amountPaidController.text = state.amountPaid.toString();
     }
+
+    // Sync custom charge controllers
+    _ensureCustomChargeControllers(state.customCharges.length);
 
     return PdfViewerWidget(
       primaryColor: HospitalTheme.primary,
@@ -779,7 +905,7 @@ class _GenerateIpdBillScreenState extends ConsumerState<GenerateIpdBillScreen> {
             const SingleActivator(LogicalKeyboardKey.f5): () =>
                 notifier.reset(),
             const SingleActivator(LogicalKeyboardKey.keyF, control: true): () =>
-                notifier.storeBill(), // Added shortcut for storing bill
+                notifier.storeBill(),
           },
           child: Focus(
             autofocus: true,
@@ -788,6 +914,35 @@ class _GenerateIpdBillScreenState extends ConsumerState<GenerateIpdBillScreen> {
         ),
       ),
     );
+  }
+
+  // FIXED: Ensure controllers match the number of custom charges
+  void _ensureCustomChargeControllers(int requiredCount) {
+    // Add controllers if needed
+    while (_customDescriptionControllers.length < requiredCount) {
+      _customDescriptionControllers.add(TextEditingController());
+      _customRateControllers.add(TextEditingController());
+      _customDaysControllers.add(TextEditingController(text: '1'));
+    }
+
+    // Remove excess controllers
+    while (_customDescriptionControllers.length > requiredCount) {
+      _customDescriptionControllers.removeLast().dispose();
+      _customRateControllers.removeLast().dispose();
+      _customDaysControllers.removeLast().dispose();
+    }
+  }
+
+  // Add custom charge method
+  void _addCustomCharge() {
+    final notifier = ref.read(ipdBillStateProvider(widget.patientId).notifier);
+    notifier.addCustomCharge();
+  }
+
+  // Remove custom charge method
+  void _removeCustomCharge(int index) {
+    final notifier = ref.read(ipdBillStateProvider(widget.patientId).notifier);
+    notifier.removeCustomCharge(index);
   }
 
   Widget _buildBody(BuildContext context, Size size, IpdBillState state,
@@ -837,7 +992,7 @@ class _GenerateIpdBillScreenState extends ConsumerState<GenerateIpdBillScreen> {
           HospitalTheme.buildSectionHeader(
             'Medical Charges',
             trailing: Text(
-              'Active: ${state.charges.where((c) => c.isActive).length}/${state.charges.length}',
+              'Active: ${state.charges.where((c) => c.isActive).length}/${state.charges.length} + ${state.customCharges.where((c) => c.description.isNotEmpty && c.rate > 0).length} custom',
               style: TextStyle(
                 color: HospitalTheme.textMedium,
                 fontSize: 14,
@@ -890,6 +1045,7 @@ class _GenerateIpdBillScreenState extends ConsumerState<GenerateIpdBillScreen> {
                             textAlign: TextAlign.right,
                           ),
                         ),
+                        SizedBox(width: 40), // Space for actions
                       ],
                     ),
                   ),
@@ -898,15 +1054,77 @@ class _GenerateIpdBillScreenState extends ConsumerState<GenerateIpdBillScreen> {
                   Expanded(
                     child: Scrollbar(
                       controller: _scrollController,
-                      child: ListView.builder(
+                      child: ListView(
                         controller: _scrollController,
-                        itemCount: state.charges.length,
-                        itemBuilder: (context, index) => _buildChargeRow(
-                          context,
-                          state.charges[index],
-                          index,
-                          notifier,
-                        ),
+                        children: [
+                          // Regular charges
+                          ...state.charges.asMap().entries.map((entry) {
+                            final index = entry.key;
+                            final charge = entry.value;
+                            return _buildChargeRow(
+                                context, charge, index, notifier);
+                          }),
+
+                          // Divider for custom charges
+                          if (state.customCharges.isNotEmpty) ...[
+                            const Divider(height: 1),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: HospitalTheme.info.withOpacity(0.1),
+                                border: const Border(
+                                  bottom:
+                                      BorderSide(color: HospitalTheme.border),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.add_circle,
+                                      color: HospitalTheme.info, size: 16),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Custom Charges',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: HospitalTheme.info,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+
+                          // Custom charges
+                          ...state.customCharges.asMap().entries.map((entry) {
+                            final index = entry.key;
+                            final charge = entry.value;
+                            return _buildCustomChargeRow(
+                                context, charge, index, notifier);
+                          }),
+
+                          // Add custom charge button
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: const BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(color: HospitalTheme.border),
+                              ),
+                            ),
+                            child: Center(
+                              child: OutlinedButton.icon(
+                                onPressed: _addCustomCharge,
+                                icon: const Icon(Icons.add),
+                                label: const Text('Add Custom Charge'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: HospitalTheme.primary,
+                                  side:
+                                      BorderSide(color: HospitalTheme.primary),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -994,6 +1212,130 @@ class _GenerateIpdBillScreenState extends ConsumerState<GenerateIpdBillScreen> {
                     ? HospitalTheme.primary
                     : HospitalTheme.textLight,
               ),
+            ),
+          ),
+
+          // Actions placeholder (to align with custom charges)
+          const SizedBox(width: 40),
+        ],
+      ),
+    );
+  }
+
+  // FIXED: Custom charge row widget
+  Widget _buildCustomChargeRow(BuildContext context, CustomChargeItem charge,
+      int index, IpdBillNotifier notifier) {
+    // Ensure we have controllers for this index
+    if (index >= _customDescriptionControllers.length) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: charge.description.isNotEmpty && charge.rate > 0
+            ? HospitalTheme.success.withOpacity(0.1)
+            : HospitalTheme.warning.withOpacity(0.1),
+        border: const Border(
+          bottom: BorderSide(color: HospitalTheme.border),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          // Custom indicator
+          SizedBox(
+            width: 40,
+            child: Icon(
+              Icons.star,
+              color: charge.description.isNotEmpty && charge.rate > 0
+                  ? HospitalTheme.success
+                  : HospitalTheme.warning,
+              size: 16,
+            ),
+          ),
+
+          // Description input
+          Expanded(
+            flex: 3,
+            child: TextFormField(
+              controller: _customDescriptionControllers[index],
+              decoration: const InputDecoration(
+                hintText: 'Enter service description',
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                border: OutlineInputBorder(),
+              ),
+              style: const TextStyle(fontSize: 14),
+              onChanged: (value) =>
+                  notifier.updateCustomCharge(index, description: value),
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // Rate input
+          Expanded(
+            child: TextFormField(
+              controller: _customRateControllers[index],
+              decoration: const InputDecoration(
+                prefixText: '₹',
+                hintText: '0.00',
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14),
+              onChanged: (value) {
+                final rate = double.tryParse(value) ?? 0.0;
+                notifier.updateCustomCharge(index, rate: rate);
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // Days input
+          Expanded(
+            child: TextFormField(
+              controller: _customDaysControllers[index],
+              decoration: const InputDecoration(
+                hintText: '1',
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14),
+              onChanged: (value) {
+                final days = int.tryParse(value) ?? 1;
+                notifier.updateCustomCharge(index, days: days);
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // Total
+          Expanded(
+            child: Text(
+              '₹${charge.total.toStringAsFixed(2)}',
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: charge.description.isNotEmpty && charge.rate > 0
+                    ? HospitalTheme.success
+                    : HospitalTheme.textLight,
+              ),
+            ),
+          ),
+
+          // Delete button
+          SizedBox(
+            width: 40,
+            child: IconButton(
+              icon: Icon(Icons.delete, color: HospitalTheme.error, size: 18),
+              onPressed: () => _removeCustomCharge(index),
+              tooltip: 'Remove custom charge',
             ),
           ),
         ],
@@ -1261,6 +1603,9 @@ class _GenerateIpdBillScreenState extends ConsumerState<GenerateIpdBillScreen> {
       IpdBillNotifier notifier) {
     final activeCharges =
         state.charges.where((c) => c.isActive && c.total > 0).toList();
+    final validCustomCharges = state.customCharges
+        .where((c) => c.description.isNotEmpty && c.rate > 0)
+        .toList();
 
     return Padding(
       padding: const EdgeInsets.all(24.0),
@@ -1412,55 +1757,128 @@ class _GenerateIpdBillScreenState extends ConsumerState<GenerateIpdBillScreen> {
 
                                 // Table rows
                                 Expanded(
-                                  child: ListView.builder(
-                                    itemCount: activeCharges.length,
-                                    itemBuilder: (context, index) {
-                                      final charge = activeCharges[index];
-                                      return Container(
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: const BoxDecoration(
-                                          border: Border(
-                                              bottom: BorderSide(
-                                                  color: HospitalTheme.border)),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Expanded(
-                                              flex: 3,
-                                              child: Text(charge.displayName,
+                                  child: ListView(
+                                    children: [
+                                      // Regular charges
+                                      ...activeCharges.map((charge) {
+                                        return Container(
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: const BoxDecoration(
+                                            border: Border(
+                                                bottom: BorderSide(
+                                                    color:
+                                                        HospitalTheme.border)),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Expanded(
+                                                flex: 3,
+                                                child: Text(charge.displayName,
+                                                    style: const TextStyle(
+                                                        fontSize: 14)),
+                                              ),
+                                              Expanded(
+                                                child: Text(
+                                                  '₹${charge.rate.toStringAsFixed(2)}',
+                                                  textAlign: TextAlign.center,
                                                   style: const TextStyle(
-                                                      fontSize: 14)),
-                                            ),
-                                            Expanded(
-                                              child: Text(
-                                                '₹${charge.rate.toStringAsFixed(2)}',
-                                                textAlign: TextAlign.center,
-                                                style: const TextStyle(
-                                                    fontSize: 14),
+                                                      fontSize: 14),
+                                                ),
                                               ),
-                                            ),
-                                            Expanded(
-                                              child: Text(
-                                                '${charge.days}',
-                                                textAlign: TextAlign.center,
-                                                style: const TextStyle(
-                                                    fontSize: 14),
+                                              Expanded(
+                                                child: Text(
+                                                  '${charge.days}',
+                                                  textAlign: TextAlign.center,
+                                                  style: const TextStyle(
+                                                      fontSize: 14),
+                                                ),
                                               ),
-                                            ),
-                                            Expanded(
-                                              child: Text(
-                                                '₹${charge.total.toStringAsFixed(2)}',
-                                                textAlign: TextAlign.right,
-                                                style: const TextStyle(
-                                                    fontSize: 14,
-                                                    fontWeight:
-                                                        FontWeight.w600),
+                                              Expanded(
+                                                child: Text(
+                                                  '₹${charge.total.toStringAsFixed(2)}',
+                                                  textAlign: TextAlign.right,
+                                                  style: const TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight:
+                                                          FontWeight.w600),
+                                                ),
                                               ),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    },
+                                            ],
+                                          ),
+                                        );
+                                      }),
+
+                                      // Custom charges
+                                      ...validCustomCharges.map((charge) {
+                                        return Container(
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: HospitalTheme.success
+                                                .withOpacity(0.05),
+                                            border: const Border(
+                                                bottom: BorderSide(
+                                                    color:
+                                                        HospitalTheme.border)),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Expanded(
+                                                flex: 3,
+                                                child: Row(
+                                                  children: [
+                                                    Icon(Icons.star,
+                                                        color: HospitalTheme
+                                                            .success,
+                                                        size: 16),
+                                                    const SizedBox(width: 8),
+                                                    Expanded(
+                                                      child: Text(
+                                                          charge.description,
+                                                          style: TextStyle(
+                                                              fontSize: 14,
+                                                              color:
+                                                                  HospitalTheme
+                                                                      .success,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w500)),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Expanded(
+                                                child: Text(
+                                                  '₹${charge.rate.toStringAsFixed(2)}',
+                                                  textAlign: TextAlign.center,
+                                                  style: const TextStyle(
+                                                      fontSize: 14),
+                                                ),
+                                              ),
+                                              Expanded(
+                                                child: Text(
+                                                  '${charge.days}',
+                                                  textAlign: TextAlign.center,
+                                                  style: const TextStyle(
+                                                      fontSize: 14),
+                                                ),
+                                              ),
+                                              Expanded(
+                                                child: Text(
+                                                  '₹${charge.total.toStringAsFixed(2)}',
+                                                  textAlign: TextAlign.right,
+                                                  style: TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color: HospitalTheme
+                                                          .success),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }),
+                                    ],
                                   ),
                                 ),
                               ],
@@ -1522,7 +1940,7 @@ class _GenerateIpdBillScreenState extends ConsumerState<GenerateIpdBillScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('Total Items:',
+                                Text('Regular Items:',
                                     style: TextStyle(
                                         color: HospitalTheme.textMedium)),
                                 Text('${activeCharges.length}',
@@ -1534,11 +1952,24 @@ class _GenerateIpdBillScreenState extends ConsumerState<GenerateIpdBillScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('Active Services:',
+                                Text('Custom Items:',
+                                    style: TextStyle(
+                                        color: HospitalTheme.textMedium)),
+                                Text('${validCustomCharges.length}',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        color: HospitalTheme.success)),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Total Services:',
                                     style: TextStyle(
                                         color: HospitalTheme.textMedium)),
                                 Text(
-                                    '${state.charges.where((c) => c.isActive).length}',
+                                    '${activeCharges.length + validCustomCharges.length}',
                                     style: const TextStyle(
                                         fontWeight: FontWeight.w600)),
                               ],
@@ -1981,7 +2412,7 @@ class _GenerateIpdBillScreenState extends ConsumerState<GenerateIpdBillScreen> {
     );
   }
 
-  // NEW: Store Bill Section
+  // Store Bill Section
   Widget _buildStoreBillSection(IpdBillState state, IpdBillNotifier notifier) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2078,7 +2509,7 @@ class _GenerateIpdBillScreenState extends ConsumerState<GenerateIpdBillScreen> {
     );
   }
 
-  // NEW: Stored Bill Section
+  // Stored Bill Section
   Widget _buildStoredBillSection(IpdBillState state) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

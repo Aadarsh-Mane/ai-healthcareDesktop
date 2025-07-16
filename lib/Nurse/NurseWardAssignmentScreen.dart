@@ -384,6 +384,7 @@ class NurseWardService {
           'notes': notes ?? 'Attendance marked by admin',
         }),
       );
+      print('Attendance marked: ${response.body}');
       return response.statusCode == 200;
     } catch (e) {
       throw Exception('Failed to mark attendance: $e');
@@ -2121,7 +2122,7 @@ class _NurseCard extends StatelessWidget {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: isAlreadyAssigned
                               ? HospitalTheme.success
-                              : Colors.white,
+                              : Colors.green,
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 6),
                         ),

@@ -353,9 +353,18 @@ class _EmergencyMedicationScreenState
       onKeyEvent: _handleKeyboardShortcuts,
       child: Scaffold(
         backgroundColor: HospitalTheme.background,
-        appBar: HospitalTheme.buildAppBar(
-          context: context,
-          title: 'Emergency Medication',
+        appBar: AppBar(
+          title: const Text('Emergency Medication'),
+          elevation: 0,
+          backgroundColor: HospitalTheme.primary,
+          foregroundColor: Colors.white,
+          leading: IconButton(
+            color: Colors.white,
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+          ),
           actions: [
             if (formState.isSubmitted)
               Container(
