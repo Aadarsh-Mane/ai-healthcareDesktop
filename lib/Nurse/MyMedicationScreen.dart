@@ -13,12 +13,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 class DoctorApproval {
   final bool approved;
   final String doctorId;
+  final String doctorName; // Added doctor name field
   final String notes;
   final DateTime timestamp;
 
   const DoctorApproval({
     required this.approved,
     required this.doctorId,
+    required this.doctorName,
     required this.notes,
     required this.timestamp,
   });
@@ -26,7 +28,12 @@ class DoctorApproval {
   factory DoctorApproval.fromJson(Map<String, dynamic> json) {
     return DoctorApproval(
       approved: json['approved'] ?? false,
-      doctorId: json['doctorId']?['_id'] ?? '',
+      doctorId: json['doctorId'] is String
+          ? json['doctorId']
+          : json['doctorId']?['_id'] ?? '',
+      doctorName: json['doctorId'] is String
+          ? (json['doctorName'] ?? 'Unknown Doctor')
+          : json['doctorId']?['doctorName'] ?? 'Unknown Doctor',
       notes: json['notes'] ?? '',
       timestamp: DateTime.tryParse(json['timestamp'] ?? '') ?? DateTime.now(),
     );
@@ -53,7 +60,7 @@ class ApprovalDetails {
   factory ApprovalDetails.fromJson(Map<String, dynamic> json) {
     return ApprovalDetails(
       status: json['status'] ?? '',
-      doctorName: json['doctorName'] ?? '',
+      doctorName: json['doctorName'] ?? 'Unknown Doctor',
       approvedAt: DateTime.tryParse(json['approvedAt'] ?? '') ?? DateTime.now(),
       notes: json['notes'] ?? '',
       priority: json['priority'] ?? '',
@@ -343,6 +350,43 @@ class EmergencyMedicationsNotifier
   Future<void> refreshMedications() async {
     await fetchEmergencyMedications();
   }
+
+  Future<bool> approveMedication(
+      String medicationId, String justification) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('nurse_token') ?? '';
+
+      if (token.isEmpty) {
+        return false;
+      }
+
+      final url =
+          Uri.parse('$KVM_URL/nurse/reviewEmergencyMedication/$medicationId');
+      final response = await _httpClient
+          .patch(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: json.encode({
+              'status': 'Approved',
+              'justification': justification,
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        // Refresh the medications list after successful approval
+        await refreshMedications();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
 }
 
 final medicationsSearchProvider =
@@ -423,11 +467,13 @@ class _MyEmergencyMedicationsScreenState
     extends ConsumerState<MyEmergencyMedicationsScreen> {
   final _searchController = TextEditingController();
   final _searchFocusNode = FocusNode();
+  final _justificationController = TextEditingController();
 
   @override
   void dispose() {
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _justificationController.dispose();
     super.dispose();
   }
 
@@ -460,6 +506,105 @@ class _MyEmergencyMedicationsScreenState
     ref.read(medicationsSearchProvider.notifier).clearSearch();
   }
 
+  Future<void> _showApprovalDialog(EmergencyMedication medication) async {
+    _justificationController.clear();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Approve Emergency Medication'),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Medication: ${medication.medicationName}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text('Patient: ${medication.patientDetails.name}'),
+              const SizedBox(height: 8),
+              Text('Dosage: ${medication.dosage}'),
+              const SizedBox(height: 16),
+              const Text(
+                'Justification (Required):',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _justificationController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  hintText: 'Please provide justification for approval...',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (_justificationController.text.trim().isNotEmpty) {
+                Navigator.of(context).pop(true);
+              }
+            },
+            child: const Text('Approve'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && _justificationController.text.trim().isNotEmpty) {
+      await _handleApproval(
+          medication.id, _justificationController.text.trim());
+    }
+  }
+
+  Future<void> _handleApproval(
+      String medicationId, String justification) async {
+    try {
+      final success = await ref
+          .read(emergencyMedicationsProvider.notifier)
+          .approveMedication(medicationId, justification);
+
+      if (success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Emergency medication approved successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to approve medication'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
@@ -471,8 +616,9 @@ class _MyEmergencyMedicationsScreenState
       onKeyEvent: _handleKeyboardShortcuts,
       child: Scaffold(
         backgroundColor: HospitalTheme.background,
-        appBar: AppBar(
-          title: const Text('My Emergency Medications'),
+        appBar: HospitalTheme.buildAppBar(
+          context: context,
+          title: 'My Emergency Medications',
           actions: [
             IconButton(
               icon: const Icon(Icons.refresh, color: Colors.white),
@@ -641,6 +787,17 @@ class _MyEmergencyMedicationsScreenState
                   ],
                 ),
               ),
+              // Approve Button
+              if (_shouldShowApproveButton(selectedMedication))
+                ElevatedButton.icon(
+                  onPressed: () => _showApprovalDialog(selectedMedication),
+                  icon: const Icon(Icons.check_circle),
+                  label: const Text('Complete'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: HospitalTheme.success,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
             ],
           ),
         ),
@@ -654,6 +811,14 @@ class _MyEmergencyMedicationsScreenState
         ),
       ],
     );
+  }
+
+  bool _shouldShowApproveButton(EmergencyMedication medication) {
+    // Only show approve button if:
+    // 1. Status is "Pending"
+    // 2. Doctor approval status is "Approved by Doctor"
+    return medication.status.toLowerCase() == 'pending' &&
+        medication.doctorApprovalStatus.toLowerCase() == 'approved by doctor';
   }
 
   Widget _buildEmptyDetailPanel(BuildContext context, bool isDesktop) {
@@ -991,10 +1156,18 @@ class _MyEmergencyMedicationsScreenState
         break;
     }
 
+    // Get doctor name from doctorApproval if available
+    String doctorName = 'Unknown Doctor';
+    if (medication.doctorApproval != null) {
+      doctorName = medication.doctorApproval!.doctorName;
+    } else if (medication.approvalDetails != null) {
+      doctorName = medication.approvalDetails!.doctorName;
+    }
+
     Widget cardContent = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header with Status
+        // Header with Status and Approve Button
         Row(
           children: [
             Container(
@@ -1043,21 +1216,21 @@ class _MyEmergencyMedicationsScreenState
                     color: statusColor.withOpacity(0.1),
                     borderRadius: HospitalTheme.radiusSmall,
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(statusIcon, size: 14.0, color: statusColor),
-                      const SizedBox(width: 4.0),
-                      Text(
-                        medication.status,
-                        style: TextStyle(
-                          color: statusColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12.0,
-                        ),
-                      ),
-                    ],
-                  ),
+                  // child: Row(
+                  //   mainAxisSize: MainAxisSize.min,
+                  //   children: [
+                  //     Icon(statusIcon, size: 14.0, color: statusColor),
+                  //     const SizedBox(width: 4.0),
+                  //     // Text(
+                  //     //   medication.status,
+                  //     //   style: TextStyle(
+                  //     //     color: statusColor,
+                  //     //     fontWeight: FontWeight.bold,
+                  //     //     fontSize: 12.0,
+                  //     //   ),
+                  //     // ),
+                  //   ],
+                  // ),
                 ),
                 const SizedBox(height: 4.0),
                 Container(
@@ -1088,6 +1261,23 @@ class _MyEmergencyMedicationsScreenState
             ),
           ],
         ),
+
+        // Approve Button (only in grid view)
+        if (isGridView && _shouldShowApproveButton(medication)) ...[
+          const SizedBox(height: 16.0),
+          Align(
+            alignment: Alignment.centerRight,
+            child: ElevatedButton.icon(
+              onPressed: () => _showApprovalDialog(medication),
+              icon: const Icon(Icons.check_circle),
+              label: const Text('Approve'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: HospitalTheme.success,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ),
+        ],
 
         const SizedBox(height: 16.0),
 
@@ -1251,7 +1441,8 @@ class _MyEmergencyMedicationsScreenState
         ),
 
         // Approval Details (if available)
-        if (medication.approvalDetails != null) ...[
+        if (medication.approvalDetails != null ||
+            medication.doctorApproval != null) ...[
           const SizedBox(height: 16.0),
           Container(
             padding: const EdgeInsets.all(12.0),
@@ -1284,13 +1475,13 @@ class _MyEmergencyMedicationsScreenState
                     Expanded(
                       child: _buildInfoRow(
                         'Doctor',
-                        medication.approvalDetails!.doctorName,
+                        doctorName,
                       ),
                     ),
                     Expanded(
                       child: _buildInfoRow(
                         'Priority',
-                        medication.approvalDetails!.priority,
+                        medication.approvalDetails?.priority ?? 'N/A',
                       ),
                     ),
                   ],
@@ -1298,9 +1489,12 @@ class _MyEmergencyMedicationsScreenState
                 const SizedBox(height: 4.0),
                 _buildInfoRow(
                   'Approved At',
-                  _formatDateTime(medication.approvalDetails!.approvedAt),
+                  _formatDateTime(medication.approvalDetails?.approvedAt ??
+                      medication.doctorApproval?.timestamp ??
+                      DateTime.now()),
                 ),
-                if (medication.approvalDetails!.notes.isNotEmpty) ...[
+                if ((medication.approvalDetails?.notes.isNotEmpty == true) ||
+                    (medication.doctorApproval?.notes.isNotEmpty == true)) ...[
                   const SizedBox(height: 8.0),
                   Text(
                     'Notes:',
@@ -1312,7 +1506,9 @@ class _MyEmergencyMedicationsScreenState
                   ),
                   const SizedBox(height: 4.0),
                   Text(
-                    medication.approvalDetails!.notes,
+                    medication.approvalDetails?.notes ??
+                        medication.doctorApproval?.notes ??
+                        '',
                     style: TextStyle(
                       color: HospitalTheme.textMedium,
                       fontSize: 12.0,

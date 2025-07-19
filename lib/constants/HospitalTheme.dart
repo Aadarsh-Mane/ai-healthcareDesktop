@@ -85,7 +85,7 @@ class HospitalTheme {
         fontFamily: 'Poppins',
         appBarTheme: AppBarTheme(
           backgroundColor: Colors.white,
-          foregroundColor: textDark,
+          foregroundColor: Colors.white,
           elevation: 0,
           centerTitle: false,
           titleTextStyle: TextStyle(

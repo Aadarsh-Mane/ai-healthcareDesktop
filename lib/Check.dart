@@ -6,6 +6,8 @@ import 'package:doctordesktop/Doctor/fetchDoctor.dart';
 import 'package:doctordesktop/External/CommonScreen.dart';
 import 'package:doctordesktop/Lab/LabDashBoard.dart';
 import 'package:doctordesktop/Lab/LabScreen.dart';
+import 'package:doctordesktop/Nurse/NurseAdminDashboardScreen.dart';
+import 'package:doctordesktop/Nurse/NurseDashBoardScreen.dart';
 import 'package:doctordesktop/Nurse/NurseLoginScreen.dart';
 import 'package:doctordesktop/Patient/fetchPatient.dart';
 import 'package:doctordesktop/Provider.dart';
@@ -841,9 +843,9 @@ class _HomePageState extends ConsumerState<HomePage>
         'isPremium': true, // Premium feature
       },
       {
-        'name': 'Settings',
+        'name': 'Nurse Admin',
         'icon': Icons.settings,
-        'screen': 'SettingsScreen',
+        'screen': 'NurseAdmin',
         'color': const Color(0xFF607D8B),
         'isPremium': false,
       },
@@ -1243,9 +1245,11 @@ class _HomePageState extends ConsumerState<HomePage>
                     builder: (context) => AdminAuthDialog(),
                   );
                   break;
-                case 'SettingsScreen':
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Settings coming soon')),
+                case 'NurseAdmin':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => NurseAdminDashBoardScreen()),
                   );
                   break;
                 case 'CalendarScreen':

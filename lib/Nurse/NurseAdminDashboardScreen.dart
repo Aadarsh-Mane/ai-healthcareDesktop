@@ -74,8 +74,8 @@ class LogoutNotifier extends StateNotifier<AsyncValue<bool>> {
   }
 }
 
-class NurseDashBoardScreen extends ConsumerWidget {
-  const NurseDashBoardScreen({Key? key}) : super(key: key);
+class NurseAdminDashBoardScreen extends ConsumerWidget {
+  const NurseAdminDashBoardScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -158,10 +158,6 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
   final Set<LogicalKeyboardKey> _pressedKeys = <LogicalKeyboardKey>{};
 
   final List<Widget> _screens = const [
-    ActivePatientsScreen(),
-    PrescriptionToSaleScreen(),
-    MyEmergencyMedicationsScreen(),
-    WardTreatmentTasksScreen(),
     NurseWardAssignmentScreen(),
     AttendanceDashboardLayout(),
   ];
@@ -439,31 +435,11 @@ class SidebarWidget extends StatelessWidget {
               children: [
                 _buildNavItem(
                   index: 0,
-                  icon: Icons.people_outline,
-                  label: 'Active Patients',
-                ),
-                _buildNavItem(
-                  index: 1,
-                  icon: Icons.medication_liquid_outlined,
-                  label: 'Emergency Medication',
-                ),
-                _buildNavItem(
-                  index: 2,
-                  icon: Icons.medical_services_outlined,
-                  label: 'My Medications',
-                ),
-                _buildNavItem(
-                  index: 3,
-                  icon: Icons.assignment_outlined,
-                  label: 'Ward Tasks',
-                ),
-                _buildNavItem(
-                  index: 4,
                   icon: Icons.domain_outlined,
                   label: 'Ward Assignment',
                 ),
                 _buildNavItem(
-                  index: 5,
+                  index: 1,
                   icon: Icons.domain_outlined,
                   label: 'Attendance Dashboard',
                 ),
@@ -751,41 +727,6 @@ class SidebarWidget extends StatelessWidget {
           SizedBox(height: isCollapsed ? 0 : 8),
 
           // Logout Button
-          isCollapsed
-              ? GestureDetector(
-                  onTap: onLogout,
-                  child: Container(
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: HospitalTheme.error.withOpacity(0.8),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.logout, color: Colors.white, size: 18),
-                        SizedBox(height: 2),
-                        Text(
-                          'Logout',
-                          style: TextStyle(color: Colors.white, fontSize: 10),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : ElevatedButton.icon(
-                  onPressed: onLogout,
-                  icon: const Icon(Icons.logout, size: 18),
-                  label: const Text('Logout'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: HospitalTheme.error,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
         ],
       ),
     );

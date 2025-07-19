@@ -390,9 +390,28 @@ class NurseWardService {
       throw Exception('Failed to mark attendance: $e');
     }
   }
+
+  Future<bool> markCheckOutManually({
+    required String nurseId,
+    required String date,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$KVM_URL/nurse/markCheckOutManually'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'nurseId': nurseId,
+          'date': date,
+        }),
+      );
+      print('Check-out marked: ${response.body}');
+      return response.statusCode == 200;
+    } catch (e) {
+      throw Exception('Failed to mark check-out: $e');
+    }
+  }
 }
 
-// State classes
 // State classes
 class NurseWardState {
   final List<Ward> wards;
@@ -531,12 +550,31 @@ class NurseWardNotifier extends StateNotifier<NurseWardState> {
     }
   }
 
+  Future<bool> markCheckOut({
+    required String nurseId,
+  }) async {
+    try {
+      final today = DateTime.now().toIso8601String().split('T')[0];
+      final success = await _service.markCheckOutManually(
+        nurseId: nurseId,
+        date: today,
+      );
+
+      if (success) {
+        await loadData();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return false;
+    }
+  }
+
   void clearError() {
     state = state.copyWith(error: null);
   }
 }
-
-// Providers
 
 // nurse_ward_assignment_screen.dart
 
@@ -574,10 +612,8 @@ class _NurseWardAssignmentScreenState
       autofocus: true,
       onKeyEvent: _handleKeyEvent,
       child: Scaffold(
-        appBar: HospitalTheme.buildAppBar(
-          context: context,
-          title: 'Nurse Ward Assignment',
-          showBackButton: true,
+        appBar: AppBar(
+          title: const Text('Nurse Ward Assignment'),
           actions: [
             IconButton(
               icon: const Icon(Icons.refresh),
@@ -586,6 +622,9 @@ class _NurseWardAssignmentScreenState
             ),
             const SizedBox(width: 16),
           ],
+          backgroundColor: HospitalTheme.surfaceLight,
+          foregroundColor: Colors.white,
+          elevation: 2,
         ),
         body: LayoutBuilder(
           builder: (context, constraints) {
@@ -685,6 +724,10 @@ class _DesktopLayout extends ConsumerWidget {
                       nurseId: nurseId,
                       status: status,
                     ),
+            onMarkCheckOut: (nurseId) =>
+                ref.read(nurseWardProvider.notifier).markCheckOut(
+                      nurseId: nurseId,
+                    ),
           ),
         ),
       ],
@@ -735,6 +778,10 @@ class _MobileLayout extends ConsumerWidget {
                       ref.read(nurseWardProvider.notifier).markAttendance(
                             nurseId: nurseId,
                             status: status,
+                          ),
+                  onMarkCheckOut: (nurseId) =>
+                      ref.read(nurseWardProvider.notifier).markCheckOut(
+                            nurseId: nurseId,
                           ),
                 ),
               ],
@@ -974,6 +1021,7 @@ class _DetailPanel extends StatefulWidget {
   final Future<bool> Function(String nurseId, String wardId, String shift)
       onAssignNurse;
   final Future<bool> Function(String nurseId, String status) onMarkAttendance;
+  final Future<bool> Function(String nurseId) onMarkCheckOut;
 
   const _DetailPanel({
     required this.selectedWard,
@@ -983,6 +1031,7 @@ class _DetailPanel extends StatefulWidget {
     required this.onShiftChanged,
     required this.onAssignNurse,
     required this.onMarkAttendance,
+    required this.onMarkCheckOut,
   });
 
   @override
@@ -1019,7 +1068,6 @@ class _DetailPanelState extends State<_DetailPanel> {
       color: HospitalTheme.background,
       child: Column(
         children: [
-          // War
           // Ward Header
           _WardHeader(ward: widget.selectedWard!),
 
@@ -1052,6 +1100,7 @@ class _DetailPanelState extends State<_DetailPanel> {
                     isLoading: widget.isLoading,
                     onAssignNurse: widget.onAssignNurse,
                     onMarkAttendance: widget.onMarkAttendance,
+                    onMarkCheckOut: widget.onMarkCheckOut,
                   ),
                 ],
               ),
@@ -1071,7 +1120,7 @@ class _WardHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16), // Reduced from 20 to 16
+      padding: const EdgeInsets.all(16),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(
@@ -1084,19 +1133,18 @@ class _WardHeader extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8), // Reduced from 12 to 8
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: _getWardTypeColor(ward.type).withOpacity(0.1),
-                  borderRadius:
-                      BorderRadius.circular(8), // Reduced from 12 to 8
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   _getWardIcon(ward.type),
                   color: _getWardTypeColor(ward.type),
-                  size: 20, // Reduced from 24 to 20
+                  size: 20,
                 ),
               ),
-              const SizedBox(width: 12), // Reduced from 16 to 12
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1104,16 +1152,16 @@ class _WardHeader extends StatelessWidget {
                     Text(
                       ward.name,
                       style: const TextStyle(
-                        fontSize: 20, // Reduced from 24 to 20
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
                         color: HospitalTheme.textDark,
                       ),
                     ),
-                    const SizedBox(height: 2), // Reduced from 4 to 2
+                    const SizedBox(height: 2),
                     Text(
                       '${ward.type} • Floor ${ward.floor}',
                       style: const TextStyle(
-                        fontSize: 14, // Reduced from 16 to 14
+                        fontSize: 14,
                         color: HospitalTheme.textMedium,
                       ),
                     ),
@@ -1122,14 +1170,12 @@ class _WardHeader extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12), // Reduced from 20 to 12
-          // Make stats responsive with LayoutBuilder
+          const SizedBox(height: 12),
           LayoutBuilder(
             builder: (context, constraints) {
               final isNarrow = constraints.maxWidth < 600;
 
               if (isNarrow) {
-                // Stack stats in 2x2 grid for narrow screens
                 return Column(
                   children: [
                     Row(
@@ -1142,7 +1188,7 @@ class _WardHeader extends StatelessWidget {
                             HospitalTheme.primary,
                           ),
                         ),
-                        const SizedBox(width: 6), // Reduced from 8 to 6
+                        const SizedBox(width: 6),
                         Expanded(
                           child: _buildStatCard(
                             'Occupied',
@@ -1155,7 +1201,7 @@ class _WardHeader extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 6), // Reduced from 8 to 6
+                    const SizedBox(height: 6),
                     Row(
                       children: [
                         Expanded(
@@ -1166,7 +1212,7 @@ class _WardHeader extends StatelessWidget {
                             HospitalTheme.success,
                           ),
                         ),
-                        const SizedBox(width: 6), // Reduced from 8 to 6
+                        const SizedBox(width: 6),
                         Expanded(
                           child: _buildStatCard(
                             'Nurses',
@@ -1180,7 +1226,6 @@ class _WardHeader extends StatelessWidget {
                   ],
                 );
               } else {
-                // Single row for wider screens
                 return Row(
                   children: [
                     Expanded(
@@ -1191,7 +1236,7 @@ class _WardHeader extends StatelessWidget {
                         HospitalTheme.primary,
                       ),
                     ),
-                    const SizedBox(width: 8), // Reduced from 12 to 8
+                    const SizedBox(width: 8),
                     Expanded(
                       child: _buildStatCard(
                         'Occupied',
@@ -1202,7 +1247,7 @@ class _WardHeader extends StatelessWidget {
                             : HospitalTheme.warning,
                       ),
                     ),
-                    const SizedBox(width: 8), // Reduced from 12 to 8
+                    const SizedBox(width: 8),
                     Expanded(
                       child: _buildStatCard(
                         'Available',
@@ -1211,7 +1256,7 @@ class _WardHeader extends StatelessWidget {
                         HospitalTheme.success,
                       ),
                     ),
-                    const SizedBox(width: 8), // Reduced from 12 to 8
+                    const SizedBox(width: 8),
                     Expanded(
                       child: _buildStatCard(
                         'Nurses',
@@ -1233,7 +1278,7 @@ class _WardHeader extends StatelessWidget {
   Widget _buildStatCard(
       String title, String value, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.all(8), // Reduced from 12 to 8
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: HospitalTheme.radiusSmall,
@@ -1241,21 +1286,21 @@ class _WardHeader extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Icon(icon, color: color, size: 16), // Reduced from 18 to 16
-          const SizedBox(height: 4), // Reduced from 6 to 4
+          Icon(icon, color: color, size: 16),
+          const SizedBox(height: 4),
           Text(
             value,
             style: TextStyle(
-              fontSize: 16, // Reduced from 18 to 16
+              fontSize: 16,
               fontWeight: FontWeight.bold,
               color: color,
             ),
           ),
-          const SizedBox(height: 1), // Reduced from 2 to 1
+          const SizedBox(height: 1),
           Text(
             title,
             style: const TextStyle(
-              fontSize: 10, // Reduced from 11 to 10
+              fontSize: 10,
               color: HospitalTheme.textMedium,
             ),
             textAlign: TextAlign.center,
@@ -1545,6 +1590,7 @@ class _AvailableNurses extends StatefulWidget {
   final Future<bool> Function(String nurseId, String wardId, String shift)
       onAssignNurse;
   final Future<bool> Function(String nurseId, String status) onMarkAttendance;
+  final Future<bool> Function(String nurseId) onMarkCheckOut;
 
   const _AvailableNurses({
     required this.nurses,
@@ -1553,6 +1599,7 @@ class _AvailableNurses extends StatefulWidget {
     required this.isLoading,
     required this.onAssignNurse,
     required this.onMarkAttendance,
+    required this.onMarkCheckOut,
   });
 
   @override
@@ -1563,6 +1610,7 @@ class _AvailableNursesState extends State<_AvailableNurses> {
   String _searchQuery = '';
   String _filterStatus = 'All';
   Set<String> _assigningNurses = {};
+  Set<String> _checkingOutNurses = {};
 
   static const List<String> statusFilters = [
     'All',
@@ -1677,8 +1725,10 @@ class _AvailableNursesState extends State<_AvailableNurses> {
                   selectedWard: widget.selectedWard,
                   selectedShift: widget.selectedShift,
                   isAssigning: _assigningNurses.contains(nurse.id),
+                  isCheckingOut: _checkingOutNurses.contains(nurse.id),
                   onAssign: () => _handleAssignNurse(nurse),
                   onMarkAttendance: () => _handleMarkAttendance(nurse),
+                  onMarkCheckOut: () => _handleMarkCheckOut(nurse),
                 )),
         ],
       ),
@@ -1771,6 +1821,44 @@ class _AvailableNursesState extends State<_AvailableNurses> {
     }
   }
 
+  Future<void> _handleMarkCheckOut(Nurse nurse) async {
+    if (!nurse.isPresent) {
+      _showSnackBar(
+        '${nurse.nurseName} is not checked in. Cannot check out.',
+        isError: true,
+      );
+      return;
+    }
+
+    setState(() {
+      _checkingOutNurses.add(nurse.id);
+    });
+
+    try {
+      final success = await widget.onMarkCheckOut(nurse.id);
+
+      if (success) {
+        _showSnackBar(
+          '${nurse.nurseName} checked out successfully',
+        );
+      } else {
+        _showSnackBar(
+          'Failed to check out ${nurse.nurseName}. Please try again.',
+          isError: true,
+        );
+      }
+    } catch (e) {
+      _showSnackBar(
+        'Error checking out: $e',
+        isError: true,
+      );
+    } finally {
+      setState(() {
+        _checkingOutNurses.remove(nurse.id);
+      });
+    }
+  }
+
   void _showSnackBar(String message, {bool isError = false}) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1791,16 +1879,20 @@ class _NurseCard extends StatelessWidget {
   final Ward selectedWard;
   final String selectedShift;
   final bool isAssigning;
+  final bool isCheckingOut;
   final VoidCallback onAssign;
   final VoidCallback onMarkAttendance;
+  final VoidCallback onMarkCheckOut;
 
   const _NurseCard({
     required this.nurse,
     required this.selectedWard,
     required this.selectedShift,
     required this.isAssigning,
+    required this.isCheckingOut,
     required this.onAssign,
     required this.onMarkAttendance,
+    required this.onMarkCheckOut,
   });
 
   @override
@@ -1819,7 +1911,7 @@ class _NurseCard extends StatelessWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final isNarrow = constraints.maxWidth < 500;
+          final isNarrow = constraints.maxWidth < 600;
 
           if (isNarrow) {
             // Stack layout for narrow screens
@@ -1884,8 +1976,10 @@ class _NurseCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 12),
+                // Action Buttons Row
                 Row(
                   children: [
+                    // Badges
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 4, vertical: 2),
@@ -1923,10 +2017,10 @@ class _NurseCard extends StatelessWidget {
                       ),
                     ],
                     const Spacer(),
-                    // Action Buttons
+                    // Assign Button
                     SizedBox(
-                      width: 80,
-                      height: 32,
+                      width: 70,
+                      height: 28,
                       child: ElevatedButton(
                         onPressed: isAlreadyAssigned ||
                                 !nurse.canBeAssigned ||
@@ -1938,7 +2032,7 @@ class _NurseCard extends StatelessWidget {
                               ? HospitalTheme.success
                               : HospitalTheme.primary,
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
+                              horizontal: 6, vertical: 2),
                         ),
                         child: isAssigning
                             ? const SizedBox(
@@ -1949,31 +2043,89 @@ class _NurseCard extends StatelessWidget {
                               )
                             : Text(
                                 isAlreadyAssigned ? 'Done' : 'Assign',
-                                style: const TextStyle(fontSize: 10),
+                                style: const TextStyle(fontSize: 9),
                               ),
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    SizedBox(
-                      width: 60,
-                      height: 32,
-                      child: OutlinedButton(
-                        onPressed: onMarkAttendance,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: nurse.isPresent
-                              ? HospitalTheme.error
-                              : HospitalTheme.success,
-                          side: BorderSide(
-                            color: nurse.isPresent
+                  ],
+                ),
+                const SizedBox(height: 8),
+                // Check In/Out Buttons Row
+                Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 28,
+                        child: OutlinedButton(
+                          onPressed: onMarkAttendance,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: nurse.isPresent
                                 ? HospitalTheme.error
                                 : HospitalTheme.success,
+                            side: BorderSide(
+                              color: nurse.isPresent
+                                  ? HospitalTheme.error
+                                  : HospitalTheme.success,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 4, vertical: 2),
                           ),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 4, vertical: 4),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                nurse.isPresent ? Icons.logout : Icons.login,
+                                size: 12,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                nurse.isPresent ? 'Check Out' : 'Check In',
+                                style: const TextStyle(fontSize: 9),
+                              ),
+                            ],
+                          ),
                         ),
-                        child: Text(
-                          nurse.isPresent ? 'Out' : 'In',
-                          style: const TextStyle(fontSize: 10),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: SizedBox(
+                        height: 28,
+                        child: OutlinedButton(
+                          onPressed: nurse.isPresent && !isCheckingOut
+                              ? onMarkCheckOut
+                              : null,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: HospitalTheme.warning,
+                            side: const BorderSide(
+                              color: HospitalTheme.warning,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 4, vertical: 2),
+                          ),
+                          child: isCheckingOut
+                              ? const SizedBox(
+                                  width: 12,
+                                  height: 12,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: HospitalTheme.warning,
+                                  ),
+                                )
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(
+                                      Icons.exit_to_app,
+                                      size: 12,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Text(
+                                      'Checkout',
+                                      style: TextStyle(fontSize: 9),
+                                    ),
+                                  ],
+                                ),
                         ),
                       ),
                     ),
@@ -2122,7 +2274,7 @@ class _NurseCard extends StatelessWidget {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: isAlreadyAssigned
                               ? HospitalTheme.success
-                              : Colors.green,
+                              : HospitalTheme.primary,
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 6),
                         ),
@@ -2131,7 +2283,7 @@ class _NurseCard extends StatelessWidget {
 
                     const SizedBox(height: 6),
 
-                    // Attendance Button
+                    // Check In Button
                     SizedBox(
                       width: 100,
                       child: OutlinedButton.icon(
@@ -2158,6 +2310,43 @@ class _NurseCard extends StatelessWidget {
                         ),
                       ),
                     ),
+
+                    const SizedBox(height: 6),
+
+                    // Checkout Button
+                    SizedBox(
+                      width: 100,
+                      child: OutlinedButton.icon(
+                        onPressed: nurse.isPresent && !isCheckingOut
+                            ? onMarkCheckOut
+                            : null,
+                        icon: isCheckingOut
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: HospitalTheme.warning,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.exit_to_app,
+                                size: 14,
+                              ),
+                        label: const Text(
+                          'Checkout',
+                          style: TextStyle(fontSize: 11),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: HospitalTheme.warning,
+                          side: const BorderSide(
+                            color: HospitalTheme.warning,
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 6),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -2168,7 +2357,6 @@ class _NurseCard extends StatelessWidget {
     );
   }
 
-  // ... rest of the methods remain the same
   bool _isNurseAlreadyAssigned() {
     final assignedNurses = selectedWard.nursesByShift.getByShift(selectedShift);
     return assignedNurses.any((assigned) => assigned.nurseId.id == nurse.id);
