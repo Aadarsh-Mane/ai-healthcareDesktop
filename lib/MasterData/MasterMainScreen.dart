@@ -1,4 +1,5 @@
 import 'package:doctordesktop/constants/HospitalTheme.dart';
+import 'package:doctordesktop/constants/Url.dart';
 import 'package:doctordesktop/core/utils/PdfViewerScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -246,7 +247,7 @@ class MasterDataNotifier extends StateNotifier<MasterDataState> {
     loadInitialData();
   }
 
-  static const String baseUrl = 'http://localhost:5001/master';
+  static const String baseUrl = '${BASE_URL}/master';
 
   Future<void> loadInitialData() async {
     await Future.wait([
