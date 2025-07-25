@@ -2026,7 +2026,7 @@ Generated: ${_formatDateTime(data['generatedAt'])}
 File: ${data['fileName']}
 
 Best regards,
-Bhosale Hospital Team
+Tambe Hospital Team
                 ''';
 
                 Methods().openMail(

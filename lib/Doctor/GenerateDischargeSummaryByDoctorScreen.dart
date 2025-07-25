@@ -2312,7 +2312,7 @@ File: ${data['fileName']}
 
 Best regards,
 Dr. ${data['summaryData']?['consultant'] ?? 'Doctor'}
-Bhosale Hospital
+Tambe Hospital
                 ''';
 
                 Methods().openMail(
