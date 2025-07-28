@@ -2,6 +2,9 @@ import 'package:doctordesktop/Admin/BedManagement.dart';
 import 'package:doctordesktop/Admin/BillTrackScreen.dart';
 import 'package:doctordesktop/Admin/BillTrackTableView.dart';
 import 'package:doctordesktop/Admin/DepositTrackingScreen.dart';
+import 'package:doctordesktop/Admin/Master/HospitalCounterScreen.dart';
+import 'package:doctordesktop/Admin/Master/PatientHistoryRecordScreen.dart';
+import 'package:doctordesktop/Admin/Master/PatientListPanel.dart';
 import 'package:doctordesktop/Admin/PatientBillingScreen.dart';
 import 'package:doctordesktop/Admin/PatientManagement.dart';
 import 'package:doctordesktop/Admin/SummaryTrackScreen.dart';
@@ -79,6 +82,9 @@ class _MainLayoutState extends State<MainLayout> {
     // DepositsTrackingScreen(),
     PatientDepositsScreen(),
     DischargeSummariesScreen(),
+    PatientManagementScreen(),
+    PatientRecordsManagementScreen(),
+    PatientCounterScreen(),
   ];
   // Add this new public method
   void navigateTo(int index) {
@@ -295,6 +301,27 @@ class SidebarWidget extends StatelessWidget {
                   label: 'Track Summary',
                   isSelected: selectedIndex == 11,
                   onTap: () => onItemSelected(11),
+                ),
+                _buildNavItemWithLabel(
+                  index: 12,
+                  icon: Icons.medical_services,
+                  label: 'Master',
+                  isSelected: selectedIndex == 12,
+                  onTap: () => onItemSelected(12),
+                ),
+                _buildNavItemWithLabel(
+                  index: 13,
+                  icon: Icons.medical_services,
+                  label: 'Records Management',
+                  isSelected: selectedIndex == 13,
+                  onTap: () => onItemSelected(13),
+                ),
+                _buildNavItemWithLabel(
+                  index: 14,
+                  icon: Icons.medical_services,
+                  label: 'Counter Management',
+                  isSelected: selectedIndex == 14,
+                  onTap: () => onItemSelected(14),
                 ),
                 // _buildNavItemWithLabel(
                 //   index: 12,
@@ -697,12 +724,12 @@ class NavbarWidget extends StatelessWidget {
       child: Row(
         children: [
           // Menu toggle button
-          IconButton(
-            icon: const Icon(Icons.menu),
-            onPressed: onMenuTap,
-            tooltip: 'Toggle sidebar',
-            color: const Color(0xFF1E2843),
-          ),
+          // IconButton(
+          //   icon: const Icon(Icons.menu),
+          //   onPressed: onMenuTap,
+          //   tooltip: 'Toggle sidebar',
+          //   color: const Color(0xFF1E2843),
+          // ),
 
           // // Remaining navbar items (unchanged)
           // const SizedBox(width: 16),

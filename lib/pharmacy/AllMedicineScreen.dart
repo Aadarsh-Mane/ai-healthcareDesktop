@@ -1,6 +1,7 @@
+import 'package:doctordesktop/constants/HospitalTheme.dart';
 import 'package:doctordesktop/constants/Url.dart';
+import 'package:doctordesktop/pharmacy/AddMedicinesScreen.dart';
 import 'package:doctordesktop/pharmacy/getInventoryModel.dart';
-import 'package:doctordesktop/pharmacy/pharmaTheme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,7 +9,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
+import 'package:file_picker/file_picker.dart';
+import 'dart:io';
+import 'dart:typed_data';
 
+// Enhanced Models with better error handling
 class InventoryItem {
   final String id;
   final Medicine medicine;
@@ -30,13 +35,13 @@ class InventoryItem {
 
   factory InventoryItem.fromJson(Map<String, dynamic> json) {
     return InventoryItem(
-      id: json['_id'] ?? '',
+      id: json['_id']?.toString() ?? '',
       medicine: Medicine.fromJson(json['medicine'] ?? {}),
-      batchNumber: json['batchNumber'] ?? '',
+      batchNumber: json['batchNumber']?.toString() ?? '',
       expiryDate: json['expiryDate'] != null
           ? DateTime.parse(json['expiryDate'])
           : DateTime.now(),
-      quantity: json['quantity'] ?? 0,
+      quantity: int.tryParse(json['quantity']?.toString() ?? '0') ?? 0,
       distributor: Distributor.fromJson(json['distributor'] ?? {}),
       addedOn: json['addedOn'] != null
           ? DateTime.parse(json['addedOn'])
@@ -45,7 +50,6 @@ class InventoryItem {
   }
 }
 
-// Model class for Medicine
 class Medicine {
   final String id;
   final String name;
@@ -69,25 +73,24 @@ class Medicine {
 
   factory Medicine.fromJson(Map<String, dynamic> json) {
     return Medicine(
-      id: json['_id'] ?? '',
-      name: json['name'] ?? '',
-      manufacturer: json['manufacturer'] ?? '',
-      category: json['category'],
-      description: json['description'],
-      mrp: json['mrp'] != null
-          ? (json['mrp'] is int)
-              ? json['mrp'].toDouble()
-              : double.parse(json['mrp'].toString())
-          : 0.0,
-      purchasePrice: json['purchasePrice'] != null
-          ? (json['purchasePrice'] is int)
-              ? json['purchasePrice'].toDouble()
-              : double.parse(json['purchasePrice'].toString())
-          : 0.0,
+      id: json['_id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      manufacturer: json['manufacturer']?.toString() ?? '',
+      category: json['category']?.toString(),
+      description: json['description']?.toString(),
+      mrp: _parseDouble(json['mrp']),
+      purchasePrice: _parseDouble(json['purchasePrice']),
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'])
           : DateTime.now(),
     );
+  }
+
+  static double _parseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    return double.tryParse(value.toString()) ?? 0.0;
   }
 
   Map<String, dynamic> toJson() {
@@ -124,9 +127,38 @@ class Medicine {
   }
 }
 
-// API Service for Medicines
+// Enhanced API Response Models
+class BulkCreateResponse {
+  final bool success;
+  final String message;
+  final List<Medicine> created;
+  final List<Map<String, dynamic>> duplicates;
+  final List<Map<String, dynamic>> errors;
+
+  BulkCreateResponse({
+    required this.success,
+    required this.message,
+    required this.created,
+    required this.duplicates,
+    required this.errors,
+  });
+
+  factory BulkCreateResponse.fromJson(Map<String, dynamic> json) {
+    final data = json['data'] ?? {};
+    return BulkCreateResponse(
+      success: json['success'] ?? false,
+      message: json['message']?.toString() ?? '',
+      created: (data['created'] as List? ?? [])
+          .map((item) => Medicine.fromJson(item))
+          .toList(),
+      duplicates: List<Map<String, dynamic>>.from(data['duplicates'] ?? []),
+      errors: List<Map<String, dynamic>>.from(data['errors'] ?? []),
+    );
+  }
+}
+
+// Enhanced Medicine Service with better error handling
 class MedicineService {
-  // Get all medicines
   Future<List<Medicine>> getMedicines() async {
     try {
       final response =
@@ -139,24 +171,56 @@ class MedicineService {
               .toList();
         }
       }
-      return [];
+      throw Exception('Failed to fetch medicines: ${response.statusCode}');
     } catch (e) {
       debugPrint('Error fetching medicines: $e');
-      return [];
+      throw Exception('Network error: $e');
     }
   }
 
-  // Create a new medicine
-  Future<bool> createMedicine(Medicine medicine) async {
+  Future<BulkCreateResponse> createMedicines(List<Medicine> medicines) async {
     try {
+      final jsonList = medicines.map((medicine) => medicine.toJson()).toList();
+
       final response = await http.post(
         Uri.parse('$KVM_URL/pharma/createMedicine'),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode([medicine.toJson()]), // API expects an array
+        body: json.encode(jsonList),
       );
-      return response.statusCode == 200 || response.statusCode == 201;
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return BulkCreateResponse.fromJson(json.decode(response.body));
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
     } catch (e) {
-      debugPrint('Error creating medicine: $e');
+      debugPrint('Error creating medicines: $e');
+      throw Exception('Failed to create medicines: $e');
+    }
+  }
+
+  Future<bool> updateMedicine(String id, Medicine medicine) async {
+    try {
+      final response = await http.patch(
+        Uri.parse('$KVM_URL/pharma/updateMedicine/$id'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(medicine.toJson()),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('Error updating medicine: $e');
+      return false;
+    }
+  }
+
+  Future<bool> deleteMedicine(String id) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$KVM_URL/pharma/deleteMedicine/$id'),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('Error deleting medicine: $e');
       return false;
     }
   }
@@ -180,88 +244,10 @@ class MedicineService {
     }
   }
 
-  // Update a medicine
-  Future<bool> updateMedicine(String id, Medicine medicine) async {
-    try {
-      final response = await http.patch(
-        Uri.parse('$KVM_URL/pharma/updateMedicine/$id'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(medicine.toJson()),
-      );
-      return response.statusCode == 200;
-    } catch (e) {
-      debugPrint('Error updating medicine: $e');
-      return false;
-    }
-  }
-
-  // Delete a medicine
-  Future<bool> deleteMedicine(String id) async {
-    try {
-      final response = await http.delete(
-        Uri.parse('$KVM_URL/pharma/deleteMedicine/$id'),
-      );
-      return response.statusCode == 200;
-    } catch (e) {
-      debugPrint('Error deleting medicine: $e');
-      return false;
-    }
-  }
-
-  Future<bool> addToInventory(String medicineId, String distributorId,
-      String batchNumber, int quantity, DateTime expiryDate) async {
-    try {
-      // Print out the medicine ID for debugging
-      debugPrint('Medicine ID being used: "$medicineId"');
-
-      // Format the data exactly as Postman would send it
-      final data = {
-        'medicineId':
-            medicineId.trim(), // Ensure no leading/trailing whitespace
-        'distributorId': distributorId.trim(),
-        'batchNumber': batchNumber,
-        'quantity': quantity,
-        'expiryDate': expiryDate.toIso8601String(),
-      };
-
-      debugPrint('Adding to inventory: ${json.encode(data)}');
-
-      // Use the exact same headers as Postman
-      final response = await http.post(
-        Uri.parse('$KVM_URL/pharma/addToInventory'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: json.encode(data),
-      );
-      print('Server response status: ${response.body}');
-      debugPrint('Server response status: ${response.statusCode}');
-      debugPrint('Server response body: ${response.body}');
-
-      // Parse the response to get more detailed error
-      if (response.statusCode != 200 && response.statusCode != 201) {
-        try {
-          final errorData = json.decode(response.body);
-          debugPrint(
-              'Detailed error: ${errorData['message'] ?? 'Unknown error'}');
-        } catch (e) {
-          debugPrint('Failed to parse error response');
-        }
-      }
-
-      return response.statusCode == 200 || response.statusCode == 201;
-    } catch (e) {
-      debugPrint('Exception in addToInventory: $e');
-      return false;
-    }
-  }
-
   Future<List<InventoryItem>> getInventory() async {
     try {
       final response =
           await http.get(Uri.parse('$KVM_URL/pharma/getInventory'));
-      print("HELLO WORLD");
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
         if (jsonData['success'] == true && jsonData['data'] != null) {
@@ -276,11 +262,9 @@ class MedicineService {
       return [];
     }
   }
-
-  // Add to your MedicineService class if not already there
 }
 
-// Providers for state management
+// Enhanced Providers
 final medicineServiceProvider = Provider<MedicineService>((ref) {
   return MedicineService();
 });
@@ -289,21 +273,100 @@ final medicinesProvider = FutureProvider<List<Medicine>>((ref) async {
   final medicineService = ref.watch(medicineServiceProvider);
   return await medicineService.getMedicines();
 });
+
 final distributorsProvider = FutureProvider<List<Distributor>>((ref) async {
   final medicineService = ref.watch(medicineServiceProvider);
   return await medicineService.getDistributors();
 });
+
 final selectedMedicineProvider = StateProvider<Medicine?>((ref) => null);
+
 final inventoryProvider = FutureProvider<List<InventoryItem>>((ref) async {
   final medicineService = ref.watch(medicineServiceProvider);
   return await medicineService.getInventory();
 });
-// Screen for Medicine Management
 
-// Model class remains the same
-// MedicineService remains the same
-// Providers remain the same
+// Search and Filter Provider
+final medicineSearchProvider = StateProvider<String>((ref) => '');
+final medicineSortProvider = StateProvider<MedicineSort>(
+    (ref) => const MedicineSort(column: 'name', ascending: true));
 
+class MedicineSort {
+  final String column;
+  final bool ascending;
+
+  const MedicineSort({required this.column, required this.ascending});
+
+  MedicineSort copyWith({String? column, bool? ascending}) {
+    return MedicineSort(
+      column: column ?? this.column,
+      ascending: ascending ?? this.ascending,
+    );
+  }
+}
+
+// Filtered Medicines Provider
+final filteredMedicinesProvider = Provider<List<Medicine>>((ref) {
+  final medicines = ref.watch(medicinesProvider).asData?.value ?? [];
+  final searchQuery = ref.watch(medicineSearchProvider);
+  final sort = ref.watch(medicineSortProvider);
+
+  var filtered = medicines;
+
+  // Apply search filter
+  if (searchQuery.isNotEmpty) {
+    final lowercaseQuery = searchQuery.toLowerCase();
+    filtered = filtered.where((medicine) {
+      return medicine.name.toLowerCase().contains(lowercaseQuery) ||
+          medicine.manufacturer.toLowerCase().contains(lowercaseQuery) ||
+          (medicine.category?.toLowerCase().contains(lowercaseQuery) ??
+              false) ||
+          (medicine.description?.toLowerCase().contains(lowercaseQuery) ??
+              false);
+    }).toList();
+  }
+
+  // Apply sorting
+  filtered.sort((a, b) {
+    dynamic aValue, bValue;
+    switch (sort.column) {
+      case 'name':
+        aValue = a.name;
+        bValue = b.name;
+        break;
+      case 'manufacturer':
+        aValue = a.manufacturer;
+        bValue = b.manufacturer;
+        break;
+      case 'category':
+        aValue = a.category ?? '';
+        bValue = b.category ?? '';
+        break;
+      case 'mrp':
+        aValue = a.mrp;
+        bValue = b.mrp;
+        break;
+      case 'purchasePrice':
+        aValue = a.purchasePrice;
+        bValue = b.purchasePrice;
+        break;
+      case 'createdAt':
+        aValue = a.createdAt;
+        bValue = b.createdAt;
+        break;
+      default:
+        aValue = a.name;
+        bValue = b.name;
+    }
+
+    final comparison = aValue.toString().compareTo(bValue.toString());
+    return sort.ascending ? comparison : -comparison;
+  });
+
+  return filtered;
+});
+
+// Main Screen - Medicine Management
 class AllMedicineScreen extends ConsumerStatefulWidget {
   const AllMedicineScreen({Key? key}) : super(key: key);
 
@@ -312,24 +375,12 @@ class AllMedicineScreen extends ConsumerStatefulWidget {
 }
 
 class _AllMedicineScreenState extends ConsumerState<AllMedicineScreen> {
-  final TextEditingController _searchController = TextEditingController();
-  List<Medicine> _filteredMedicines = [];
   Medicine? _selectedMedicine;
-
-  // Sort state
-  String _sortColumn = 'name';
-  bool _sortAscending = true;
 
   @override
   void initState() {
     super.initState();
     _setupKeyboardShortcuts();
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
   }
 
   void _setupKeyboardShortcuts() {
@@ -339,19 +390,24 @@ class _AllMedicineScreenState extends ConsumerState<AllMedicineScreen> {
         if (event.logicalKey == LogicalKeyboardKey.keyN &&
             (HardwareKeyboard.instance.isControlPressed ||
                 HardwareKeyboard.instance.isMetaPressed)) {
-          _showMedicineDialog(context);
+          _navigateToAddMedicine();
           return true;
         }
         // Search (Ctrl+F or Cmd+F)
         if (event.logicalKey == LogicalKeyboardKey.keyF &&
             (HardwareKeyboard.instance.isControlPressed ||
                 HardwareKeyboard.instance.isMetaPressed)) {
-          // Focus on search field
-          FocusScope.of(context).requestFocus(FocusNode());
-          _searchController.selection = TextSelection(
-            baseOffset: 0,
-            extentOffset: _searchController.text.length,
-          );
+          // Focus search will be handled by the search widget
+          return true;
+        }
+        // Refresh (F5)
+        if (event.logicalKey == LogicalKeyboardKey.f5) {
+          _refreshMedicines();
+          return true;
+        }
+        // Close detail panel (Escape)
+        if (event.logicalKey == LogicalKeyboardKey.escape) {
+          _closeDetailPanel();
           return true;
         }
       }
@@ -359,754 +415,23 @@ class _AllMedicineScreenState extends ConsumerState<AllMedicineScreen> {
     });
   }
 
-  Future<void> _showMedicineDialog(BuildContext context,
-      {Medicine? medicine}) async {
-    final nameController = TextEditingController(text: medicine?.name ?? '');
-    final manufacturerController =
-        TextEditingController(text: medicine?.manufacturer ?? '');
-    final categoryController =
-        TextEditingController(text: medicine?.category ?? '');
-    final descriptionController =
-        TextEditingController(text: medicine?.description ?? '');
-    final mrpController =
-        TextEditingController(text: medicine?.mrp.toString() ?? '');
-    final purchasePriceController =
-        TextEditingController(text: medicine?.purchasePrice.toString() ?? '');
-    final formKey = GlobalKey<FormState>();
-
-    final isEditing = medicine != null;
-    if (!mounted) return;
-
-    return showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: Text(isEditing ? 'Edit Medicine' : 'Add New Medicine'),
-          content: SingleChildScrollView(
-            child: Form(
-              key: formKey,
-              child: ListBody(
-                children: <Widget>[
-                  // Name
-                  TextFormField(
-                    controller: nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Name',
-                      hintText: 'Enter medicine name',
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter medicine name';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Manufacturer
-                  TextFormField(
-                    controller: manufacturerController,
-                    decoration: const InputDecoration(
-                      labelText: 'Manufacturer',
-                      hintText: 'Enter manufacturer name',
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter manufacturer name';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Category
-                  TextFormField(
-                    controller: categoryController,
-                    decoration: const InputDecoration(
-                      labelText: 'Category',
-                      hintText: 'Enter category (tablet, syrup, etc.)',
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Description
-                  TextFormField(
-                    controller: descriptionController,
-                    decoration: const InputDecoration(
-                      labelText: 'Description',
-                      hintText: 'Enter description',
-                    ),
-                    maxLines: 3,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Price section in two columns
-                  Row(
-                    children: [
-                      // MRP
-                      Expanded(
-                        child: TextFormField(
-                          controller: mrpController,
-                          decoration: const InputDecoration(
-                            labelText: 'MRP (₹)',
-                            hintText: 'Enter MRP',
-                            prefixText: '₹ ',
-                          ),
-                          keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true),
-                          inputFormatters: [
-                            FilteringTextInputFormatter.allow(
-                                RegExp(r'^\d*\.?\d{0,2}')),
-                          ],
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter MRP';
-                            }
-                            if (double.tryParse(value) == null) {
-                              return 'Please enter a valid amount';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      // Purchase Price
-                      Expanded(
-                        child: TextFormField(
-                          controller: purchasePriceController,
-                          decoration: const InputDecoration(
-                            labelText: 'Purchase Price (₹)',
-                            hintText: 'Enter purchase price',
-                            prefixText: '₹ ',
-                          ),
-                          keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true),
-                          inputFormatters: [
-                            FilteringTextInputFormatter.allow(
-                                RegExp(r'^\d*\.?\d{0,2}')),
-                          ],
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter purchase price';
-                            }
-                            if (double.tryParse(value) == null) {
-                              return 'Please enter a valid amount';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: PharmaTheme.accent,
-              ),
-              child: Text(isEditing ? 'Update' : 'Save'),
-              onPressed: () async {
-                if (formKey.currentState!.validate()) {
-                  final medicineService = ref.read(medicineServiceProvider);
-                  final newMedicine = Medicine(
-                    id: medicine?.id ?? '',
-                    name: nameController.text,
-                    manufacturer: manufacturerController.text,
-                    category: categoryController.text.isEmpty
-                        ? null
-                        : categoryController.text,
-                    description: descriptionController.text.isEmpty
-                        ? null
-                        : descriptionController.text,
-                    mrp: double.parse(mrpController.text),
-                    purchasePrice: double.parse(purchasePriceController.text),
-                    createdAt: medicine?.createdAt ?? DateTime.now(),
-                  );
-
-                  bool success;
-                  if (isEditing) {
-                    success = await medicineService.updateMedicine(
-                      medicine.id,
-                      newMedicine,
-                    );
-                  } else {
-                    success = await medicineService.createMedicine(
-                      newMedicine,
-                    );
-                  }
-
-                  if (success) {
-                    _refreshMedicines();
-                    if (context.mounted) {
-                      Navigator.of(dialogContext).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            isEditing
-                                ? 'Medicine updated successfully'
-                                : 'Medicine added successfully',
-                          ),
-                          backgroundColor: PharmaTheme.success,
-                        ),
-                      );
-                    }
-                  } else {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            isEditing
-                                ? 'Failed to update medicine'
-                                : 'Failed to add medicine',
-                          ),
-                          backgroundColor: PharmaTheme.error,
-                        ),
-                      );
-                    }
-                  }
-                }
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-// Inside _AllMedicineScreenState class, add this method to show Add to Inventory dialog
-  Future<void> _showAddToInventoryDialog(
-      BuildContext context, Medicine medicine) async {
-    final medicineService = ref.read(medicineServiceProvider);
-    final quantityController = TextEditingController();
-    final batchNumberController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    DateTime selectedExpiryDate = DateTime.now().add(const Duration(days: 365));
-    Distributor? selectedDistributor;
-    String? errorMessage;
-
-    // Pre-fetch distributors to check if we have any
-    try {
-      final distributors = await medicineService.getDistributors();
-      if (distributors.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-                'No distributors available. Please add distributors first.'),
-            backgroundColor: PharmaTheme.error,
-          ),
-        );
-        return; // Exit early if no distributors
-      }
-    } catch (e) {
-      debugPrint('Error pre-fetching distributors: $e');
-      // Continue to show dialog anyway, will display error there
-    }
-
-    if (!context.mounted) return;
-
-    return showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return Consumer(
-              builder: (context, ref, child) {
-                final distributorsAsync = ref.watch(distributorsProvider);
-
-                return AlertDialog(
-                  title: const Text('Add to Inventory'),
-                  content: SingleChildScrollView(
-                    child: Form(
-                      key: formKey,
-                      child: ListBody(
-                        children: <Widget>[
-                          // Medicine info
-                          Container(
-                            padding: const EdgeInsets.all(PharmaTheme.spacingS),
-                            decoration: BoxDecoration(
-                              color: PharmaTheme.primary.withOpacity(0.1),
-                              borderRadius:
-                                  BorderRadius.circular(PharmaTheme.radiusM),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.medication,
-                                  color: PharmaTheme.primary,
-                                ),
-                                const SizedBox(width: PharmaTheme.spacingS),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        medicine.name,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      Text(
-                                        medicine.manufacturer,
-                                        style: PharmaTheme.bodySmall,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: PharmaTheme.spacingM),
-
-                          // Display error message if any
-                          if (errorMessage != null) ...[
-                            Container(
-                              padding:
-                                  const EdgeInsets.all(PharmaTheme.spacingS),
-                              decoration: BoxDecoration(
-                                color: PharmaTheme.error.withOpacity(0.1),
-                                borderRadius:
-                                    BorderRadius.circular(PharmaTheme.radiusM),
-                                border: Border.all(
-                                    color: PharmaTheme.error.withOpacity(0.3)),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.error_outline,
-                                      color: PharmaTheme.error, size: 18),
-                                  const SizedBox(width: PharmaTheme.spacingS),
-                                  Expanded(
-                                    child: Text(
-                                      errorMessage!,
-                                      style: PharmaTheme.bodySmall
-                                          .copyWith(color: PharmaTheme.error),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: PharmaTheme.spacingM),
-                          ],
-
-                          // Batch Number
-                          TextFormField(
-                            controller: batchNumberController,
-                            decoration: const InputDecoration(
-                              labelText: 'Batch Number',
-                              hintText: 'Enter batch number',
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter batch number';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: PharmaTheme.spacingM),
-
-                          // Quantity
-                          TextFormField(
-                            controller: quantityController,
-                            decoration: const InputDecoration(
-                              labelText: 'Quantity',
-                              hintText: 'Enter quantity',
-                            ),
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter quantity';
-                              }
-                              if (int.tryParse(value) == null ||
-                                  int.parse(value) <= 0) {
-                                return 'Please enter a valid quantity';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: PharmaTheme.spacingM),
-
-                          // Expiry Date
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Expiry Date',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: PharmaTheme.textSecondary,
-                                ),
-                              ),
-                              const SizedBox(height: PharmaTheme.spacingXs),
-                              InkWell(
-                                onTap: () async {
-                                  final DateTime? picked = await showDatePicker(
-                                    context: context,
-                                    initialDate: selectedExpiryDate,
-                                    firstDate: DateTime.now(),
-                                    lastDate: DateTime.now()
-                                        .add(const Duration(days: 3650)),
-                                  );
-                                  if (picked != null &&
-                                      picked != selectedExpiryDate) {
-                                    setState(() {
-                                      selectedExpiryDate = picked;
-                                    });
-                                  }
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: PharmaTheme.spacingM,
-                                    vertical: PharmaTheme.spacingS,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    border:
-                                        Border.all(color: PharmaTheme.border),
-                                    borderRadius: BorderRadius.circular(
-                                        PharmaTheme.radiusM),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        DateFormat('dd MMM, yyyy')
-                                            .format(selectedExpiryDate),
-                                        style: PharmaTheme.bodyMedium,
-                                      ),
-                                      const Icon(
-                                        Icons.calendar_today,
-                                        size: 18,
-                                        color: PharmaTheme.textSecondary,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: PharmaTheme.spacingM),
-
-                          // Distributor Dropdown
-                          distributorsAsync.when(
-                            data: (distributors) {
-                              if (distributors.isEmpty) {
-                                return Container(
-                                  padding: const EdgeInsets.all(
-                                      PharmaTheme.spacingS),
-                                  decoration: BoxDecoration(
-                                    color: PharmaTheme.error.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(
-                                        PharmaTheme.radiusM),
-                                    border: Border.all(
-                                        color:
-                                            PharmaTheme.error.withOpacity(0.3)),
-                                  ),
-                                  child: const Row(
-                                    children: [
-                                      Icon(Icons.error_outline,
-                                          color: PharmaTheme.error, size: 18),
-                                      SizedBox(width: PharmaTheme.spacingS),
-                                      Expanded(
-                                        child: Text(
-                                          'No distributors available. Please add distributors first.',
-                                          style: TextStyle(
-                                              color: PharmaTheme.error),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }
-
-                              // Initialize selectedDistributor if it's null
-                              if (selectedDistributor == null &&
-                                  distributors.isNotEmpty) {
-                                selectedDistributor = distributors.first;
-                              }
-
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Distributor',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: PharmaTheme.textSecondary,
-                                    ),
-                                  ),
-                                  const SizedBox(height: PharmaTheme.spacingXs),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: PharmaTheme.spacingS,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      border:
-                                          Border.all(color: PharmaTheme.border),
-                                      borderRadius: BorderRadius.circular(
-                                          PharmaTheme.radiusM),
-                                    ),
-                                    child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<Distributor>(
-                                        isExpanded: true,
-                                        value: selectedDistributor,
-                                        items: distributors.map((distributor) {
-                                          return DropdownMenuItem<Distributor>(
-                                            value: distributor,
-                                            child: Text(distributor.name),
-                                          );
-                                        }).toList(),
-                                        onChanged: (Distributor? value) {
-                                          if (value != null) {
-                                            setState(() {
-                                              selectedDistributor = value;
-                                            });
-                                          }
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
-                            loading: () => Center(
-                              child: Column(
-                                children: [
-                                  const CircularProgressIndicator(),
-                                  const SizedBox(height: PharmaTheme.spacingS),
-                                  Text(
-                                    'Loading distributors...',
-                                    style: PharmaTheme.bodySmall.copyWith(
-                                      color: PharmaTheme.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            error: (error, _) => Container(
-                              padding:
-                                  const EdgeInsets.all(PharmaTheme.spacingS),
-                              decoration: BoxDecoration(
-                                color: PharmaTheme.error.withOpacity(0.1),
-                                borderRadius:
-                                    BorderRadius.circular(PharmaTheme.radiusM),
-                                border: Border.all(
-                                    color: PharmaTheme.error.withOpacity(0.3)),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.error_outline,
-                                      color: PharmaTheme.error, size: 18),
-                                  const SizedBox(width: PharmaTheme.spacingS),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          'Failed to load distributors',
-                                          style: TextStyle(
-                                              color: PharmaTheme.error),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          error.toString(),
-                                          style: PharmaTheme.bodySmall.copyWith(
-                                              color: PharmaTheme.error),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  actions: <Widget>[
-                    TextButton(
-                      child: const Text('Cancel'),
-                      onPressed: () {
-                        Navigator.of(dialogContext).pop();
-                      },
-                    ),
-                    distributorsAsync.when(
-                      data: (distributors) {
-                        if (distributors.isEmpty) {
-                          return TextButton(
-                            onPressed: null,
-                            child: const Text('Save'),
-                          );
-                        }
-
-                        return ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: PharmaTheme.accent,
-                          ),
-                          child: const Text('Save'),
-                          onPressed: () async {
-                            if (formKey.currentState!.validate() &&
-                                selectedDistributor != null) {
-                              // Reset error message
-                              setState(() {
-                                errorMessage = null;
-                              });
-
-                              try {
-                                final success =
-                                    await medicineService.addToInventory(
-                                  medicine.id,
-                                  selectedDistributor!.id,
-                                  batchNumberController.text,
-                                  int.parse(quantityController.text),
-                                  selectedExpiryDate,
-                                );
-
-                                if (success) {
-                                  // Refresh inventory data
-                                  ref.invalidate(inventoryProvider);
-                                  if (context.mounted) {
-                                    Navigator.of(dialogContext).pop();
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                            'Added to inventory successfully'),
-                                        backgroundColor: PharmaTheme.success,
-                                      ),
-                                    );
-                                  }
-                                } else {
-                                  setState(() {
-                                    errorMessage =
-                                        'Failed to add to inventory. Please check that the medicine still exists in the database.';
-                                  });
-                                }
-                              } catch (e) {
-                                setState(() {
-                                  errorMessage = 'Error: ${e.toString()}';
-                                });
-                              }
-                            }
-                          },
-                        );
-                      },
-                      loading: () => const SizedBox(
-                        height: 36,
-                        width: 36,
-                        child: Padding(
-                          padding: EdgeInsets.all(4.0),
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      ),
-                      error: (_, __) => OutlinedButton(
-                        onPressed: () {
-                          // Retry loading distributors
-                          ref.invalidate(distributorsProvider);
-                        },
-                        child: const Text('Retry Loading'),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            );
-          },
-        );
-      },
-    );
-  }
-
-  // Rest of the methods remain the same
-  void _searchMedicines(String query) {
-    ref.watch(medicinesProvider).whenData((medicines) {
-      if (!mounted) return;
-      setState(() {
-        _filteredMedicines = query.isEmpty
-            ? medicines
-            : medicines.where((medicine) {
-                final lowercaseQuery = query.toLowerCase();
-                return medicine.name.toLowerCase().contains(lowercaseQuery) ||
-                    medicine.manufacturer
-                        .toLowerCase()
-                        .contains(lowercaseQuery) ||
-                    (medicine.category
-                            ?.toLowerCase()
-                            .contains(lowercaseQuery) ??
-                        false) ||
-                    (medicine.description
-                            ?.toLowerCase()
-                            .contains(lowercaseQuery) ??
-                        false);
-              }).toList();
-
-        // Apply current sort
-        _sortMedicines(_sortColumn, _sortAscending);
-      });
-    });
-  }
-
-  void _sortMedicines(String column, bool ascending) {
-    setState(() {
-      _sortColumn = column;
-      _sortAscending = ascending;
-
-      switch (column) {
-        case 'name':
-          _filteredMedicines.sort((a, b) =>
-              ascending ? a.name.compareTo(b.name) : b.name.compareTo(a.name));
-          break;
-        case 'manufacturer':
-          _filteredMedicines.sort((a, b) => ascending
-              ? a.manufacturer.compareTo(b.manufacturer)
-              : b.manufacturer.compareTo(a.manufacturer));
-          break;
-        case 'category':
-          _filteredMedicines.sort((a, b) {
-            final aCategory = a.category ?? '';
-            final bCategory = b.category ?? '';
-            return ascending
-                ? aCategory.compareTo(bCategory)
-                : bCategory.compareTo(aCategory);
-          });
-          break;
-        case 'mrp':
-          _filteredMedicines.sort((a, b) =>
-              ascending ? a.mrp.compareTo(b.mrp) : b.mrp.compareTo(a.mrp));
-          break;
-        case 'purchasePrice':
-          _filteredMedicines.sort((a, b) => ascending
-              ? a.purchasePrice.compareTo(b.purchasePrice)
-              : b.purchasePrice.compareTo(a.purchasePrice));
-          break;
-        case 'createdAt':
-          _filteredMedicines.sort((a, b) => ascending
-              ? a.createdAt.compareTo(b.createdAt)
-              : b.createdAt.compareTo(a.createdAt));
-          break;
+  void _navigateToAddMedicine() {
+    Navigator.of(context)
+        .push(
+      MaterialPageRoute(
+        builder: (context) => const OptimizedAddMedicineScreen(),
+      ),
+    )
+        .then((result) {
+      if (result == true) {
+        _refreshMedicines();
       }
     });
   }
 
   void _refreshMedicines() {
     ref.invalidate(medicinesProvider);
-    _searchController.clear();
     setState(() {
-      _filteredMedicines = [];
       _selectedMedicine = null;
     });
   }
@@ -1118,1452 +443,1410 @@ class _AllMedicineScreenState extends ConsumerState<AllMedicineScreen> {
     ref.read(selectedMedicineProvider.notifier).state = medicine;
   }
 
-  Future<void> _deleteMedicine(BuildContext context, Medicine medicine) async {
-    if (!mounted) return;
-
-    return showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: const Text('Confirm Delete'),
-          content: SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                Text('Are you sure you want to delete ${medicine.name}?'),
-                const SizedBox(height: 8),
-                const Text(
-                  'This action cannot be undone and will remove all associated data.',
-                  style: TextStyle(color: PharmaTheme.warning),
-                ),
-              ],
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
-            ),
-            TextButton(
-              style: TextButton.styleFrom(foregroundColor: PharmaTheme.error),
-              child: const Text('Delete'),
-              onPressed: () async {
-                final medicineService = ref.read(medicineServiceProvider);
-                final success =
-                    await medicineService.deleteMedicine(medicine.id);
-
-                if (success) {
-                  if (_selectedMedicine?.id == medicine.id) {
-                    setState(() {
-                      _selectedMedicine = null;
-                    });
-                    ref.read(selectedMedicineProvider.notifier).state = null;
-                  }
-                  _refreshMedicines();
-                  if (context.mounted) {
-                    Navigator.of(dialogContext).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Medicine deleted successfully'),
-                        backgroundColor: PharmaTheme.success,
-                      ),
-                    );
-                  }
-                } else {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Failed to delete medicine'),
-                        backgroundColor: PharmaTheme.error,
-                      ),
-                    );
-                  }
-                }
-              },
-            ),
-          ],
-        );
-      },
-    );
+  void _closeDetailPanel() {
+    setState(() {
+      _selectedMedicine = null;
+    });
+    ref.read(selectedMedicineProvider.notifier).state = null;
   }
 
   @override
   Widget build(BuildContext context) {
     final medicinesAsync = ref.watch(medicinesProvider);
-    final size = MediaQuery.of(context).size;
-    final isSmallScreen = size.width < 1200;
+    final screenSize = MediaQuery.of(context).size;
+    final isDesktop = screenSize.width >= 1200;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Medicine Management'),
+      backgroundColor: HospitalTheme.background,
+      appBar: HospitalTheme.buildAppBar(
+        context: context,
+        title: 'Medicine Management',
+        showBackButton: false,
         actions: [
           IconButton(
+            icon: const Icon(Icons.add_circle_outline),
+            tooltip: 'Add Medicine (Ctrl+N)',
+            onPressed: _navigateToAddMedicine,
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
+            tooltip: 'Refresh (F5)',
             onPressed: _refreshMedicines,
           ),
         ],
       ),
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: BoxDecoration(
-          color: PharmaTheme.background,
-          image: DecorationImage(
-            image: const AssetImage('assets/images/pattern_bg.png'),
-            fit: BoxFit.cover,
-            opacity: 0.05,
-            colorFilter: ColorFilter.mode(
-              PharmaTheme.primary.withOpacity(0.1),
-              BlendMode.dstIn,
-            ),
-          ),
-        ),
-        child: medicinesAsync.when(
-          data: (medicines) {
-            // Initialize filtered medicines if empty
-            if (_filteredMedicines.isEmpty) {
-              _filteredMedicines = List.from(medicines);
-              _sortMedicines(_sortColumn, _sortAscending);
-            }
-            if (medicines.isEmpty) {
-              return _EmptyMedicineList(
-                onAdd: () => _showMedicineDialog(context),
-              );
-            }
+      body: medicinesAsync.when(
+        data: (medicines) {
+          if (medicines.isEmpty) {
+            return _EmptyMedicineState(onAdd: _navigateToAddMedicine);
+          }
 
-            // Responsive layout
-            return isSmallScreen
-                ? _buildMobileLayout(context)
-                : _buildDesktopLayout(context);
-          },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stack) => _ErrorWidget(
-            error: error.toString(),
-            onRetry: _refreshMedicines,
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Extracted layouts for better organization
-  Widget _buildDesktopLayout(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-
-    // Use a more flexible width calculation that adapts to the available space
-    final tableWidth = _selectedMedicine == null
-        ? size.width * 0.95 // Almost full width when no medicine is selected
-        : size.width * 0.6; // 60% width when medicine is selected
-
-    return Padding(
-      padding: const EdgeInsets.all(8.0), // Add padding to avoid overflow
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Left panel - Medicine table (Master)
-          SizedBox(
-            width: tableWidth,
-            child: _MedicineTable(
-              filteredMedicines: _filteredMedicines,
-              searchController: _searchController,
-              selectedMedicine: _selectedMedicine,
-              onSearch: _searchMedicines,
-              onSort: _sortMedicines,
-              onSelect: _selectMedicine,
-              onAdd: () => _showMedicineDialog(context),
-              onEdit: (medicine) =>
-                  _showMedicineDialog(context, medicine: medicine),
-              onDelete: (medicine) => _deleteMedicine(context, medicine),
-            ),
-          ),
-
-          // Right panel - Medicine details (Detail)
-          if (_selectedMedicine != null)
-            Expanded(
-              child: SingleChildScrollView(
-                // Wrap in SingleChildScrollView to prevent overflow
-                child: _MedicineDetail(
-                  medicine: _selectedMedicine!,
-                  onEdit: () =>
-                      _showMedicineDialog(context, medicine: _selectedMedicine),
-                  onDelete: () => _deleteMedicine(context, _selectedMedicine!),
-                  onAddToInventory: (medicine) =>
-                      _showAddToInventoryDialog(context, medicine),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMobileLayout(BuildContext context) {
-    return Column(
-      children: [
-        // Top search and actions
-        Padding(
-          padding: const EdgeInsets.all(PharmaTheme.spacingM),
-          child: _SearchBar(
-            controller: _searchController,
-            onSearch: _searchMedicines,
-          ),
-        ),
-
-        // Table takes full width
-        Expanded(
-          child: _selectedMedicine == null
-              ? _MedicineTable(
-                  filteredMedicines: _filteredMedicines,
-                  searchController: _searchController,
+          return isDesktop
+              ? _DesktopLayout(
                   selectedMedicine: _selectedMedicine,
-                  onSearch: _searchMedicines,
-                  onSort: _sortMedicines,
-                  onSelect: (medicine) {
-                    setState(() {
-                      _selectedMedicine = medicine;
-                    });
-                    // On mobile, navigate to detail screen
-                    _showMedicineDetailScreen(context, medicine);
-                  },
-                  onAdd: () => _showMedicineDialog(context),
-                  onEdit: (medicine) =>
-                      _showMedicineDialog(context, medicine: medicine),
-                  onDelete: (medicine) => _deleteMedicine(context, medicine),
-                  isCompact: true,
+                  onMedicineSelected: _selectMedicine,
+                  onRefresh: _refreshMedicines,
+                  onCloseDetail: _closeDetailPanel,
                 )
-              : _MedicineDetail(
-                  medicine: _selectedMedicine!,
-                  onEdit: () =>
-                      _showMedicineDialog(context, medicine: _selectedMedicine),
-                  onDelete: () => _deleteMedicine(context, _selectedMedicine!),
-                  onAddToInventory: (medicine) =>
-                      _showAddToInventoryDialog(context, medicine),
-                  onBack: () {
-                    setState(() {
-                      _selectedMedicine = null;
-                    });
-                  },
-                ),
-        ),
-      ],
-    );
-  }
-
-  // Method to show medicine detail in a separate screen on mobile
-  void _showMedicineDetailScreen(BuildContext context, Medicine medicine) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => Scaffold(
-          appBar: AppBar(
-            title: Text(medicine.name),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () {
-                Navigator.pop(context);
-                setState(() {
-                  _selectedMedicine = null;
-                });
-              },
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.edit),
-                onPressed: () {
-                  Navigator.pop(context);
-                  _showMedicineDialog(context, medicine: medicine);
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete),
-                color: PharmaTheme.error,
-                onPressed: () {
-                  Navigator.pop(context);
-                  _deleteMedicine(context, medicine);
-                },
-              ),
+              : _MobileLayout(
+                  selectedMedicine: _selectedMedicine,
+                  onMedicineSelected: _selectMedicine,
+                  onRefresh: _refreshMedicines,
+                );
+        },
+        loading: () => const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Loading medicines...'),
             ],
           ),
-          body: _MedicineDetail(
-            medicine: medicine,
-            onEdit: () {
-              Navigator.pop(context);
-              _showMedicineDialog(context, medicine: medicine);
-            },
-            onDelete: () {
-              Navigator.pop(context);
-              _deleteMedicine(context, medicine);
-            },
-            onAddToInventory: (medicine) =>
-                _showAddToInventoryDialog(context, medicine),
-          ),
+        ),
+        error: (error, stack) => _ErrorState(
+          error: error.toString(),
+          onRetry: _refreshMedicines,
         ),
       ),
-    );
-  }
-}
-
-// Extracted widgets for better composition and reusability
-
-class _SearchBar extends StatelessWidget {
-  final TextEditingController controller;
-  final Function(String) onSearch;
-
-  const _SearchBar({
-    required this.controller,
-    required this.onSearch,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      decoration: InputDecoration(
-        hintText: 'Search medicines...',
-        prefixIcon: const Icon(Icons.search),
-        suffixIcon: controller.text.isNotEmpty
-            ? IconButton(
-                icon: const Icon(Icons.clear),
-                onPressed: () {
-                  controller.clear();
-                  onSearch('');
-                },
-              )
-            : null,
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(PharmaTheme.radiusL),
-          borderSide: BorderSide(color: PharmaTheme.border),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          vertical: 8,
-          horizontal: 16,
-        ),
-      ),
-      onChanged: onSearch,
-    );
-  }
-}
-
-class _EmptyMedicineList extends StatelessWidget {
-  final VoidCallback onAdd;
-
-  const _EmptyMedicineList({required this.onAdd});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.medication,
-            size: 64,
-            color: PharmaTheme.textSecondary,
-          ),
-          const SizedBox(height: PharmaTheme.spacingL),
-          Text(
-            'No medicines found',
-            style: PharmaTheme.headingMedium.copyWith(
-              color: PharmaTheme.textSecondary,
-            ),
-          ),
-          const SizedBox(height: PharmaTheme.spacingM),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.add),
-            label: const Text('Add Medicine'),
-            onPressed: onAdd,
-          ),
-        ],
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _navigateToAddMedicine,
+        icon: const Icon(Icons.add),
+        label: const Text('Add Medicine'),
+        backgroundColor: HospitalTheme.primary,
+        foregroundColor: Colors.white,
       ),
     );
   }
 }
 
-class _ErrorWidget extends StatelessWidget {
-  final String error;
-  final VoidCallback onRetry;
-
-  const _ErrorWidget({
-    required this.error,
-    required this.onRetry,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.error_outline,
-            size: 64,
-            color: PharmaTheme.error,
-          ),
-          const SizedBox(height: PharmaTheme.spacingL),
-          Text(
-            'Failed to load medicines',
-            style: PharmaTheme.headingMedium,
-          ),
-          const SizedBox(height: PharmaTheme.spacingM),
-          Text(
-            error,
-            style: PharmaTheme.bodyMedium.copyWith(
-              color: PharmaTheme.textSecondary,
-            ),
-          ),
-          const SizedBox(height: PharmaTheme.spacingL),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.refresh),
-            label: const Text('Retry'),
-            onPressed: onRetry,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MedicineTable extends StatelessWidget {
-  final List<Medicine> filteredMedicines;
-  final TextEditingController searchController;
+// Desktop Layout with Master-Detail (FIXED)
+class _DesktopLayout extends ConsumerWidget {
   final Medicine? selectedMedicine;
-  final Function(String) onSearch;
-  final Function(String, bool) onSort;
-  final Function(Medicine) onSelect;
-  final VoidCallback onAdd;
-  final Function(Medicine) onEdit;
-  final Function(Medicine) onDelete;
-  final bool isCompact;
+  final Function(Medicine) onMedicineSelected;
+  final VoidCallback onRefresh;
+  final VoidCallback onCloseDetail;
 
-  const _MedicineTable({
-    required this.filteredMedicines,
-    required this.searchController,
+  const _DesktopLayout({
     required this.selectedMedicine,
-    required this.onSearch,
-    required this.onSort,
-    required this.onSelect,
-    required this.onAdd,
-    required this.onEdit,
-    required this.onDelete,
-    this.isCompact = false,
+    required this.onMedicineSelected,
+    required this.onRefresh,
+    required this.onCloseDetail,
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.all(PharmaTheme.spacingM),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
-        boxShadow: PharmaTheme.shadowSmall,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header with title and search
-          _buildHeader(context),
-
-          // Data table
-          Expanded(
-            child: _buildTable(context),
-          ),
-
-          // Footer with add button
-          _buildFooter(context),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(PharmaTheme.spacingM),
-      decoration: BoxDecoration(
-        color: PharmaTheme.primary,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(PharmaTheme.radiusM),
-          topRight: Radius.circular(PharmaTheme.radiusM),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(
-              Icons.medication,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(width: PharmaTheme.spacingM),
-          Text(
-            'Medicines',
-            style: PharmaTheme.headingMedium.copyWith(
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(width: PharmaTheme.spacingM),
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: PharmaTheme.spacingS,
-              vertical: PharmaTheme.spacingXxs,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(PharmaTheme.radiusCircular),
-            ),
-            child: Text(
-              '${filteredMedicines.length}',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          const Spacer(),
-          // Search field - only show in desktop mode
-          if (!isCompact)
-            SizedBox(
-              width: 300,
-              child: _SearchBar(
-                controller: searchController,
-                onSearch: onSearch,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTable(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final screenWidth = MediaQuery.of(context).size.width;
 
-    // Determine which columns to show based on available width
-    final showManufacturer = screenWidth > 700;
-    final showCategory = screenWidth > 800;
-    final showPurchasePrice = screenWidth > 900;
-    final showMargin = screenWidth > 1000;
+    // Use LayoutBuilder to prevent overflow
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Calculate available width properly
+        final availableWidth = constraints.maxWidth;
 
-    return SingleChildScrollView(
-      child: SizedBox(
-        width: double.infinity,
-        child: DataTable(
-          headingRowColor: MaterialStateProperty.all<Color>(
-            PharmaTheme.background,
-          ),
-          columnSpacing: isCompact ? 10 : 20,
-          horizontalMargin: isCompact ? 10 : 20,
-          columns: [
-            DataColumn(
-              label: const Text('Name'),
-              onSort: (columnIndex, ascending) {
-                onSort('name', ascending);
-              },
-            ),
-            if (showManufacturer)
-              DataColumn(
-                label: const Text('Manufacturer'),
-                onSort: (columnIndex, ascending) {
-                  onSort('manufacturer', ascending);
-                },
-              ),
-            if (showCategory)
-              DataColumn(
-                label: const Text('Category'),
-                onSort: (columnIndex, ascending) {
-                  onSort('category', ascending);
-                },
-              ),
-            DataColumn(
-              label: const Text('MRP (₹)'),
-              numeric: true,
-              onSort: (columnIndex, ascending) {
-                onSort('mrp', ascending);
-              },
-            ),
-            if (showPurchasePrice)
-              DataColumn(
-                label: const Text('Purchase (₹)'),
-                numeric: true,
-                onSort: (columnIndex, ascending) {
-                  onSort('purchasePrice', ascending);
-                },
-              ),
-            if (showMargin)
-              DataColumn(
-                label: const Text('Margin'),
-                numeric: true,
-              ),
-            DataColumn(
-              label: const Text('Actions'),
-            ),
-          ],
-          rows: filteredMedicines.map((medicine) {
-            final profit = medicine.mrp - medicine.purchasePrice;
-            final profitPercentage = medicine.purchasePrice > 0
-                ? (profit / medicine.purchasePrice * 100).toStringAsFixed(1)
-                : 'N/A';
+        // Set minimum widths to prevent overflow
+        const minMasterWidth = 400.0;
+        const minDetailWidth = 350.0;
 
-            final isSelected = selectedMedicine?.id == medicine.id;
-
-            return DataRow(
-              selected: isSelected,
-              color: isSelected
-                  ? MaterialStateProperty.all<Color>(
-                      PharmaTheme.accent.withOpacity(0.1),
-                    )
-                  : null,
-              cells: [
-                DataCell(
-                  Text(
-                    medicine.name,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  onTap: () => onSelect(medicine),
-                ),
-                if (showManufacturer)
-                  DataCell(
-                    Text(
-                      medicine.manufacturer,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    onTap: () => onSelect(medicine),
-                  ),
-                if (showCategory)
-                  DataCell(
-                    Text(
-                      medicine.category ?? '-',
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    onTap: () => onSelect(medicine),
-                  ),
-                DataCell(
-                  Text('₹${medicine.mrp.toStringAsFixed(2)}'),
-                  onTap: () => onSelect(medicine),
-                ),
-                if (showPurchasePrice)
-                  DataCell(
-                    Text('₹${medicine.purchasePrice.toStringAsFixed(2)}'),
-                    onTap: () => onSelect(medicine),
-                  ),
-                if (showMargin)
-                  DataCell(
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('₹${profit.toStringAsFixed(2)}'),
-                        const SizedBox(width: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: PharmaTheme.info.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            '$profitPercentage%',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: PharmaTheme.info,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    onTap: () => onSelect(medicine),
-                  ),
-                DataCell(
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit, size: 18),
-                        tooltip: 'Edit',
-                        visualDensity: VisualDensity.compact,
-                        onPressed: () => onEdit(medicine),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete, size: 18),
-                        tooltip: 'Delete',
-                        visualDensity: VisualDensity.compact,
-                        color: PharmaTheme.error,
-                        onPressed: () => onDelete(medicine),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          }).toList(),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFooter(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(PharmaTheme.spacingM),
-      decoration: BoxDecoration(
-        color: PharmaTheme.background,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(PharmaTheme.radiusM),
-          bottomRight: Radius.circular(PharmaTheme.radiusM),
-        ),
-        border: Border(
-          top: BorderSide(
-            color: PharmaTheme.border,
-            width: 1,
-          ),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'Total Medicines: ${filteredMedicines.length}',
-            style: PharmaTheme.bodyMedium.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.add),
-            label: const Text('Add Medicine'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: PharmaTheme.accent,
-              padding: const EdgeInsets.symmetric(
-                horizontal: PharmaTheme.spacingL,
-                vertical: PharmaTheme.spacingS,
-              ),
-            ),
-            onPressed: onAdd,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MedicineDetail extends StatelessWidget {
-  final Medicine medicine;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-  final Function(Medicine) onAddToInventory;
-  final VoidCallback? onBack;
-
-  const _MedicineDetail({
-    required this.medicine,
-    required this.onEdit,
-    required this.onDelete,
-    required this.onAddToInventory,
-    this.onBack,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(PharmaTheme.spacingM),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (onBack != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: PharmaTheme.spacingM),
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.arrow_back),
-                label: const Text('Back to List'),
-                onPressed: onBack,
-              ),
-            ),
-          // Medicine info card
-          _buildMedicineInfoCard(context),
-
-          const SizedBox(height: PharmaTheme.spacingM),
-
-          // Inventory Management Section
-          _buildInventorySection(context),
-        ],
-      ),
-    );
-  }
-
-// Update the _buildInventorySection to display actual inventory data
-  Widget _buildInventorySection(BuildContext context) {
-    return Consumer(
-      builder: (context, ref, _) {
-        final inventoryAsync = ref.watch(inventoryProvider);
-
-        return Container(
-          constraints: BoxConstraints(
-            minHeight: 200,
-            maxHeight: 500, // Add max height
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
-            boxShadow: PharmaTheme.shadowSmall,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        // If screen is too small for both panels, prioritize master
+        if (selectedMedicine != null &&
+            availableWidth < (minMasterWidth + minDetailWidth)) {
+          return Row(
             children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  vertical: PharmaTheme.spacingS,
-                  horizontal: PharmaTheme.spacingM,
-                ),
-                decoration: BoxDecoration(
-                  color: PharmaTheme.primary,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(PharmaTheme.radiusM),
-                    topRight: Radius.circular(PharmaTheme.radiusM),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Icon(
-                            Icons.inventory_2,
-                            size: 16,
-                            color: PharmaTheme.textLight,
-                          ),
-                        ),
-                        const SizedBox(width: PharmaTheme.spacingS),
-                        Text(
-                          'Inventory Management',
-                          style: PharmaTheme.headingSmall.copyWith(
-                            color: PharmaTheme.textLight,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                    // Add to Inventory button
-                    ElevatedButton.icon(
-                      icon: const Icon(
-                        Icons.add_shopping_cart,
-                        size: 16,
-                        color: PharmaTheme.primary,
-                      ),
-                      label: const Text(
-                        'Add to Inventory',
-                        style: TextStyle(
-                          color: PharmaTheme.primary,
-                          fontSize: 13,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: PharmaTheme.spacingM,
-                          vertical: PharmaTheme.spacingXs,
-                        ),
-                        minimumSize: const Size(0, 32),
-                      ),
-                      onPressed: () => onAddToInventory(medicine),
-                    ),
-                  ],
+              // Master Panel - constrained width
+              SizedBox(
+                width: availableWidth * 0.5, // Use 50% for master
+                child: _MedicineListPanel(
+                  onMedicineSelected: onMedicineSelected,
+                  selectedMedicine: selectedMedicine,
+                  onRefresh: onRefresh,
                 ),
               ),
-
-              // Inventory Stats
+              // Detail Panel - use remaining width
               Expanded(
-                child: SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.all(PharmaTheme.spacingM),
-                    child: inventoryAsync.when(
-                      data: (inventory) {
-                        // Filter inventory items for this medicine
-                        final medicineInventory = inventory
-                            .where((item) => item.medicine.id == medicine.id)
-                            .toList();
-
-                        // Calculate stats
-                        final totalStock = medicineInventory.fold(
-                            0, (sum, item) => sum + item.quantity);
-
-                        final totalBatches = medicineInventory.length;
-
-                        DateTime? nearestExpiry;
-                        if (medicineInventory.isNotEmpty) {
-                          nearestExpiry = medicineInventory
-                              .map((item) => item.expiryDate)
-                              .reduce((a, b) => a.isBefore(b) ? a : b);
-                        }
-
-                        return Padding(
-                          padding: const EdgeInsets.all(PharmaTheme.spacingM),
-                          child: _buildInventoryStatsRow(
-                            totalStock: totalStock,
-                            totalBatches: totalBatches,
-                            nearestExpiry: nearestExpiry,
-                          ),
-                        );
-                      },
-                      loading: () => const Padding(
-                        padding: EdgeInsets.all(PharmaTheme.spacingM),
-                        child: Center(child: CircularProgressIndicator()),
-                      ),
-                      error: (_, __) => _buildInventoryStatsRow(
-                        totalStock: 0,
-                        totalBatches: 0,
-                        nearestExpiry: null,
-                        hasError: true,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              // Inventory items list
-              Padding(
-                padding: const EdgeInsets.all(PharmaTheme.spacingM),
-                child: inventoryAsync.when(
-                  data: (inventory) {
-                    // Filter inventory items for this medicine
-                    final medicineInventory = inventory
-                        .where((item) => item.medicine.id == medicine.id)
-                        .toList();
-
-                    if (medicineInventory.isEmpty) {
-                      return _buildInventoryPlaceholder();
-                    }
-
-                    return _buildInventoryItemsList(
-                        medicineInventory.cast<InventoryItem>());
-                  },
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (_, __) => _buildInventoryPlaceholder(hasError: true),
+                child: _MedicineDetailPanel(
+                  medicine: selectedMedicine!,
+                  onRefresh: onRefresh,
+                  onClose: onCloseDetail,
                 ),
               ),
             ],
-          ),
+          );
+        }
+
+        // Normal layout with proper width calculation
+        final masterWidth = selectedMedicine == null
+            ? availableWidth - 32 // Leave some margin
+            : (availableWidth * 0.6)
+                .clamp(minMasterWidth, availableWidth - minDetailWidth);
+
+        return Row(
+          children: [
+            // Master Panel - Medicine List
+            SizedBox(
+              width: masterWidth,
+              child: _MedicineListPanel(
+                onMedicineSelected: onMedicineSelected,
+                selectedMedicine: selectedMedicine,
+                onRefresh: onRefresh,
+              ),
+            ),
+
+            // Detail Panel - Medicine Details
+            if (selectedMedicine != null)
+              Expanded(
+                child: _MedicineDetailPanel(
+                  medicine: selectedMedicine!,
+                  onRefresh: onRefresh,
+                  onClose: onCloseDetail,
+                ),
+              ),
+          ],
         );
       },
     );
   }
+}
 
-  Widget _buildInventoryStatsRow({
-    required int totalStock,
-    required int totalBatches,
-    DateTime? nearestExpiry,
-    bool hasError = false,
-  }) {
+// Mobile Layout
+class _MobileLayout extends ConsumerWidget {
+  final Medicine? selectedMedicine;
+  final Function(Medicine) onMedicineSelected;
+  final VoidCallback onRefresh;
+
+  const _MobileLayout({
+    required this.selectedMedicine,
+    required this.onMedicineSelected,
+    required this.onRefresh,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return _MedicineListPanel(
+      onMedicineSelected: (medicine) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => MedicineDetailScreen(
+              medicine: medicine,
+              onRefresh: onRefresh,
+            ),
+          ),
+        );
+      },
+      selectedMedicine: selectedMedicine,
+      onRefresh: onRefresh,
+      isMobile: true,
+    );
+  }
+}
+
+// Medicine List Panel
+class _MedicineListPanel extends ConsumerWidget {
+  final Function(Medicine) onMedicineSelected;
+  final Medicine? selectedMedicine;
+  final VoidCallback onRefresh;
+  final bool isMobile;
+
+  const _MedicineListPanel({
+    required this.onMedicineSelected,
+    required this.selectedMedicine,
+    required this.onRefresh,
+    this.isMobile = false,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Column(
+      children: [
+        // Search and Filter Bar
+        _SearchAndFilterBar(),
+
+        // Medicine List/Table
+        Expanded(
+          child: _ResponsiveMedicineTable(
+            onMedicineSelected: onMedicineSelected,
+            selectedMedicine: selectedMedicine,
+            isMobile: isMobile,
+            onRefresh: onRefresh,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// Responsive Search and Filter Bar
+class _SearchAndFilterBar extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final searchQuery = ref.watch(medicineSearchProvider);
+    final sortState = ref.watch(medicineSortProvider);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: HospitalTheme.border),
+        ),
+      ),
+      child: Column(
+        children: [
+          // Use LayoutBuilder for responsive search bar
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 600;
+
+              if (isNarrow) {
+                return Column(
+                  children: [
+                    // Search Field
+                    TextField(
+                      decoration: InputDecoration(
+                        hintText: 'Search medicines... (Ctrl+F)',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: () {
+                                  ref
+                                      .read(medicineSearchProvider.notifier)
+                                      .state = '';
+                                },
+                              )
+                            : null,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                      ),
+                      onChanged: (value) {
+                        ref.read(medicineSearchProvider.notifier).state = value;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    // Sort controls
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: sortState.column,
+                            decoration: const InputDecoration(
+                              labelText: 'Sort By',
+                              border: OutlineInputBorder(),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                  value: 'name', child: Text('Name')),
+                              DropdownMenuItem(
+                                  value: 'manufacturer',
+                                  child: Text('Manufacturer')),
+                              DropdownMenuItem(
+                                  value: 'category', child: Text('Category')),
+                              DropdownMenuItem(
+                                  value: 'mrp', child: Text('MRP')),
+                              DropdownMenuItem(
+                                  value: 'purchasePrice',
+                                  child: Text('Purchase Price')),
+                              DropdownMenuItem(
+                                  value: 'createdAt',
+                                  child: Text('Date Added')),
+                            ],
+                            onChanged: (value) {
+                              if (value != null) {
+                                ref.read(medicineSortProvider.notifier).state =
+                                    sortState.copyWith(column: value);
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: Icon(
+                            sortState.ascending
+                                ? Icons.arrow_upward
+                                : Icons.arrow_downward,
+                          ),
+                          tooltip:
+                              sortState.ascending ? 'Ascending' : 'Descending',
+                          onPressed: () {
+                            ref.read(medicineSortProvider.notifier).state =
+                                sortState.copyWith(
+                                    ascending: !sortState.ascending);
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              }
+
+              // Wide layout
+              return Row(
+                children: [
+                  // Search Field
+                  Expanded(
+                    flex: 3,
+                    child: TextField(
+                      decoration: InputDecoration(
+                        hintText: 'Search medicines... (Ctrl+F)',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: () {
+                                  ref
+                                      .read(medicineSearchProvider.notifier)
+                                      .state = '';
+                                },
+                              )
+                            : null,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                      ),
+                      onChanged: (value) {
+                        ref.read(medicineSearchProvider.notifier).state = value;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // Sort Dropdown
+                  Expanded(
+                    flex: 1,
+                    child: DropdownButtonFormField<String>(
+                      value: sortState.column,
+                      decoration: const InputDecoration(
+                        labelText: 'Sort By',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'name', child: Text('Name')),
+                        DropdownMenuItem(
+                            value: 'manufacturer', child: Text('Manufacturer')),
+                        DropdownMenuItem(
+                            value: 'category', child: Text('Category')),
+                        DropdownMenuItem(value: 'mrp', child: Text('MRP')),
+                        DropdownMenuItem(
+                            value: 'purchasePrice',
+                            child: Text('Purchase Price')),
+                        DropdownMenuItem(
+                            value: 'createdAt', child: Text('Date Added')),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          ref.read(medicineSortProvider.notifier).state =
+                              sortState.copyWith(column: value);
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Sort Direction
+                  IconButton(
+                    icon: Icon(
+                      sortState.ascending
+                          ? Icons.arrow_upward
+                          : Icons.arrow_downward,
+                    ),
+                    tooltip: sortState.ascending ? 'Ascending' : 'Descending',
+                    onPressed: () {
+                      ref.read(medicineSortProvider.notifier).state =
+                          sortState.copyWith(ascending: !sortState.ascending);
+                    },
+                  ),
+                ],
+              );
+            },
+          ),
+
+          const SizedBox(height: 8),
+
+          // Statistics Row
+          _StatisticsRow(),
+        ],
+      ),
+    );
+  }
+}
+
+// Statistics Row
+class _StatisticsRow extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final filteredMedicines = ref.watch(filteredMedicinesProvider);
+    final allMedicines = ref.watch(medicinesProvider).asData?.value ?? [];
+
+    final totalValue = filteredMedicines.fold<double>(
+      0,
+      (sum, medicine) => sum + (medicine.mrp * 1),
+    );
+
+    final totalPurchaseValue = filteredMedicines.fold<double>(
+      0,
+      (sum, medicine) => sum + (medicine.purchasePrice * 1),
+    );
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Determine layout based on available width
-        final isNarrow = constraints.maxWidth < 600;
+        final isNarrow = constraints.maxWidth < 800;
 
         final stats = [
-          _InventoryStat(
-            title: 'Total Stock',
-            value: hasError ? '?' : totalStock.toString(),
-            icon: hasError ? Icons.error_outline : Icons.inventory,
-            color: hasError ? PharmaTheme.error : PharmaTheme.primary,
+          _StatCard(
+            title: 'Total Medicines',
+            value: filteredMedicines.length.toString(),
+            subtitle: 'of ${allMedicines.length}',
+            icon: Icons.medication,
+            color: HospitalTheme.primary,
           ),
-          _InventoryStat(
-            title: 'Total Batches',
-            value: hasError ? '?' : totalBatches.toString(),
-            icon: hasError ? Icons.error_outline : Icons.layers,
-            color: hasError ? PharmaTheme.error : PharmaTheme.accent,
+          _StatCard(
+            title: 'Total MRP Value',
+            value: '₹${totalValue.toStringAsFixed(0)}',
+            icon: Icons.account_balance_wallet,
+            color: HospitalTheme.success,
           ),
-          _InventoryStat(
-            title: 'Nearest Expiry',
-            value: hasError
-                ? '?'
-                : (nearestExpiry != null
-                    ? DateFormat('dd MMM, yyyy').format(nearestExpiry)
-                    : 'None'),
-            icon: hasError ? Icons.error_outline : Icons.event,
-            color: hasError ? PharmaTheme.error : PharmaTheme.warning,
+          _StatCard(
+            title: 'Purchase Value',
+            value: '₹${totalPurchaseValue.toStringAsFixed(0)}',
+            icon: Icons.shopping_cart,
+            color: HospitalTheme.info,
+          ),
+          _StatCard(
+            title: 'Potential Profit',
+            value: '₹${(totalValue - totalPurchaseValue).toStringAsFixed(0)}',
+            icon: Icons.trending_up,
+            color: HospitalTheme.warning,
           ),
         ];
 
         if (isNarrow) {
-          // Vertical layout for narrow screens
           return Column(
-            children: stats.map((stat) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: PharmaTheme.spacingM),
-                child: _buildCompactStatCard(
-                  title: stat.title,
-                  value: stat.value,
-                  icon: stat.icon,
-                  color: stat.color,
-                ),
-              );
-            }).toList(),
-          );
-        } else {
-          // Horizontal layout for wider screens
-          return Row(
-            children: stats.map((stat) {
-              return Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    right: stat != stats.last ? PharmaTheme.spacingM : 0,
-                  ),
-                  child: _buildCompactStatCard(
-                    title: stat.title,
-                    value: stat.value,
-                    icon: stat.icon,
-                    color: stat.color,
-                  ),
-                ),
-              );
-            }).toList(),
+            children: [
+              Row(
+                children: [
+                  Expanded(child: stats[0]),
+                  const SizedBox(width: 8),
+                  Expanded(child: stats[1]),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(child: stats[2]),
+                  const SizedBox(width: 8),
+                  Expanded(child: stats[3]),
+                ],
+              ),
+            ],
           );
         }
+
+        return Row(
+          children: stats
+              .expand((stat) => [
+                    Expanded(child: stat),
+                    if (stat != stats.last) const SizedBox(width: 16),
+                  ])
+              .toList(),
+        );
       },
     );
   }
+}
 
-  Widget _buildInventoryItemsList(List<InventoryItem> items) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Inventory Batches',
-          style: PharmaTheme.bodyMedium.copyWith(
-            fontWeight: FontWeight.bold,
-            color: PharmaTheme.textSecondary,
-          ),
-        ),
-        const SizedBox(height: PharmaTheme.spacingM),
-        Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: PharmaTheme.border),
-            borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
-          ),
-          child: ListView.separated(
-            physics: const NeverScrollableScrollPhysics(),
-            shrinkWrap: true,
-            itemCount: items.length,
-            separatorBuilder: (context, index) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final item = items[index];
-              final daysUntilExpiry =
-                  item.expiryDate.difference(DateTime.now()).inDays;
+// Stat Card Widget
+class _StatCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final String? subtitle;
+  final IconData icon;
+  final Color color;
 
-              // Determine text color based on expiry
-              Color expiryColor = PharmaTheme.textPrimary;
-              if (daysUntilExpiry < 0) {
-                expiryColor = PharmaTheme.error;
-              } else if (daysUntilExpiry < 30) {
-                expiryColor = PharmaTheme.warning;
-              } else if (daysUntilExpiry < 90) {
-                expiryColor = PharmaTheme.info;
-              }
+  const _StatCard({
+    required this.title,
+    required this.value,
+    this.subtitle,
+    required this.icon,
+    required this.color,
+  });
 
-              return ListTile(
-                dense: true,
-                leading: CircleAvatar(
-                  backgroundColor: PharmaTheme.primary.withOpacity(0.1),
-                  child: Text(
-                    item.quantity.toString(),
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: HospitalTheme.textMedium,
+                  ),
+                ),
+                if (subtitle != null)
+                  Text(
+                    subtitle!,
                     style: TextStyle(
-                      color: PharmaTheme.primary,
+                      fontSize: 10,
+                      color: HospitalTheme.textLight,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Responsive Medicine Table
+// Responsive Medicine Table (FIXED for full width)
+class _ResponsiveMedicineTable extends ConsumerWidget {
+  final Function(Medicine) onMedicineSelected;
+  final Medicine? selectedMedicine;
+  final bool isMobile;
+  final VoidCallback onRefresh;
+
+  const _ResponsiveMedicineTable({
+    required this.onMedicineSelected,
+    required this.selectedMedicine,
+    this.isMobile = false,
+    required this.onRefresh,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final filteredMedicines = ref.watch(filteredMedicinesProvider);
+
+    return Container(
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: HospitalTheme.shadow,
+      ),
+      child: Column(
+        children: [
+          // Table Header
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: HospitalTheme.primary,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.medication,
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Medicines',
+                  style: HospitalTheme.themeData.textTheme.titleLarge?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${filteredMedicines.length} items',
+                    style: const TextStyle(
+                      color: Colors.white,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
-                title: Text(
-                  'Batch: ${item.batchNumber}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                subtitle: Text('From: ${item.distributor.name}'),
-                trailing: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      'Expires: ${DateFormat('dd MMM, yyyy').format(item.expiryDate)}',
-                      style: TextStyle(
-                        color: expiryColor,
-                        fontWeight: daysUntilExpiry < 30
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                      ),
-                    ),
-                    Text(
-                      'Added: ${DateFormat('dd MMM, yyyy').format(item.addedOn)}',
-                      style: PharmaTheme.bodySmall.copyWith(
-                        color: PharmaTheme.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInventoryPlaceholder({bool hasError = false}) {
-    return Container(
-      height: 200, // Fixed height to prevent overflow
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              hasError ? Icons.error_outline : Icons.inventory_2_outlined,
-              size: 48,
-              color: hasError
-                  ? PharmaTheme.error.withOpacity(0.5)
-                  : PharmaTheme.textSecondary.withOpacity(0.3),
+              ],
             ),
-            const SizedBox(height: PharmaTheme.spacingS),
-            Text(
-              hasError
-                  ? 'Failed to load inventory data'
-                  : 'No inventory data available',
-              style: PharmaTheme.bodyMedium.copyWith(
-                color: hasError ? PharmaTheme.error : PharmaTheme.textSecondary,
-              ),
-            ),
-            const SizedBox(height: PharmaTheme.spacingXs),
-            Text(
-              hasError
-                  ? 'Please refresh and try again'
-                  : 'Add this medicine to inventory using the button above',
-              style: PharmaTheme.bodySmall.copyWith(
-                color: PharmaTheme.textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            if (hasError) ...[
-              const SizedBox(height: PharmaTheme.spacingM),
-              Consumer(
-                builder: (context, ref, _) {
-                  return OutlinedButton.icon(
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Refresh'),
-                    onPressed: () {
-                      ref.invalidate(inventoryProvider);
-                    },
-                  );
-                },
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMedicineInfoCard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(PharmaTheme.spacingM),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
-        boxShadow: PharmaTheme.shadowSmall,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header with title and action buttons
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Medicine icon
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  gradient: PharmaTheme.accentGradient,
-                  borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.medication,
-                    size: 30,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-              const SizedBox(width: PharmaTheme.spacingM),
-              // Medicine details
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      medicine.name,
-                      style: PharmaTheme.headingLarge,
-                    ),
-                    const SizedBox(height: PharmaTheme.spacingXxs),
-                    Text(
-                      'Manufactured by ${medicine.manufacturer}',
-                      style: PharmaTheme.bodyMedium.copyWith(
-                        color: PharmaTheme.textSecondary,
-                      ),
-                    ),
-                    if (medicine.category != null &&
-                        medicine.category!.isNotEmpty)
-                      Text(
-                        'Category: ${medicine.category}',
-                        style: PharmaTheme.bodyMedium.copyWith(
-                          color: PharmaTheme.textSecondary,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              // Action buttons
-              Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.edit),
-                    tooltip: 'Edit',
-                    onPressed: onEdit,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete),
-                    tooltip: 'Delete',
-                    color: PharmaTheme.error,
-                    onPressed: onDelete,
-                  ),
-                ],
-              ),
-            ],
           ),
 
-          // Description section
-          if (medicine.description != null &&
-              medicine.description!.isNotEmpty) ...[
-            const Divider(height: PharmaTheme.spacingL),
-            Container(
-              padding: const EdgeInsets.all(PharmaTheme.spacingM),
-              decoration: BoxDecoration(
-                color: PharmaTheme.background,
-                borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
-                border: Border.all(
-                  color: PharmaTheme.border,
-                  width: 1,
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Description',
-                    style: PharmaTheme.headingSmall.copyWith(
-                      color: PharmaTheme.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: PharmaTheme.spacingS),
-                  Text(
-                    medicine.description!,
-                    style: PharmaTheme.bodyMedium,
-                  ),
-                ],
-              ),
-            ),
-          ],
-
-          const SizedBox(height: PharmaTheme.spacingM),
-
-          // Financial details
-          _buildFinancialDetailsSection(context),
-
-          const SizedBox(height: PharmaTheme.spacingM),
-
-          // Added on info
-          Row(
-            children: [
-              const Icon(
-                Icons.calendar_today,
-                size: 14,
-                color: PharmaTheme.textSecondary,
-              ),
-              const SizedBox(width: PharmaTheme.spacingXxs),
-              Text(
-                'Added on ${DateFormat('dd MMM, yyyy').format(medicine.createdAt)}',
-                style: PharmaTheme.bodySmall.copyWith(
-                  color: PharmaTheme.textSecondary,
-                ),
-              ),
-            ],
+          // Table Content - FIXED for full width
+          Expanded(
+            child: _buildTableContent(context, ref, filteredMedicines),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFinancialDetailsSection(BuildContext context) {
-    // Use LayoutBuilder to check available width
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Determine if we should stack cards vertically
-        final isNarrow = constraints.maxWidth < 600;
-
-        return Container(
-          padding: const EdgeInsets.all(PharmaTheme.spacingM),
-          decoration: BoxDecoration(
-            color: PharmaTheme.background,
-            borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
-            border: Border.all(
-              color: PharmaTheme.border,
-              width: 1,
-            ),
-          ),
+  Widget _buildTableContent(
+      BuildContext context, WidgetRef ref, List<Medicine> medicines) {
+    if (medicines.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
+              Icon(
+                Icons.search_off,
+                size: 64,
+                color: Colors.grey,
+              ),
+              SizedBox(height: 16),
               Text(
-                'Pricing Information',
-                style: PharmaTheme.headingSmall.copyWith(
-                  color: PharmaTheme.textSecondary,
+                'No medicines found',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey,
                 ),
               ),
-              const SizedBox(height: PharmaTheme.spacingM),
-              isNarrow
-                  ? _buildVerticalPriceCards()
-                  : _buildHorizontalPriceCards(),
+              SizedBox(height: 8),
+              Text(
+                'Try adjusting your search criteria',
+                style: TextStyle(
+                  color: Colors.grey,
+                ),
+              ),
             ],
+          ),
+        ),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Get the actual available width
+        final availableWidth = constraints.maxWidth;
+
+        // Determine which columns to show based on available width
+        final showManufacturer = availableWidth > 600;
+        final showCategory = availableWidth > 700;
+        final showPurchasePrice = availableWidth > 800;
+        final showMargin = availableWidth > 900;
+
+        // Calculate optimal column spacing based on available width
+        final baseSpacing = availableWidth > 1000
+            ? 20.0
+            : availableWidth > 800
+                ? 16.0
+                : availableWidth > 600
+                    ? 12.0
+                    : 8.0;
+
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minWidth: availableWidth, // Ensure table uses full width
+            ),
+            child: DataTable(
+              // Remove horizontal margin to use full width
+              horizontalMargin: 0,
+              // Adjust column spacing based on available width
+              columnSpacing: baseSpacing,
+              headingRowColor:
+                  MaterialStateProperty.all(HospitalTheme.surfaceLight),
+              dataRowMaxHeight: 60,
+              // Make columns responsive to available width
+              columns: _buildDataColumns(
+                showManufacturer: showManufacturer,
+                showCategory: showCategory,
+                showPurchasePrice: showPurchasePrice,
+                showMargin: showMargin,
+              ),
+              rows: medicines.map((medicine) {
+                final profit = medicine.mrp - medicine.purchasePrice;
+                final profitPercentage = medicine.purchasePrice > 0
+                    ? (profit / medicine.purchasePrice * 100).toStringAsFixed(1)
+                    : 'N/A';
+
+                final isSelected = selectedMedicine?.id == medicine.id;
+
+                return DataRow(
+                  selected: isSelected,
+                  color: isSelected
+                      ? MaterialStateProperty.all(
+                          HospitalTheme.primaryLight.withOpacity(0.1))
+                      : null,
+                  onSelectChanged: (_) => onMedicineSelected(medicine),
+                  cells: _buildDataCells(
+                    medicine: medicine,
+                    profit: profit,
+                    profitPercentage: profitPercentage,
+                    showManufacturer: showManufacturer,
+                    showCategory: showCategory,
+                    showPurchasePrice: showPurchasePrice,
+                    showMargin: showMargin,
+                    context: context,
+                    ref: ref,
+                  ),
+                );
+              }).toList(),
+            ),
           ),
         );
       },
     );
   }
 
-  Widget _buildHorizontalPriceCards() {
-    final profit = medicine.mrp - medicine.purchasePrice;
-    final profitPercentage = medicine.purchasePrice > 0
-        ? ((profit / medicine.purchasePrice) * 100).toStringAsFixed(1)
-        : 'N/A';
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // MRP Card
-        Expanded(
-          child: _buildPriceCard(
-            title: 'MRP',
-            amount: medicine.mrp,
-            icon: Icons.local_offer,
-            color: PharmaTheme.warning,
-          ),
-        ),
-        const SizedBox(width: PharmaTheme.spacingM),
-        // Purchase Price Card
-        Expanded(
-          child: _buildPriceCard(
-            title: 'Purchase Price',
-            amount: medicine.purchasePrice,
-            icon: Icons.shopping_cart,
-            color: PharmaTheme.success,
-          ),
-        ),
-        const SizedBox(width: PharmaTheme.spacingM),
-        // Profit Margin Card
-        Expanded(
-          child: _buildPriceCard(
-            title: 'Profit Margin',
-            amount: profit,
-            percentage: profitPercentage,
-            icon: Icons.trending_up,
-            color: PharmaTheme.info,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildVerticalPriceCards() {
-    final profit = medicine.mrp - medicine.purchasePrice;
-    final profitPercentage = medicine.purchasePrice > 0
-        ? ((profit / medicine.purchasePrice) * 100).toStringAsFixed(1)
-        : 'N/A';
-
-    return Column(
-      children: [
-        // MRP Card
-        _buildPriceCard(
-          title: 'MRP',
-          amount: medicine.mrp,
-          icon: Icons.local_offer,
-          color: PharmaTheme.warning,
-        ),
-        const SizedBox(height: PharmaTheme.spacingM),
-        // Purchase Price Card
-        _buildPriceCard(
-          title: 'Purchase Price',
-          amount: medicine.purchasePrice,
-          icon: Icons.shopping_cart,
-          color: PharmaTheme.success,
-        ),
-        const SizedBox(height: PharmaTheme.spacingM),
-        // Profit Margin Card
-        _buildPriceCard(
-          title: 'Profit Margin',
-          amount: profit,
-          percentage: profitPercentage,
-          icon: Icons.trending_up,
-          color: PharmaTheme.info,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPriceCard({
-    required String title,
-    required double amount,
-    String? percentage,
-    required IconData icon,
-    required Color color,
+  // Extract column building to separate method for better organization
+  List<DataColumn> _buildDataColumns({
+    required bool showManufacturer,
+    required bool showCategory,
+    required bool showPurchasePrice,
+    required bool showMargin,
   }) {
+    return [
+      const DataColumn(
+        label: Expanded(
+          child: Text(
+            'Medicine',
+            style: TextStyle(fontWeight: FontWeight.bold),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ),
+      if (showManufacturer)
+        const DataColumn(
+          label: Expanded(
+            child: Text(
+              'Manufacturer',
+              style: TextStyle(fontWeight: FontWeight.bold),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+      if (showCategory)
+        const DataColumn(
+          label: Text(
+            'Category',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+      const DataColumn(
+        label: Text(
+          'MRP (₹)',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        numeric: true,
+      ),
+      if (showPurchasePrice)
+        const DataColumn(
+          label: Text(
+            'Purchase (₹)',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          numeric: true,
+        ),
+      if (showMargin)
+        const DataColumn(
+          label: Text(
+            'Margin',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          numeric: true,
+        ),
+      const DataColumn(
+        label: Text(
+          'Actions',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+      ),
+    ];
+  }
+
+  // Extract cell building to separate method for better organization
+  List<DataCell> _buildDataCells({
+    required Medicine medicine,
+    required double profit,
+    required String profitPercentage,
+    required bool showManufacturer,
+    required bool showCategory,
+    required bool showPurchasePrice,
+    required bool showMargin,
+    required BuildContext context,
+    required WidgetRef ref,
+  }) {
+    return [
+      DataCell(
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                medicine.name,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (!showManufacturer)
+                Text(
+                  medicine.manufacturer,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: HospitalTheme.textMedium,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+            ],
+          ),
+        ),
+      ),
+      if (showManufacturer)
+        DataCell(
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text(
+              medicine.manufacturer,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+      if (showCategory)
+        DataCell(
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 4,
+              ),
+              decoration: BoxDecoration(
+                color: HospitalTheme.info.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                medicine.category ?? 'N/A',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: HospitalTheme.info,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+        ),
+      DataCell(
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Text(
+            '₹${medicine.mrp.toStringAsFixed(2)}',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ),
+      if (showPurchasePrice)
+        DataCell(
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text(
+              '₹${medicine.purchasePrice.toStringAsFixed(2)}',
+              style: TextStyle(
+                color: HospitalTheme.textMedium,
+              ),
+            ),
+          ),
+        ),
+      if (showMargin)
+        DataCell(
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '₹${profit.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: profit >= 0
+                        ? HospitalTheme.success
+                        : HospitalTheme.error,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: (profit >= 0
+                            ? HospitalTheme.success
+                            : HospitalTheme.error)
+                        .withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '$profitPercentage%',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: profit >= 0
+                          ? HospitalTheme.success
+                          : HospitalTheme.error,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      DataCell(
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.edit, size: 18),
+                tooltip: 'Edit Medicine',
+                onPressed: () => _editMedicine(context, medicine),
+                constraints: const BoxConstraints(
+                  minWidth: 32,
+                  minHeight: 32,
+                ),
+                padding: const EdgeInsets.all(4),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete, size: 18),
+                tooltip: 'Delete Medicine',
+                color: HospitalTheme.error,
+                onPressed: () => _deleteMedicine(context, ref, medicine),
+                constraints: const BoxConstraints(
+                  minWidth: 32,
+                  minHeight: 32,
+                ),
+                padding: const EdgeInsets.all(4),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ];
+  }
+
+  void _editMedicine(BuildContext context, Medicine medicine) {
+    Navigator.of(context)
+        .push(
+      MaterialPageRoute(
+        builder: (context) =>
+            OptimizedAddMedicineScreen(medicineToEdit: medicine),
+      ),
+    )
+        .then((result) {
+      if (result == true) {
+        onRefresh();
+      }
+    });
+  }
+
+  void _deleteMedicine(BuildContext context, WidgetRef ref, Medicine medicine) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Medicine'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Are you sure you want to delete "${medicine.name}"?'),
+            const SizedBox(height: 8),
+            Text(
+              'This action cannot be undone.',
+              style: TextStyle(
+                color: HospitalTheme.error,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+
+              // Show loading
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Row(
+                    children: [
+                      SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      SizedBox(width: 12),
+                      Text('Deleting medicine...'),
+                    ],
+                  ),
+                ),
+              );
+
+              final medicineService = ref.read(medicineServiceProvider);
+              final success = await medicineService.deleteMedicine(medicine.id);
+
+              if (success) {
+                onRefresh();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Medicine deleted successfully'),
+                    backgroundColor: HospitalTheme.success,
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Failed to delete medicine'),
+                    backgroundColor: HospitalTheme.error,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: HospitalTheme.error,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Medicine Detail Panel (UPDATED with close button)
+class _MedicineDetailPanel extends ConsumerWidget {
+  final Medicine medicine;
+  final VoidCallback onRefresh;
+  final VoidCallback onClose;
+
+  const _MedicineDetailPanel({
+    required this.medicine,
+    required this.onRefresh,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
-      padding: const EdgeInsets.all(PharmaTheme.spacingM),
+      margin: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Close button header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: HospitalTheme.primary,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: Colors.white,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Medicine Details',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  tooltip: 'Close Details (Esc)',
+                  onPressed: onClose,
+                  iconSize: 20,
+                ),
+              ],
+            ),
+          ),
+
+          // Content
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(12),
+                  bottomRight: Radius.circular(12),
+                ),
+                boxShadow: HospitalTheme.shadow,
+              ),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Medicine Info Card
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 60,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                color: HospitalTheme.primary,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.medication,
+                                color: Colors.white,
+                                size: 30,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    medicine.name,
+                                    style: HospitalTheme
+                                        .themeData.textTheme.headlineSmall,
+                                  ),
+                                  Text(
+                                    'by ${medicine.manufacturer}',
+                                    style: TextStyle(
+                                      color: HospitalTheme.textMedium,
+                                    ),
+                                  ),
+                                  if (medicine.category != null)
+                                    Container(
+                                      margin: const EdgeInsets.only(top: 4),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color:
+                                            HospitalTheme.info.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        medicine.category!,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: HospitalTheme.info,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        if (medicine.description != null) ...[
+                          const SizedBox(height: 16),
+                          const Divider(),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Description',
+                            style:
+                                HospitalTheme.themeData.textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            medicine.description!,
+                            style: TextStyle(
+                              color: HospitalTheme.textMedium,
+                            ),
+                          ),
+                        ],
+
+                        const SizedBox(height: 16),
+                        const Divider(),
+                        const SizedBox(height: 16),
+
+                        // Pricing Information
+                        Text(
+                          'Pricing Information',
+                          style: HospitalTheme.themeData.textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 12),
+
+                        _PriceCard(
+                          title: 'MRP',
+                          amount: medicine.mrp,
+                          color: HospitalTheme.warning,
+                          icon: Icons.local_offer,
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        _PriceCard(
+                          title: 'Purchase Price',
+                          amount: medicine.purchasePrice,
+                          color: HospitalTheme.success,
+                          icon: Icons.shopping_cart,
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        _PriceCard(
+                          title: 'Profit Margin',
+                          amount: medicine.mrp - medicine.purchasePrice,
+                          color: HospitalTheme.info,
+                          icon: Icons.trending_up,
+                          showPercentage: true,
+                          percentage: medicine.purchasePrice > 0
+                              ? ((medicine.mrp - medicine.purchasePrice) /
+                                  medicine.purchasePrice *
+                                  100)
+                              : 0,
+                        ),
+
+                        const SizedBox(height: 16),
+                        const Divider(),
+                        const SizedBox(height: 16),
+
+                        // Action buttons
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.of(context)
+                                      .push(
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          OptimizedAddMedicineScreen(
+                                              medicineToEdit: medicine),
+                                    ),
+                                  )
+                                      .then((result) {
+                                    if (result == true) {
+                                      onRefresh();
+                                    }
+                                  });
+                                },
+                                icon: const Icon(Icons.edit),
+                                label: const Text('Edit Medicine'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: HospitalTheme.primary,
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Price Card Widget
+class _PriceCard extends StatelessWidget {
+  final String title;
+  final double amount;
+  final Color color;
+  final IconData icon;
+  final bool showPercentage;
+  final double? percentage;
+
+  const _PriceCard({
+    required this.title,
+    required this.amount,
+    required this.color,
+    required this.icon,
+    this.showPercentage = false,
+    this.percentage,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
-        border: Border.all(
-          color: color.withOpacity(0.3),
-          width: 1,
-        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, color: color),
-              const SizedBox(width: PharmaTheme.spacingS),
-              Expanded(
-                child: Text(
-                  title,
-                  style: PharmaTheme.bodySmall.copyWith(
-                    color: color,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+              Icon(icon, color: color, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: PharmaTheme.spacingS),
+          const SizedBox(height: 8),
           Row(
             children: [
               Text(
@@ -2573,19 +1856,19 @@ class _MedicineDetail extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              if (percentage != null) ...[
-                const SizedBox(width: PharmaTheme.spacingS),
+              if (showPercentage && percentage != null) ...[
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: PharmaTheme.spacingXs,
+                    horizontal: 6,
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(PharmaTheme.radiusXs),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    percentage,
+                    '${percentage!.toStringAsFixed(1)}%',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -2600,121 +1883,100 @@ class _MedicineDetail extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _buildInventoryStats(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Determine layout based on available width
-        final isNarrow = constraints.maxWidth < 600;
+// Medicine Detail Screen (for mobile)
+class MedicineDetailScreen extends StatelessWidget {
+  final Medicine medicine;
+  final VoidCallback onRefresh;
 
-        final stats = [
-          _InventoryStat(
-            title: 'Total Stock',
-            value: '0',
-            icon: Icons.inventory,
-            color: PharmaTheme.primary,
-          ),
-          _InventoryStat(
-            title: 'Total Batches',
-            value: '0',
-            icon: Icons.layers,
-            color: PharmaTheme.accent,
-          ),
-          _InventoryStat(
-            title: 'Nearest Expiry',
-            value: 'None',
-            icon: Icons.event,
-            color: PharmaTheme.warning,
-          ),
-        ];
+  const MedicineDetailScreen({
+    Key? key,
+    required this.medicine,
+    required this.onRefresh,
+  }) : super(key: key);
 
-        if (isNarrow) {
-          // Vertical layout for narrow screens
-          return Padding(
-            padding: const EdgeInsets.all(PharmaTheme.spacingM),
-            child: Column(
-              children: stats.map((stat) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: PharmaTheme.spacingM),
-                  child: _buildCompactStatCard(
-                    title: stat.title,
-                    value: stat.value,
-                    icon: stat.icon,
-                    color: stat.color,
-                  ),
-                );
-              }).toList(),
-            ),
-          );
-        } else {
-          // Horizontal layout for wider screens
-          return Padding(
-            padding: const EdgeInsets.all(PharmaTheme.spacingM),
-            child: Row(
-              children: stats.map((stat) {
-                return Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      right: stat != stats.last ? PharmaTheme.spacingM : 0,
-                    ),
-                    child: _buildCompactStatCard(
-                      title: stat.title,
-                      value: stat.value,
-                      icon: stat.icon,
-                      color: stat.color,
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          );
-        }
-      },
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: HospitalTheme.buildAppBar(
+        context: context,
+        title: medicine.name,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () {
+              Navigator.of(context)
+                  .push(
+                MaterialPageRoute(
+                  builder: (context) =>
+                      OptimizedAddMedicineScreen(medicineToEdit: medicine),
+                ),
+              )
+                  .then((result) {
+                if (result == true) {
+                  onRefresh();
+                  Navigator.pop(context);
+                }
+              });
+            },
+          ),
+        ],
+      ),
+      body: _MedicineDetailPanel(
+        medicine: medicine,
+        onRefresh: onRefresh,
+        onClose: () => Navigator.pop(context),
+      ),
     );
   }
+}
 
-  Widget _buildCompactStatCard({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(PharmaTheme.spacingS),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(PharmaTheme.radiusM),
-        border: Border.all(
-          color: color.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
+// Empty State Widget
+class _EmptyMedicineState extends StatelessWidget {
+  final VoidCallback onAdd;
+
+  const _EmptyMedicineState({required this.onAdd});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 16),
-              const SizedBox(width: PharmaTheme.spacingXs),
-              Expanded(
-                child: Text(
-                  title,
-                  style: PharmaTheme.bodySmall.copyWith(
-                    color: color,
-                    fontSize: 11,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
+          Icon(
+            Icons.medication_outlined,
+            size: 120,
+            color: HospitalTheme.textLight,
           ),
-          const SizedBox(height: PharmaTheme.spacingXs),
+          const SizedBox(height: 24),
           Text(
-            value,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+            'No Medicines Added Yet',
+            style: HospitalTheme.themeData.textTheme.headlineMedium?.copyWith(
+              color: HospitalTheme.textMedium,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Start building your medicine inventory by adding your first medicine',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: HospitalTheme.textLight,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 32),
+          ElevatedButton.icon(
+            onPressed: onAdd,
+            icon: const Icon(Icons.add),
+            label: const Text('Add Your First Medicine'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: HospitalTheme.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 32,
+                vertical: 16,
+              ),
             ),
           ),
         ],
@@ -2723,17 +1985,58 @@ class _MedicineDetail extends StatelessWidget {
   }
 }
 
-// Helper class for inventory stats
-class _InventoryStat {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color color;
+// Error State Widget
+class _ErrorState extends StatelessWidget {
+  final String error;
+  final VoidCallback onRetry;
 
-  const _InventoryStat({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
+  const _ErrorState({
+    required this.error,
+    required this.onRetry,
   });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 80,
+            color: HospitalTheme.error,
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Failed to Load Medicines',
+            style: HospitalTheme.themeData.textTheme.headlineMedium?.copyWith(
+              color: HospitalTheme.error,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            error,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: HospitalTheme.textMedium,
+            ),
+          ),
+          const SizedBox(height: 32),
+          ElevatedButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Try Again'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: HospitalTheme.error,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
+
+// Add Medicine Screen - You'll need to add this part as well (same as before)
+
+// Add Medicine Screen - Separate screen for adding/editing medicines
