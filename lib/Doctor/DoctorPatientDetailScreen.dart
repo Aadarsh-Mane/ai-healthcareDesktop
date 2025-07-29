@@ -15,6 +15,7 @@ import 'package:doctordesktop/Doctor/DoctorMedicalCertificateScreen.dart';
 import 'package:doctordesktop/Doctor/DoctorProfile.dart';
 import 'package:doctordesktop/Doctor/GenerateDischargeSummaryByDoctorScreen.dart';
 import 'package:doctordesktop/Doctor/PatientHistoryDetailScreen.dart';
+import 'package:doctordesktop/Doctor/SurgicalNotesScreen.dart';
 import 'package:doctordesktop/Doctor/Tabs/AdmissionLabReportScreen.dart';
 import 'package:doctordesktop/Doctor/Tabs/CreateInvestigstion.dart';
 import 'package:doctordesktop/Doctor/Tabs/DiagnosisScreen.dart';
@@ -712,6 +713,8 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                   ViewDiagnosisIntent(),
               LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyT):
                   ViewTreatMentIntent(),
+              LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyJ):
+                  SurgicalNotesIntent(),
               LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyH):
                   ViewHomeIntent(),
               LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyI):
@@ -837,6 +840,20 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                       context,
                       MaterialPageRoute(
                         builder: (context) => EnhancedTreatmentScreen(
+                          patientId: widget.patient.patientId,
+                          admissionId: widget.patient.admissionRecords.first.id,
+                        ),
+                      ),
+                    );
+                    return null;
+                  },
+                ),
+                SurgicalNotesIntent: CallbackAction<SurgicalNotesIntent>(
+                  onInvoke: (intent) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => SurgicalNotesScreen(
                           patientId: widget.patient.patientId,
                           admissionId: widget.patient.admissionRecords.first.id,
                         ),
@@ -1206,6 +1223,24 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                                   // Home remains as a main item
                                   _buildNavItem(
                                     index: 8,
+                                    icon: Icons.notes,
+                                    label: 'Surgical Notes',
+                                    onCustomTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              SurgicalNotesScreen(
+                                            patientId: widget.patient.patientId,
+                                            admissionId: widget.patient
+                                                .admissionRecords.first.id,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  _buildNavItem(
+                                    index: 9,
                                     icon: Icons.home,
                                     label: 'Home',
                                     onCustomTap: () {
@@ -8276,6 +8311,8 @@ class ViewConsultationIntent extends Intent {}
 class ViewDiagnosisIntent extends Intent {}
 
 class ViewTreatMentIntent extends Intent {}
+
+class SurgicalNotesIntent extends Intent {}
 
 class ViewHomeIntent extends Intent {}
 

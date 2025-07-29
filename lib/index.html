@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>20's Model Flow Diagram</title>
+    <style>
+      body {
+        font-family: "Arial", sans-serif;
+        margin: 0;
+        padding: 20px;
+        background: #f5f5f5;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+      }
+
+      .diagram-container {
+        background: white;
+        border-radius: 20px;
+        padding: 40px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+        position: relative;
+        width: 1400px;
+        height: 900px;
+      }
+
+      .title {
+        text-align: center;
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #2d3748;
+        margin-bottom: 10px;
+      }
+
+      .subtitle {
+        text-align: center;
+        font-size: 1.2rem;
+        color: #718096;
+        margin-bottom: 40px;
+      }
+
+      .phase-node {
+        position: absolute;
+        padding: 15px 20px;
+        border-radius: 30px;
+        color: white;
+        font-weight: bold;
+        font-size: 12px;
+        text-align: center;
+        min-width: 130px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        line-height: 1.2;
+        z-index: 20;
+      }
+
+      .phase-node:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 35px rgba(0, 0, 0, 0.2);
+      }
+
+      /* Team Colors */
+      .business {
+        background: linear-gradient(135deg, #3182ce, #2c5aa0);
+      }
+      .design {
+        background: linear-gradient(135deg, #e53e3e, #c53030);
+      }
+      .development {
+        background: linear-gradient(135deg, #38a169, #2f855a);
+      }
+      .qa {
+        background: linear-gradient(135deg, #d69e2e, #b7791f);
+      }
+      .integration {
+        background: linear-gradient(135deg, #805ad5, #6b46c1);
+      }
+
+      /* PHASE 1 - Top Row */
+      .phase1-business {
+        top: 150px;
+        left: 200px;
+      }
+      .feedback-loop {
+        top: 150px;
+        left: 600px;
+      }
+
+      /* PHASE 2 - Second Row (Parallel) */
+      .phase2-design {
+        top: 280px;
+        left: 350px;
+      }
+      .phase2-dev {
+        top: 280px;
+        left: 750px;
+      }
+
+      /* PHASE 3 - Third Row */
+      .phase3-construction {
+        top: 410px;
+        left: 450px;
+      }
+      .phase3-unit {
+        top: 410px;
+        left: 850px;
+      }
+
+      /* PHASE 4 - Fourth Row */
+      .phase4-deploy {
+        top: 540px;
+        left: 350px;
+      }
+      .phase4-assess {
+        top: 540px;
+        left: 750px;
+      }
+
+      /* PHASE 5 - Rolling QA (Right Side) */
+      .phase5-qa {
+        top: 350px;
+        left: 1100px;
+      }
+
+      /* PHASE 6 - Bottom */
+      .phase6-final {
+        top: 670px;
+        left: 600px;
+      }
+
+      /* Change Control - Left Side */
+      .change-control {
+        top: 350px;
+        left: 50px;
+      }
+
+      /* Arrows - Clean connections */
+      .arrow {
+        position: absolute;
+        height: 3px;
+        background: #4a5568;
+        z-index: 10;
+      }
+
+      .arrow::after {
+        content: "";
+        position: absolute;
+        right: -8px;
+        top: -4px;
+        width: 0;
+        height: 0;
+        border-left: 10px solid #4a5568;
+        border-top: 4px solid transparent;
+        border-bottom: 4px solid transparent;
+      }
+
+      /* Horizontal Arrows */
+      .arrow-h1 {
+        top: 164px;
+        left: 350px;
+        width: 230px;
+      } /* Phase 1 to Feedback */
+      .arrow-h2 {
+        top: 294px;
+        left: 500px;
+        width: 230px;
+      } /* Design to Dev */
+      .arrow-h3 {
+        top: 424px;
+        left: 600px;
+        width: 230px;
+      } /* Construction to Unit */
+      .arrow-h4 {
+        top: 554px;
+        left: 500px;
+        width: 230px;
+      } /* Deploy to Assess */
+
+      /* Vertical Arrows */
+      .arrow-v1 {
+        top: 190px;
+        left: 614px;
+        width: 70px;
+        transform: rotate(90deg);
+      } /* Feedback to Design */
+      .arrow-v2 {
+        top: 320px;
+        left: 514px;
+        width: 70px;
+        transform: rotate(90deg);
+      } /* Design to Construction */
+      .arrow-v3 {
+        top: 450px;
+        left: 414px;
+        width: 70px;
+        transform: rotate(90deg);
+      } /* Construction to Deploy */
+      .arrow-v4 {
+        top: 580px;
+        left: 664px;
+        width: 70px;
+        transform: rotate(90deg);
+      } /* Assess to Final */
+
+      /* Diagonal Arrows */
+      .arrow-d1 {
+        top: 340px;
+        left: 864px;
+        width: 100px;
+        transform: rotate(45deg);
+      } /* Unit to Dev */
+      .arrow-d2 {
+        top: 450px;
+        left: 964px;
+        width: 100px;
+        transform: rotate(-45deg);
+      } /* Dev to QA */
+
+      /* Team Labels */
+      .team-label {
+        position: absolute;
+        font-weight: bold;
+        font-size: 14px;
+        padding: 8px 15px;
+        border-radius: 20px;
+        color: white;
+        z-index: 25;
+      }
+
+      .business-label {
+        top: 110px;
+        left: 200px;
+        background: #3182ce;
+      }
+      .design-label {
+        top: 240px;
+        left: 350px;
+        background: #e53e3e;
+      }
+      .dev-label {
+        top: 240px;
+        left: 750px;
+        background: #38a169;
+      }
+      .qa-label {
+        top: 310px;
+        left: 1100px;
+        background: #d69e2e;
+      }
+
+      /* Phase Numbers */
+      .phase-number {
+        position: absolute;
+        background: #2d3748;
+        color: white;
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 16px;
+        z-index: 30;
+      }
+
+      .num1 {
+        top: 140px;
+        left: 150px;
+      }
+      .num2 {
+        top: 270px;
+        left: 300px;
+      }
+      .num3 {
+        top: 400px;
+        left: 400px;
+      }
+      .num4 {
+        top: 530px;
+        left: 300px;
+      }
+      .num5 {
+        top: 340px;
+        left: 1050px;
+      }
+      .num6 {
+        top: 660px;
+        left: 550px;
+      }
+
+      /* Curved feedback arrows */
+      .curved-arrow {
+        stroke: #e53e3e;
+        stroke-width: 2;
+        fill: none;
+        marker-end: url(#arrowhead-red);
+        stroke-dasharray: 5, 5;
+        z-index: 5;
+      }
+
+      /* Legend */
+      .legend {
+        position: absolute;
+        bottom: 20px;
+        left: 50px;
+        right: 50px;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+        background: #f7fafc;
+        padding: 25px;
+        border-radius: 15px;
+        z-index: 1;
+      }
+
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 14px;
+      }
+
+      .legend-color {
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+
+      /* Key Features */
+      .key-features {
+        position: absolute;
+        top: 150px;
+        right: 50px;
+        background: rgba(255, 255, 255, 0.95);
+        border: 2px solid #e2e8f0;
+        border-radius: 15px;
+        padding: 20px;
+        width: 220px;
+        z-index: 25;
+      }
+
+      .key-features h4 {
+        margin: 0 0 15px 0;
+        color: #2d3748;
+        font-size: 16px;
+        text-align: center;
+      }
+
+      .key-features ul {
+        margin: 0;
+        padding-left: 20px;
+        line-height: 1.8;
+        font-size: 13px;
+      }
+
+      .key-features li {
+        margin-bottom: 5px;
+      }
+
+      /* Flow Direction Indicators */
+      .flow-indicator {
+        position: absolute;
+        background: rgba(102, 126, 234, 0.1);
+        border: 2px dashed #667eea;
+        border-radius: 10px;
+        color: #667eea;
+        font-weight: bold;
+        padding: 5px 10px;
+        font-size: 11px;
+        z-index: 15;
+      }
+
+      .parallel-indicator {
+        top: 320px;
+        left: 550px;
+      }
+      .continuous-indicator {
+        top: 380px;
+        left: 1200px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="diagram-container">
+      <div class="title">🎯 The 20's Model</div>
+      <div class="subtitle">
+        Clean Flow Diagram - Freelancer & Startup Development Process
+      </div>
+
+      <!-- SVG for curved feedback arrows -->
+      <svg
+        width="1400"
+        height="900"
+        style="
+          position: absolute;
+          top: 0;
+          left: 0;
+          pointer-events: none;
+          z-index: 5;
+        "
+      >
+        <defs>
+          <marker
+            id="arrowhead-red"
+            markerWidth="8"
+            markerHeight="6"
+            refX="7"
+            refY="3"
+            orient="auto"
+          >
+            <polygon points="0 0, 8 3, 0 6" fill="#e53e3e" />
+          </marker>
+        </defs>
+
+        <!-- Continuous Feedback Loops -->
+        <path d="M 270 200 Q 200 120 570 200" class="curved-arrow" />
+        <path d="M 670 200 Q 750 120 270 200" class="curved-arrow" />
+
+        <!-- Rolling QA Continuous Feedback -->
+        <path d="M 1100 380 Q 1000 330 520 460" class="curved-arrow" />
+        <path d="M 1100 400 Q 950 450 820 460" class="curved-arrow" />
+
+        <!-- Change Control Connections -->
+        <path d="M 180 380 Q 250 330 420 330" class="curved-arrow" />
+        <path d="M 180 400 Q 300 480 420 480" class="curved-arrow" />
+      </svg>
+
+      <!-- Phase Numbers -->
+      <div class="phase-number num1">1</div>
+      <div class="phase-number num2">2</div>
+      <div class="phase-number num3">3</div>
+      <div class="phase-number num4">4</div>
+      <div class="phase-number num5">5</div>
+      <div class="phase-number num6">6</div>
+
+      <!-- Team Labels -->
+      <div class="team-label business-label">📊 BUSINESS</div>
+      <div class="team-label design-label">🎨 DESIGN</div>
+      <div class="team-label dev-label">💻 DEVELOPMENT</div>
+      <div class="team-label qa-label">🧪 QA</div>
+
+      <!-- Flow Indicators -->
+      <div class="flow-indicator parallel-indicator">⚡ PARALLEL EXECUTION</div>
+      <div class="flow-indicator continuous-indicator">🔄 CONTINUOUS</div>
+
+      <!-- PHASE 1: Business Interaction & Requirement Loop -->
+      <div class="phase-node business phase1-business">
+        Business Interaction<br />& Requirement Loop
+      </div>
+
+      <div class="phase-node integration feedback-loop">
+        Continuous Client<br />Feedback Loop
+      </div>
+
+      <!-- PHASE 2: Parallel Design & Development -->
+      <div class="phase-node design phase2-design">
+        Parallel Design<br />& Prototyping
+      </div>
+
+      <div class="phase-node development phase2-dev">
+        Parallel Backend<br />Development
+      </div>
+
+      <!-- PHASE 3: Construction & Unit Testing -->
+      <div class="phase-node development phase3-construction">
+        Construction &<br />Integration
+      </div>
+
+      <div class="phase-node qa phase3-unit">
+        Unit Testing &<br />Code Review
+      </div>
+
+      <!-- PHASE 4: Deployment & Business Assessment -->
+      <div class="phase-node development phase4-deploy">
+        Soft Launch &<br />Deployment
+      </div>
+
+      <div class="phase-node business phase4-assess">
+        Business<br />Assessment
+      </div>
+
+      <!-- PHASE 5: Rolling QA (Continuous) -->
+      <div class="phase-node qa phase5-qa">Rolling Quality<br />Assurance</div>
+
+      <!-- PHASE 6: Final Deployment & Closure -->
+      <div class="phase-node integration phase6-final">
+        Final Deployment<br />& Closure
+      </div>
+
+      <!-- Change Control (Throughout Process) -->
+      <div class="phase-node business change-control">
+        Change Control<br />& Logging
+      </div>
+
+      <!-- Clean Connection Arrows -->
+      <div class="arrow arrow-h1"></div>
+      <div class="arrow arrow-h2"></div>
+      <div class="arrow arrow-h3"></div>
+      <div class="arrow arrow-h4"></div>
+      <div class="arrow arrow-v1"></div>
+      <div class="arrow arrow-v2"></div>
+      <div class="arrow arrow-v3"></div>
+      <div class="arrow arrow-v4"></div>
+
+      <!-- Key Features Box -->
+      <div class="key-features">
+        <h4>🔑 Key Differentiators</h4>
+        <ul>
+          <li>⚡ Parallel Design-Development</li>
+          <li>🔄 Continuous Client Feedback</li>
+          <li>🧪 Rolling QA Throughout</li>
+          <li>📋 Real-time Change Control</li>
+          <li>🛡️ Built-in Scope Protection</li>
+          <li>👥 Modular Team Structure</li>
+          <li>🚀 Faster Delivery Timeline</li>
+        </ul>
+      </div>
+
+      <!-- Legend -->
+      <div class="legend">
+        <div class="legend-item">
+          <div class="legend-color business"></div>
+          <span
+            ><strong>Business Team:</strong> Requirements, client communication,
+            scope management, change control</span
+          >
+        </div>
+        <div class="legend-item">
+          <div class="legend-color design"></div>
+          <span
+            ><strong>Design Team:</strong> UI/UX design, prototyping, visual
+            elements (works in parallel)</span
+          >
+        </div>
+        <div class="legend-item">
+          <div class="legend-color development"></div>
+          <span
+            ><strong>Development Team:</strong> Backend logic, coding,
+            construction, deployment processes</span
+          >
+        </div>
+        <div class="legend-item">
+          <div class="legend-color qa"></div>
+          <span
+            ><strong>QA Team:</strong> Rolling quality assurance, unit testing,
+            continuous quality checks</span
+          >
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

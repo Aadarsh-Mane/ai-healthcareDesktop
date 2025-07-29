@@ -2621,7 +2621,7 @@ class _PatientDetailsScreenState extends ConsumerState<PatientDetailsScreen>
                           ],
                         ),
 
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 8),
 
                         // Discharge Summary Section - Always visible at top if available
                         if (record.hasDischargeSummary) ...[
@@ -3085,7 +3085,7 @@ class _PatientDetailsScreenState extends ConsumerState<PatientDetailsScreen>
         widget.patient.lastRecord.doctor?.name?.capitalizeFirst() ?? 'Unknown';
 
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(16), // Reduced from 24
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [
@@ -3095,12 +3095,12 @@ class _PatientDetailsScreenState extends ConsumerState<PatientDetailsScreen>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16), // Reduced from 20
         boxShadow: [
           BoxShadow(
-            color: HospitalTheme.primary.withOpacity(0.4),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+            color: HospitalTheme.primary.withOpacity(0.3), // Reduced opacity
+            blurRadius: 12, // Reduced from 20
+            offset: const Offset(0, 6), // Reduced from 10
           ),
         ],
       ),
@@ -3109,8 +3109,8 @@ class _PatientDetailsScreenState extends ConsumerState<PatientDetailsScreen>
           Row(
             children: [
               Container(
-                width: 80,
-                height: 80,
+                width: 60, // Reduced from 80
+                height: 60, // Reduced from 80
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     colors: [Color(0xFFFFE082), Color(0xFFFFB74D)],
@@ -3121,18 +3121,18 @@ class _PatientDetailsScreenState extends ConsumerState<PatientDetailsScreen>
                   boxShadow: [
                     BoxShadow(
                       color: Colors.orange.withOpacity(0.3),
-                      blurRadius: 15,
-                      offset: const Offset(0, 5),
+                      blurRadius: 10, // Reduced from 15
+                      offset: const Offset(0, 3), // Reduced from 5
                     ),
                   ],
                 ),
                 child: const Icon(
                   Icons.person_rounded,
-                  size: 40,
+                  size: 30, // Reduced from 40
                   color: Colors.white,
                 ),
               ),
-              const SizedBox(width: 20),
+              const SizedBox(width: 16), // Reduced from 20
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -3140,18 +3140,19 @@ class _PatientDetailsScreenState extends ConsumerState<PatientDetailsScreen>
                     Text(
                       widget.patient.name,
                       style: GoogleFonts.poppins(
-                        fontSize: 26,
+                        fontSize: 20, // Reduced from 26
                         color: Colors.black,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6), // Reduced from 8
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
+                          horizontal: 10, vertical: 4), // Reduced padding
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius:
+                            BorderRadius.circular(16), // Reduced from 20
                         border:
                             Border.all(color: Colors.white.withOpacity(0.3)),
                       ),
@@ -3161,13 +3162,13 @@ class _PatientDetailsScreenState extends ConsumerState<PatientDetailsScreen>
                           Icon(
                             Icons.badge_rounded,
                             color: Colors.black,
-                            size: 16,
+                            size: 14, // Reduced from 16
                           ),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 4), // Reduced from 6
                           Text(
                             'ID: ${widget.patient.patientId}',
                             style: GoogleFonts.poppins(
-                              fontSize: 14,
+                              fontSize: 12, // Reduced from 14
                               color: Colors.black,
                               fontWeight: FontWeight.w600,
                             ),
@@ -3180,25 +3181,25 @@ class _PatientDetailsScreenState extends ConsumerState<PatientDetailsScreen>
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12), // Reduced from 20
           Row(
             children: [
               Expanded(
                 child: Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(12), // Reduced from 16
                   decoration: BoxDecoration(
                     gradient: isInternalPatient
                         ? const LinearGradient(
                             colors: [Color(0xFF2196F3), Color(0xFF64B5F6)])
                         : const LinearGradient(
                             colors: [Color(0xFF9C27B0), Color(0xFFBA68C8)]),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(12), // Reduced from 16
                     boxShadow: [
                       BoxShadow(
                         color: (isInternalPatient ? Colors.blue : Colors.purple)
                             .withOpacity(0.3),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
+                        blurRadius: 8, // Reduced from 10
+                        offset: const Offset(0, 3), // Reduced from 4
                       ),
                     ],
                   ),
@@ -3209,42 +3210,42 @@ class _PatientDetailsScreenState extends ConsumerState<PatientDetailsScreen>
                             ? Icons.home_rounded
                             : Icons.person_outline_rounded,
                         color: Colors.white,
-                        size: 24,
+                        size: 20, // Reduced from 24
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6), // Reduced from 8
                       Text(
                         isInternalPatient ? 'Internal' : 'External',
                         style: GoogleFonts.poppins(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
-                          fontSize: 14,
+                          fontSize: 12, // Reduced from 14
                         ),
                       ),
                       Text(
                         'Patient',
                         style: GoogleFonts.poppins(
                           color: Colors.white.withOpacity(0.9),
-                          fontSize: 12,
+                          fontSize: 10, // Reduced from 12
                         ),
                       ),
                     ],
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12), // Reduced from 16
               Expanded(
                 child: Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(12), // Reduced from 16
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       colors: [Color(0xFFFF5722), Color(0xFFFF8A65)],
                     ),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(12), // Reduced from 16
                     boxShadow: [
                       BoxShadow(
                         color: Colors.deepOrange.withOpacity(0.3),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
+                        blurRadius: 8, // Reduced from 10
+                        offset: const Offset(0, 3), // Reduced from 4
                       ),
                     ],
                   ),
@@ -3253,22 +3254,22 @@ class _PatientDetailsScreenState extends ConsumerState<PatientDetailsScreen>
                       Icon(
                         Icons.medical_services_rounded,
                         color: Colors.white,
-                        size: 24,
+                        size: 20, // Reduced from 24
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6), // Reduced from 8
                       Text(
                         'Doctor',
                         style: GoogleFonts.poppins(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
-                          fontSize: 14,
+                          fontSize: 12, // Reduced from 14
                         ),
                       ),
                       Text(
                         doctorType,
                         style: GoogleFonts.poppins(
                           color: Colors.white.withOpacity(0.9),
-                          fontSize: 12,
+                          fontSize: 10, // Reduced from 12
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -3520,7 +3521,7 @@ class _PatientDetailsScreenState extends ConsumerState<PatientDetailsScreen>
 
   Widget _buildMedicalInfoCard(record) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16), // Reduced from 20
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Colors.white, Color(0xFFFAFBFF)],
@@ -3540,19 +3541,20 @@ class _PatientDetailsScreenState extends ConsumerState<PatientDetailsScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Compact Header
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(8), // Reduced from 12
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     colors: [HospitalTheme.laboratory, HospitalTheme.emergency],
                   ),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10), // Reduced from 12
                   boxShadow: [
                     BoxShadow(
                       color: HospitalTheme.laboratory.withOpacity(0.3),
-                      blurRadius: 8,
+                      blurRadius: 6, // Reduced from 8
                       offset: const Offset(0, 2),
                     ),
                   ],
@@ -3560,48 +3562,105 @@ class _PatientDetailsScreenState extends ConsumerState<PatientDetailsScreen>
                 child: const Icon(
                   Icons.monitor_heart_rounded,
                   color: Colors.white,
-                  size: 24,
+                  size: 20, // Reduced from 24
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12), // Reduced from 16
               Text(
                 'Medical Overview',
                 style: GoogleFonts.poppins(
-                  fontSize: 18,
+                  fontSize: 16, // Reduced from 18
                   fontWeight: FontWeight.bold,
                   color: HospitalTheme.textDark,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12), // Reduced from 20
+
+          // Compact stats in single row
           Row(
             children: [
               Expanded(
-                child: _buildMedicalStat(
+                child: _buildCompactMedicalStat(
                   'Weight',
                   '${record.weight} kg',
                   Icons.line_weight_rounded,
                   HospitalTheme.info,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8), // Reduced from 12
               Expanded(
-                child: _buildMedicalStat(
-                  'Previous Balance',
+                child: _buildCompactMedicalStat(
+                  'Balance',
                   '₹${record.previousRemainingAmount}',
                   Icons.account_balance_wallet_rounded,
                   HospitalTheme.warning,
                 ),
               ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildCompactMedicalStat(
+                  'Due',
+                  '₹${record.amountToBePayed}',
+                  Icons.payment_rounded,
+                  HospitalTheme.error,
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 12),
-          _buildMedicalStat(
-            'Amount Due',
-            '₹${record.amountToBePayed}',
-            Icons.payment_rounded,
-            HospitalTheme.error,
+        ],
+      ),
+    );
+  }
+
+// New compact version of medical stat
+  Widget _buildCompactMedicalStat(
+      String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12), // Reduced from 16
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            color.withOpacity(0.08),
+            color.withOpacity(0.03),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(10), // Reduced from 12
+        border: Border.all(color: color.withOpacity(0.15)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center, // Changed to center
+        children: [
+          Container(
+            padding: const EdgeInsets.all(4), // Reduced from 6
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(icon, color: Colors.white, size: 14), // Reduced from 16
+          ),
+          const SizedBox(height: 6), // Reduced from 8
+          Text(
+            label,
+            style: GoogleFonts.poppins(
+              fontSize: 11, // Reduced from 13
+              color: HospitalTheme.textMedium,
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 2), // Reduced from 8
+          Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 14, // Reduced from 18
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -3664,7 +3723,7 @@ class _PatientDetailsScreenState extends ConsumerState<PatientDetailsScreen>
 
   Widget _buildDischargeSection() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16), // Reduced from 20
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Colors.white, Color(0xFFFAFBFF)],
@@ -3684,10 +3743,11 @@ class _PatientDetailsScreenState extends ConsumerState<PatientDetailsScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Compact Header
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(8), // Reduced from 12
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: _isDischargedByReception
@@ -3697,14 +3757,14 @@ class _PatientDetailsScreenState extends ConsumerState<PatientDetailsScreen>
                           ]
                         : [HospitalTheme.secondary, HospitalTheme.accent],
                   ),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10), // Reduced from 12
                   boxShadow: [
                     BoxShadow(
                       color: (_isDischargedByReception
                               ? HospitalTheme.success
                               : HospitalTheme.secondary)
                           .withOpacity(0.3),
-                      blurRadius: 8,
+                      blurRadius: 6, // Reduced from 8
                       offset: const Offset(0, 2),
                     ),
                   ],
@@ -3714,23 +3774,25 @@ class _PatientDetailsScreenState extends ConsumerState<PatientDetailsScreen>
                       ? Icons.check_circle_rounded
                       : Icons.exit_to_app_rounded,
                   color: Colors.white,
-                  size: 24,
+                  size: 20, // Reduced from 24
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12), // Reduced from 16
               Text(
                 'Discharge Control',
                 style: GoogleFonts.poppins(
-                  fontSize: 18,
+                  fontSize: 16, // Reduced from 18
                   fontWeight: FontWeight.bold,
                   color: HospitalTheme.textDark,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12), // Reduced from 20
+
+          // Compact Content Container
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12), // Reduced from 16
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: _isDischargedByReception
@@ -3754,37 +3816,51 @@ class _PatientDetailsScreenState extends ConsumerState<PatientDetailsScreen>
             ),
             child: Column(
               children: [
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(
-                    'Mark as Discharged',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: HospitalTheme.textDark,
+                // Compact Switch Tile
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Mark as Discharged',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14, // Reduced from 16
+                              fontWeight: FontWeight.w600,
+                              color: HospitalTheme.textDark,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Confirm patient discharge status',
+                            style: GoogleFonts.poppins(
+                              fontSize: 11, // Reduced from 13
+                              color: HospitalTheme.textMedium,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  subtitle: Text(
-                    'Confirm patient discharge status',
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      color: HospitalTheme.textMedium,
+                    Switch(
+                      activeColor: HospitalTheme.success,
+                      activeTrackColor: HospitalTheme.success.withOpacity(0.3),
+                      inactiveThumbColor: HospitalTheme.textLight,
+                      inactiveTrackColor: HospitalTheme.border,
+                      value: _isDischargedByReception,
+                      onChanged: (value) {
+                        HapticFeedback.lightImpact();
+                        _toggleDischargeByReception(value);
+                      },
                     ),
-                  ),
-                  activeColor: HospitalTheme.success,
-                  activeTrackColor: HospitalTheme.success.withOpacity(0.3),
-                  inactiveThumbColor: HospitalTheme.textLight,
-                  inactiveTrackColor: HospitalTheme.border,
-                  value: _isDischargedByReception,
-                  onChanged: (value) {
-                    HapticFeedback.lightImpact();
-                    _toggleDischargeByReception(value);
-                  },
+                  ],
                 ),
+
+                // Compact Success Message
                 if (_isDischargedByReception) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8), // Reduced from 16
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(8), // Reduced from 12
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
@@ -3792,7 +3868,7 @@ class _PatientDetailsScreenState extends ConsumerState<PatientDetailsScreen>
                           HospitalTheme.success.withOpacity(0.05),
                         ],
                       ),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(6), // Reduced from 8
                       border: Border.all(
                         color: HospitalTheme.success.withOpacity(0.2),
                       ),
@@ -3800,25 +3876,26 @@ class _PatientDetailsScreenState extends ConsumerState<PatientDetailsScreen>
                     child: Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(6),
+                          padding: const EdgeInsets.all(4), // Reduced from 6
                           decoration: BoxDecoration(
                             color: HospitalTheme.success,
-                            borderRadius: BorderRadius.circular(6),
+                            borderRadius:
+                                BorderRadius.circular(4), // Reduced from 6
                           ),
                           child: const Icon(
                             Icons.check_circle_rounded,
                             color: Colors.white,
-                            size: 16,
+                            size: 14, // Reduced from 16
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 8), // Reduced from 12
                         Expanded(
                           child: Text(
-                            'Patient has been marked as discharged',
+                            'Patient marked as discharged',
                             style: GoogleFonts.poppins(
                               color: HospitalTheme.success,
                               fontWeight: FontWeight.w600,
-                              fontSize: 14,
+                              fontSize: 12, // Reduced from 14
                             ),
                           ),
                         ),
@@ -3876,21 +3953,21 @@ class _PatientDetailsScreenState extends ConsumerState<PatientDetailsScreen>
                 child: const Icon(
                   Icons.dashboard_customize_rounded,
                   color: Colors.white,
-                  size: 24,
+                  size: 12,
                 ),
               ),
               const SizedBox(width: 16),
               Text(
                 'Quick Actions',
                 style: GoogleFonts.poppins(
-                  fontSize: 18,
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: HospitalTheme.textDark,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 3),
           GridView.count(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),

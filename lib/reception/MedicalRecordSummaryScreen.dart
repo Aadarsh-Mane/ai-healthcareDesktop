@@ -197,6 +197,13 @@ class ReportType {
       icon: Icons.favorite,
       color: HospitalTheme.emergency,
     ),
+    ReportType(
+      key: 'surgical',
+      displayName: 'Surgical Notes Report',
+      description: 'Surgical procedures and operative notes',
+      icon: Icons.healing,
+      color: HospitalTheme.secondary,
+    ),
     // ReportType(
     //   key: 'lab',
     //   displayName: 'Laboratory Report',
@@ -520,7 +527,7 @@ class _MedicalRecordSummaryScreenState
           const SizedBox(height: 16),
           // Make report types scrollable
           SizedBox(
-            height: 400, // Fixed height for the scrollable area
+            height: 450, // Increased height to accommodate surgical report
             child: _buildReportTypeGrid(state.selectedReportTypes),
           ),
           const SizedBox(height: 16),
