@@ -31,13 +31,15 @@ class PatientInfo {
 
   factory PatientInfo.fromJson(Map<String, dynamic> json) {
     return PatientInfo(
-      patientId: json['patientId'] ?? '',
-      name: json['name'] ?? '',
-      age: json['age'] ?? 0,
-      gender: json['gender'] ?? '',
-      contact: json['contact'] ?? '',
-      address: json['address'] ?? '',
-      imageUrl: json['imageUrl']?.isEmpty == true ? null : json['imageUrl'],
+      patientId: json['patientId']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      age: int.tryParse(json['age']?.toString() ?? '0') ?? 0,
+      gender: json['gender']?.toString() ?? '',
+      contact: json['contact']?.toString() ?? '',
+      address: json['address']?.toString() ?? '',
+      imageUrl: json['imageUrl']?.toString().isEmpty == true
+          ? null
+          : json['imageUrl']?.toString(),
     );
   }
 }
@@ -64,19 +66,41 @@ class AdmissionInfo {
   });
 
   factory AdmissionInfo.fromJson(Map<String, dynamic> json) {
-    return AdmissionInfo(
-      opdNumber: json['opdNumber'] ?? 0,
-      admissionDate: DateTime.parse(json['admissionDate']),
-      dischargeDate: json['dischargeDate'] != null
-          ? DateTime.parse(json['dischargeDate'])
-          : null,
-      doctor: json['doctor'] ?? '',
-      status: json['status'] ?? '',
-      conditionAtDischarge: json['conditionAtDischarge'] ?? '',
-      lengthOfStay: json['lengthOfStay'] ?? 0,
-      summaryStats:
-          Map<String, int>.from(json['summaryStats']?['summaryStats'] ?? {}),
-    );
+    try {
+      return AdmissionInfo(
+        opdNumber: int.tryParse(json['opdNumber']?.toString() ?? '0') ?? 0,
+        admissionDate:
+            DateTime.tryParse(json['admissionDate']?.toString() ?? '') ??
+                DateTime.now(),
+        dischargeDate: json['dischargeDate'] != null &&
+                json['dischargeDate'].toString().isNotEmpty
+            ? DateTime.tryParse(json['dischargeDate'].toString())
+            : null,
+        doctor: json['doctor']?.toString() ?? '',
+        status: json['status']?.toString() ?? '',
+        conditionAtDischarge: json['conditionAtDischarge']?.toString() ?? '',
+        lengthOfStay:
+            int.tryParse(json['lengthOfStay']?.toString() ?? '0') ?? 0,
+        summaryStats: Map<String, int>.from(
+          (json['summaryStats'] as Map<String, dynamic>?)?.map(
+                (key, value) =>
+                    MapEntry(key, int.tryParse(value?.toString() ?? '0') ?? 0),
+              ) ??
+              {},
+        ),
+      );
+    } catch (e) {
+      return AdmissionInfo(
+        opdNumber: 0,
+        admissionDate: DateTime.now(),
+        dischargeDate: null,
+        doctor: '',
+        status: '',
+        conditionAtDischarge: '',
+        lengthOfStay: 0,
+        summaryStats: {},
+      );
+    }
   }
 }
 
@@ -97,11 +121,12 @@ class GeneratedPdf {
 
   factory GeneratedPdf.fromJson(Map<String, dynamic> json) {
     return GeneratedPdf(
-      reportType: json['reportType'] ?? '',
-      reportName: json['reportName'] ?? '',
-      fileName: json['fileName'] ?? '',
-      driveLink: json['driveLink'] ?? '',
-      generatedAt: DateTime.parse(json['generatedAt']),
+      reportType: json['reportType']?.toString() ?? '',
+      reportName: json['reportName']?.toString() ?? '',
+      fileName: json['fileName']?.toString() ?? '',
+      driveLink: json['driveLink']?.toString() ?? '',
+      generatedAt: DateTime.tryParse(json['generatedAt']?.toString() ?? '') ??
+          DateTime.now(),
     );
   }
 }
@@ -129,17 +154,22 @@ class MedicalRecordResponse {
 
   factory MedicalRecordResponse.fromJson(Map<String, dynamic> json) {
     return MedicalRecordResponse(
-      success: json['success'] ?? false,
-      message: json['message'] ?? '',
-      patientInfo: PatientInfo.fromJson(json['patientInfo'] ?? {}),
-      latestAdmission: AdmissionInfo.fromJson(json['latestAdmission'] ?? {}),
-      totalAdmissions: json['totalAdmissions'] ?? 0,
+      success: json['success'] == true,
+      message: json['message']?.toString() ?? '',
+      patientInfo: PatientInfo.fromJson(
+          json['patientInfo'] as Map<String, dynamic>? ?? {}),
+      latestAdmission: AdmissionInfo.fromJson(
+          json['latestAdmission'] as Map<String, dynamic>? ?? {}),
+      totalAdmissions:
+          int.tryParse(json['totalAdmissions']?.toString() ?? '0') ?? 0,
       generatedPDFs: (json['generatedPDFs'] as List<dynamic>?)
-              ?.map((pdf) => GeneratedPdf.fromJson(pdf))
+              ?.map((pdf) => GeneratedPdf.fromJson(pdf as Map<String, dynamic>))
               .toList() ??
           [],
-      totalGenerated: json['totalGenerated'] ?? 0,
-      totalRequested: json['totalRequested'] ?? 0,
+      totalGenerated:
+          int.tryParse(json['totalGenerated']?.toString() ?? '0') ?? 0,
+      totalRequested:
+          int.tryParse(json['totalRequested']?.toString() ?? '0') ?? 0,
     );
   }
 }
@@ -204,27 +234,27 @@ class ReportType {
       icon: Icons.healing,
       color: HospitalTheme.secondary,
     ),
-    // ReportType(
-    //   key: 'lab',
-    //   displayName: 'Laboratory Report',
-    //   description: 'Lab test results and analysis',
-    //   icon: Icons.science,
-    //   color: HospitalTheme.laboratory,
-    // ),
-    // ReportType(
-    //   key: 'procedures',
-    //   displayName: 'Procedures Report',
-    //   description: 'Medical procedures and interventions',
-    //   icon: Icons.healing,
-    //   color: HospitalTheme.secondary,
-    // ),
-    // ReportType(
-    //   key: 'discharge',
-    //   displayName: 'Discharge Summary',
-    //   description: 'Complete discharge summary and instructions',
-    //   icon: Icons.exit_to_app,
-    //   color: HospitalTheme.success,
-    // ),
+    ReportType(
+      key: 'followUp2Hr',
+      displayName: '2-Hour Follow-up',
+      description: 'Follow-up assessment after 2 hours',
+      icon: Icons.access_time,
+      color: Color(0xFF8E24AA),
+    ),
+    ReportType(
+      key: 'followUp4Hr',
+      displayName: '4-Hour Follow-up',
+      description: 'Follow-up assessment after 4 hours',
+      icon: Icons.schedule,
+      color: Color(0xFFE65100),
+    ),
+    ReportType(
+      key: 'followUpCombined',
+      displayName: 'Combined Follow-up',
+      description: 'Comprehensive combined follow-up report',
+      icon: Icons.timeline,
+      color: Color(0xFF6A1B9A),
+    ),
   ];
 }
 
@@ -292,11 +322,16 @@ class MedicalRecordNotifier extends StateNotifier<MedicalRecordState> {
     state = state.copyWith(error: null);
   }
 
+  void clearResponse() {
+    state = state.copyWith(response: null);
+  }
+
   Future<void> generateReports() async {
-    if (state.selectedReportTypes.isEmpty || state.currentPatientId == null) {
+    if (state.selectedReportTypes.isEmpty ||
+        state.currentPatientId?.isEmpty == true) {
       state = state.copyWith(
           error:
-              'Please select at least one report type and ensure patient ID is set');
+              'Please select at least one report type and enter a valid patient ID');
       return;
     }
 
@@ -313,7 +348,7 @@ class MedicalRecordNotifier extends StateNotifier<MedicalRecordState> {
       );
 
       if (response.statusCode == 200) {
-        final responseData = json.decode(response.body);
+        final responseData = json.decode(response.body) as Map<String, dynamic>;
         final medicalResponse = MedicalRecordResponse.fromJson(responseData);
 
         state = state.copyWith(
@@ -322,15 +357,31 @@ class MedicalRecordNotifier extends StateNotifier<MedicalRecordState> {
           error: medicalResponse.success ? null : medicalResponse.message,
         );
       } else {
+        final errorMessage = response.statusCode == 404
+            ? 'Patient not found. Please check the Patient ID.'
+            : response.statusCode == 500
+                ? 'Server error. Please try again later.'
+                : 'Failed to generate reports. Please check your connection.';
+
         state = state.copyWith(
           isGenerating: false,
-          error: 'Failed to generate reports. Status: ${response.statusCode}',
+          error: errorMessage,
         );
       }
     } catch (e) {
+      String errorMessage =
+          'Network error. Please check your internet connection.';
+
+      if (e.toString().contains('SocketException')) {
+        errorMessage =
+            'Unable to connect to server. Please check your network.';
+      } else if (e.toString().contains('TimeoutException')) {
+        errorMessage = 'Request timed out. Please try again.';
+      }
+
       state = state.copyWith(
         isGenerating: false,
-        error: 'Error generating reports: ${e.toString()}',
+        error: errorMessage,
       );
     }
   }
@@ -357,15 +408,35 @@ class MedicalRecordSummaryScreen extends ConsumerStatefulWidget {
 }
 
 class _MedicalRecordSummaryScreenState
-    extends ConsumerState<MedicalRecordSummaryScreen> {
+    extends ConsumerState<MedicalRecordSummaryScreen>
+    with TickerProviderStateMixin {
   final TextEditingController _patientIdController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ScrollController _controlScrollController = ScrollController();
 
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+
   @override
   void initState() {
     super.initState();
-    if (widget.initialPatientId != null) {
+
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    ));
+
+    _animationController.forward();
+
+    if (widget.initialPatientId?.isNotEmpty == true) {
       _patientIdController.text = widget.initialPatientId!;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ref
@@ -377,6 +448,7 @@ class _MedicalRecordSummaryScreenState
 
   @override
   void dispose() {
+    _animationController.dispose();
     _patientIdController.dispose();
     _scrollController.dispose();
     _controlScrollController.dispose();
@@ -391,26 +463,85 @@ class _MedicalRecordSummaryScreenState
     return PdfViewerWidget(
       primaryColor: HospitalTheme.primary,
       appBarTitle: 'Medical Records',
-      child: Scaffold(
-        appBar: HospitalTheme.buildAppBar(
-          context: context,
-          title: 'Medical Record Summary',
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: _handleRefresh,
-              tooltip: 'Refresh',
+      child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.escape): () {
+            Navigator.of(context).pop();
+          },
+          const SingleActivator(LogicalKeyboardKey.keyG, control: true):
+              _handleGenerateReports,
+          const SingleActivator(LogicalKeyboardKey.keyR, control: true):
+              _handleRefresh,
+        },
+        child: Focus(
+          autofocus: true,
+          child: Scaffold(
+            backgroundColor: const Color(0xFFF0F4F8),
+            appBar: _buildAppBar(),
+            body: SafeArea(
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: _buildBody(isWideScreen),
+              ),
             ),
-            IconButton(
-              icon: const Icon(Icons.help_outline),
-              onPressed: _showHelpDialog,
-              tooltip: 'Help',
-            ),
-          ],
+            floatingActionButton: _buildFloatingActionButton(),
+          ),
         ),
-        body: _buildBody(isWideScreen),
-        floatingActionButton: _buildFloatingActionButton(),
       ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      elevation: 0,
+      flexibleSpace: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+      ),
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+        onPressed: () {
+          HapticFeedback.lightImpact();
+          Navigator.pop(context);
+        },
+      ),
+      title: const Text(
+        'Medical Record Summary',
+        style: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+        ),
+      ),
+      centerTitle: true,
+      actions: [
+        Tooltip(
+          message: 'Refresh (Ctrl+R)',
+          child: IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: () {
+              HapticFeedback.lightImpact();
+              _handleRefresh();
+            },
+          ),
+        ),
+        Tooltip(
+          message: 'Help',
+          child: IconButton(
+            icon: const Icon(Icons.help_outline, color: Colors.white),
+            onPressed: () {
+              HapticFeedback.lightImpact();
+              _showHelpDialog();
+            },
+          ),
+        ),
+        const SizedBox(width: 16),
+      ],
     );
   }
 
@@ -418,17 +549,14 @@ class _MedicalRecordSummaryScreenState
     if (isWideScreen) {
       return Row(
         children: [
-          // Left Panel - Controls
           Expanded(
             flex: 2,
             child: _buildControlPanel(),
           ),
-          // Divider
           Container(
             width: 1,
             color: HospitalTheme.border,
           ),
-          // Right Panel - Results
           Expanded(
             flex: 3,
             child: _buildResultsPanel(),
@@ -462,7 +590,7 @@ class _MedicalRecordSummaryScreenState
             _buildReportTypeSelection(),
             const SizedBox(height: 24),
             _buildActionButtons(),
-            const SizedBox(height: 100), // Extra space at bottom for FAB
+            const SizedBox(height: 100),
           ],
         ),
       ),
@@ -470,18 +598,91 @@ class _MedicalRecordSummaryScreenState
   }
 
   Widget _buildPatientIdSection() {
-    return HospitalTheme.buildCard(
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [HospitalTheme.surfaceLight, HospitalTheme.cardBackground],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: HospitalTheme.primary.withOpacity(0.4),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          HospitalTheme.buildSectionHeader('Patient Information'),
+          Row(
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF4CAF50), Color(0xFF81C784)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.green.withOpacity(0.3),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.folder_special_rounded,
+                  size: 40,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 20),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Medical Records',
+                      style: TextStyle(
+                        fontSize: 26,
+                        color: Colors.black,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Generate comprehensive patient reports',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: HospitalTheme.textMedium,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
           TextFormField(
             controller: _patientIdController,
             decoration: const InputDecoration(
               labelText: 'Patient ID',
               hintText: 'Enter patient ID (e.g., SID427)',
               prefixIcon: Icon(Icons.person),
+              floatingLabelStyle: TextStyle(
+                color: Colors.teal,
+                fontWeight: FontWeight.w600,
+              ),
             ),
+            cursorColor: Colors.teal,
             onChanged: (value) {
               ref
                   .read(medicalRecordProvider.notifier)
@@ -525,9 +726,8 @@ class _MedicalRecordSummaryScreenState
             ),
           ),
           const SizedBox(height: 16),
-          // Make report types scrollable
           SizedBox(
-            height: 450, // Increased height to accommodate surgical report
+            height: 500,
             child: _buildReportTypeGrid(state.selectedReportTypes),
           ),
           const SizedBox(height: 16),
@@ -632,6 +832,8 @@ class _MedicalRecordSummaryScreenState
                 : 'Generate Reports'),
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
+              backgroundColor: HospitalTheme.primary,
+              foregroundColor: Colors.white,
             ),
           ),
         ),
@@ -680,6 +882,8 @@ class _MedicalRecordSummaryScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _buildGeneratedReportsSuccessCard(state.response!),
+            const SizedBox(height: 24),
             _buildPatientInfoCard(state.response!.patientInfo),
             const SizedBox(height: 24),
             _buildAdmissionInfoCard(state.response!.latestAdmission),
@@ -724,63 +928,253 @@ class _MedicalRecordSummaryScreenState
     );
   }
 
-  Widget _buildPatientInfoCard(PatientInfo patient) {
-    return HospitalTheme.buildPatientInfoCard(
-      name: patient.name,
-      patientId: patient.patientId,
-      age: patient.age.toString(),
-      gender: patient.gender,
-      phoneNumber: patient.contact,
-      imageUrl: patient.imageUrl,
-    );
-  }
-
-  Widget _buildAdmissionInfoCard(AdmissionInfo admission) {
-    return HospitalTheme.buildCard(
+  Widget _buildGeneratedReportsSuccessCard(MedicalRecordResponse response) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [HospitalTheme.success, Color(0xFF4CAF50)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: HospitalTheme.success.withOpacity(0.4),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          HospitalTheme.buildSectionHeader('Latest Admission Details'),
-          _buildAdmissionDetails(admission),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(
+                  Icons.check_circle_rounded,
+                  color: Colors.white,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Reports Generated Successfully!',
+                      style: TextStyle(
+                        fontSize: 20,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${response.generatedPDFs.length} reports generated for ${response.patientInfo.name}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: response.generatedPDFs.isNotEmpty
+                      ? () => _downloadAllReports()
+                      : null,
+                  icon:
+                      const Icon(Icons.download, color: HospitalTheme.success),
+                  label: const Text(
+                    'Open All Reports',
+                    style: TextStyle(
+                      color: HospitalTheme.success,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => _generateNewReports(),
+                  icon: const Icon(Icons.refresh, color: Colors.white),
+                  label: const Text(
+                    'Generate New',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white.withOpacity(0.2),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildAdmissionDetails(AdmissionInfo admission) {
-    return Column(
-      children: [
-        _buildDetailRow('OPD Number', admission.opdNumber.toString()),
-        _buildDetailRow('Doctor', 'Dr. ${admission.doctor}'),
-        _buildDetailRow('Admission Date', _formatDate(admission.admissionDate)),
-        if (admission.dischargeDate != null)
+  Widget _buildPatientInfoCard(PatientInfo patient) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            HospitalTheme.primary.withOpacity(0.05),
+            HospitalTheme.primary.withOpacity(0.02),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: HospitalTheme.primary.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      HospitalTheme.primary,
+                      HospitalTheme.primary.withOpacity(0.7)
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.person,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              const Text(
+                'Patient Information',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: HospitalTheme.textDark,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
           _buildDetailRow(
-              'Discharge Date', _formatDate(admission.dischargeDate!)),
-        _buildDetailRow('Length of Stay', '${admission.lengthOfStay} days'),
-        _buildDetailRow('Status', admission.status),
-        _buildDetailRow(
-            'Condition at Discharge', admission.conditionAtDischarge),
-      ],
+              'Name', patient.name, Icons.person, HospitalTheme.primary),
+          _buildDetailRow(
+              'Patient ID', patient.patientId, Icons.badge, HospitalTheme.info),
+          _buildDetailRow(
+              'Age', '${patient.age} years', Icons.cake, HospitalTheme.warning),
+          _buildDetailRow(
+              'Gender', patient.gender, Icons.wc, HospitalTheme.secondary),
+          _buildDetailRow(
+              'Contact', patient.contact, Icons.phone, HospitalTheme.medical),
+          _buildDetailRow('Address', patient.address, Icons.location_on,
+              HospitalTheme.pharmacy),
+        ],
+      ),
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
+  Widget _buildAdmissionInfoCard(AdmissionInfo admission) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            HospitalTheme.info.withOpacity(0.05),
+            HospitalTheme.info.withOpacity(0.02),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: HospitalTheme.info.withOpacity(0.2)),
+      ),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 160,
-            child: Text(
-              '$label:',
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      HospitalTheme.info,
+                      HospitalTheme.info.withOpacity(0.7)
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.local_hospital,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              const Text(
+                'Latest Admission Details',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: HospitalTheme.textDark,
+                ),
+              ),
+            ],
           ),
-          Expanded(
-            child: Text(value,
-                style: const TextStyle(color: HospitalTheme.textMedium)),
-          ),
+          const SizedBox(height: 20),
+          _buildDetailRow('OPD Number', admission.opdNumber.toString(),
+              Icons.confirmation_number, HospitalTheme.secondary),
+          _buildDetailRow('Doctor', 'Dr. ${admission.doctor}', Icons.person_pin,
+              HospitalTheme.medical),
+          _buildDetailRow(
+              'Admission Date',
+              _formatDate(admission.admissionDate),
+              Icons.date_range,
+              HospitalTheme.success),
+          if (admission.dischargeDate != null)
+            _buildDetailRow(
+                'Discharge Date',
+                _formatDate(admission.dischargeDate!),
+                Icons.event_available,
+                HospitalTheme.info),
+          _buildDetailRow('Length of Stay', '${admission.lengthOfStay} days',
+              Icons.schedule, HospitalTheme.warning),
+          _buildDetailRow(
+              'Status', admission.status, Icons.info, HospitalTheme.primary),
+          _buildDetailRow(
+              'Condition at Discharge',
+              admission.conditionAtDischarge,
+              Icons.health_and_safety,
+              HospitalTheme.emergency),
         ],
       ),
     );
@@ -797,7 +1191,7 @@ class _MedicalRecordSummaryScreenState
                 ? TextButton.icon(
                     onPressed: _downloadAllReports,
                     icon: const Icon(Icons.download, size: 16),
-                    label: const Text('Download All'),
+                    label: const Text('Open All'),
                   )
                 : null,
           ),
@@ -842,22 +1236,35 @@ class _MedicalRecordSummaryScreenState
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        border: Border.all(color: HospitalTheme.border),
-        borderRadius: HospitalTheme.radiusSmall,
+        gradient: LinearGradient(
+          colors: [
+            reportType.color.withOpacity(0.05),
+            reportType.color.withOpacity(0.02),
+          ],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: reportType.color.withOpacity(0.2)),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.all(16),
         leading: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: reportType.color.withOpacity(0.1),
-            borderRadius: HospitalTheme.radiusSmall,
+            gradient: LinearGradient(
+              colors: [reportType.color, reportType.color.withOpacity(0.7)],
+            ),
+            borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(reportType.icon, color: reportType.color, size: 24),
+          child: Icon(reportType.icon, color: Colors.white, size: 24),
         ),
         title: Text(
           pdf.reportName,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: reportType.color,
+          ),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -867,13 +1274,15 @@ class _MedicalRecordSummaryScreenState
             const SizedBox(height: 8),
             Row(
               children: [
-                const Icon(Icons.access_time,
-                    size: 14, color: HospitalTheme.textLight),
+                Icon(Icons.access_time,
+                    size: 14, color: reportType.color.withOpacity(0.7)),
                 const SizedBox(width: 4),
                 Text(
                   'Generated: ${_formatDateTime(pdf.generatedAt)}',
-                  style: const TextStyle(
-                      fontSize: 12, color: HospitalTheme.textLight),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: reportType.color.withOpacity(0.7),
+                  ),
                 ),
               ],
             ),
@@ -882,20 +1291,26 @@ class _MedicalRecordSummaryScreenState
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            IconButton(
-              onPressed: () => _viewPdf(pdf),
-              icon: const Icon(Icons.visibility),
-              tooltip: 'View PDF',
+            Tooltip(
+              message: 'View PDF',
+              child: IconButton(
+                onPressed: () => _viewPdf(pdf),
+                icon: Icon(Icons.visibility, color: reportType.color),
+              ),
             ),
-            IconButton(
-              onPressed: () => _downloadPdf(pdf),
-              icon: const Icon(Icons.download),
-              tooltip: 'Download PDF',
+            Tooltip(
+              message: 'Download PDF',
+              child: IconButton(
+                onPressed: () => _downloadPdf(pdf),
+                icon: Icon(Icons.download, color: reportType.color),
+              ),
             ),
-            IconButton(
-              onPressed: () => _sharePdf(pdf),
-              icon: const Icon(Icons.share),
-              tooltip: 'Share PDF',
+            Tooltip(
+              message: 'Share PDF',
+              child: IconButton(
+                onPressed: () => _sharePdf(pdf),
+                icon: Icon(Icons.share, color: reportType.color),
+              ),
             ),
           ],
         ),
@@ -903,22 +1318,73 @@ class _MedicalRecordSummaryScreenState
     );
   }
 
-  Widget _buildFloatingActionButton() {
-    return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.keyG, control: true):
-            _handleGenerateReports,
-        const SingleActivator(LogicalKeyboardKey.keyR, control: true):
-            _handleRefresh,
-      },
-      child: Focus(
-        autofocus: true,
-        child: HospitalTheme.buildFloatingActionButton(
-          icon: Icons.picture_as_pdf,
-          onPressed: _handleGenerateReports,
-          tooltip: 'Generate Reports (Ctrl+G)',
+  Widget _buildDetailRow(
+      String label, String value, IconData icon, Color color) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            color.withOpacity(0.05),
+            color.withOpacity(0.02),
+          ],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
         ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.1)),
       ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [color, color.withOpacity(0.7)],
+              ),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              color: Colors.white,
+              size: 16,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                color: HospitalTheme.textMedium,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+              textAlign: TextAlign.end,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFloatingActionButton() {
+    return HospitalTheme.buildFloatingActionButton(
+      icon: Icons.picture_as_pdf,
+      onPressed: _handleGenerateReports,
+      tooltip: 'Generate Reports (Ctrl+G)',
     );
   }
 
@@ -930,43 +1396,91 @@ class _MedicalRecordSummaryScreenState
 
   void _handleRefresh() {
     ref.read(medicalRecordProvider.notifier).clearError();
+    ref.read(medicalRecordProvider.notifier).clearResponse();
     setState(() {
       // Trigger rebuild
     });
   }
 
-  void _viewPdf(GeneratedPdf pdf) {
-    ref.read(pdfViewerProvider.notifier).loadAndShowPdf(
-          pdf.driveLink,
-          title: pdf.reportName,
-        );
+  void _generateNewReports() {
+    ref.read(medicalRecordProvider.notifier).clearResponse();
+    ref.read(medicalRecordProvider.notifier).clearSelection();
+  }
+
+  void _viewPdf(GeneratedPdf pdf) async {
+    if (pdf.driveLink.isEmpty) {
+      _showMessage('PDF link is not available', isError: true);
+      return;
+    }
+
+    try {
+      // Use the PdfViewerProvider to load and show PDF
+      await ref.read(pdfViewerProvider.notifier).loadAndShowPdf(
+            pdf.driveLink,
+            title: pdf.reportName,
+          );
+
+      // Check if there was an error loading the PDF
+      final pdfState = ref.read(pdfViewerProvider);
+      if (pdfState.error != null) {
+        _showMessage('Failed to load PDF: ${pdfState.error}', isError: true);
+      }
+    } catch (e) {
+      _showMessage('Unable to open PDF viewer: ${e.toString()}', isError: true);
+    }
   }
 
   void _downloadPdf(GeneratedPdf pdf) {
-    Methods().openPdf(pdf.driveLink);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Opening ${pdf.reportName}...')),
-    );
+    if (pdf.driveLink.isEmpty) {
+      _showMessage('PDF link is not available', isError: true);
+      return;
+    }
+
+    try {
+      Methods().openPdf(pdf.driveLink);
+      _showMessage('Opening ${pdf.reportName}...');
+    } catch (e) {
+      _showMessage('Failed to open PDF: ${e.toString()}', isError: true);
+    }
   }
 
   void _sharePdf(GeneratedPdf pdf) {
-    Clipboard.setData(ClipboardData(text: pdf.driveLink));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('PDF link copied to clipboard')),
-    );
+    if (pdf.driveLink.isEmpty) {
+      _showMessage('PDF link is not available', isError: true);
+      return;
+    }
+
+    try {
+      Clipboard.setData(ClipboardData(text: pdf.driveLink));
+      _showMessage('PDF link copied to clipboard');
+    } catch (e) {
+      _showMessage('Failed to copy link to clipboard', isError: true);
+    }
   }
 
   void _downloadAllReports() {
     final state = ref.read(medicalRecordProvider);
-    if (state.response?.generatedPDFs.isNotEmpty == true) {
+    if (state.response?.generatedPDFs.isEmpty != false) {
+      _showMessage('No reports available to open', isError: true);
+      return;
+    }
+
+    try {
+      int openedCount = 0;
       for (final pdf in state.response!.generatedPDFs) {
-        Methods().openPdf(pdf.driveLink);
+        if (pdf.driveLink.isNotEmpty) {
+          Methods().openPdf(pdf.driveLink);
+          openedCount++;
+        }
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(
-                'Opening ${state.response!.generatedPDFs.length} reports...')),
-      );
+
+      if (openedCount > 0) {
+        _showMessage('Opening $openedCount report(s)...');
+      } else {
+        _showMessage('No valid PDF links found', isError: true);
+      }
+    } catch (e) {
+      _showMessage('Failed to open reports: ${e.toString()}', isError: true);
     }
   }
 
@@ -974,24 +1488,45 @@ class _MedicalRecordSummaryScreenState
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: HospitalTheme.radiusLarge,
+        ),
         title: const Text('Help - Medical Record Summary'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('1. Enter a valid Patient ID (e.g., SID427)'),
-            SizedBox(height: 8),
-            Text('2. Select one or more report types'),
-            SizedBox(height: 8),
-            Text('3. Click "Generate Reports" to create PDFs'),
-            SizedBox(height: 8),
-            Text('4. View, download, or share generated reports'),
-            SizedBox(height: 16),
-            Text('Keyboard Shortcuts:',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            Text('• Ctrl+G: Generate Reports'),
-            Text('• Ctrl+R: Refresh'),
-          ],
+        content: const SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('How to Generate Medical Reports:',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: 8),
+              Text('1. Enter a valid Patient ID (e.g., SID427)'),
+              Text('2. Select one or more report types from the grid'),
+              Text('3. Click "Generate Reports" to create PDFs'),
+              Text('4. View, download, or share generated reports'),
+              SizedBox(height: 16),
+              Text('Available Report Types:',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              Text('• Diagnosis: Medical findings and diagnoses'),
+              Text('• Symptoms: Patient complaints and symptoms'),
+              Text('• Consulting: Doctor consultation notes'),
+              Text('• Prescriptions: Prescribed medications'),
+              Text('• Vitals: Patient vital signs and measurements'),
+              Text('• Surgical: Surgical procedures and notes'),
+              Text('• Follow-up: Post-treatment assessments'),
+              SizedBox(height: 16),
+              Text('Keyboard Shortcuts:',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              Text('• Ctrl+G: Generate Reports'),
+              Text('• Ctrl+R: Refresh Screen'),
+              Text('• ESC: Close Screen'),
+              SizedBox(height: 16),
+              Text('Tips:', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text('• Use "Select All" to choose all report types'),
+              Text('• Generated reports open in the PDF viewer'),
+              Text('• Reports are automatically saved to Google Drive'),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -1003,10 +1538,34 @@ class _MedicalRecordSummaryScreenState
     );
   }
 
+  void _showMessage(String message, {bool isError = false}) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? HospitalTheme.error : HospitalTheme.success,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: HospitalTheme.radiusSmall,
+        ),
+        duration: Duration(seconds: isError ? 4 : 2),
+        action: isError
+            ? SnackBarAction(
+                label: 'OK',
+                textColor: Colors.white,
+                onPressed: () =>
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+              )
+            : null,
+      ),
+    );
+  }
+
   // ==================== UTILITY METHODS ====================
 
   String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 
   String _formatDateTime(DateTime dateTime) {

@@ -382,7 +382,7 @@ class _ActivePatientsScreenState extends ConsumerState<ActivePatientsScreen> {
           title: const Text('Active Patients'),
           actions: [
             IconButton(
-              icon: const Icon(Icons.refresh, color: Colors.white),
+              icon: const Icon(Icons.refresh, color: Colors.black),
               onPressed: _handleRefresh,
               tooltip: 'Refresh (F5)',
             ),

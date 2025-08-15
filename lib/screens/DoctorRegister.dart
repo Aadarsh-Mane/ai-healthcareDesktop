@@ -160,11 +160,16 @@ class _DoctorRegisterScreenState extends State<DoctorRegisterScreen> {
       password = '';
       confirmPassword = '';
       doctorName = '';
-      speciality = '';
+      speciality = null; // Reset to null instead of empty string
       experience = '';
-      department = '';
+      department = null; // Reset to null instead of empty string
       phoneNumber = '';
       doctorImage = null;
+      // Reset custom states
+      _isCustomSpecialty = false;
+      _isCustomDepartment = false;
+      _customSpecialty = '';
+      _customDepartment = '';
     });
   }
 
@@ -472,16 +477,21 @@ class _DoctorRegisterScreenState extends State<DoctorRegisterScreen> {
             ),
           ),
         ),
-        // Regular specialty dropdown
+        // Specialty dropdown with fixed value handling
         _buildDropdownField(
           label: 'Specialty',
           prefixIcon: Icons.medical_services,
-          value: _isCustomSpecialty ? 'Other' : speciality,
+          value: _isCustomSpecialty
+              ? 'Other'
+              : (_specialties.contains(speciality) ? speciality : null),
           items: _specialties,
           hint: 'Select Specialty',
           validator: (value) {
-            if ((value == null || value.isEmpty) && !_isCustomSpecialty) {
+            if (!_isCustomSpecialty && (value == null || value.isEmpty)) {
               return 'Please select a specialty';
+            }
+            if (_isCustomSpecialty && (_customSpecialty.isEmpty)) {
+              return 'Please enter custom specialty';
             }
             return null;
           },
@@ -490,19 +500,18 @@ class _DoctorRegisterScreenState extends State<DoctorRegisterScreen> {
               setState(() {
                 if (value == 'Other') {
                   _isCustomSpecialty = true;
-                  speciality = _customSpecialty;
+                  speciality =
+                      _customSpecialty.isNotEmpty ? _customSpecialty : '';
                 } else {
                   _isCustomSpecialty = false;
                   speciality = value;
+                  _customSpecialty =
+                      ''; // Clear custom value when selecting predefined
                 }
               });
             }
           },
         ),
-
-        // Department Dropdown
-
-        const SizedBox(height: 16),
 
         // Custom specialty field
         if (_isCustomSpecialty)
@@ -527,18 +536,23 @@ class _DoctorRegisterScreenState extends State<DoctorRegisterScreen> {
             ),
           ),
 
-        // Department dropdown
-
         const SizedBox(height: 16),
+
+        // Department dropdown with fixed value handling
         _buildDropdownField(
           label: 'Department',
           prefixIcon: Icons.business,
-          value: _isCustomDepartment ? 'Other' : department,
+          value: _isCustomDepartment
+              ? 'Other'
+              : (_departments.contains(department) ? department : null),
           items: _departments,
           hint: 'Select Department',
           validator: (value) {
-            if ((value == null || value.isEmpty) && !_isCustomDepartment) {
+            if (!_isCustomDepartment && (value == null || value.isEmpty)) {
               return 'Please select a department';
+            }
+            if (_isCustomDepartment && (_customDepartment.isEmpty)) {
+              return 'Please enter custom department';
             }
             return null;
           },
@@ -547,15 +561,19 @@ class _DoctorRegisterScreenState extends State<DoctorRegisterScreen> {
               setState(() {
                 if (value == 'Other') {
                   _isCustomDepartment = true;
-                  department = _customDepartment;
+                  department =
+                      _customDepartment.isNotEmpty ? _customDepartment : '';
                 } else {
                   _isCustomDepartment = false;
                   department = value;
+                  _customDepartment =
+                      ''; // Clear custom value when selecting predefined
                 }
               });
             }
           },
         ),
+
         // Custom department field
         if (_isCustomDepartment)
           Padding(
@@ -578,6 +596,9 @@ class _DoctorRegisterScreenState extends State<DoctorRegisterScreen> {
               },
             ),
           ),
+
+        const SizedBox(height: 16),
+
         _buildTextField(
           label: 'Years of Experience',
           prefixIcon: Icons.work,

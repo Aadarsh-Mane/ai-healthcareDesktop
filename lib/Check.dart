@@ -4,6 +4,7 @@ import 'package:doctordesktop/AuthSplash.dart';
 import 'package:doctordesktop/Doctor/DoctorMainScreen.dart';
 import 'package:doctordesktop/Doctor/fetchDoctor.dart';
 import 'package:doctordesktop/External/CommonScreen.dart';
+import 'package:doctordesktop/Insurance/InsuranceDashBoardScreen.dart';
 import 'package:doctordesktop/Lab/LabDashBoard.dart';
 import 'package:doctordesktop/Lab/LabScreen.dart';
 import 'package:doctordesktop/Nurse/NurseAdminDashboardScreen.dart';
@@ -556,7 +557,7 @@ class _HomePageState extends ConsumerState<HomePage>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'DocNeX.care',
+            'DocNex.care',
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -794,7 +795,7 @@ class _HomePageState extends ConsumerState<HomePage>
     // Application data with premium flag added
     final List<Map<String, dynamic>> apps = [
       {
-        'name': 'Hospital',
+        'name': 'External',
         'icon': Icons.local_hospital,
         'screen': 'HospitalScreen',
         'color': const Color(0xFF2196F3),
@@ -843,17 +844,31 @@ class _HomePageState extends ConsumerState<HomePage>
         'isPremium': true, // Premium feature
       },
       {
-        'name': 'Nurse Admin',
+        'name': 'Diagnostics',
         'icon': Icons.settings,
         'screen': 'NurseAdmin',
         'color': const Color(0xFF607D8B),
         'isPremium': false,
       },
       {
-        'name': 'Calendar',
+        'name': 'Insurance',
         'icon': Icons.calendar_today,
-        'screen': 'CalendarScreen',
+        'screen': 'InsuranceScreen',
         'color': const Color(0xFFE91E63),
+        'isPremium': true,
+      },
+      {
+        'name': 'Dialysis',
+        'icon': Icons.local_hospital,
+        'screen': 'Dialysis',
+        'color': const Color.fromARGB(213, 65, 63, 152),
+        'isPremium': false,
+      },
+      {
+        'name': 'Patient',
+        'icon': Icons.person,
+        'screen': 'Patient',
+        'color': const Color.fromARGB(255, 71, 157, 194),
         'isPremium': false,
       },
     ];
@@ -1252,9 +1267,11 @@ class _HomePageState extends ConsumerState<HomePage>
                         builder: (context) => NurseAdminDashBoardScreen()),
                   );
                   break;
-                case 'CalendarScreen':
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Calendar coming soon')),
+                case 'InsuranceScreen':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => InsuranceDashBoardScreen()),
                   );
                   break;
                 default:

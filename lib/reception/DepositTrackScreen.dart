@@ -1,6 +1,7 @@
 import 'package:doctordesktop/constants/HospitalTheme.dart';
 import 'package:doctordesktop/constants/Methods.dart';
 import 'package:doctordesktop/constants/Url.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,7 +27,7 @@ class PatientDeposit {
   final int totalAdmissions;
   final double averageDepositAmount;
 
-  PatientDeposit({
+  const PatientDeposit({
     required this.id,
     required this.patientName,
     required this.patientAge,
@@ -81,7 +82,7 @@ class Deposit {
   final String? receiptUrl;
   final int? sequenceNumber;
 
-  Deposit({
+  const Deposit({
     required this.receiptId,
     required this.admissionId,
     required this.amount,
@@ -116,7 +117,7 @@ class DepositSummary {
   final double maxDepositAmount;
   final double averageDepositsPerPatient;
 
-  DepositSummary({
+  const DepositSummary({
     required this.totalPatients,
     required this.totalDeposits,
     required this.totalAmount,
@@ -150,7 +151,7 @@ class DepositsResponse {
   final List<PatientDeposit> patients;
   final DepositSummary summary;
 
-  DepositsResponse({
+  const DepositsResponse({
     required this.success,
     required this.patients,
     required this.summary,
@@ -242,6 +243,75 @@ final depositFiltersProvider =
     StateProvider<DepositFilters>((ref) => const DepositFilters());
 final showFiltersProvider = StateProvider<bool>((ref) => false);
 
+// Enhanced Scrollable Table Widget
+class EnhancedDataTable extends StatelessWidget {
+  final DataTable dataTable;
+  final ScrollController? horizontalController;
+  final ScrollController? verticalController;
+
+  const EnhancedDataTable({
+    super.key,
+    required this.dataTable,
+    this.horizontalController,
+    this.verticalController,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      onPointerSignal: (pointerSignal) {
+        if (pointerSignal is PointerScrollEvent) {
+          final isShiftPressed = HardwareKeyboard.instance.isShiftPressed;
+          final scrollDelta = pointerSignal.scrollDelta;
+
+          // Horizontal scrolling with Shift + mouse wheel
+          if (isShiftPressed && horizontalController != null) {
+            final newOffset = (horizontalController!.offset + scrollDelta.dy)
+                .clamp(0.0, horizontalController!.position.maxScrollExtent);
+            horizontalController!.jumpTo(newOffset);
+          }
+          // Vertical scrolling with mouse wheel
+          else if (!isShiftPressed && verticalController != null) {
+            final newOffset = (verticalController!.offset + scrollDelta.dy)
+                .clamp(0.0, verticalController!.position.maxScrollExtent);
+            verticalController!.jumpTo(newOffset);
+          }
+        }
+      },
+      child: Scrollbar(
+        controller: horizontalController,
+        thumbVisibility: true,
+        trackVisibility: true,
+        thickness: 12,
+        radius: const Radius.circular(6),
+        child: Scrollbar(
+          controller: verticalController,
+          thumbVisibility: true,
+          trackVisibility: true,
+          thickness: 12,
+          radius: const Radius.circular(6),
+          notificationPredicate: (notification) => notification.depth == 1,
+          child: SingleChildScrollView(
+            controller: horizontalController,
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: SingleChildScrollView(
+              controller: verticalController,
+              physics: const BouncingScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minWidth: MediaQuery.of(context).size.width - 32,
+                ),
+                child: dataTable,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // Main Screen Widget
 class PatientDepositsScreen extends ConsumerStatefulWidget {
   const PatientDepositsScreen({super.key});
@@ -254,12 +324,14 @@ class PatientDepositsScreen extends ConsumerStatefulWidget {
 class _PatientDepositsScreenState extends ConsumerState<PatientDepositsScreen> {
   final ScrollController _horizontalScrollController = ScrollController();
   final ScrollController _verticalScrollController = ScrollController();
+  final ScrollController _detailScrollController = ScrollController();
   final FocusNode _searchFocusNode = FocusNode();
 
   @override
   void dispose() {
     _horizontalScrollController.dispose();
     _verticalScrollController.dispose();
+    _detailScrollController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
   }
@@ -267,6 +339,7 @@ class _PatientDepositsScreenState extends ConsumerState<PatientDepositsScreen> {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
     final isMobile = screenWidth < 768;
 
     return Scaffold(
@@ -292,7 +365,13 @@ class _PatientDepositsScreenState extends ConsumerState<PatientDepositsScreen> {
           const SingleActivator(LogicalKeyboardKey.keyF, control: true): () {
             _searchFocusNode.requestFocus();
           },
+          const SingleActivator(LogicalKeyboardKey.keyF, meta: true): () {
+            _searchFocusNode.requestFocus();
+          },
           const SingleActivator(LogicalKeyboardKey.keyR, control: true): () {
+            ref.refresh(depositsProvider);
+          },
+          const SingleActivator(LogicalKeyboardKey.keyR, meta: true): () {
             ref.refresh(depositsProvider);
           },
           const SingleActivator(LogicalKeyboardKey.escape): () {
@@ -302,12 +381,15 @@ class _PatientDepositsScreenState extends ConsumerState<PatientDepositsScreen> {
           const SingleActivator(LogicalKeyboardKey.keyT, control: true): () {
             ref.read(showFiltersProvider.notifier).update((state) => !state);
           },
+          const SingleActivator(LogicalKeyboardKey.keyT, meta: true): () {
+            ref.read(showFiltersProvider.notifier).update((state) => !state);
+          },
         },
         child: Focus(
           autofocus: true,
           child: isMobile
               ? _buildMobileLayout()
-              : _buildDesktopLayout(screenWidth),
+              : _buildDesktopLayout(screenWidth, screenHeight),
         ),
       ),
     );
@@ -316,17 +398,20 @@ class _PatientDepositsScreenState extends ConsumerState<PatientDepositsScreen> {
   Widget _buildMobileLayout() {
     return Semantics(
       label: 'Mobile view notice',
-      child: const Center(
+      child: Center(
         child: Padding(
-          padding: EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.tablet_mac, size: 64, color: Colors.grey),
-              SizedBox(height: 16),
+              Icon(Icons.tablet_mac, size: 64, color: HospitalTheme.textMedium),
+              const SizedBox(height: 16),
               Text(
-                'Mobile view - Use tablet or desktop for full functionality',
-                style: TextStyle(fontSize: 16),
+                'Please use a tablet or desktop for the full experience',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: HospitalTheme.textMedium,
+                ),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -336,7 +421,7 @@ class _PatientDepositsScreenState extends ConsumerState<PatientDepositsScreen> {
     );
   }
 
-  Widget _buildDesktopLayout(double screenWidth) {
+  Widget _buildDesktopLayout(double screenWidth, double screenHeight) {
     final selectedPatient = ref.watch(selectedPatientProvider);
     final showDetailPanel = selectedPatient != null && screenWidth > 1200;
 
@@ -353,6 +438,7 @@ class _PatientDepositsScreenState extends ConsumerState<PatientDepositsScreen> {
               _buildSearchAndActions(),
               const SizedBox(height: 12),
               Expanded(child: _buildDepositsTable()),
+              _buildScrollInstructions(),
             ],
           ),
         ),
@@ -369,6 +455,25 @@ class _PatientDepositsScreenState extends ConsumerState<PatientDepositsScreen> {
     );
   }
 
+  Widget _buildScrollInstructions() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, size: 14, color: HospitalTheme.textLight),
+          const SizedBox(width: 8),
+          Text(
+            'Tip: Use mouse wheel to scroll vertically, Shift + mouse wheel for horizontal scrolling',
+            style: TextStyle(
+              fontSize: 12,
+              color: HospitalTheme.textLight,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildCompactSummaryCards() {
     return Consumer(
       builder: (context, ref, child) {
@@ -377,7 +482,7 @@ class _PatientDepositsScreenState extends ConsumerState<PatientDepositsScreen> {
         return depositsAsync.when(
           data: (response) => _buildCompactSummaryContent(response.summary),
           loading: () => _buildSummaryLoading(),
-          error: (error, stack) => _buildSummaryError(),
+          error: (error, stack) => _buildSummaryError(error),
         );
       },
     );
@@ -551,7 +656,7 @@ class _PatientDepositsScreenState extends ConsumerState<PatientDepositsScreen> {
                       _buildFilterDropdown(
                         'Gender',
                         filters.genderFilter,
-                        ['Male', 'Female'],
+                        const ['Male', 'Female'],
                         (value) => ref
                             .read(depositFiltersProvider.notifier)
                             .state = filters.copyWith(genderFilter: value),
@@ -559,7 +664,7 @@ class _PatientDepositsScreenState extends ConsumerState<PatientDepositsScreen> {
                       _buildFilterDropdown(
                         'Patient Type',
                         filters.patientTypeFilter,
-                        ['Internal', 'External'],
+                        const ['Internal', 'External'],
                         (value) => ref
                             .read(depositFiltersProvider.notifier)
                             .state = filters.copyWith(patientTypeFilter: value),
@@ -567,7 +672,13 @@ class _PatientDepositsScreenState extends ConsumerState<PatientDepositsScreen> {
                       _buildFilterDropdown(
                         'Payment Method',
                         filters.paymentMethodFilter,
-                        ['Cash', 'Card', 'UPI', 'Bank Transfer', 'Cheque'],
+                        const [
+                          'Cash',
+                          'Card',
+                          'UPI',
+                          'Bank Transfer',
+                          'Cheque'
+                        ],
                         (value) =>
                             ref.read(depositFiltersProvider.notifier).state =
                                 filters.copyWith(paymentMethodFilter: value),
@@ -788,10 +899,17 @@ class _PatientDepositsScreenState extends ConsumerState<PatientDepositsScreen> {
         color: Colors.grey.shade200,
         borderRadius: HospitalTheme.radiusSmall,
       ),
+      child: const Center(
+        child: SizedBox(
+          height: 20,
+          width: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      ),
     );
   }
 
-  Widget _buildSummaryError() {
+  Widget _buildSummaryError(Object error) {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       padding: const EdgeInsets.all(12),
@@ -804,12 +922,18 @@ class _PatientDepositsScreenState extends ConsumerState<PatientDepositsScreen> {
         children: [
           Icon(Icons.error_outline, color: HospitalTheme.error, size: 20),
           const SizedBox(width: 12),
-          Text(
-            'Error loading summary',
-            style: TextStyle(
-              color: HospitalTheme.error,
-              fontWeight: FontWeight.w500,
+          Expanded(
+            child: Text(
+              'Unable to load summary data. Please check your connection and try again.',
+              style: TextStyle(
+                color: HospitalTheme.error,
+                fontWeight: FontWeight.w500,
+              ),
             ),
+          ),
+          TextButton(
+            onPressed: () => ref.refresh(depositsProvider),
+            child: const Text('Retry'),
           ),
         ],
       ),
@@ -870,18 +994,41 @@ class _PatientDepositsScreenState extends ConsumerState<PatientDepositsScreen> {
 
             return _buildTable(filteredPatients, response.patients.length);
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Loading patient deposit data...'),
+              ],
+            ),
+          ),
           error: (error, stack) => Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                Icon(Icons.error_outline, size: 48, color: HospitalTheme.error),
                 const SizedBox(height: 16),
-                Text('Error: $error'),
+                Text(
+                  'Failed to load deposit data',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: HospitalTheme.error,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Please check your internet connection and try again.',
+                  style: TextStyle(color: HospitalTheme.textMedium),
+                  textAlign: TextAlign.center,
+                ),
                 const SizedBox(height: 16),
-                ElevatedButton(
+                ElevatedButton.icon(
                   onPressed: () => ref.refresh(depositsProvider),
-                  child: const Text('Retry'),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
                 ),
               ],
             ),
@@ -962,31 +1109,25 @@ class _PatientDepositsScreenState extends ConsumerState<PatientDepositsScreen> {
           Expanded(
             child: HospitalTheme.buildCard(
               padding: EdgeInsets.zero,
-              child: Scrollbar(
-                controller: _horizontalScrollController,
-                thumbVisibility: true,
-                child: Scrollbar(
-                  controller: _verticalScrollController,
-                  thumbVisibility: true,
-                  notificationPredicate: (notification) =>
-                      notification.depth == 1,
-                  child: SingleChildScrollView(
-                    controller: _horizontalScrollController,
-                    scrollDirection: Axis.horizontal,
-                    child: SingleChildScrollView(
-                      controller: _verticalScrollController,
-                      child: DataTable(
-                        sortColumnIndex:
-                            _getSortColumnIndex(ref.watch(sortColumnProvider)),
-                        sortAscending: ref.watch(sortAscendingProvider),
-                        showCheckboxColumn: false,
-                        columns: _buildTableColumns(),
-                        rows: patients
-                            .map((patient) => _buildTableRow(patient))
-                            .toList(),
-                      ),
-                    ),
+              child: EnhancedDataTable(
+                horizontalController: _horizontalScrollController,
+                verticalController: _verticalScrollController,
+                dataTable: DataTable(
+                  sortColumnIndex:
+                      _getSortColumnIndex(ref.watch(sortColumnProvider)),
+                  sortAscending: ref.watch(sortAscendingProvider),
+                  showCheckboxColumn: false,
+                  headingRowColor: MaterialStateProperty.all(
+                    HospitalTheme.surfaceLight,
                   ),
+                  dataRowMinHeight: 56,
+                  dataRowMaxHeight: 80,
+                  columnSpacing: 24,
+                  horizontalMargin: 16,
+                  columns: _buildTableColumns(),
+                  rows: patients
+                      .map((patient) => _buildTableRow(patient))
+                      .toList(),
                 ),
               ),
             ),
@@ -1006,18 +1147,18 @@ class _PatientDepositsScreenState extends ConsumerState<PatientDepositsScreen> {
         label: const Text('Patient Name'),
         onSort: (columnIndex, ascending) => _onSort('patientName', ascending),
       ),
-      DataColumn(
-        label: const Text('Age'),
+      const DataColumn(
+        label: Text('Age'),
         numeric: true,
       ),
-      DataColumn(
-        label: const Text('Gender'),
+      const DataColumn(
+        label: Text('Gender'),
       ),
-      DataColumn(
-        label: const Text('Contact'),
+      const DataColumn(
+        label: Text('Contact'),
       ),
-      DataColumn(
-        label: const Text('Type'),
+      const DataColumn(
+        label: Text('Type'),
       ),
       DataColumn(
         label: const Text('Total Deposits'),
@@ -1056,7 +1197,7 @@ class _PatientDepositsScreenState extends ConsumerState<PatientDepositsScreen> {
         DataCell(
           Semantics(
             label: 'Patient ID ${patient.id}',
-            child: Text(
+            child: SelectableText(
               patient.id,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
@@ -1068,7 +1209,7 @@ class _PatientDepositsScreenState extends ConsumerState<PatientDepositsScreen> {
         DataCell(
           Semantics(
             label: 'Patient name ${patient.patientName}',
-            child: Text(patient.patientName),
+            child: SelectableText(patient.patientName),
           ),
         ),
         DataCell(
@@ -1104,7 +1245,7 @@ class _PatientDepositsScreenState extends ConsumerState<PatientDepositsScreen> {
         DataCell(
           Semantics(
             label: 'Contact ${patient.patientContact}',
-            child: Text(patient.patientContact),
+            child: SelectableText(patient.patientContact),
           ),
         ),
         DataCell(
@@ -1180,7 +1321,7 @@ class _PatientDepositsScreenState extends ConsumerState<PatientDepositsScreen> {
                       children: [
                         Icon(Icons.download),
                         SizedBox(width: 8),
-                        Text('Export'),
+                        Text('Export Data'),
                       ],
                     ),
                   ),
@@ -1195,6 +1336,7 @@ class _PatientDepositsScreenState extends ConsumerState<PatientDepositsScreen> {
                       break;
                   }
                 },
+                tooltip: 'More actions',
               ),
             ],
           ),
@@ -1293,13 +1435,18 @@ class _PatientDepositsScreenState extends ConsumerState<PatientDepositsScreen> {
                 ),
                 const SizedBox(height: 16),
                 Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    itemCount: patient.deposits.length,
-                    itemBuilder: (context, index) {
-                      final deposit = patient.deposits[index];
-                      return _buildDepositCard(deposit);
-                    },
+                  child: Scrollbar(
+                    controller: _detailScrollController,
+                    thumbVisibility: true,
+                    child: ListView.builder(
+                      controller: _detailScrollController,
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      itemCount: patient.deposits.length,
+                      itemBuilder: (context, index) {
+                        final deposit = patient.deposits[index];
+                        return _buildDepositCard(deposit);
+                      },
+                    ),
                   ),
                 ),
               ],
@@ -1323,7 +1470,7 @@ class _PatientDepositsScreenState extends ConsumerState<PatientDepositsScreen> {
           ),
         ),
         const SizedBox(height: 4),
-        Text(
+        SelectableText(
           value,
           style: const TextStyle(
             fontSize: 16,
@@ -1373,7 +1520,7 @@ class _PatientDepositsScreenState extends ConsumerState<PatientDepositsScreen> {
               ],
             ),
             const SizedBox(height: 8),
-            Text(
+            SelectableText(
               'Receipt ID: ${deposit.receiptId}',
               style: TextStyle(
                 color: HospitalTheme.textMedium,
@@ -1453,23 +1600,32 @@ class _PatientDepositsScreenState extends ConsumerState<PatientDepositsScreen> {
         content: SizedBox(
           width: 400,
           height: 300,
-          child: ListView.builder(
-            itemCount: patient.deposits.length,
-            itemBuilder: (context, index) {
-              final deposit = patient.deposits[index];
-              return ListTile(
-                title: Text(deposit.receiptId),
-                subtitle: Text(
-                    '₹${deposit.amount} - ${_formatDateTime(deposit.generatedAt)}'),
-                trailing: deposit.receiptUrl != null
-                    ? IconButton(
-                        icon: const Icon(Icons.open_in_new),
-                        onPressed: () => Methods().openPdf(deposit.receiptUrl!),
-                      )
-                    : null,
-              );
-            },
-          ),
+          child: patient.deposits.isEmpty
+              ? Center(
+                  child: Text(
+                    'No receipts found',
+                    style: TextStyle(color: HospitalTheme.textMedium),
+                  ),
+                )
+              : ListView.builder(
+                  itemCount: patient.deposits.length,
+                  itemBuilder: (context, index) {
+                    final deposit = patient.deposits[index];
+                    return ListTile(
+                      title: SelectableText(deposit.receiptId),
+                      subtitle: Text(
+                          '₹${deposit.amount} - ${_formatDateTime(deposit.generatedAt)}'),
+                      trailing: deposit.receiptUrl != null
+                          ? IconButton(
+                              icon: const Icon(Icons.open_in_new),
+                              onPressed: () =>
+                                  Methods().openPdf(deposit.receiptUrl!),
+                              tooltip: 'Open Receipt',
+                            )
+                          : null,
+                    );
+                  },
+                ),
         ),
         actions: [
           TextButton(
@@ -1486,6 +1642,14 @@ class _PatientDepositsScreenState extends ConsumerState<PatientDepositsScreen> {
       SnackBar(
         content: Text('Exporting data for ${patient.patientName}...'),
         backgroundColor: HospitalTheme.success,
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: 'View',
+          textColor: Colors.white,
+          onPressed: () {
+            // Add export functionality here
+          },
+        ),
       ),
     );
   }

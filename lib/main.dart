@@ -9,6 +9,7 @@ import 'package:doctordesktop/Admin/ReceptionAuthDialog.dart';
 import 'package:doctordesktop/Check.dart';
 import 'package:doctordesktop/Doctor/AddMedicine.dart';
 import 'package:doctordesktop/Doctor/DoctorMainScreen.dart';
+import 'package:doctordesktop/Doctor/MedicalRecordScreen.dart';
 import 'package:doctordesktop/Doctor/pa.dart';
 import 'package:doctordesktop/External/CommonScreen.dart';
 import 'package:doctordesktop/External/DashBoard.dart';
@@ -92,6 +93,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   Widget build(BuildContext context) {
     return HomePage();
+    // MedicalRecordsScreen(
+    //   patientId: 'LAL361', // Example patient ID
+    //   admissionId: '6891097233773366b828eefe', // Example admission ID
+    // );
   }
 
   // Drawer widget

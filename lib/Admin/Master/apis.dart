@@ -159,7 +159,11 @@ class PatientApiService {
           return data;
         } else {
           throw ApiException(
-            data['message'] ?? 'Failed to update admission numbers',
+            data['message'] is Map
+                ? data['message']['conflictDetails']
+                    ? ['patientName'] ?? 'Failed to update admission numbers'
+                    : data['message'] ?? 'Failed to update admission numbers'
+                : 'Failed to update admission numbers',
             response.statusCode,
           );
         }

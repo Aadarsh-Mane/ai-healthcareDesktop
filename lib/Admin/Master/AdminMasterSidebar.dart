@@ -1,3 +1,6 @@
+import 'package:doctordesktop/Admin/Master/HospitalCounterScreen.dart';
+import 'package:doctordesktop/Admin/Master/PatientHistoryRecordScreen.dart';
+import 'package:doctordesktop/Admin/Master/PatientListPanel.dart';
 import 'package:doctordesktop/Doctor/PatientListScreen.dart';
 import 'package:doctordesktop/External/DoctorCalendarView.dart';
 import 'package:doctordesktop/External/ExternalDoctorlist.dart';
@@ -15,14 +18,15 @@ import 'package:doctordesktop/reception/Sidebar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-class RegistrationSideBar extends StatefulWidget {
-  const RegistrationSideBar({super.key});
+class AdminRegistrationSideBar extends StatefulWidget {
+  const AdminRegistrationSideBar({super.key});
 
   @override
-  State<RegistrationSideBar> createState() => _RegistrationSideBarState();
+  State<AdminRegistrationSideBar> createState() =>
+      _AdminRegistrationSideBarState();
 }
 
-class _RegistrationSideBarState extends State<RegistrationSideBar>
+class _AdminRegistrationSideBarState extends State<AdminRegistrationSideBar>
     with TickerProviderStateMixin {
   int _selectedNavIndex = 0;
   bool _isSidebarExpanded = false;
@@ -33,11 +37,9 @@ class _RegistrationSideBarState extends State<RegistrationSideBar>
 
   // Cache screens to avoid rebuilding
   static const Map<int, Widget> _screens = {
-    0: OPDRegistrationScreen(),
-    1: IpdDetailScreen(),
-    2: PatientListScreen1(),
-    3: ReceptionBedManagementScreen(),
-    4: ActivePatientScreen(),
+    0: PatientManagementScreen(),
+    1: PatientRecordsManagementScreen(),
+    2: PatientCounterScreen(),
   };
 
   // Enhanced navigation items with colors and gradients
@@ -45,8 +47,8 @@ class _RegistrationSideBarState extends State<RegistrationSideBar>
     NavigationItem(
       index: 0,
       icon: Icons.medical_information,
-      label: 'OPD Registration',
-      shortLabel: 'OPD',
+      label: 'Patient Management',
+      shortLabel: 'Management',
       gradientColors: [Color(0xFF667eea), Color(0xFF764ba2)],
       iconColor: Color(0xFF667eea),
       keyboardShortcut: 'Ctrl+1',
@@ -54,8 +56,8 @@ class _RegistrationSideBarState extends State<RegistrationSideBar>
     NavigationItem(
       index: 1,
       icon: Icons.local_hospital,
-      label: 'IPD Management',
-      shortLabel: 'IPD',
+      label: 'Patient Records',
+      shortLabel: 'Records',
       gradientColors: [Color(0xFFf093fb), Color(0xFFf5576c)],
       iconColor: Color(0xFFf093fb),
       keyboardShortcut: 'Ctrl+2',
@@ -63,29 +65,11 @@ class _RegistrationSideBarState extends State<RegistrationSideBar>
     NavigationItem(
       index: 2,
       icon: Icons.person_pin,
-      label: 'Patient Directory',
-      shortLabel: 'Patients',
+      label: 'Patient Count',
+      shortLabel: 'Count',
       gradientColors: [Color(0xFF4facfe), Color(0xFF00f2fe)],
       iconColor: Color(0xFF4facfe),
       keyboardShortcut: 'Ctrl+3',
-    ),
-    NavigationItem(
-      index: 3,
-      icon: Icons.meeting_room,
-      label: 'Bed Assignment',
-      shortLabel: 'Beds',
-      gradientColors: [Color(0xFF43e97b), Color(0xFF38f9d7)],
-      iconColor: Color(0xFF43e97b),
-      keyboardShortcut: 'Ctrl+4',
-    ),
-    NavigationItem(
-      index: 4,
-      icon: Icons.meeting_room,
-      label: 'Active Patients',
-      shortLabel: 'Active',
-      gradientColors: [Color(0xFF43e97b), Color(0xFF38f9d7)],
-      iconColor: Color(0xFF43e97b),
-      keyboardShortcut: 'Ctrl+5',
     ),
   ];
 

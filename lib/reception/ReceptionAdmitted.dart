@@ -590,7 +590,7 @@ class _ReceptionBedManagementScreenState
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Hospital Be Management'),
+          title: const Text('Hospital Bed Management'),
           elevation: 0,
           actions: [
             IconButton(

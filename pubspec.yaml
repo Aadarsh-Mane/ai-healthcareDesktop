@@ -74,6 +74,10 @@ dependencies:
   syncfusion_flutter_pdfviewer: ^29.1.38
   url_launcher: ^6.3.1
   pdfx: ^2.9.1
+  record: ^6.0.0
+  googleapis: ^14.0.0
+  googleapis_auth: ^2.0.0
+  flutter_tts: ^4.2.3
 
 dev_dependencies:
   flutter_test:

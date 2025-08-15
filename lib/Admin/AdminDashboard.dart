@@ -2,6 +2,7 @@ import 'package:doctordesktop/Admin/BedManagement.dart';
 import 'package:doctordesktop/Admin/BillTrackScreen.dart';
 import 'package:doctordesktop/Admin/BillTrackTableView.dart';
 import 'package:doctordesktop/Admin/DepositTrackingScreen.dart';
+import 'package:doctordesktop/Admin/Master/AdminMasterSidebar.dart';
 import 'package:doctordesktop/Admin/Master/HospitalCounterScreen.dart';
 import 'package:doctordesktop/Admin/Master/PatientHistoryRecordScreen.dart';
 import 'package:doctordesktop/Admin/Master/PatientListPanel.dart';
@@ -82,9 +83,9 @@ class _MainLayoutState extends State<MainLayout> {
     // DepositsTrackingScreen(),
     PatientDepositsScreen(),
     DischargeSummariesScreen(),
-    PatientManagementScreen(),
-    PatientRecordsManagementScreen(),
-    PatientCounterScreen(),
+    AdminRegistrationSideBar(),
+    // PatientRecordsManagementScreen(),
+    // PatientCounterScreen(),
   ];
   // Add this new public method
   void navigateTo(int index) {
@@ -276,28 +277,28 @@ class SidebarWidget extends StatelessWidget {
                 ),
                 _buildNavItemWithLabel(
                   index: 8,
-                  icon: Icons.medical_services,
+                  icon: Icons.blinds_closed,
                   label: 'Bills Track',
                   isSelected: selectedIndex == 8,
                   onTap: () => onItemSelected(8),
                 ),
                 _buildNavItemWithLabel(
                   index: 9,
-                  icon: Icons.medical_services,
+                  icon: Icons.table_chart,
                   label: 'Bills Table',
                   isSelected: selectedIndex == 9,
                   onTap: () => onItemSelected(9),
                 ),
                 _buildNavItemWithLabel(
                   index: 10,
-                  icon: Icons.medical_services,
+                  icon: Icons.deblur,
                   label: 'Deposits Track',
                   isSelected: selectedIndex == 10,
                   onTap: () => onItemSelected(10),
                 ),
                 _buildNavItemWithLabel(
                   index: 11,
-                  icon: Icons.medical_services,
+                  icon: Icons.summarize,
                   label: 'Track Summary',
                   isSelected: selectedIndex == 11,
                   onTap: () => onItemSelected(11),
@@ -309,20 +310,20 @@ class SidebarWidget extends StatelessWidget {
                   isSelected: selectedIndex == 12,
                   onTap: () => onItemSelected(12),
                 ),
-                _buildNavItemWithLabel(
-                  index: 13,
-                  icon: Icons.medical_services,
-                  label: 'Records Management',
-                  isSelected: selectedIndex == 13,
-                  onTap: () => onItemSelected(13),
-                ),
-                _buildNavItemWithLabel(
-                  index: 14,
-                  icon: Icons.medical_services,
-                  label: 'Counter Management',
-                  isSelected: selectedIndex == 14,
-                  onTap: () => onItemSelected(14),
-                ),
+                // _buildNavItemWithLabel(
+                //   index: 13,
+                //   icon: Icons.medical_services,
+                //   label: 'Records Management',
+                //   isSelected: selectedIndex == 13,
+                //   onTap: () => onItemSelected(13),
+                // ),
+                // _buildNavItemWithLabel(
+                //   index: 14,
+                //   icon: Icons.medical_services,
+                //   label: 'Counter Management',
+                //   isSelected: selectedIndex == 14,
+                //   onTap: () => onItemSelected(14),
+                // ),
                 // _buildNavItemWithLabel(
                 //   index: 12,
                 //   icon: Icons.medical_services,

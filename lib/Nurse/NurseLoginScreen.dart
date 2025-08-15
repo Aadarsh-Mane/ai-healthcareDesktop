@@ -1,4 +1,4 @@
-// login_screen.dart
+// nurse_login_screen.dart - Enhanced UI matching doctor login
 import 'package:doctordesktop/Nurse/NurseDashBoardScreen.dart';
 import 'package:doctordesktop/constants/HospitalTheme.dart';
 import 'package:doctordesktop/constants/Url.dart';
@@ -9,7 +9,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// Models
+// ==================== MODELS ====================
 class User {
   final String id;
   final String email;
@@ -50,7 +50,7 @@ class LoginResponse {
   }
 }
 
-// Providers
+// ==================== PROVIDERS ====================
 final httpClientProvider = Provider<http.Client>((ref) {
   return http.Client();
 });
@@ -220,7 +220,147 @@ class LoginFormNotifier extends StateNotifier<LoginFormState> {
   }
 }
 
-// Login Screen Widget
+// ==================== RESPONSIVE HELPER ====================
+class ResponsiveHelper {
+  static bool isDesktop(BuildContext context) =>
+      MediaQuery.of(context).size.width > 768;
+
+  static bool isTablet(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    return width > 600 && width <= 768;
+  }
+
+  static bool isMobile(BuildContext context) =>
+      MediaQuery.of(context).size.width <= 600;
+
+  static double getLoginCardWidth(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    if (isDesktop(context)) {
+      return screenWidth * 0.75; // 75% of screen width on desktop
+    } else if (isTablet(context)) {
+      return screenWidth * 0.85; // 85% of screen width on tablet
+    } else {
+      return screenWidth * 0.95; // 95% of screen width on mobile
+    }
+  }
+
+  static EdgeInsets getAdaptivePadding(BuildContext context) {
+    if (isDesktop(context)) {
+      return const EdgeInsets.all(40);
+    } else if (isTablet(context)) {
+      return const EdgeInsets.all(32);
+    } else {
+      return const EdgeInsets.all(24);
+    }
+  }
+
+  static double getSpacing(BuildContext context,
+      {required double small, required double medium, required double large}) {
+    if (isDesktop(context)) {
+      return large;
+    } else if (isTablet(context)) {
+      return medium;
+    } else {
+      return small;
+    }
+  }
+
+  static double getAdaptiveLogoSize(BuildContext context) {
+    if (isDesktop(context)) {
+      return 120;
+    } else if (isTablet(context)) {
+      return 100;
+    } else {
+      return 80;
+    }
+  }
+
+  static double getAdaptiveButtonHeight(BuildContext context) {
+    if (isDesktop(context)) {
+      return 56;
+    } else if (isTablet(context)) {
+      return 52;
+    } else {
+      return 48;
+    }
+  }
+}
+
+// ==================== ANIMATION HELPERS ====================
+class FadeSlideTransition extends StatelessWidget {
+  final Widget child;
+  final AnimationController animation;
+  final Offset beginOffset;
+  final Curve curve;
+
+  const FadeSlideTransition({
+    Key? key,
+    required this.child,
+    required this.animation,
+    this.beginOffset = const Offset(0, 0.3),
+    this.curve = Curves.easeOut,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(
+            beginOffset.dx * (1 - animation.value),
+            beginOffset.dy * (1 - animation.value),
+          ),
+          child: Opacity(
+            opacity: animation.value,
+            child: child,
+          ),
+        );
+      },
+      child: child,
+    );
+  }
+}
+
+class StaggeredAnimations extends StatelessWidget {
+  final List<Widget> children;
+  final Duration interval;
+
+  const StaggeredAnimations({
+    Key? key,
+    required this.children,
+    this.interval = const Duration(milliseconds: 100),
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: children.asMap().entries.map((entry) {
+        final index = entry.key;
+        final widget = entry.value;
+
+        return TweenAnimationBuilder<double>(
+          duration:
+              Duration(milliseconds: 600 + (index * interval.inMilliseconds)),
+          tween: Tween(begin: 0.0, end: 1.0),
+          curve: Curves.easeOutQuart,
+          builder: (context, value, child) {
+            return Transform.translate(
+              offset: Offset(0, 30 * (1 - value)),
+              child: Opacity(
+                opacity: value,
+                child: child,
+              ),
+            );
+          },
+          child: widget,
+        );
+      }).toList(),
+    );
+  }
+}
+
+// ==================== MAIN SCREEN ====================
 class NurseLoginScreen extends ConsumerStatefulWidget {
   final bool showBackButton;
   final VoidCallback? onBackPressed;
@@ -235,12 +375,16 @@ class NurseLoginScreen extends ConsumerStatefulWidget {
   ConsumerState<NurseLoginScreen> createState() => _NurseLoginScreenState();
 }
 
-class _NurseLoginScreenState extends ConsumerState<NurseLoginScreen> {
+class _NurseLoginScreenState extends ConsumerState<NurseLoginScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _emailFocusNode = FocusNode();
   final _passwordFocusNode = FocusNode();
+
+  late AnimationController _animationController;
+  bool _isDesktopView = false;
 
   @override
   void initState() {
@@ -248,6 +392,12 @@ class _NurseLoginScreenState extends ConsumerState<NurseLoginScreen> {
     // Pre-fill for testing
     _emailController.text = 'nurse1@gmail.com';
     _passwordController.text = 'nurse1';
+
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _animationController.forward();
 
     // Check auth status on init
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -257,6 +407,7 @@ class _NurseLoginScreenState extends ConsumerState<NurseLoginScreen> {
 
   @override
   void dispose() {
+    _animationController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _emailFocusNode.dispose();
@@ -308,10 +459,17 @@ class _NurseLoginScreenState extends ConsumerState<NurseLoginScreen> {
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
-    final isDesktop = screenSize.width > 768;
-    final isTablet = screenSize.width > 600 && screenSize.width <= 768;
-    final formWidth =
-        isDesktop ? 400.0 : (isTablet ? 350.0 : screenSize.width * 0.9);
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    // Determine if we're in desktop view
+    final newIsDesktopView = ResponsiveHelper.isDesktop(context);
+
+    // If the view type changed, restart animations
+    if (_isDesktopView != newIsDesktopView) {
+      _isDesktopView = newIsDesktopView;
+      _animationController.reset();
+      _animationController.forward();
+    }
 
     ref.listen(authStateProvider, (previous, next) {
       next.when(
@@ -330,7 +488,7 @@ class _NurseLoginScreenState extends ConsumerState<NurseLoginScreen> {
               backgroundColor: HospitalTheme.error,
               behavior: SnackBarBehavior.floating,
               margin: EdgeInsets.symmetric(
-                horizontal: isDesktop ? 32.0 : 16.0,
+                horizontal: _isDesktopView ? 32.0 : 16.0,
                 vertical: 16.0,
               ),
             ),
@@ -339,257 +497,543 @@ class _NurseLoginScreenState extends ConsumerState<NurseLoginScreen> {
       );
     });
 
-    final authState = ref.watch(authStateProvider);
-    final formState = ref.watch(loginFormProvider);
-
     return KeyboardListener(
       focusNode: FocusNode(),
       onKeyEvent: _handleKeyboardShortcuts,
       child: Scaffold(
         backgroundColor: HospitalTheme.background,
-        appBar: widget.showBackButton
-            ? HospitalTheme.buildAppBar(
-                context: context,
-                title: 'Nurse Login',
-                showBackButton: true,
-                onBackPressed: _handleBackAction,
-              )
-            : null,
-        body: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(
-                horizontal: isDesktop ? 32.0 : 16.0,
-                vertical: 24.0,
-              ),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: formWidth,
-                  minHeight:
-                      screenSize.height - (widget.showBackButton ? 104 : 48),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Hospital Logo/Header
-                    _buildHeader(context, isDesktop),
-
-                    SizedBox(height: isDesktop ? 48.0 : 32.0),
-
-                    // Login Form
-                    _buildLoginForm(context, formState, authState),
-
-                    SizedBox(height: isDesktop ? 32.0 : 24.0),
-
-                    // Footer
-                    _buildFooter(context),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context, bool isDesktop) {
-    return Column(
-      children: [
-        Container(
-          width: isDesktop ? 120.0 : 100.0,
-          height: isDesktop ? 120.0 : 100.0,
-          decoration: BoxDecoration(
-            color: HospitalTheme.primary,
-            shape: BoxShape.circle,
-            boxShadow: HospitalTheme.shadow,
-          ),
-          child: Icon(
-            Icons.local_hospital,
-            color: HospitalTheme.textOnPrimary,
-            size: isDesktop ? 60.0 : 50.0,
-          ),
-        ),
-        SizedBox(height: isDesktop ? 24.0 : 16.0),
-        Text(
-          'Hospital Management',
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: HospitalTheme.primary,
-                fontWeight: FontWeight.bold,
-              ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 8.0),
-        Text(
-          'Nurse Portal',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: HospitalTheme.textMedium,
-              ),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLoginForm(BuildContext context, LoginFormState formState,
-      AsyncValue<User?> authState) {
-    final isLoading = authState.isLoading || formState.isLoading;
-
-    return HospitalTheme.buildCard(
-      padding: const EdgeInsets.all(32.0),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        appBar: _isDesktopView
+            ? null
+            : (widget.showBackButton
+                ? HospitalTheme.buildAppBar(
+                    context: context,
+                    title: 'Nurse Login',
+                    showBackButton: true,
+                    onBackPressed: _handleBackAction,
+                  )
+                : null),
+        body: Stack(
           children: [
-            Text(
-              'Sign In',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: HospitalTheme.textDark,
-                    fontWeight: FontWeight.bold,
+            // Background design for mobile/tablet
+            if (!_isDesktopView && widget.showBackButton)
+              Container(
+                height: 120,
+                decoration: BoxDecoration(
+                  color: HospitalTheme.primary,
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(30),
+                    bottomRight: Radius.circular(30),
                   ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 32.0),
-
-            // Email Field
-            TextFormField(
-              controller: _emailController,
-              focusNode: _emailFocusNode,
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-              enabled: !isLoading,
-              onChanged: (value) =>
-                  ref.read(loginFormProvider.notifier).updateEmail(value),
-              onFieldSubmitted: (_) => _passwordFocusNode.requestFocus(),
-              decoration: const InputDecoration(
-                labelText: 'Email Address',
-                hintText: 'Enter your email',
-                prefixIcon: Icon(Icons.email_outlined),
-              ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Email is required';
-                }
-                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                    .hasMatch(value.trim())) {
-                  return 'Please enter a valid email';
-                }
-                return null;
-              },
-            ),
-
-            const SizedBox(height: 24.0),
-
-            // Password Field
-            TextFormField(
-              controller: _passwordController,
-              focusNode: _passwordFocusNode,
-              obscureText: !formState.isPasswordVisible,
-              textInputAction: TextInputAction.done,
-              enabled: !isLoading,
-              onChanged: (value) =>
-                  ref.read(loginFormProvider.notifier).updatePassword(value),
-              onFieldSubmitted: (_) => _handleLogin(),
-              decoration: InputDecoration(
-                labelText: 'Password',
-                hintText: 'Enter your password',
-                prefixIcon: const Icon(Icons.lock_outlined),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    formState.isPasswordVisible
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined,
-                  ),
-                  onPressed: isLoading
-                      ? null
-                      : () => ref
-                          .read(loginFormProvider.notifier)
-                          .togglePasswordVisibility(),
                 ),
               ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Password is required';
-                }
-                if (value.length < 6) {
-                  return 'Password must be at least 6 characters';
-                }
-                return null;
-              },
-            ),
 
-            const SizedBox(height: 32.0),
+            // Desktop background decoration
+            if (_isDesktopView) ..._buildDesktopBackground(screenSize),
 
-            // Login Button
-            SizedBox(
-              height: 48.0,
-              child: ElevatedButton(
-                onPressed: isLoading ? null : _handleLogin,
-                child: isLoading
-                    ? const SizedBox(
-                        height: 20.0,
-                        width: 20.0,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.0,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text('Sign In'),
+            // Back button for desktop view
+            if (_isDesktopView && widget.showBackButton)
+              Positioned(
+                top: 20,
+                left: 20,
+                child: IconButton(
+                  icon: Icon(
+                    Icons.arrow_back,
+                    color: isDarkMode ? Colors.white : HospitalTheme.primary,
+                    size: 28,
+                  ),
+                  onPressed: _handleBackAction,
+                ),
+              ),
+
+            // Main content
+            Center(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: _isDesktopView ? 0 : screenSize.width * 0.05,
+                    vertical: 20,
+                  ),
+                  child: Container(
+                    width: ResponsiveHelper.getLoginCardWidth(context),
+                    constraints: BoxConstraints(
+                      maxHeight: _isDesktopView
+                          ? screenSize.height * 0.85
+                          : double.infinity,
+                    ),
+                    child: Card(
+                      elevation: 8,
+                      shadowColor: HospitalTheme.primary.withOpacity(0.3),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      color: HospitalTheme.cardBackground,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: _isDesktopView
+                            ? _buildDesktopLayout(isDarkMode)
+                            : _buildMobileTabletLayout(isDarkMode),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
-
-            const SizedBox(height: 16.0),
-
-            // Keyboard Shortcut Hints
-            _buildKeyboardHints(context),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildKeyboardHints(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          'Keyboard Shortcuts:',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: HospitalTheme.textMedium,
-                fontWeight: FontWeight.w600,
-              ),
-          textAlign: TextAlign.center,
+  List<Widget> _buildDesktopBackground(Size screenSize) {
+    return [
+      Positioned(
+        top: -100,
+        right: -100,
+        child: Container(
+          width: 300,
+          height: 300,
+          decoration: BoxDecoration(
+            color: HospitalTheme.primary.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
         ),
-        const SizedBox(height: 4.0),
-        Text(
-          'Ctrl+Enter: Sign in • Escape: Go back',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: HospitalTheme.textLight,
-              ),
-          textAlign: TextAlign.center,
+      ),
+      Positioned(
+        bottom: -150,
+        left: -150,
+        child: Container(
+          width: 400,
+          height: 400,
+          decoration: BoxDecoration(
+            color: HospitalTheme.primary.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+        ),
+      ),
+      Positioned(
+        top: screenSize.height * 0.3,
+        left: screenSize.width * 0.1,
+        child: Container(
+          width: 200,
+          height: 200,
+          decoration: BoxDecoration(
+            color: HospitalTheme.secondary.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+        ),
+      ),
+    ];
+  }
+
+  // Desktop layout with side image
+  Widget _buildDesktopLayout(bool isDarkMode) {
+    return Row(
+      children: [
+        // Left side - Branding
+        Expanded(
+          flex: 5,
+          child: Container(
+            color: HospitalTheme.primary,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                FadeSlideTransition(
+                  animation: _animationController,
+                  beginOffset: const Offset(-0.35, 0),
+                  child: Container(
+                    padding: const EdgeInsets.all(32),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.local_hospital,
+                      size: 120,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                FadeSlideTransition(
+                  animation: _animationController,
+                  beginOffset: const Offset(-0.35, 0),
+                  curve: Curves.easeOutQuart,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20),
+                    child: Text(
+                      "Welcome to Hospital Management",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                FadeSlideTransition(
+                  animation: _animationController,
+                  beginOffset: const Offset(-0.35, 0),
+                  curve: Curves.easeOutQuart,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 40),
+                    child: Text(
+                      "Nurse Portal - Your trusted healthcare management system",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.white.withOpacity(0.9),
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Right side - Login form
+        Expanded(
+          flex: 4,
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(40),
+              child: _buildLoginForm(isDarkMode, true),
+            ),
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildFooter(BuildContext context) {
+  // Mobile and tablet layout
+  Widget _buildMobileTabletLayout(bool isDarkMode) {
+    return SingleChildScrollView(
+      child: Padding(
+        padding: ResponsiveHelper.getAdaptivePadding(context),
+        child: _buildLoginForm(isDarkMode, false),
+      ),
+    );
+  }
+
+  // Common login form for all layouts
+  Widget _buildLoginForm(bool isDarkMode, bool isDesktop) {
+    final authState = ref.watch(authStateProvider);
+    final formState = ref.watch(loginFormProvider);
+    final isLoading = authState.isLoading || formState.isLoading;
+
+    final spacing = ResponsiveHelper.getSpacing(
+      context,
+      small: 16,
+      medium: 20,
+      large: 24,
+    );
+
+    final List<Widget> formWidgets = [];
+
+    // Add logo for mobile/tablet only
+    if (!isDesktop) {
+      formWidgets.add(Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: HospitalTheme.surfaceLight,
+        ),
+        child: Icon(
+          Icons.local_hospital,
+          size: ResponsiveHelper.getAdaptiveLogoSize(context),
+          color: HospitalTheme.primary,
+        ),
+      ));
+
+      formWidgets.add(SizedBox(height: spacing));
+
+      // Welcome text for mobile/tablet
+      formWidgets.add(Text(
+        "Welcome to Hospital Management",
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: ResponsiveHelper.isTablet(context) ? 24 : 20,
+          fontWeight: FontWeight.bold,
+          color: HospitalTheme.textDark,
+        ),
+      ));
+
+      formWidgets.add(SizedBox(height: spacing * 0.4));
+
+      formWidgets.add(Text(
+        "Nurse Portal - Please login to continue",
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 16,
+          color: HospitalTheme.textMedium,
+        ),
+      ));
+
+      formWidgets.add(SizedBox(height: spacing * 1.5));
+    }
+
+    // Desktop heading
+    if (isDesktop) {
+      formWidgets.add(Text(
+        "Login to your account",
+        style: TextStyle(
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+          color: HospitalTheme.primary,
+          letterSpacing: 0.5,
+        ),
+      ));
+
+      formWidgets.add(SizedBox(height: spacing));
+    }
+
+    // Email field
+    formWidgets.add(TextFormField(
+      controller: _emailController,
+      focusNode: _emailFocusNode,
+      keyboardType: TextInputType.emailAddress,
+      textInputAction: TextInputAction.next,
+      enabled: !isLoading,
+      onChanged: (value) =>
+          ref.read(loginFormProvider.notifier).updateEmail(value),
+      onFieldSubmitted: (_) => _passwordFocusNode.requestFocus(),
+      decoration: InputDecoration(
+        labelText: 'Email Address',
+        hintText: 'Enter your email',
+        prefixIcon: Icon(Icons.email_outlined, color: HospitalTheme.primary),
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: HospitalTheme.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: HospitalTheme.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: HospitalTheme.primary, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: HospitalTheme.error, width: 1),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
+      ),
+      style: const TextStyle(fontSize: 16.0),
+      validator: (value) {
+        if (value == null || value.trim().isEmpty) {
+          return 'Email is required';
+        }
+        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+            .hasMatch(value.trim())) {
+          return 'Please enter a valid email';
+        }
+        return null;
+      },
+    ));
+
+    formWidgets.add(SizedBox(height: spacing));
+
+    // Password field
+    formWidgets.add(TextFormField(
+      controller: _passwordController,
+      focusNode: _passwordFocusNode,
+      obscureText: !formState.isPasswordVisible,
+      textInputAction: TextInputAction.done,
+      enabled: !isLoading,
+      onChanged: (value) =>
+          ref.read(loginFormProvider.notifier).updatePassword(value),
+      onFieldSubmitted: (_) => _handleLogin(),
+      decoration: InputDecoration(
+        labelText: 'Password',
+        hintText: 'Enter your password',
+        prefixIcon: Icon(Icons.lock_outlined, color: HospitalTheme.primary),
+        suffixIcon: IconButton(
+          icon: Icon(
+            formState.isPasswordVisible
+                ? Icons.visibility_off_outlined
+                : Icons.visibility_outlined,
+            color: HospitalTheme.textMedium,
+          ),
+          onPressed: isLoading
+              ? null
+              : () => ref
+                  .read(loginFormProvider.notifier)
+                  .togglePasswordVisibility(),
+        ),
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: HospitalTheme.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: HospitalTheme.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: HospitalTheme.primary, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: HospitalTheme.error, width: 1),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
+      ),
+      style: const TextStyle(fontSize: 16.0),
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'Password is required';
+        }
+        if (value.length < 6) {
+          return 'Password must be at least 6 characters';
+        }
+        return null;
+      },
+    ));
+
+    formWidgets.add(SizedBox(height: spacing * 0.5));
+
+    // Forgot password link
+    formWidgets.add(Align(
+      alignment: Alignment.centerRight,
+      child: TextButton(
+        onPressed: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                  "Please contact administrator to reset your password"),
+              backgroundColor: HospitalTheme.info,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        },
+        style: TextButton.styleFrom(
+          foregroundColor: HospitalTheme.primary,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        ),
+        child: const Text(
+          "Forgot Password?",
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+      ),
+    ));
+
+    formWidgets.add(SizedBox(height: spacing));
+
+    // Login button
+    formWidgets.add(SizedBox(
+      width: double.infinity,
+      height: ResponsiveHelper.getAdaptiveButtonHeight(context),
+      child: ElevatedButton(
+        onPressed: isLoading ? null : _handleLogin,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: HospitalTheme.primary,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 2,
+        ),
+        child: isLoading
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  strokeWidth: 2.5,
+                ),
+              )
+            : Text(
+                "Sign In",
+                style: TextStyle(
+                  fontSize: ResponsiveHelper.isDesktop(context) ? 18 : 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+      ),
+    ));
+
+    formWidgets.add(SizedBox(height: spacing * 0.8));
+
+    // Keyboard shortcuts hint
+    formWidgets.add(_buildKeyboardHints());
+
+    formWidgets.add(SizedBox(height: spacing));
+
+    // Footer branding
+    formWidgets.add(Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+      decoration: BoxDecoration(
+        color: HospitalTheme.surfaceLight,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: HospitalTheme.border,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.local_hospital,
+            color: HospitalTheme.primary,
+            size: 22,
+          ),
+          const SizedBox(width: 10),
+          Text(
+            "Hospital Management System",
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: HospitalTheme.primary,
+            ),
+          ),
+        ],
+      ),
+    ));
+
+    return Form(
+      key: _formKey,
+      child: StaggeredAnimations(
+        children: formWidgets,
+      ),
+    );
+  }
+
+  Widget _buildKeyboardHints() {
     return Column(
       children: [
         Text(
-          '© 2025 Hospital Management System',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: HospitalTheme.textLight,
-              ),
+          'Keyboard Shortcuts:',
+          style: TextStyle(
+            fontSize: 12,
+            color: HospitalTheme.textMedium,
+            fontWeight: FontWeight.w600,
+          ),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 8.0),
+        const SizedBox(height: 4.0),
         Text(
-          'Secure • Reliable • Professional',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: HospitalTheme.textLight,
-                fontSize: 12.0,
-              ),
+          'Ctrl+Enter: Sign in • Escape: Go back',
+          style: TextStyle(
+            fontSize: 11,
+            color: HospitalTheme.textLight,
+          ),
           textAlign: TextAlign.center,
         ),
       ],

@@ -4,8 +4,10 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   connectivity_plus
+  flutter_tts
   pdfx
   printing
+  record_windows
   syncfusion_pdfviewer_windows
   url_launcher_windows
   window_size

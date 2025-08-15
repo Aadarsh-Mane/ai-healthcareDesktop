@@ -14,7 +14,9 @@ import 'package:doctordesktop/Doctor/DoctorMainScreen.dart';
 import 'package:doctordesktop/Doctor/DoctorMedicalCertificateScreen.dart';
 import 'package:doctordesktop/Doctor/DoctorProfile.dart';
 import 'package:doctordesktop/Doctor/GenerateDischargeSummaryByDoctorScreen.dart';
+import 'package:doctordesktop/Doctor/MedicalRecordScreen.dart';
 import 'package:doctordesktop/Doctor/PatientHistoryDetailScreen.dart';
+import 'package:doctordesktop/Doctor/SpeechToTextScreen.dart';
 import 'package:doctordesktop/Doctor/SurgicalNotesScreen.dart';
 import 'package:doctordesktop/Doctor/Tabs/AdmissionLabReportScreen.dart';
 import 'package:doctordesktop/Doctor/Tabs/CreateInvestigstion.dart';
@@ -23,6 +25,7 @@ import 'package:doctordesktop/Doctor/Tabs/EmergencyMedication.dart';
 import 'package:doctordesktop/Doctor/Tabs/GetInvestigation.dart';
 import 'package:doctordesktop/Doctor/Tabs/InvestigationScreen.dart';
 import 'package:doctordesktop/Doctor/Tabs/PatientCheck.dart';
+import 'package:doctordesktop/Doctor/Tabs/PatientFollowUpScreen.dart';
 import 'package:doctordesktop/Doctor/Tabs/PatientInvestigation.dart';
 import 'package:doctordesktop/Doctor/Tabs/PatientProfileScreen.dart';
 import 'package:doctordesktop/Doctor/Tabs/PrescriptionScreen.dart';
@@ -36,9 +39,11 @@ import 'package:doctordesktop/Doctor/sub.dart';
 import 'package:doctordesktop/Nurse/EmergencyMedicationScreen.dart';
 import 'package:doctordesktop/StateProvider.dart';
 import 'package:doctordesktop/authProvider/auth_provider.dart';
+import 'package:doctordesktop/constants/Assets.dart';
 import 'package:doctordesktop/constants/HospitalTheme.dart';
 import 'package:doctordesktop/constants/Methods.dart';
 import 'package:doctordesktop/constants/colors.dart';
+import 'package:doctordesktop/karnudstelecomservice.dart';
 import 'package:doctordesktop/repositories/doctor_repository.dart';
 import 'package:doctordesktop/constants/Url.dart';
 import 'package:doctordesktop/model/getNewPatientModel.dart';
@@ -92,6 +97,18 @@ BoxDecoration _boxDecoration() {
     ],
     border: Border.all(color: Colors.grey.shade100),
   );
+}
+
+class SubmenuItem {
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  SubmenuItem({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
 }
 
 class PatientDetailScreen4 extends StatefulWidget {
@@ -649,6 +666,9 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
   // }
   bool _isMonitoringSubmenuOpen = false;
   bool _isInvestigationSubmenuOpen = false;
+  bool _isSidebarCollapsed = false;
+
+// Add this class for submenu items (if not already present)
 
 // Add these methods to toggle the submenu visibility
   void _toggleMonitoringSubmenu() {
@@ -675,1048 +695,2095 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
 
   @override
   @override
+// Add this state variable at the top of your _PatientDetailScreen2State class
+
+  @override
+  @override
   Widget build(BuildContext context) {
     return Consumer(
       builder: (context, ref, child) {
         return Shortcuts(
-            shortcuts: <LogicalKeySet, Intent>{
-              LogicalKeySet(
-                      LogicalKeyboardKey.control, LogicalKeyboardKey.keyD):
-                  AddDiagnosisIntent(),
-              LogicalKeySet(
-                      LogicalKeyboardKey.control, LogicalKeyboardKey.keyC):
-                  AddDoctorConsultingIntent(),
-              LogicalKeySet(
-                      LogicalKeyboardKey.control, LogicalKeyboardKey.keyP):
-                  AddPrescriptionIntent(),
-              LogicalKeySet(
-                      LogicalKeyboardKey.control, LogicalKeyboardKey.keyV):
-                  AddVitalsIntent(),
-              LogicalKeySet(
-                      LogicalKeyboardKey.control, LogicalKeyboardKey.keyS):
-                  AddSymtomsIntent(),
-              LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyO):
-                  ViewOverviewIntent(),
-              LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyM):
-                  ViewMonitoringIntent(), // New shortcut for Monitoring section
-              LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyV):
-                  ViewVitalsIntent(),
-              LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyS):
-                  ViewSymptomsIntent(),
-              LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyF):
-                  ViewFollowUpsIntent(),
-              LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyP):
-                  ViewPrescriptionIntent(),
-              LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyC):
-                  ViewConsultationIntent(),
-              LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyD):
-                  ViewDiagnosisIntent(),
-              LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyT):
-                  ViewTreatMentIntent(),
-              LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyJ):
-                  SurgicalNotesIntent(),
-              LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyH):
-                  ViewHomeIntent(),
-              LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyI):
-                  ViewInvestigationIntent(), // New shortcut for Investigation section
+          shortcuts: <LogicalKeySet, Intent>{
+            LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyD):
+                AddDiagnosisIntent(),
+            LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyC):
+                AddDoctorConsultingIntent(),
+            LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyP):
+                AddPrescriptionIntent(),
+            LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyV):
+                AddVitalsIntent(),
+            LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyS):
+                AddSymtomsIntent(),
+            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyO):
+                ViewOverviewIntent(),
+            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyM):
+                ViewMonitoringIntent(),
+            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyV):
+                ViewVitalsIntent(),
+            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyS):
+                ViewSymptomsIntent(),
+            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyF):
+                ViewFollowUpsIntent(),
+            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyP):
+                ViewPrescriptionIntent(),
+            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyC):
+                ViewConsultationIntent(),
+            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyD):
+                ViewDiagnosisIntent(),
+            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyT):
+                ViewTreatMentIntent(),
+            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyJ):
+                SurgicalNotesIntent(),
+            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyH):
+                ViewHomeIntent(),
+            LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.keyI):
+                ViewInvestigationIntent(),
+          },
+          child: Actions(
+            actions: <Type, Action<Intent>>{
+              // Keep all your existing action handlers as they are
+              AddDiagnosisIntent: CallbackAction<AddDiagnosisIntent>(
+                onInvoke: (intent) {
+                  openAddDiagnosisScreen(widget.patient.patientId,
+                      widget.patient.admissionRecords.first.id);
+                  return null;
+                },
+              ),
+              AddDoctorConsultingIntent:
+                  CallbackAction<AddDoctorConsultingIntent>(
+                onInvoke: (intent) {
+                  _openAddDoctorConsultingScreen(widget.patient.patientId,
+                      widget.patient.admissionRecords.first.id);
+                  return null;
+                },
+              ),
+              AddPrescriptionIntent: CallbackAction<AddPrescriptionIntent>(
+                onInvoke: (intent) {
+                  _openAddPrescriptionScreen(widget.patient.patientId,
+                      widget.patient.admissionRecords.first.id);
+                  return null;
+                },
+              ),
+              AddVitalsIntent: CallbackAction<AddVitalsIntent>(
+                onInvoke: (intent) {
+                  _openAddVitalsDialog(widget.patient.patientId,
+                      widget.patient.admissionRecords.first.id);
+                  return null;
+                },
+              ),
+              AddSymtomsIntent: CallbackAction<AddSymtomsIntent>(
+                onInvoke: (intent) {
+                  _openAddSymptomsScreen(widget.patient.patientId,
+                      widget.patient.admissionRecords.first.id);
+                  return null;
+                },
+              ),
+              ViewOverviewIntent: CallbackAction<ViewOverviewIntent>(
+                onInvoke: (intent) {
+                  setState(() {
+                    _selectedTabIndex = 0;
+                    _tabController.animateTo(0);
+                  });
+                  return null;
+                },
+              ),
+              ViewMonitoringIntent: CallbackAction<ViewMonitoringIntent>(
+                onInvoke: (intent) {
+                  setState(() {
+                    _toggleMonitoringSubmenu();
+                  });
+                  return null;
+                },
+              ),
+              ViewVitalsIntent: CallbackAction<ViewVitalsIntent>(
+                onInvoke: (intent) {
+                  setState(() {
+                    _selectedTabIndex = 1;
+                    _tabController.animateTo(1);
+                  });
+                  return null;
+                },
+              ),
+              ViewSymptomsIntent: CallbackAction<ViewSymptomsIntent>(
+                onInvoke: (intent) {
+                  setState(() {
+                    _selectedTabIndex = 2;
+                    _tabController.animateTo(2);
+                  });
+                  return null;
+                },
+              ),
+              ViewFollowUpsIntent: CallbackAction<ViewFollowUpsIntent>(
+                onInvoke: (intent) {
+                  setState(() {
+                    _selectedTabIndex = 3;
+                    _tabController.animateTo(3);
+                  });
+                  return null;
+                },
+              ),
+              ViewPrescriptionIntent: CallbackAction<ViewPrescriptionIntent>(
+                onInvoke: (intent) {
+                  setState(() {
+                    _selectedTabIndex = 4;
+                    _tabController.animateTo(4);
+                  });
+                  return null;
+                },
+              ),
+              ViewConsultationIntent: CallbackAction<ViewConsultationIntent>(
+                onInvoke: (intent) {
+                  setState(() {
+                    _selectedTabIndex = 5;
+                    _tabController.animateTo(5);
+                  });
+                  return null;
+                },
+              ),
+              ViewDiagnosisIntent: CallbackAction<ViewDiagnosisIntent>(
+                onInvoke: (intent) {
+                  setState(() {
+                    _selectedTabIndex = 6;
+                    _tabController.animateTo(6);
+                  });
+                  return null;
+                },
+              ),
+              ViewTreatMentIntent: CallbackAction<ViewTreatMentIntent>(
+                onInvoke: (intent) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => EnhancedTreatmentScreen(
+                        patientId: widget.patient.patientId,
+                        admissionId: widget.patient.admissionRecords.first.id,
+                      ),
+                    ),
+                  );
+                  return null;
+                },
+              ),
+              SurgicalNotesIntent: CallbackAction<SurgicalNotesIntent>(
+                onInvoke: (intent) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SurgicalNotesScreen(
+                        patientId: widget.patient.patientId,
+                        admissionId: widget.patient.admissionRecords.first.id,
+                      ),
+                    ),
+                  );
+                  return null;
+                },
+              ),
+              ViewHomeIntent: CallbackAction<ViewHomeIntent>(
+                onInvoke: (intent) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => DoctorHomeScreen(),
+                    ),
+                  );
+                  return null;
+                },
+              ),
+              ViewInvestigationIntent: CallbackAction<ViewInvestigationIntent>(
+                onInvoke: (intent) {
+                  setState(() {
+                    _toggleInvestigationSubmenu();
+                  });
+                  return null;
+                },
+              ),
             },
-            child: Actions(
-              actions: <Type, Action<Intent>>{
-                // Original action handlers
-                AddDiagnosisIntent: CallbackAction<AddDiagnosisIntent>(
-                  onInvoke: (intent) {
-                    openAddDiagnosisScreen(widget.patient.patientId,
-                        widget.patient.admissionRecords.first.id);
-                    return null;
-                  },
-                ),
-                AddDoctorConsultingIntent:
-                    CallbackAction<AddDoctorConsultingIntent>(
-                  onInvoke: (intent) {
-                    _openAddDoctorConsultingScreen(widget.patient.patientId,
-                        widget.patient.admissionRecords.first.id);
-                    return null;
-                  },
-                ),
-                AddPrescriptionIntent: CallbackAction<AddPrescriptionIntent>(
-                  onInvoke: (intent) {
-                    _openAddPrescriptionScreen(widget.patient.patientId,
-                        widget.patient.admissionRecords.first.id);
-                    return null;
-                  },
-                ),
-                AddVitalsIntent: CallbackAction<AddVitalsIntent>(
-                  onInvoke: (intent) {
-                    _openAddVitalsDialog(widget.patient.patientId,
-                        widget.patient.admissionRecords.first.id);
-                    return null;
-                  },
-                ),
-                AddSymtomsIntent: CallbackAction<AddSymtomsIntent>(
-                  onInvoke: (intent) {
-                    _openAddSymptomsScreen(widget.patient.patientId,
-                        widget.patient.admissionRecords.first.id);
-                    return null;
-                  },
-                ),
-                ViewOverviewIntent: CallbackAction<ViewOverviewIntent>(
-                  onInvoke: (intent) {
-                    setState(() {
-                      _selectedTabIndex = 0;
-                      _tabController.animateTo(0);
-                    });
-                    return null;
-                  },
-                ),
-                // New monitoring intent action
-                ViewMonitoringIntent: CallbackAction<ViewMonitoringIntent>(
-                  onInvoke: (intent) {
-                    // Toggle the monitoring submenu visibility
-                    setState(() {
-                      // Find the monitoring nav item and toggle its submenu
-                      _toggleMonitoringSubmenu();
-                    });
-                    return null;
-                  },
-                ),
-                // Original tab navigation intents remain the same
-                ViewVitalsIntent: CallbackAction<ViewVitalsIntent>(
-                  onInvoke: (intent) {
-                    setState(() {
-                      _selectedTabIndex = 1;
-                      _tabController.animateTo(1);
-                    });
-                    return null;
-                  },
-                ),
-                ViewSymptomsIntent: CallbackAction<ViewSymptomsIntent>(
-                  onInvoke: (intent) {
-                    setState(() {
-                      _selectedTabIndex = 2;
-                      _tabController.animateTo(2);
-                    });
-                    return null;
-                  },
-                ),
-                ViewFollowUpsIntent: CallbackAction<ViewFollowUpsIntent>(
-                  onInvoke: (intent) {
-                    setState(() {
-                      _selectedTabIndex = 3;
-                      _tabController.animateTo(3);
-                    });
-                    return null;
-                  },
-                ),
-                ViewPrescriptionIntent: CallbackAction<ViewPrescriptionIntent>(
-                  onInvoke: (intent) {
-                    setState(() {
-                      _selectedTabIndex = 4;
-                      _tabController.animateTo(4);
-                    });
-                    return null;
-                  },
-                ),
-                ViewConsultationIntent: CallbackAction<ViewConsultationIntent>(
-                  onInvoke: (intent) {
-                    setState(() {
-                      _selectedTabIndex = 5;
-                      _tabController.animateTo(5);
-                    });
-                    return null;
-                  },
-                ),
-                ViewDiagnosisIntent: CallbackAction<ViewDiagnosisIntent>(
-                  onInvoke: (intent) {
-                    setState(() {
-                      _selectedTabIndex = 6;
-                      _tabController.animateTo(6);
-                    });
-                    return null;
-                  },
-                ),
-                ViewTreatMentIntent: CallbackAction<ViewTreatMentIntent>(
-                  onInvoke: (intent) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => EnhancedTreatmentScreen(
-                          patientId: widget.patient.patientId,
-                          admissionId: widget.patient.admissionRecords.first.id,
-                        ),
-                      ),
-                    );
-                    return null;
-                  },
-                ),
-                SurgicalNotesIntent: CallbackAction<SurgicalNotesIntent>(
-                  onInvoke: (intent) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => SurgicalNotesScreen(
-                          patientId: widget.patient.patientId,
-                          admissionId: widget.patient.admissionRecords.first.id,
-                        ),
-                      ),
-                    );
-                    return null;
-                  },
-                ),
-                ViewHomeIntent: CallbackAction<ViewHomeIntent>(
-                  onInvoke: (intent) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => DoctorHomeScreen(),
-                      ),
-                    );
-                    return null;
-                  },
-                ),
-                // New investigation intent action
-                ViewInvestigationIntent:
-                    CallbackAction<ViewInvestigationIntent>(
-                  onInvoke: (intent) {
-                    // Toggle the investigation submenu visibility
-                    setState(() {
-                      _toggleInvestigationSubmenu();
-                    });
-                    return null;
-                  },
-                ),
-              },
-              child: Focus(
-                autofocus: true,
-                child: Scaffold(
-                  body: Row(
-                    children: [
-                      // Modern Sidebar
-
-                      Container(
-                        width: 300,
-                        decoration: BoxDecoration(
-                          color: Color(0xFF1E2843), // Deep navy background
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
-                              blurRadius: 15,
-                              offset: Offset(3, 0),
-                            )
+            child: Focus(
+              autofocus: true,
+              child: Scaffold(
+                body: Row(
+                  children: [
+                    // ENHANCED MODERN SIDEBAR
+                    AnimatedContainer(
+                      duration: Duration(milliseconds: 400),
+                      curve: Curves.easeInOutCubic,
+                      width: _isSidebarCollapsed ? 80 : 320,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Color(0xFF0c4a6e),
+                            Color(0xFF0369a1),
+                            Color(0xFF0ea5e9),
                           ],
+                          stops: [0.0, 0.5, 1.0],
                         ),
-                        child: Column(
-                          children: [
-                            // Enhanced Header with Back Button
-                            Stack(
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 25,
+                            spreadRadius: 5,
+                            offset: Offset(5, 0),
+                          ),
+                          BoxShadow(
+                            color: HospitalTheme.primary.withOpacity(0.1),
+                            blurRadius: 15,
+                            spreadRadius: 2,
+                            offset: Offset(3, 0),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.only(
+                          topRight: Radius.circular(24),
+                          bottomRight: Radius.circular(24),
+                        ),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.white.withOpacity(0.05),
+                                  Colors.white.withOpacity(0.02),
+                                ],
+                              ),
+                              border: Border(
+                                right: BorderSide(
+                                  color: Colors.white.withOpacity(0.1),
+                                  width: 1,
+                                ),
+                              ),
+                            ),
+                            child: Column(
                               children: [
-                                // Gradient Background
+                                // Enhanced Header with Modern Design
                                 Container(
                                   padding: EdgeInsets.symmetric(
-                                      vertical: 30, horizontal: 20),
+                                    vertical: 28,
+                                    horizontal: _isSidebarCollapsed ? 16 : 24,
+                                  ),
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(
-                                      colors: [
-                                        Color(0xFF2C3E50),
-                                        Color(0xFF34495E),
-                                      ],
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
+                                      colors: [
+                                        Colors.white.withOpacity(0.08),
+                                        Colors.white.withOpacity(0.03),
+                                      ],
+                                    ),
+                                    border: Border(
+                                      bottom: BorderSide(
+                                        color: Colors.white.withOpacity(0.1),
+                                        width: 1,
+                                      ),
                                     ),
                                   ),
-                                  // Back Button added at the top
                                   child: Column(
                                     children: [
-                                      // Back Button Row
-                                      Container(
-                                        width: double.infinity,
-                                        margin: EdgeInsets.only(bottom: 15),
-                                        child: Material(
-                                          color: Colors.transparent,
-                                          child: InkWell(
-                                            onTap: () {
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (context) =>
-                                                      AssignedPatientsScreen(),
-                                                ),
-                                              );
-                                            },
-                                            borderRadius:
-                                                BorderRadius.circular(8),
-                                            child: Container(
-                                              padding: EdgeInsets.symmetric(
-                                                  vertical: 8, horizontal: 12),
-                                              decoration: BoxDecoration(
-                                                gradient: LinearGradient(
-                                                  colors: [
-                                                    Colors.white
-                                                        .withOpacity(0.2),
-                                                    Colors.white
-                                                        .withOpacity(0.1),
+                                      // Top Action Bar
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          // Back Button (only when expanded)
+                                          if (!_isSidebarCollapsed)
+                                            Expanded(
+                                              child: _buildGlassButton(
+                                                onPressed: () {
+                                                  Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                      builder: (context) =>
+                                                          AssignedPatientsScreen(),
+                                                    ),
+                                                  );
+                                                },
+                                                child: Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Icon(
+                                                      Icons
+                                                          .arrow_back_ios_new_rounded,
+                                                      color: Colors.white,
+                                                      size: 18,
+                                                    ),
+                                                    SizedBox(width: 8),
+                                                    Text(
+                                                      'Back to Dashboard',
+                                                      style: TextStyle(
+                                                        color: Colors.white,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        fontSize: 14,
+                                                      ),
+                                                    ),
                                                   ],
-                                                  begin: Alignment.topLeft,
-                                                  end: Alignment.bottomRight,
                                                 ),
+                                              ),
+                                            ),
+
+                                          if (!_isSidebarCollapsed)
+                                            SizedBox(width: 12),
+
+                                          // Modern Toggle Button
+                                          Container(
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                colors: [
+                                                  Colors.white
+                                                      .withOpacity(0.15),
+                                                  Colors.white
+                                                      .withOpacity(0.05),
+                                                ],
+                                                begin: Alignment.topLeft,
+                                                end: Alignment.bottomRight,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              border: Border.all(
+                                                color: Colors.white
+                                                    .withOpacity(0.2),
+                                                width: 1,
+                                              ),
+                                            ),
+                                            child: Material(
+                                              color: Colors.transparent,
+                                              child: InkWell(
                                                 borderRadius:
-                                                    BorderRadius.circular(8),
+                                                    BorderRadius.circular(12),
+                                                splashColor: Colors.white
+                                                    .withOpacity(0.1),
+                                                onTap: () {
+                                                  setState(() {
+                                                    _isSidebarCollapsed =
+                                                        !_isSidebarCollapsed;
+                                                    if (_isSidebarCollapsed) {
+                                                      _isMonitoringSubmenuOpen =
+                                                          false;
+                                                      _isInvestigationSubmenuOpen =
+                                                          false;
+                                                    }
+                                                  });
+                                                },
+                                                child: Padding(
+                                                  padding: EdgeInsets.all(12),
+                                                  child: AnimatedRotation(
+                                                    duration: Duration(
+                                                        milliseconds: 300),
+                                                    turns: _isSidebarCollapsed
+                                                        ? 0.5
+                                                        : 0,
+                                                    child: Icon(
+                                                      _isSidebarCollapsed
+                                                          ? Icons
+                                                              .menu_open_rounded
+                                                          : Icons.menu_rounded,
+                                                      color: Colors.white,
+                                                      size: 20,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+
+                                      SizedBox(height: 24),
+
+                                      // Patient Avatar and Info Section
+                                      Row(
+                                        children: [
+                                          // Enhanced Avatar with Glow Effect
+                                          Container(
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              gradient: LinearGradient(
+                                                colors: [
+                                                  HospitalTheme.accent
+                                                      .withOpacity(0.3),
+                                                  HospitalTheme.primary
+                                                      .withOpacity(0.3),
+                                                ],
+                                              ),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: HospitalTheme.accent
+                                                      .withOpacity(0.4),
+                                                  blurRadius: 20,
+                                                  spreadRadius: 2,
+                                                ),
+                                              ],
+                                            ),
+                                            padding: EdgeInsets.all(3),
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
                                                 border: Border.all(
                                                   color: Colors.white
                                                       .withOpacity(0.3),
-                                                  width: 1,
+                                                  width: 2,
                                                 ),
                                               ),
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Icon(
-                                                    Icons.arrow_back_ios_new,
-                                                    color: Colors.white,
-                                                    size: 18,
+                                              child: CircleAvatar(
+                                                radius: _isSidebarCollapsed
+                                                    ? 18
+                                                    : 42,
+                                                backgroundColor: Colors.white
+                                                    .withOpacity(0.1),
+                                                child: AnimatedScale(
+                                                  duration: Duration(
+                                                      milliseconds: 300),
+                                                  scale: _isSidebarCollapsed
+                                                      ? 0.8
+                                                      : 1.0,
+                                                  child: ClipOval(
+                                                    child: Image.asset(
+                                                      '${AppImages.logo}',
+                                                      width: _isSidebarCollapsed
+                                                          ? 40
+                                                          : 60,
+                                                      height:
+                                                          _isSidebarCollapsed
+                                                              ? 40
+                                                              : 60,
+                                                      fit: BoxFit.cover,
+                                                    ),
                                                   ),
-                                                  SizedBox(width: 8),
-                                                  Text(
-                                                    'Back to Dashboard',
-                                                    style: TextStyle(
-                                                      color: Colors.white,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      fontSize: 14,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+
+                                          // Patient Details (only when expanded)
+                                          if (!_isSidebarCollapsed) ...[
+                                            SizedBox(width: 16),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  AnimatedOpacity(
+                                                    duration: Duration(
+                                                        milliseconds: 300),
+                                                    opacity: _isSidebarCollapsed
+                                                        ? 0
+                                                        : 1,
+                                                    child: Text(
+                                                      widget.patient.name,
+                                                      style: TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 20,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                        letterSpacing: 0.5,
+                                                        shadows: [
+                                                          Shadow(
+                                                            offset:
+                                                                Offset(0, 1),
+                                                            blurRadius: 3,
+                                                            color: Colors.black
+                                                                .withOpacity(
+                                                                    0.3),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                  SizedBox(height: 6),
+                                                  AnimatedOpacity(
+                                                    duration: Duration(
+                                                        milliseconds: 300),
+                                                    opacity: _isSidebarCollapsed
+                                                        ? 0
+                                                        : 1,
+                                                    child: Container(
+                                                      padding:
+                                                          EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 3,
+                                                      ),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.white
+                                                            .withOpacity(0.15),
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(8),
+                                                        border: Border.all(
+                                                          color: Colors.white
+                                                              .withOpacity(0.2),
+                                                          width: 1,
+                                                        ),
+                                                      ),
+                                                      child: Text(
+                                                        'ID: ${widget.patient.patientId}',
+                                                        style: TextStyle(
+                                                          color: Colors.white
+                                                              .withOpacity(0.9),
+                                                          fontSize: 12,
+                                                          fontWeight:
+                                                              FontWeight.w500,
+                                                        ),
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                      ),
                                                     ),
                                                   ),
                                                 ],
                                               ),
                                             ),
-                                          ),
-                                        ),
-                                      ),
-
-                                      // Original Patient Info Section
-                                      Row(
-                                        children: [
-                                          Container(
-                                            decoration: BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              border: Border.all(
-                                                color: Colors.white
-                                                    .withOpacity(0.3),
-                                                width: 3,
-                                              ),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: Colors.black26,
-                                                  blurRadius: 10,
-                                                )
-                                              ],
-                                            ),
-                                            child: CircleAvatar(
-                                              radius: 40,
-                                              backgroundColor:
-                                                  Colors.white.withOpacity(0.1),
-                                              child: Image.asset(
-                                                  'assets/images/icon1.png'),
-                                            ),
-                                          ),
-                                          SizedBox(width: 15),
-                                          Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                widget.patient.name,
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 20,
-                                                  fontWeight: FontWeight.w600,
-                                                  letterSpacing: 0.5,
-                                                ),
-                                              ),
-                                              SizedBox(height: 5),
-                                              Text(
-                                                'Patient ID: ${widget.patient.patientId}',
-                                                style: TextStyle(
-                                                  color: Colors.white54,
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
+                                          ],
                                         ],
                                       ),
                                     ],
                                   ),
                                 ),
-                              ],
-                            ),
 
-                            // Navigation Items with Improved Design
-                            // Navigation Items list in the sidebar's ListView
-                            Expanded(
-                              child: ListView(
-                                padding: EdgeInsets.symmetric(vertical: 20),
-                                children: [
-                                  // Overview remains as a main item
-                                  _buildNavItem(
-                                    index: 0,
-                                    icon: Icons.dashboard,
-                                    label: 'Overview',
-                                  ),
-
-                                  // New Monitoring section with subitems
-                                  _buildNavItem(
-                                    index: 1, // New index for Monitoring
-                                    icon: Icons
-                                        .monitor_heart_outlined, // Changed icon to represent monitoring
-                                    label: 'Monitoring',
-                                    hasSubmenu: true,
-                                    submenuItems: [
-                                      SubmenuItem(
-                                        label: 'Vitals',
-                                        icon: Icons.favorite,
-                                        onTap: () {
-                                          setState(() {
-                                            _selectedTabIndex = 1;
-                                            _tabController.animateTo(1);
-                                          });
-                                        },
-                                      ),
-                                      SubmenuItem(
-                                        label: 'Symptoms',
-                                        icon: Icons.medical_information,
-                                        onTap: () {
-                                          setState(() {
-                                            _selectedTabIndex = 2;
-                                            _tabController.animateTo(2);
-                                          });
-                                        },
-                                      ),
-                                      SubmenuItem(
-                                        label: 'Follow Ups',
-                                        icon: Icons.calendar_today,
-                                        onTap: () {
-                                          setState(() {
-                                            _selectedTabIndex = 3;
-                                            _tabController.animateTo(3);
-                                          });
-                                        },
-                                      ),
-                                      SubmenuItem(
-                                        label: 'Prescription',
-                                        icon: Icons.medication,
-                                        onTap: () {
-                                          setState(() {
-                                            _selectedTabIndex = 4;
-                                            _tabController.animateTo(4);
-                                          });
-                                        },
-                                      ),
-                                      SubmenuItem(
-                                        label: 'Consultation',
-                                        icon: Icons.medical_services,
-                                        onTap: () {
-                                          setState(() {
-                                            _selectedTabIndex = 5;
-                                            _tabController.animateTo(5);
-                                          });
-                                        },
-                                      ),
-                                      SubmenuItem(
-                                        label: 'Diagnosis',
-                                        icon: Icons.local_hospital,
-                                        onTap: () {
-                                          setState(() {
-                                            _selectedTabIndex = 6;
-                                            _tabController.animateTo(6);
-                                          });
-                                        },
-                                      ),
-                                    ],
-                                  ),
-
-                                  // Treatment remains as a main item
-                                  _buildNavItem(
-                                    index: 7,
-                                    icon: Icons.healing,
-                                    label: 'Treatment',
-                                  ),
-                                  _buildNavItem(
-                                    index: 9,
-                                    icon: Icons.biotech,
-                                    label: 'Investigation',
-                                    hasSubmenu: true,
-                                    submenuItems: [
-                                      SubmenuItem(
-                                        label:
-                                            'Investigation Results ${widget.patient.name}',
-                                        icon: Icons.science,
-                                        onTap: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                                  PatientInvestigationScreen(
-                                                patientId:
-                                                    widget.patient.patientId,
-                                                admissionId: widget.patient
-                                                    .admissionRecords.first.id,
-                                              ),
-                                              //     DoctorInvestigationScreen(
-                                              //   patientId:
-                                              //       widget.patient.patientId,
-                                              //   admissionId: widget.patient
-                                              //       .admissionRecords.first.id,
-                                              // ),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                      // SubmenuItem(
-                                      //   label: 'Investigation lab',
-                                      //   icon: Icons.image,
-                                      //   onTap: () {
-                                      //     Navigator.push(
-                                      //       context,
-                                      //       MaterialPageRoute(
-                                      //         builder: (context) =>
-                                      //             InvestigationScreen1(),
-                                      //       ),
-                                      //     );
-                                      //   },
-                                      // ),
-                                      SubmenuItem(
-                                        label:
-                                            'Laboratory Results ${widget.patient.name}',
-                                        icon: Icons.assignment,
-                                        onTap: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                                  AdmissionLabReportsScreen(
-                                                admissionId: widget.patient
-                                                    .admissionRecords.first.id,
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                      SubmenuItem(
-                                        label: 'All Investigations',
-                                        icon: Icons.dashboard,
-                                        onTap: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                                  DoctorInvestigationScreen(
-                                                patientId:
-                                                    widget.patient.patientId,
-                                                admissionId: widget.patient
-                                                    .admissionRecords.first.id,
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                  // Home remains as a main item
-                                  _buildNavItem(
-                                    index: 8,
-                                    icon: Icons.notes,
-                                    label: 'Surgical Notes',
-                                    onCustomTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              SurgicalNotesScreen(
-                                            patientId: widget.patient.patientId,
-                                            admissionId: widget.patient
-                                                .admissionRecords.first.id,
+                                // Enhanced Navigation Items
+                                Expanded(
+                                  child: Container(
+                                    padding: EdgeInsets.symmetric(
+                                      vertical: 24,
+                                      horizontal: _isSidebarCollapsed ? 8 : 16,
+                                    ),
+                                    child: ListView(
+                                      children: [
+                                        // Overview
+                                        _buildEnhancedNavItem(
+                                          index: 0,
+                                          icon: Icons.dashboard_rounded,
+                                          label: 'Overview',
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              HospitalTheme.primary,
+                                              HospitalTheme.primaryLight,
+                                            ],
                                           ),
                                         ),
-                                      );
-                                    },
-                                  ),
-                                  _buildNavItem(
-                                    index: 9,
-                                    icon: Icons.home,
-                                    label: 'Home',
-                                    onCustomTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              AssignedPatientsScreen(),
-                                        ),
-                                      );
-                                    },
-                                  ),
 
-                                  // Investigation section with subitems remains
+                                        SizedBox(height: 8),
+
+                                        // Monitoring Section
+                                        _buildEnhancedNavItem(
+                                          index: 1,
+                                          icon: Icons.monitor_heart_rounded,
+                                          label: 'Monitoring',
+                                          hasSubmenu: !_isSidebarCollapsed,
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              HospitalTheme.medical,
+                                              HospitalTheme.accent,
+                                            ],
+                                          ),
+                                          submenuItems: [
+                                            SubmenuItem(
+                                              label: 'Vitals',
+                                              icon: Icons.favorite_rounded,
+                                              onTap: () {
+                                                setState(() {
+                                                  _selectedTabIndex = 1;
+                                                  _tabController.animateTo(1);
+                                                });
+                                              },
+                                            ),
+                                            SubmenuItem(
+                                              label: 'Symptoms',
+                                              icon: Icons
+                                                  .medical_information_rounded,
+                                              onTap: () {
+                                                setState(() {
+                                                  _selectedTabIndex = 2;
+                                                  _tabController.animateTo(2);
+                                                });
+                                              },
+                                            ),
+                                            SubmenuItem(
+                                              label: 'Follow Ups',
+                                              icon:
+                                                  Icons.calendar_today_rounded,
+                                              onTap: () {
+                                                setState(() {
+                                                  _selectedTabIndex = 3;
+                                                  _tabController.animateTo(3);
+                                                });
+                                              },
+                                            ),
+                                            SubmenuItem(
+                                              label: 'Prescription',
+                                              icon: Icons.medication_rounded,
+                                              onTap: () {
+                                                setState(() {
+                                                  _selectedTabIndex = 4;
+                                                  _tabController.animateTo(4);
+                                                });
+                                              },
+                                            ),
+                                            SubmenuItem(
+                                              label: 'Consultation',
+                                              icon: Icons
+                                                  .medical_services_rounded,
+                                              onTap: () {
+                                                setState(() {
+                                                  _selectedTabIndex = 5;
+                                                  _tabController.animateTo(5);
+                                                });
+                                              },
+                                            ),
+                                            SubmenuItem(
+                                              label: 'Diagnosis',
+                                              icon:
+                                                  Icons.local_hospital_rounded,
+                                              onTap: () {
+                                                setState(() {
+                                                  _selectedTabIndex = 6;
+                                                  _tabController.animateTo(6);
+                                                });
+                                              },
+                                            ),
+                                          ],
+                                        ),
+
+                                        SizedBox(height: 8),
+
+                                        // Treatment
+                                        _buildEnhancedNavItem(
+                                          index: 7,
+                                          icon: Icons.healing_rounded,
+                                          label: 'Treatment',
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              HospitalTheme.success,
+                                              Colors.green.shade400,
+                                            ],
+                                          ),
+                                        ),
+
+                                        // SizedBox(height: 8),
+
+                                        // Investigation Section
+                                        _buildEnhancedNavItem(
+                                          index: 9,
+                                          icon: Icons.biotech_rounded,
+                                          label: 'Investigation',
+                                          hasSubmenu: !_isSidebarCollapsed,
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              HospitalTheme.laboratory,
+                                              Colors.purple.shade400,
+                                            ],
+                                          ),
+                                          submenuItems: [
+                                            SubmenuItem(
+                                              label:
+                                                  'Investigation Results ${widget.patient.name}',
+                                              icon: Icons.science_rounded,
+                                              onTap: () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (context) =>
+                                                        PatientInvestigationScreen(
+                                                      patientId: widget
+                                                          .patient.patientId,
+                                                      admissionId: widget
+                                                          .patient
+                                                          .admissionRecords
+                                                          .first
+                                                          .id,
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                            SubmenuItem(
+                                              label:
+                                                  'Laboratory Results ${widget.patient.name}',
+                                              icon: Icons.assignment_rounded,
+                                              onTap: () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (context) =>
+                                                        AdmissionLabReportsScreen(
+                                                      admissionId: widget
+                                                          .patient
+                                                          .admissionRecords
+                                                          .first
+                                                          .id,
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                            SubmenuItem(
+                                              label: 'All Investigations',
+                                              icon: Icons.dashboard_rounded,
+                                              onTap: () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (context) =>
+                                                        DoctorInvestigationScreen(
+                                                      patientId: widget
+                                                          .patient.patientId,
+                                                      admissionId: widget
+                                                          .patient
+                                                          .admissionRecords
+                                                          .first
+                                                          .id,
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ],
+                                        ),
+
+                                        // SizedBox(height: 16),
+
+                                        // Divider with glow
+                                        Container(
+                                          height: 1,
+                                          margin: EdgeInsets.symmetric(
+                                              horizontal: 16),
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              colors: [
+                                                Colors.transparent,
+                                                Colors.white.withOpacity(0.3),
+                                                Colors.transparent,
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+
+                                        SizedBox(height: 16),
+
+                                        // Additional Actions
+                                        _buildEnhancedNavItem(
+                                          index: 8,
+                                          icon: Icons.note_alt_rounded,
+                                          label: 'Surgical Notes',
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              HospitalTheme.warning,
+                                              Colors.orange.shade400,
+                                            ],
+                                          ),
+                                          onCustomTap: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    SurgicalNotesScreen(
+                                                  patientId:
+                                                      widget.patient.patientId,
+                                                  admissionId: widget
+                                                      .patient
+                                                      .admissionRecords
+                                                      .first
+                                                      .id,
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+
+                                        SizedBox(height: 8),
+
+                                        _buildEnhancedNavItem(
+                                          index: 10,
+                                          icon: Icons.home_rounded,
+                                          label: 'Home',
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              HospitalTheme.info,
+                                              Colors.blue.shade400,
+                                            ],
+                                          ),
+                                          onCustomTap: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    AssignedPatientsScreen(),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                        _buildEnhancedNavItem(
+                                          index: 11,
+                                          icon: Icons.home_rounded,
+                                          label: 'Home',
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              HospitalTheme.info,
+                                              Colors.blue.shade400,
+                                            ],
+                                          ),
+                                          onCustomTap: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    GoogleSpeechToTextMedicalScreen(
+                                                  patientId:
+                                                      widget.patient.patientId,
+                                                  admissionId: widget
+                                                      .patient
+                                                      .admissionRecords
+                                                      .first
+                                                      .id,
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+
+                                // Enhanced Footer with System Status
+                                if (!_isSidebarCollapsed)
+                                  Container(
+                                    padding: EdgeInsets.all(20),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          Colors.white.withOpacity(0.05),
+                                          Colors.white.withOpacity(0.02),
+                                        ],
+                                      ),
+                                      border: Border(
+                                        top: BorderSide(
+                                          color: Colors.white.withOpacity(0.1),
+                                          width: 1,
+                                        ),
+                                      ),
+                                    ),
+                                    child: Consumer(
+                                      builder: (context, ref, child) {
+                                        final internetStatus =
+                                            ref.watch(internetStatusProvider);
+
+                                        return Column(
+                                          children: [
+                                            // System Status Row
+                                            GestureDetector(
+                                              onTap: () =>
+                                                  _showSystemStatusDialog(
+                                                      context, ref),
+                                              child: Container(
+                                                padding: EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 8),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white
+                                                      .withOpacity(0.1),
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                  border: Border.all(
+                                                    color: Colors.white
+                                                        .withOpacity(0.2),
+                                                    width: 1,
+                                                  ),
+                                                ),
+                                                child: Row(
+                                                  children: [
+                                                    Container(
+                                                      width: 8,
+                                                      height: 8,
+                                                      decoration: BoxDecoration(
+                                                        shape: BoxShape.circle,
+                                                        color: internetStatus
+                                                                    .isConnected &&
+                                                                internetStatus
+                                                                    .isServerReachable
+                                                            ? HospitalTheme
+                                                                .success
+                                                            : internetStatus
+                                                                    .isConnected
+                                                                ? HospitalTheme
+                                                                    .warning
+                                                                : HospitalTheme
+                                                                    .error,
+                                                        boxShadow: [
+                                                          BoxShadow(
+                                                            color: (internetStatus
+                                                                            .isConnected &&
+                                                                        internetStatus
+                                                                            .isServerReachable
+                                                                    ? HospitalTheme
+                                                                        .success
+                                                                    : internetStatus
+                                                                            .isConnected
+                                                                        ? HospitalTheme
+                                                                            .warning
+                                                                        : HospitalTheme
+                                                                            .error)
+                                                                .withOpacity(
+                                                                    0.6),
+                                                            blurRadius: 8,
+                                                            spreadRadius: 2,
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                    SizedBox(width: 12),
+                                                    Expanded(
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Text(
+                                                            internetStatus
+                                                                        .isConnected &&
+                                                                    internetStatus
+                                                                        .isServerReachable
+                                                                ? 'System Online'
+                                                                : internetStatus
+                                                                        .isConnected
+                                                                    ? 'Network Issues'
+                                                                    : 'System Offline',
+                                                            style: TextStyle(
+                                                              color:
+                                                                  Colors.white,
+                                                              fontSize: 12,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                            ),
+                                                          ),
+                                                          Text(
+                                                            '${internetStatus.connectionType} • ',
+                                                            style: TextStyle(
+                                                              color: Colors
+                                                                  .white
+                                                                  .withOpacity(
+                                                                      0.7),
+                                                              fontSize: 10,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                    Icon(
+                                                      Icons.info_outline,
+                                                      color: Colors.white
+                                                          .withOpacity(0.7),
+                                                      size: 16,
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+
+                                            SizedBox(height: 8),
+
+                                            // Quick Actions Row
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.spaceEvenly,
+                                              children: [
+                                                _buildQuickActionButton(
+                                                  icon: Icons.refresh,
+                                                  onTap: () => ref
+                                                      .read(
+                                                          internetStatusProvider
+                                                              .notifier)
+                                                      .forceCheck(),
+                                                  tooltip:
+                                                      'Refresh Status (Ctrl+I)',
+                                                ),
+                                                _buildQuickActionButton(
+                                                  icon: Icons.settings,
+                                                  onTap: () =>
+                                                      _showSystemStatusDialog(
+                                                          context, ref),
+                                                  tooltip:
+                                                      'System Status (Ctrl+T)',
+                                                ),
+                                                // _buildQuickActionButton(
+                                                //   icon: Icons.help_outline,
+                                                //   onTap: () =>
+                                                //       _showHelpDialog(context),
+                                                //   tooltip: 'Help & Shortcuts',
+                                                // ),
+                                              ],
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Main Content Area
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(20),
+                            bottomLeft: Radius.circular(20),
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            // Top App Bar with Modern Design
+                            Container(
+                              height: 70,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.grey.withOpacity(0.2),
+                                    blurRadius: 15,
+                                    spreadRadius: 2,
+                                    offset: Offset(0, 4),
+                                  )
+                                ],
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                children: [
+                                  // Patient Name with Subtle Gradient
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 25),
+                                    child: Row(
+                                      children: [
+                                        // Optional Patient Avatar
+                                        CircleAvatar(
+                                          radius: 20,
+                                          backgroundColor: Color(0xFF1E2843)
+                                              .withOpacity(0.1),
+                                          child: Text(
+                                            widget.patient.name
+                                                .substring(0, 1)
+                                                .toUpperCase(),
+                                            style: TextStyle(
+                                              color: Color(0xFF1E2843),
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                        SizedBox(width: 15),
+                                        Text(
+                                          '${widget.patient.name} - Patient Details',
+                                          style: TextStyle(
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFF1E2843),
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Spacer(),
+
+                                  // Advanced Action Buttons with Hover Effects
+                                  Row(
+                                    children: [
+                                      SizedBox(width: 10),
+                                      SizedBox(width: 20),
+
+                                      // User Profile Section
+                                      Row(
+                                        children: [
+                                          CircleAvatar(
+                                            radius: 18,
+                                            backgroundImage: NetworkImage(
+                                              'https://t4.ftcdn.net/jpg/06/44/40/73/360_F_644407316_3aGuf15OnNGTbCRxRB7rWa7lIkfLqE4L.jpg',
+                                            ),
+                                          ),
+                                          SizedBox(width: 10),
+                                          Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'DocNex',
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Color(0xFF1E2843),
+                                                ),
+                                              ),
+                                              Text(
+                                                'Care',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey.shade600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          SizedBox(width: 10),
+                                          // Dropdown for user actions
+                                          PopupMenuButton<String>(
+                                            icon: Icon(
+                                              Icons.keyboard_arrow_down,
+                                              color: Colors.grey.shade700,
+                                            ),
+                                            itemBuilder:
+                                                (BuildContext context) => [
+                                              PopupMenuItem(
+                                                value: 'profile',
+                                                child: Text('Profile'),
+                                              ),
+                                            ],
+                                            onSelected: (String value) {
+                                              switch (value) {
+                                                case 'profile':
+                                                  Navigator.push(
+                                                      context,
+                                                      MaterialPageRoute(
+                                                        builder: (context) =>
+                                                            DoctorProfileScreen(),
+                                                      ));
+                                                  break;
+                                              }
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                      SizedBox(width: 20),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // Main Content (TabBarView)
+                            Expanded(
+                              child: TabBarView(
+                                controller: _tabController,
+                                children: [
+                                  // Keep all existing screen implementations
+                                  _buildFourSquareLayout(
+                                      context,
+                                      ref,
+                                      widget.patient.patientId,
+                                      widget.patient.admissionRecords.first.id),
+                                  VitalsScreen(
+                                      patientId: widget.patient.patientId,
+                                      admissionId: widget
+                                          .patient.admissionRecords.first.id),
+                                  SymptomsScreen(
+                                      patientId: widget.patient.patientId,
+                                      admissionId: widget
+                                          .patient.admissionRecords.first.id),
+                                  FollowUpsScreen(
+                                      patientId: widget.patient.patientId,
+                                      admissionId: widget
+                                          .patient.admissionRecords.first.id),
+                                  DoctorPrescriptionsScreen(
+                                      patientId: widget.patient.patientId,
+                                      admissionId: widget
+                                          .patient.admissionRecords.first.id),
+                                  _buildDoctorConsultingSection(),
+                                  DiagnosisScreen(
+                                      patientId: widget.patient.patientId,
+                                      admissionId: widget
+                                          .patient.admissionRecords.first.id),
+                                  EnhancedTreatmentScreen(
+                                      patientId: widget.patient.patientId,
+                                      admissionId: widget
+                                          .patient.admissionRecords.first.id)
                                 ],
                               ),
                             ),
                           ],
                         ),
                       ),
-
-                      // Main Content Area
-                      Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(20),
-                              bottomLeft: Radius.circular(20),
-                            ),
+                    ),
+                  ],
+                ),
+                floatingActionButtonLocation: ExpandableFab.location,
+                floatingActionButton: ExpandableFab(
+                  distance: 100.0,
+                  type: ExpandableFabType.up,
+                  children: [
+                    // Keep all existing FloatingActionButton children as they are
+                    // Add Diagnosis - Gradient Red
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFE53E3E), Color(0xFFFC8181)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(28),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFE53E3E).withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
                           ),
-                          child: Column(
-                            children: [
-                              // Top App Bar with Modern Design
-                              Container(
-                                height: 70,
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.grey.withOpacity(0.2),
-                                      blurRadius: 15,
-                                      spreadRadius: 2,
-                                      offset: Offset(0, 4),
-                                    )
-                                  ],
-                                  borderRadius: BorderRadius.circular(
-                                      12), // Soft rounded corners
-                                ),
-                                child: Row(
-                                  children: [
-                                    // Patient Name with Subtle Gradient
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 25),
-                                      child: Row(
-                                        children: [
-                                          // Optional Patient Avatar
-                                          CircleAvatar(
-                                            radius: 20,
-                                            backgroundColor: Color(0xFF1E2843)
-                                                .withOpacity(0.1),
-                                            child: Text(
-                                              widget.patient.name
-                                                  .substring(0, 1)
-                                                  .toUpperCase(),
-                                              style: TextStyle(
-                                                color: Color(0xFF1E2843),
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ),
-                                          SizedBox(width: 15),
-                                          Text(
-                                            '${widget.patient.name} - Patient Details',
-                                            style: TextStyle(
-                                              fontSize: 22,
-                                              fontWeight: FontWeight.w600,
-                                              color: Color(0xFF1E2843),
-                                              letterSpacing: 0.5,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Spacer(),
+                        ],
+                      ),
+                      child: FloatingActionButton.extended(
+                        label: const Text(
+                          'Add Diagnosis',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        icon: const Icon(Icons.medical_information, size: 20),
+                        heroTag: 'fab1',
+                        backgroundColor: Colors.transparent,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        onPressed: () {
+                          openAddDiagnosisScreen(
+                            widget.patient.patientId,
+                            widget.patient.admissionRecords.first.id,
+                          );
+                        },
+                      ),
+                    ),
 
-                                    // Advanced Action Buttons with Hover Effects
-                                    Row(
-                                      children: [
-                                        SizedBox(width: 10),
+                    // Add Doctor Consulting - Gradient Blue
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF3182CE), Color(0xFF63B3ED)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(28),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF3182CE).withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: FloatingActionButton.extended(
+                        label: const Text(
+                          'Add Doctor Consulting',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        icon: const Icon(Icons.supervisor_account, size: 20),
+                        heroTag: 'fab2',
+                        backgroundColor: Colors.transparent,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        onPressed: () {
+                          _openAddDoctorConsultingScreen(
+                            widget.patient.patientId,
+                            widget.patient.admissionRecords.first.id,
+                          );
+                        },
+                      ),
+                    ),
 
-                                        // Settings Button with Tooltip
-
-                                        SizedBox(width: 20),
-
-                                        // User Profile Section
-                                        Row(
-                                          children: [
-                                            CircleAvatar(
-                                              radius: 18,
-                                              backgroundImage: NetworkImage(
-                                                'https://t4.ftcdn.net/jpg/06/44/40/73/360_F_644407316_3aGuf15OnNGTbCRxRB7rWa7lIkfLqE4L.jpg', // Replace with actual user avatar
-                                              ),
-                                            ),
-                                            SizedBox(width: 10),
-                                            Column(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  'DocNex', // Current user name
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: Color(0xFF1E2843),
-                                                  ),
-                                                ),
-                                                Text(
-                                                  'Care', // User role
-                                                  style: TextStyle(
-                                                    fontSize: 12,
-                                                    color: Colors.grey.shade600,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            SizedBox(width: 10),
-                                            // Dropdown for user actions
-                                            PopupMenuButton<String>(
-                                              icon: Icon(
-                                                Icons.keyboard_arrow_down,
-                                                color: Colors.grey.shade700,
-                                              ),
-                                              itemBuilder:
-                                                  (BuildContext context) => [
-                                                PopupMenuItem(
-                                                  value: 'profile',
-                                                  child: Text('Profile'),
-                                                ),
-                                              ],
-                                              onSelected: (String value) {
-                                                // Handle user actions
-                                                switch (value) {
-                                                  case 'profile':
-                                                    Navigator.push(
-                                                        context,
-                                                        MaterialPageRoute(
-                                                          builder: (context) =>
-                                                              DoctorProfileScreen(),
-                                                        ));
-                                                    // Navigate to profile
-                                                    break;
-                                                }
-                                              },
-                                            ),
-                                          ],
-                                        ),
-
-                                        SizedBox(width: 20),
-                                      ],
-                                    ),
-                                  ],
-                                ),
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [
+                            Color.fromARGB(255, 206, 49, 185),
+                            Color(0xFF63B3ED)
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(28),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF3182CE).withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: FloatingActionButton.extended(
+                        label: const Text(
+                          'Generate Discharge Summary',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        icon: const Icon(Icons.supervisor_account, size: 20),
+                        heroTag: 'fab3',
+                        backgroundColor: Colors.transparent,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  GenerateDischargeSummaryByDoctorScreen(
+                                patientId: widget.patient.patientId,
                               ),
-
-                              // Main Content (TabBarView)
-                              Expanded(
-                                child: TabBarView(
-                                  controller: _tabController,
-                                  children: [
-                                    // Existing screen implementations remain the same
-                                    _buildFourSquareLayout(
-                                        context,
-                                        ref,
-                                        widget.patient.patientId,
-                                        widget
-                                            .patient.admissionRecords.first.id),
-                                    VitalsScreen(
-                                        patientId: widget.patient.patientId,
-                                        admissionId: widget
-                                            .patient.admissionRecords.first.id),
-                                    SymptomsScreen(
-                                        patientId: widget.patient.patientId,
-                                        admissionId: widget
-                                            .patient.admissionRecords.first.id),
-                                    _buildFollowUpAnd2hrSection(widget
-                                        .patient.admissionRecords.first.id),
-                                    DoctorPrescriptionsScreen(
-                                        patientId: widget.patient.patientId,
-                                        admissionId: widget
-                                            .patient.admissionRecords.first.id),
-                                    _buildDoctorConsultingSection(),
-                                    DiagnosisScreen(
-                                        patientId: widget.patient.patientId,
-                                        admissionId: widget
-                                            .patient.admissionRecords.first.id),
-                                    EnhancedTreatmentScreen(
-                                        patientId: widget.patient.patientId,
-                                        admissionId: widget
-                                            .patient.admissionRecords.first.id)
-                                  ],
-                                ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [
+                            Color.fromARGB(255, 206, 49, 185),
+                            Color(0xFF63B3ED)
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(28),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF3182CE).withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: FloatingActionButton.extended(
+                        label: const Text(
+                          'Emergency Medication',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        icon: const Icon(Icons.supervisor_account, size: 20),
+                        heroTag: 'fab4',
+                        backgroundColor: Colors.transparent,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  DoctorEmergencyMedicationScreen(
+                                patientId: widget.patient.patientId,
+                                admissionId:
+                                    widget.patient.admissionRecords.first.id,
                               ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  floatingActionButtonLocation: ExpandableFab.location,
-                  floatingActionButton: ExpandableFab(
-                    distance: 100.0,
-                    type: ExpandableFabType.up,
-                    children: [
-                      // Add Diagnosis - Gradient Red
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFE53E3E), Color(0xFFFC8181)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(28),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFE53E3E).withOpacity(0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
                             ),
-                          ],
-                        ),
-                        child: FloatingActionButton.extended(
-                          label: const Text(
-                            'Add Diagnosis',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                          ),
-                          icon: const Icon(Icons.medical_information, size: 20),
-                          heroTag: 'fab1',
-                          backgroundColor: Colors.transparent,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          onPressed: () {
-                            openAddDiagnosisScreen(
-                              widget.patient.patientId,
-                              widget.patient.admissionRecords.first.id,
-                            );
-                          },
-                        ),
+                          );
+                        },
                       ),
+                    ),
 
-                      // Add Doctor Consulting - Gradient Blue
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF3182CE), Color(0xFF63B3ED)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(28),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF3182CE).withOpacity(0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
+                    // Add Prescription - Gradient Green
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF38A169), Color(0xFF68D391)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                        child: FloatingActionButton.extended(
-                          label: const Text(
-                            'Add Doctor Consulting',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
+                        borderRadius: BorderRadius.circular(28),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF38A169).withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
                           ),
-                          icon: const Icon(Icons.supervisor_account, size: 20),
-                          heroTag: 'fab2',
-                          backgroundColor: Colors.transparent,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          onPressed: () {
-                            _openAddDoctorConsultingScreen(
-                              widget.patient.patientId,
-                              widget.patient.admissionRecords.first.id,
-                            );
-                          },
-                        ),
+                        ],
                       ),
+                      child: FloatingActionButton.extended(
+                        label: const Text(
+                          'Add Prescription',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        icon: const Icon(Icons.medication, size: 20),
+                        heroTag: 'fab5',
+                        backgroundColor: Colors.transparent,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        onPressed: () {
+                          _openAddPrescriptionScreen(
+                            widget.patient.patientId,
+                            widget.patient.admissionRecords.first.id,
+                          );
+                        },
+                      ),
+                    ),
 
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [
-                              Color.fromARGB(255, 206, 49, 185),
-                              Color(0xFF63B3ED)
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(28),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF3182CE).withOpacity(0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
+                    // Add Vitals - Gradient Orange
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFED8936), Color(0xFFFBB040)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                        child: FloatingActionButton.extended(
-                          label: const Text(
-                            'Generate Discharge Summary',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
+                        borderRadius: BorderRadius.circular(28),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFED8936).withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
                           ),
-                          icon: const Icon(Icons.supervisor_account, size: 20),
-                          heroTag: 'fab2',
-                          backgroundColor: Colors.transparent,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    GenerateDischargeSummaryByDoctorScreen(
-                                  patientId: widget.patient.patientId,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+                        ],
                       ),
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [
-                              Color.fromARGB(255, 206, 49, 185),
-                              Color(0xFF63B3ED)
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
+                      child: FloatingActionButton.extended(
+                        label: const Text(
+                          'Add Vitals',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
                           ),
-                          borderRadius: BorderRadius.circular(28),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF3182CE).withOpacity(0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
                         ),
-                        child: FloatingActionButton.extended(
-                          label: const Text(
-                            'Emergency Medication',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                          ),
-                          icon: const Icon(Icons.supervisor_account, size: 20),
-                          heroTag: 'fab2',
-                          backgroundColor: Colors.transparent,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    DoctorEmergencyMedicationScreen(
-                                  patientId: widget.patient.patientId,
-                                  admissionId:
-                                      widget.patient.admissionRecords.first.id,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+                        icon: const Icon(Icons.favorite, size: 20),
+                        heroTag: 'fab6',
+                        backgroundColor: Colors.transparent,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        onPressed: () {
+                          _openAddVitalsDialog(
+                            widget.patient.patientId,
+                            widget.patient.admissionRecords.first.id,
+                          );
+                        },
                       ),
-
-                      // Add Prescription - Gradient Green
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF38A169), Color(0xFF68D391)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(28),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF38A169).withOpacity(0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: FloatingActionButton.extended(
-                          label: const Text(
-                            'Add Prescription',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                          ),
-                          icon: const Icon(Icons.medication, size: 20),
-                          heroTag: 'fab3',
-                          backgroundColor: Colors.transparent,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          onPressed: () {
-                            _openAddPrescriptionScreen(
-                              widget.patient.patientId,
-                              widget.patient.admissionRecords.first.id,
-                            );
-                          },
-                        ),
-                      ),
-
-                      // Add Vitals - Gradient Orange
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFED8936), Color(0xFFFBB040)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(28),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFED8936).withOpacity(0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: FloatingActionButton.extended(
-                          label: const Text(
-                            'Add Vitals',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                          ),
-                          icon: const Icon(Icons.favorite, size: 20),
-                          heroTag: 'fab4',
-                          backgroundColor: Colors.transparent,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          onPressed: () {
-                            _openAddVitalsDialog(
-                              widget.patient.patientId,
-                              widget.patient.admissionRecords.first.id,
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-            ));
+            ),
+          ),
+        );
       },
     );
   }
 
-// Define a class for submenu items
+  Widget _buildQuickActionButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    required String tooltip,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.2),
+              width: 1,
+            ),
+          ),
+          child: Icon(
+            icon,
+            color: Colors.white.withOpacity(0.8),
+            size: 16,
+          ),
+        ),
+      ),
+    );
+  }
 
+  void _showSystemStatusDialog(BuildContext context, WidgetRef ref) {
+    final internetStatus = ref.read(internetStatusProvider);
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          width: 450,
+          padding: EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.computer, color: HospitalTheme.primary, size: 24),
+                  SizedBox(width: 12),
+                  Text(
+                    'System Status Dashboard',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: HospitalTheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 20),
+
+              // Connection Status Grid
+              Container(
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  children: [
+                    _buildDetailedStatusRow(
+                      'Network Connection',
+                      internetStatus.isConnected,
+                      internetStatus.connectionType,
+                      icon: Icons.wifi,
+                    ),
+                    _buildDetailedStatusRow(
+                      'Internet Access',
+                      internetStatus.isInternetReachable,
+                      '${internetStatus.internetResponseTime}ms • ${internetStatus.connectionQuality}',
+                      icon: Icons.public,
+                    ),
+                    _buildDetailedStatusRow(
+                      'Server Connectivity',
+                      internetStatus.isServerReachable,
+                      internetStatus.isServerReachable
+                          ? '${internetStatus.serverResponseTime}ms'
+                          : 'Unreachable',
+                      icon: Icons.storage,
+                    ),
+                    _buildDetailedStatusRow(
+                      'Authentication',
+                      true,
+                      'Active Session',
+                      icon: Icons.security,
+                    ),
+                  ],
+                ),
+              ),
+
+              SizedBox(height: 16),
+
+              // Quick Stats
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildQuickStat(
+                      'Internet', '${internetStatus.internetResponseTime}ms'),
+                  _buildQuickStat(
+                      'Server', '${internetStatus.serverResponseTime}ms'),
+                  _buildQuickStat('Quality', internetStatus.connectionQuality),
+                ],
+              ),
+
+              SizedBox(height: 16),
+              Divider(),
+              SizedBox(height: 8),
+
+              Text(
+                'Last checked: ${DateFormat('HH:mm:ss').format(internetStatus.lastChecked)}',
+                style: TextStyle(
+                  color: HospitalTheme.textMedium,
+                  fontSize: 12,
+                ),
+              ),
+
+              SizedBox(height: 16),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  TextButton.icon(
+                    onPressed: () {
+                      ref
+                          .read(internetStatusProvider.notifier)
+                          .forceQuickCheck();
+                    },
+                    icon: Icon(Icons.network_check),
+                    label: Text('Quick Check'),
+                  ),
+                  TextButton.icon(
+                    onPressed: () {
+                      ref.read(internetStatusProvider.notifier).forceCheck();
+                    },
+                    icon: Icon(Icons.refresh),
+                    label: Text('Full Check'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('Close'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: HospitalTheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailedStatusRow(
+    String label,
+    bool status,
+    String details, {
+    required IconData icon,
+  }) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 20,
+            color: status ? HospitalTheme.success : HospitalTheme.error,
+          ),
+          SizedBox(width: 12),
+          Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: status ? HospitalTheme.success : HospitalTheme.error,
+            ),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ),
+          Text(
+            details,
+            style: TextStyle(
+              color: HospitalTheme.textMedium,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickStat(String label, String value) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: HospitalTheme.primary,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: HospitalTheme.textMedium,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatusRow(String label, bool status, String details) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: status ? HospitalTheme.success : HospitalTheme.error,
+            ),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ),
+          Text(
+            details,
+            style: TextStyle(
+              color: HospitalTheme.textMedium,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showHelpDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          width: 500,
+          padding: EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Keyboard Shortcuts',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: HospitalTheme.primary,
+                ),
+              ),
+              SizedBox(height: 20),
+              _buildShortcutRow('Ctrl + I', 'Check Internet Status'),
+              _buildShortcutRow('Ctrl + T', 'System Status'),
+              _buildShortcutRow('Ctrl + D', 'Add Diagnosis'),
+              _buildShortcutRow('Ctrl + P', 'Add Prescription'),
+              _buildShortcutRow('Ctrl + V', 'Add Vitals'),
+              _buildShortcutRow('Shift + H', 'Go to Home'),
+              SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Close'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: HospitalTheme.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildShortcutRow(String shortcut, String description) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              shortcut,
+              style: TextStyle(
+                fontFamily: 'monospace',
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          SizedBox(width: 16),
+          Expanded(child: Text(description)),
+        ],
+      ),
+    );
+  }
+
+// Enhanced Navigation Item Builder
+  Widget _buildEnhancedNavItem({
+    required int index,
+    required IconData icon,
+    required String label,
+    VoidCallback? onCustomTap,
+    bool hasSubmenu = false,
+    List<SubmenuItem>? submenuItems,
+    Gradient? gradient,
+  }) {
+    bool isSelected = _selectedTabIndex == index;
+    bool isSubmenuOpen = false;
+
+    // Determine submenu state
+    if (index == 1) {
+      isSubmenuOpen = _isMonitoringSubmenuOpen;
+    } else if (index == 9) {
+      isSubmenuOpen = _isInvestigationSubmenuOpen;
+    }
+
+    return Column(
+      children: [
+        // Main Navigation Item
+        AnimatedContainer(
+          duration: Duration(milliseconds: 300),
+          curve: Curves.easeInOutCubic,
+          margin: EdgeInsets.symmetric(
+            horizontal: _isSidebarCollapsed ? 0 : 8,
+            vertical: 3,
+          ),
+          decoration: BoxDecoration(
+            gradient: isSelected || isSubmenuOpen
+                ? (gradient ??
+                    LinearGradient(
+                      colors: [
+                        HospitalTheme.primary,
+                        HospitalTheme.primaryLight,
+                      ],
+                    ))
+                : null,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: isSelected || isSubmenuOpen
+                ? [
+                    BoxShadow(
+                      color: (gradient?.colors.first ?? HospitalTheme.primary)
+                          .withOpacity(0.4),
+                      blurRadius: 12,
+                      spreadRadius: 2,
+                      offset: Offset(0, 4),
+                    ),
+                  ]
+                : null,
+            border: Border.all(
+              color: isSelected || isSubmenuOpen
+                  ? Colors.white.withOpacity(0.3)
+                  : Colors.transparent,
+              width: 1,
+            ),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              splashColor: Colors.white.withOpacity(0.1),
+              highlightColor: Colors.white.withOpacity(0.05),
+              onTap: () {
+                if (hasSubmenu && !_isSidebarCollapsed) {
+                  if (index == 1) {
+                    _toggleMonitoringSubmenu();
+                  } else if (index == 9) {
+                    _toggleInvestigationSubmenu();
+                  }
+                } else if (onCustomTap != null) {
+                  onCustomTap();
+                } else {
+                  setState(() {
+                    _selectedTabIndex = index;
+                    _tabController.animateTo(index);
+                  });
+                }
+              },
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: _isSidebarCollapsed ? 10 : 16,
+                  vertical: 14,
+                ),
+                child: Row(
+                  children: [
+                    // Enhanced Icon with Glow Effect
+                    Container(
+                      padding: EdgeInsets.all(_isSidebarCollapsed ? 8 : 10),
+                      decoration: BoxDecoration(
+                        color: isSelected || isSubmenuOpen
+                            ? Colors.white.withOpacity(0.15)
+                            : Colors.white.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isSelected || isSubmenuOpen
+                              ? Colors.white.withOpacity(0.3)
+                              : Colors.white.withOpacity(0.1),
+                          width: 1,
+                        ),
+                      ),
+                      child: Icon(
+                        icon,
+                        color: Colors.white,
+                        size: _isSidebarCollapsed ? 20 : 22,
+                      ),
+                    ),
+
+                    // Label and Trailing Icon (only when expanded)
+                    if (!_isSidebarCollapsed) ...[
+                      SizedBox(width: 16),
+                      Expanded(
+                        child: AnimatedOpacity(
+                          duration: Duration(milliseconds: 300),
+                          opacity: _isSidebarCollapsed ? 0 : 1,
+                          child: Text(
+                            label,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: isSelected || isSubmenuOpen
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              fontSize: 15,
+                              letterSpacing: 0.3,
+                              shadows: isSelected || isSubmenuOpen
+                                  ? [
+                                      Shadow(
+                                        offset: Offset(0, 1),
+                                        blurRadius: 2,
+                                        color: Colors.black.withOpacity(0.3),
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+
+                      // Trailing Icon
+                      if (hasSubmenu)
+                        AnimatedRotation(
+                          duration: Duration(milliseconds: 300),
+                          turns: isSubmenuOpen ? 0.5 : 0,
+                          child: Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            color: Colors.white.withOpacity(0.8),
+                            size: 20,
+                          ),
+                        )
+                      else if (isSelected)
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.white.withOpacity(0.6),
+                                blurRadius: 6,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        // Enhanced Submenu Items
+        if (hasSubmenu &&
+            isSubmenuOpen &&
+            !_isSidebarCollapsed &&
+            submenuItems != null)
+          AnimatedContainer(
+            duration: Duration(milliseconds: 400),
+            curve: Curves.easeOutCubic,
+            margin: EdgeInsets.only(left: 24, right: 8, top: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.03),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.08),
+                width: 1,
+              ),
+            ),
+            child: Column(
+              children: submenuItems.map((item) {
+                return Container(
+                  margin: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      splashColor: Colors.white.withOpacity(0.1),
+                      onTap: item.onTap,
+                      child: Padding(
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        child: Row(
+                          children: [
+                            Icon(
+                              item.icon,
+                              color: Colors.white.withOpacity(0.8),
+                              size: 18,
+                            ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                item.label,
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.9),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+      ],
+    );
+  }
+
+// Glass Button Helper
+  Widget _buildGlassButton({
+    required VoidCallback onPressed,
+    required Widget child,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.white.withOpacity(0.1),
+            Colors.white.withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          splashColor: Colors.white.withOpacity(0.1),
+          onTap: onPressed,
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: child,
+          ),
+        ),
+      ),
+    );
+  }
+
+// Enhanced _buildNavItem method with collapse support
   Widget _buildNavItem({
     required int index,
     required IconData icon,
@@ -1726,26 +2793,16 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
     List<SubmenuItem>? submenuItems,
   }) {
     bool isSelected = _selectedTabIndex == index;
-    // Use the shared state variables instead of local ones
     bool isSubmenuOpen = false;
 
-    // Determine which submenu state to use based on the index or label
+    // Determine which submenu state to use based on the index
     if (index == 1) {
-      // Monitoring section
       isSubmenuOpen = _isMonitoringSubmenuOpen;
     } else if (index == 9) {
-      // Investigation section
       isSubmenuOpen = _isInvestigationSubmenuOpen;
     }
 
     return LayoutBuilder(builder: (context, constraints) {
-      // Adjust for different screen widths
-      final bool isSmallScreen = constraints.maxWidth < 120;
-      final double iconSize = isSmallScreen ? 20 : 24;
-      final double fontSize = isSmallScreen ? 12 : 15;
-      final double verticalPadding = isSmallScreen ? 6 : 8;
-      final double horizontalPadding = isSmallScreen ? 8 : 16;
-
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1754,15 +2811,13 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
             duration: Duration(milliseconds: 400),
             curve: Curves.easeInOutQuint,
             margin: EdgeInsets.symmetric(
-                horizontal: isSmallScreen ? 6 : 10,
-                vertical: isSmallScreen ? 4 : 5),
+              horizontal: _isSidebarCollapsed ? 10 : 10,
+              vertical: 5,
+            ),
             decoration: BoxDecoration(
               gradient: isSelected || isSubmenuOpen
                   ? LinearGradient(
-                      colors: [
-                        Colors.white,
-                        Colors.white,
-                      ],
+                      colors: [Colors.white, Colors.white],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     )
@@ -1793,12 +2848,14 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                 // Main Content
                 ListTile(
                   contentPadding: EdgeInsets.symmetric(
-                      horizontal: horizontalPadding, vertical: verticalPadding),
+                    horizontal: _isSidebarCollapsed ? 8 : 16,
+                    vertical: 8,
+                  ),
 
-                  // Leading Icon with Animated Container
+                  // Leading Icon
                   leading: AnimatedContainer(
                     duration: Duration(milliseconds: 300),
-                    padding: EdgeInsets.all(isSmallScreen ? 6 : 8),
+                    padding: EdgeInsets.all(_isSidebarCollapsed ? 6 : 8),
                     decoration: BoxDecoration(
                       color: isSelected || isSubmenuOpen
                           ? Colors.white.withOpacity(0.1)
@@ -1810,36 +2867,35 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                       color: isSelected || isSubmenuOpen
                           ? Colors.white
                           : Colors.white70,
-                      size: iconSize,
+                      size: _isSidebarCollapsed ? 20 : 24,
                     ),
                   ),
 
-                  // Title with responsive sizing
-                  title: isSmallScreen
+                  // Title (only show when not collapsed)
+                  title: _isSidebarCollapsed
                       ? null
-                      : AnimatedDefaultTextStyle(
+                      : AnimatedOpacity(
                           duration: Duration(milliseconds: 300),
-                          style: TextStyle(
-                            color: isSelected || isSubmenuOpen
-                                ? Colors.white
-                                : Colors.white70,
-                            fontWeight: isSelected || isSubmenuOpen
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                            fontSize: isSelected || isSubmenuOpen
-                                ? fontSize + 1
-                                : fontSize,
-                            letterSpacing:
-                                isSelected || isSubmenuOpen ? 0.7 : 0.5,
-                          ),
+                          opacity: _isSidebarCollapsed ? 0 : 1,
                           child: Text(
                             label,
+                            style: TextStyle(
+                              color: isSelected || isSubmenuOpen
+                                  ? Colors.white
+                                  : Colors.white70,
+                              fontWeight: isSelected || isSubmenuOpen
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              fontSize: isSelected || isSubmenuOpen ? 16 : 15,
+                              letterSpacing:
+                                  isSelected || isSubmenuOpen ? 0.7 : 0.5,
+                            ),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
 
-                  // Trailing icon - chevron for submenu, indicator dot for regular
-                  trailing: isSmallScreen
+                  // Trailing icon (only show when not collapsed)
+                  trailing: _isSidebarCollapsed
                       ? null
                       : (hasSubmenu
                           ? Icon(
@@ -1871,12 +2927,10 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
 
                   // Tap Action
                   onTap: () {
-                    if (hasSubmenu) {
+                    if (hasSubmenu && !_isSidebarCollapsed) {
                       if (index == 1) {
-                        // Monitoring section
                         _toggleMonitoringSubmenu();
                       } else if (index == 9) {
-                        // Investigation section
                         _toggleInvestigationSubmenu();
                       }
                     } else if (onCustomTap != null) {
@@ -1890,7 +2944,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                   },
                 ),
 
-                // Footer-like Interaction Layer
+                // Selection Indicator
                 Positioned(
                   bottom: 0,
                   left: 0,
@@ -1917,12 +2971,10 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                       splashColor: Colors.white.withOpacity(0.2),
                       highlightColor: Colors.white.withOpacity(0.1),
                       onTap: () {
-                        if (hasSubmenu) {
+                        if (hasSubmenu && !_isSidebarCollapsed) {
                           if (index == 1) {
-                            // Monitoring section
                             _toggleMonitoringSubmenu();
                           } else if (index == 9) {
-                            // Investigation section
                             _toggleInvestigationSubmenu();
                           }
                         } else if (onCustomTap != null) {
@@ -1941,8 +2993,11 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
             ),
           ),
 
-          // Submenu items (conditionally displayed)
-          if (hasSubmenu && isSubmenuOpen && submenuItems != null)
+          // Submenu items (only show when expanded and submenu is open)
+          if (hasSubmenu &&
+              isSubmenuOpen &&
+              !_isSidebarCollapsed &&
+              submenuItems != null)
             AnimatedContainer(
               duration: Duration(milliseconds: 400),
               curve: Curves.easeOutQuad,
@@ -1970,6 +3025,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                               color: Colors.white,
                               fontSize: 13,
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                           onTap: item.onTap,
                         ),
@@ -4188,7 +5244,7 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
       pulse: pulseController.text,
       bloodPressure: bloodPressureController.text,
       bloodSugarLevel: bloodSugarLevelController.text,
-      other: otherWithDateTime,
+      other: otherController.text,
     );
 
     try {
@@ -7740,168 +8796,6 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                 ),
               ),
             ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildFollowUpAnd2hrSection(String recordId) {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 16),
-          Center(
-            child: Text(
-              '4 hrFollow-Ups',
-            ),
-          ),
-          _buildFollowUpSection(recordId),
-          const SizedBox(height: 16),
-          Center(
-            child: Text(
-              '2-Hour Follow-Ups',
-            ),
-          ), // Space between the two sections
-          _build2hrFollowUpSection(recordId),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFollowUpSection(String recordId) {
-    return FutureBuilder<List<FollowUp>>(
-      future: doctor.fetchFollowUps(recordId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return _buildShimmerEffect();
-        }
-        if (snapshot.hasError) {
-          return Text('Error: ${snapshot.error}');
-        }
-
-        var followUps = snapshot.data ?? [];
-        if (followUps.isEmpty) {
-          return const Text(
-            'No follow-ups available.',
-            style: TextStyle(fontSize: 14),
-          );
-        }
-
-        final dateFormat = DateFormat('d/M/yyyy, HH:mm:ss');
-
-        // Sort follow-ups by date (newest first)
-        followUps.sort((a, b) {
-          final dateA = dateFormat.parse(a.date);
-          final dateB = dateFormat.parse(b.date);
-          return dateB.compareTo(dateA);
-        });
-        final latestFollowUp = followUps.first;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 8),
-            ...followUps.map((followUp) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4.0),
-                child: Align(
-                  alignment: Alignment.center, // Center the dropdown
-                  child: Container(
-                    width: 900, // Adjust width for desktop
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade400),
-                      color: Colors.white,
-                    ),
-                    child: ExpansionTile(
-                      title: Text('Date: ${followUp.date}',
-                          style: const TextStyle(fontSize: 14)),
-                      subtitle: Text(
-                          'Time: ${followUp.date.split(',').last.trim()}',
-                          style: const TextStyle(
-                              fontSize: 12, color: Colors.grey)),
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                          child: _buildFollowUpTable(followUp),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _build2hrFollowUpSection(String recordId) {
-    return FutureBuilder<List<FollowUp>>(
-      future: doctor.fetch2hrFollowUps(recordId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return _buildShimmerEffect();
-        }
-        if (snapshot.hasError) {
-          return Text('Error: ${snapshot.error}');
-        }
-
-        var followUps = snapshot.data ?? [];
-        if (followUps.isEmpty) {
-          return const Text(
-            'No follow-ups available.',
-            style: TextStyle(fontSize: 14),
-          );
-        }
-
-        final dateFormat = DateFormat('d/M/yyyy, HH:mm:ss');
-
-        // Sort follow-ups by date (newest first)
-        followUps.sort((a, b) {
-          final dateA = dateFormat.parse(a.date);
-          final dateB = dateFormat.parse(b.date);
-          return dateB.compareTo(dateA);
-        });
-        final latestFollowUp = followUps.first;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 8),
-            ...followUps.map((followUp) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4.0),
-                child: Align(
-                  alignment: Alignment.center, // Center the dropdown
-                  child: Container(
-                    width: 900, // Adjust width for desktop
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade400),
-                      color: Colors.white,
-                    ),
-                    child: ExpansionTile(
-                      title: Text('Date: ${followUp.date}',
-                          style: const TextStyle(fontSize: 14)),
-                      subtitle: Text(
-                          'Time: ${followUp.date.split(',').last.trim()}',
-                          style: const TextStyle(
-                              fontSize: 12, color: Colors.grey)),
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                          child: _build2hrFollowUpTable(followUp),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
           ],
         );
       },

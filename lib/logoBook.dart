@@ -303,7 +303,7 @@ Widget buildLogoFrontPage(
               end: Alignment.bottomRight,
             ).createShader(bounds),
             child: Text(
-              'DocNeX.care',
+              'DocNex.care',
               style: TextStyle(
                 fontSize: titleFontSize,
                 fontWeight: FontWeight.bold,

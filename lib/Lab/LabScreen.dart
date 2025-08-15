@@ -36,11 +36,11 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Lab Reports'),
+        title: const Text('Lab Reports'),
         backgroundColor: HospitalTheme.primary,
         actions: [
           IconButton(
-            icon: Icon(Icons.download),
+            icon: const Icon(Icons.download),
             onPressed: () => Navigator.pop(context),
           ),
         ],
@@ -57,7 +57,7 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                 BoxShadow(
                   color: Colors.black.withOpacity(0.05),
                   blurRadius: 10,
-                  offset: Offset(0, 2),
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
@@ -78,7 +78,7 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                             color: HospitalTheme.textDark,
                           ),
                         ),
-                        SizedBox(height: 4),
+                        const SizedBox(height: 4),
                         Text(
                           'View and manage all patient lab reports',
                           style: TextStyle(
@@ -91,17 +91,17 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                     Row(
                       children: [
                         _buildSortDropdown(),
-                        SizedBox(width: 12),
+                        const SizedBox(width: 12),
                         ElevatedButton.icon(
                           onPressed: () => ref
                               .read(labReportNotifierProvider.notifier)
                               .fetchLabPatients(),
-                          icon: Icon(Icons.refresh),
-                          label: Text('Refresh'),
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Refresh'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: HospitalTheme.primary,
                             foregroundColor: Colors.white,
-                            padding: EdgeInsets.symmetric(
+                            padding: const EdgeInsets.symmetric(
                                 horizontal: 20, vertical: 12),
                           ),
                         ),
@@ -109,13 +109,13 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                     ),
                   ],
                 ),
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
 
                 Row(
                   children: [
                     // Search Bar
                     Expanded(
-                      child: Container(
+                      child: SizedBox(
                         height: 48,
                         child: TextField(
                           onChanged: (value) =>
@@ -143,14 +143,14 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                         ),
                       ),
                     ),
-                    SizedBox(width: 16),
+                    const SizedBox(width: 16),
 
                     // Filter Chips
                     _buildFilterChips(),
                   ],
                 ),
 
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
 
                 // Stats Summary
                 _buildStatsSummary(labReportsState),
@@ -163,7 +163,16 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
             child: labReportsState.when(
               data: (labReports) {
                 final filteredReports = labReports.where((report) {
-                  // First apply discharge filter
+                  // Filter out entries where patient name is null, empty, or "Unknown Patient"
+                  final patientName = report.patient?.name?.trim();
+                  if (patientName == null ||
+                      patientName.isEmpty ||
+                      patientName.toLowerCase() == 'unknown patient' ||
+                      patientName.toLowerCase() == 'unknown') {
+                    return false;
+                  }
+
+                  // Apply discharge filter
                   if (_dischargeFilter == 'discharged' &&
                       (report.patient?.discharged != true)) {
                     return false;
@@ -173,14 +182,12 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                     return false;
                   }
 
-                  // Then apply search query
+                  // Apply search query
                   if (_searchQuery.isEmpty) return true;
                   final searchLower = _searchQuery.toLowerCase();
 
-                  final nameMatch = report.patient?.name
-                          ?.toLowerCase()
-                          .contains(searchLower) ??
-                      false;
+                  final nameMatch =
+                      patientName.toLowerCase().contains(searchLower);
                   final testNameMatch = report.labTestNameGivenByDoctor
                           ?.toLowerCase()
                           .contains(searchLower) ??
@@ -202,7 +209,7 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                           size: 80,
                           color: HospitalTheme.textLight,
                         ),
-                        SizedBox(height: 16),
+                        const SizedBox(height: 16),
                         Text(
                           _searchQuery.isEmpty
                               ? 'No lab reports available for the selected filters'
@@ -212,14 +219,14 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                             color: HospitalTheme.textMedium,
                           ),
                         ),
-                        SizedBox(height: 24),
+                        const SizedBox(height: 24),
                         ElevatedButton.icon(
                           onPressed: () => setState(() {
                             _searchQuery = '';
                             _dischargeFilter = 'all';
                           }),
-                          icon: Icon(Icons.refresh),
-                          label: Text('Clear Filters'),
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Clear Filters'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: HospitalTheme.secondary,
                           ),
@@ -232,7 +239,8 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                 return Padding(
                   padding: const EdgeInsets.all(24),
                   child: GridView.builder(
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 3,
                       childAspectRatio: 1.2,
                       crossAxisSpacing: 20,
@@ -249,7 +257,7 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     CircularProgressIndicator(color: HospitalTheme.primary),
-                    SizedBox(height: 16),
+                    const SizedBox(height: 16),
                     Text('Loading lab reports...',
                         style: TextStyle(color: HospitalTheme.textMedium)),
                   ],
@@ -261,24 +269,24 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                   children: [
                     Icon(Icons.error_outline,
                         size: 60, color: HospitalTheme.error),
-                    SizedBox(height: 16),
+                    const SizedBox(height: 16),
                     Text(
                       'Error loading lab reports',
                       style:
                           TextStyle(fontSize: 18, color: HospitalTheme.error),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
                       error.toString(),
                       style: TextStyle(color: HospitalTheme.textMedium),
                     ),
-                    SizedBox(height: 16),
+                    const SizedBox(height: 16),
                     ElevatedButton.icon(
                       onPressed: () => ref
                           .read(labReportNotifierProvider.notifier)
                           .fetchLabPatients(),
-                      icon: Icon(Icons.refresh),
-                      label: Text('Retry'),
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
                       style: ElevatedButton.styleFrom(
                           backgroundColor: HospitalTheme.primary),
                     ),
@@ -292,7 +300,7 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
       // floatingActionButton: FloatingActionButton(
       //   backgroundColor: HospitalTheme.primary,
       //   onPressed: () => _exportReportsDialog(),
-      //   child: Icon(Icons.download, color: Colors.white),
+      //   child: const Icon(Icons.download, color: Colors.white),
       //   tooltip: 'Export Reports',
       // ),
     );
@@ -332,16 +340,25 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
     if (labReportsState is AsyncData) {
       final labReports = labReportsState.value;
 
-      int totalReports = labReports.length;
+      // Filter out unknown patients for stats too
+      final validReports = labReports.where((report) {
+        final patientName = report.patient?.name?.trim();
+        return patientName != null &&
+            patientName.isNotEmpty &&
+            patientName.toLowerCase() != 'unknown patient' &&
+            patientName.toLowerCase() != 'unknown';
+      }).toList();
+
+      int totalReports = validReports.length;
       int activePatients =
-          labReports.where((r) => r.patient?.discharged != true).length;
+          validReports.where((r) => r.patient?.discharged != true).length;
       int dischargedPatients =
-          labReports.where((r) => r.patient?.discharged == true).length;
+          validReports.where((r) => r.patient?.discharged == true).length;
       int pendingReports =
-          labReports.where((r) => (r.reports?.length ?? 0) == 0).length;
+          validReports.where((r) => (r.reports?.length ?? 0) == 0).length;
 
       return Container(
-        padding: EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.symmetric(vertical: 16),
         child: Row(
           children: [
             Expanded(
@@ -352,7 +369,7 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                 HospitalTheme.primary,
               ),
             ),
-            SizedBox(width: 16),
+            const SizedBox(width: 16),
             Expanded(
               child: _buildStatCard(
                 'Active Patients',
@@ -361,7 +378,7 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                 HospitalTheme.success,
               ),
             ),
-            SizedBox(width: 16),
+            const SizedBox(width: 16),
             Expanded(
               child: _buildStatCard(
                 'Discharged',
@@ -370,7 +387,7 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                 HospitalTheme.info,
               ),
             ),
-            SizedBox(width: 16),
+            const SizedBox(width: 16),
             Expanded(
               child: _buildStatCard(
                 'Pending Reports',
@@ -384,13 +401,13 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
       );
     }
 
-    return SizedBox.shrink();
+    return const SizedBox.shrink();
   }
 
   Widget _buildStatCard(
       String title, String value, IconData icon, Color color) {
     return Container(
-      padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
@@ -399,14 +416,14 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
       child: Row(
         children: [
           Container(
-            padding: EdgeInsets.all(8),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: color.withOpacity(0.2),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: color, size: 20),
           ),
-          SizedBox(width: 16),
+          const SizedBox(width: 16),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -417,7 +434,7 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                   color: HospitalTheme.textMedium,
                 ),
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
                 value,
                 style: TextStyle(
@@ -438,7 +455,7 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
       spacing: 8,
       children: [
         ChoiceChip(
-          label: Text('All Patients'),
+          label: const Text('All Patients'),
           selected: _dischargeFilter == 'all',
           onSelected: (selected) {
             if (selected) {
@@ -457,7 +474,7 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
               : null,
         ),
         ChoiceChip(
-          label: Text('Not Discharged'),
+          label: const Text('Not Discharged'),
           selected: _dischargeFilter == 'not_discharged',
           onSelected: (selected) {
             if (selected) {
@@ -476,7 +493,7 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
               : null,
         ),
         ChoiceChip(
-          label: Text('Discharged'),
+          label: const Text('Discharged'),
           selected: _dischargeFilter == 'discharged',
           onSelected: (selected) {
             if (selected) {
@@ -506,7 +523,7 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
         border: Border.all(color: HospitalTheme.border),
         color: Colors.white,
       ),
-      padding: EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: _sortOption,
@@ -524,8 +541,8 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                 children: [
                   Icon(Icons.arrow_downward,
                       size: 16, color: HospitalTheme.textMedium),
-                  SizedBox(width: 8),
-                  Text('Newest First'),
+                  const SizedBox(width: 8),
+                  const Text('Newest First'),
                 ],
               ),
             ),
@@ -535,8 +552,8 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                 children: [
                   Icon(Icons.arrow_upward,
                       size: 16, color: HospitalTheme.textMedium),
-                  SizedBox(width: 8),
-                  Text('Oldest First'),
+                  const SizedBox(width: 8),
+                  const Text('Oldest First'),
                 ],
               ),
             ),
@@ -546,8 +563,8 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                 children: [
                   Icon(Icons.sort_by_alpha,
                       size: 16, color: HospitalTheme.textMedium),
-                  SizedBox(width: 8),
-                  Text('Name (A-Z)'),
+                  const SizedBox(width: 8),
+                  const Text('Name (A-Z)'),
                 ],
               ),
             ),
@@ -557,8 +574,8 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                 children: [
                   Icon(Icons.sort_by_alpha,
                       size: 16, color: HospitalTheme.textMedium),
-                  SizedBox(width: 8),
-                  Text('Name (Z-A)'),
+                  const SizedBox(width: 8),
+                  const Text('Name (Z-A)'),
                 ],
               ),
             ),
@@ -582,7 +599,7 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
-            offset: Offset(0, 4),
+            offset: const Offset(0, 4),
           ),
         ],
         border: Border.all(
@@ -605,7 +622,7 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                 Row(
                   children: [
                     Container(
-                      padding: EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: isDischargedPatient
                             ? HospitalTheme.info.withOpacity(0.1)
@@ -620,13 +637,13 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                         size: 24,
                       ),
                     ),
-                    SizedBox(width: 12),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            patient?.name ?? 'Unknown Patient',
+                            patient?.name ?? 'N/A',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -645,8 +662,8 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                     ),
                     if (isDischargedPatient)
                       Container(
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: HospitalTheme.info.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(16),
@@ -656,7 +673,7 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                           children: [
                             Icon(Icons.check_circle,
                                 size: 14, color: HospitalTheme.info),
-                            SizedBox(width: 4),
+                            const SizedBox(width: 4),
                             Text(
                               'Discharged',
                               style: TextStyle(
@@ -671,22 +688,23 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                   ],
                 ),
 
-                Spacer(),
+                const Spacer(),
 
                 // Patient Info
                 _buildInfoRow(Icons.person,
                     '${patient?.age ?? "N/A"} yrs, ${patient?.gender ?? "N/A"}'),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 _buildInfoRow(Icons.phone, patient?.contact ?? "N/A"),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 _buildInfoRow(Icons.medical_services,
                     doctor?.doctorName ?? "Unknown Doctor"),
 
-                Spacer(),
+                const Spacer(),
 
                 // Test Info with Visual Indicator
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: hasReports
                         ? HospitalTheme.success.withOpacity(0.1)
@@ -708,7 +726,7 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                           color: hasReports
                               ? HospitalTheme.success
                               : HospitalTheme.warning),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           report.labTestNameGivenByDoctor ??
@@ -726,7 +744,7 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                   ),
                 ),
 
-                Spacer(),
+                const Spacer(),
 
                 // Footer
                 Row(
@@ -736,7 +754,7 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                       children: [
                         Icon(Icons.description,
                             size: 16, color: HospitalTheme.textLight),
-                        SizedBox(width: 4),
+                        const SizedBox(width: 4),
                         Text(
                           '${report.reports?.length ?? 0} reports',
                           style: TextStyle(
@@ -753,19 +771,19 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                               size: 20, color: HospitalTheme.primary),
                           onPressed: () => _showReportDetails(report),
                           tooltip: 'View Details',
-                          constraints: BoxConstraints(),
-                          padding: EdgeInsets.all(4),
+                          constraints: const BoxConstraints(),
+                          padding: const EdgeInsets.all(4),
                         ),
-                        SizedBox(width: 8),
+                        const SizedBox(width: 8),
                         ElevatedButton(
                           onPressed: () => _navigateToAddReport(report),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: HospitalTheme.primary,
                             foregroundColor: Colors.white,
-                            padding: EdgeInsets.symmetric(
+                            padding: const EdgeInsets.symmetric(
                                 horizontal: 12, vertical: 8),
                           ),
-                          child: Text('Add Report',
+                          child: const Text('Add Report',
                               style: TextStyle(fontSize: 12)),
                         ),
                       ],
@@ -784,7 +802,7 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
     return Row(
       children: [
         Icon(icon, size: 16, color: HospitalTheme.textMedium),
-        SizedBox(width: 8),
+        const SizedBox(width: 8),
         Expanded(
           child: Text(
             text,
@@ -834,18 +852,18 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
         title: Row(
           children: [
             Icon(Icons.download, color: HospitalTheme.primary),
-            SizedBox(width: 8),
-            Text('Export Reports'),
+            const SizedBox(width: 8),
+            const Text('Export Reports'),
           ],
         ),
-        content: Container(
+        content: SizedBox(
           width: 400,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Select the export format:'),
-              SizedBox(height: 16),
+              const Text('Select the export format:'),
+              const SizedBox(height: 16),
               _buildExportOptionTile(
                 icon: Icons.description,
                 title: 'PDF Report',
@@ -879,7 +897,7 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
+            child: const Text('Cancel'),
           ),
         ],
       ),
@@ -893,23 +911,23 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
     required VoidCallback onTap,
   }) {
     return Card(
-      margin: EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 8),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Padding(
-          padding: EdgeInsets.all(16),
+          padding: const EdgeInsets.all(16),
           child: Row(
             children: [
               Container(
-                padding: EdgeInsets.all(12),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: HospitalTheme.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(icon, color: HospitalTheme.primary),
               ),
-              SizedBox(width: 16),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -921,7 +939,7 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                         color: HospitalTheme.textDark,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                       subtitle,
                       style: TextStyle(
@@ -932,7 +950,7 @@ class _LabPatientsScreenState extends ConsumerState<LabPatientsScreen> {
                   ],
                 ),
               ),
-              Icon(Icons.arrow_forward_ios, size: 16),
+              const Icon(Icons.arrow_forward_ios, size: 16),
             ],
           ),
         ),
@@ -973,15 +991,16 @@ class ReportDetailsDialog extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         width: 800,
-        constraints: BoxConstraints(maxHeight: 600),
+        constraints: const BoxConstraints(maxHeight: 600),
         child: Column(
           children: [
             // Header
             Container(
-              padding: EdgeInsets.all(20),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: HospitalTheme.primary,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(16)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -989,7 +1008,7 @@ class ReportDetailsDialog extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         'Lab Report Details',
                         style: TextStyle(
                           fontSize: 20,
@@ -997,10 +1016,10 @@ class ReportDetailsDialog extends StatelessWidget {
                           color: Colors.white,
                         ),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
                         'ID: ${report.id ?? "N/A"}',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 14,
                           color: Colors.white70,
                         ),
@@ -1008,7 +1027,7 @@ class ReportDetailsDialog extends StatelessWidget {
                     ],
                   ),
                   IconButton(
-                    icon: Icon(Icons.close, color: Colors.white),
+                    icon: const Icon(Icons.close, color: Colors.white),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -1018,7 +1037,7 @@ class ReportDetailsDialog extends StatelessWidget {
             // Content
             Expanded(
               child: SingleChildScrollView(
-                padding: EdgeInsets.all(24),
+                padding: const EdgeInsets.all(24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1027,7 +1046,7 @@ class ReportDetailsDialog extends StatelessWidget {
                       title: 'Patient Information',
                       icon: Icons.person,
                       children: [
-                        _buildDetailRow('Name', patient?.name ?? "Unknown"),
+                        _buildDetailRow('Name', patient?.name ?? "N/A"),
                         _buildDetailRow(
                             'Age', '${patient?.age ?? "N/A"} years'),
                         _buildDetailRow('Gender', patient?.gender ?? "N/A"),
@@ -1040,7 +1059,7 @@ class ReportDetailsDialog extends StatelessWidget {
                       ],
                     ),
 
-                    SizedBox(height: 24),
+                    const SizedBox(height: 24),
 
                     // Doctor Info Section
                     _buildSection(
@@ -1053,7 +1072,7 @@ class ReportDetailsDialog extends StatelessWidget {
                       ],
                     ),
 
-                    SizedBox(height: 24),
+                    const SizedBox(height: 24),
 
                     // Test Info Section
                     _buildSection(
@@ -1067,7 +1086,7 @@ class ReportDetailsDialog extends StatelessWidget {
                       ],
                     ),
 
-                    SizedBox(height: 24),
+                    const SizedBox(height: 24),
 
                     // Reports Section
                     _buildSection(
@@ -1083,7 +1102,7 @@ class ReportDetailsDialog extends StatelessWidget {
                         else
                           Center(
                             child: Padding(
-                              padding: EdgeInsets.symmetric(vertical: 16),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
                               child: Text(
                                 'No reports uploaded yet',
                                 style: TextStyle(
@@ -1116,7 +1135,7 @@ class ReportDetailsDialog extends StatelessWidget {
         Row(
           children: [
             Icon(icon, size: 20, color: HospitalTheme.primary),
-            SizedBox(width: 8),
+            const SizedBox(width: 8),
             Text(
               title,
               style: TextStyle(
@@ -1127,9 +1146,9 @@ class ReportDetailsDialog extends StatelessWidget {
             ),
           ],
         ),
-        SizedBox(height: 12),
+        const SizedBox(height: 12),
         Container(
-          padding: EdgeInsets.all(16),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: HospitalTheme.surfaceLight.withOpacity(0.3),
             borderRadius: BorderRadius.circular(8),
@@ -1146,7 +1165,7 @@ class ReportDetailsDialog extends StatelessWidget {
 
   Widget _buildDetailRow(String label, String value) {
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1173,8 +1192,8 @@ class ReportDetailsDialog extends StatelessWidget {
 
   Widget _buildReportItem(dynamic labReport, BuildContext context) {
     return Container(
-      margin: EdgeInsets.only(bottom: 12),
-      padding: EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
@@ -1198,7 +1217,7 @@ class ReportDetailsDialog extends StatelessWidget {
                         color: HospitalTheme.textDark,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                       'Type: ${labReport.labType ?? "N/A"}',
                       style: TextStyle(
@@ -1224,7 +1243,7 @@ class ReportDetailsDialog extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
             'Uploaded: ${_formatDate(labReport.uploadedAt)}',
             style: TextStyle(
@@ -1274,13 +1293,13 @@ class ReportDetailsDialog extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Delete Report'),
-        content: Text(
+        title: const Text('Delete Report'),
+        content: const Text(
             'Are you sure you want to delete this report? This action cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () {
@@ -1290,7 +1309,7 @@ class ReportDetailsDialog extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: HospitalTheme.error,
             ),
-            child: Text('Delete'),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -1306,7 +1325,7 @@ class ReportDetailsDialog extends StatelessWidget {
 
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Report deleted successfully')),
+          const SnackBar(content: Text('Report deleted successfully')),
         );
         Navigator.pop(context);
         onRefresh();
@@ -1368,7 +1387,8 @@ class _AddLabReportScreenState extends State<AddLabReportScreen> {
   Future<void> _uploadReport() async {
     if (!_formKey.currentState!.validate() || _selectedFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please fill all fields and select a file')),
+        const SnackBar(
+            content: Text('Please fill all fields and select a file')),
       );
       return;
     }
@@ -1398,7 +1418,7 @@ class _AddLabReportScreenState extends State<AddLabReportScreen> {
         widget.onReportUploaded();
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lab report uploaded successfully')),
+          const SnackBar(content: Text('Lab report uploaded successfully')),
         );
       } else {
         throw Exception('Failed to upload report');
@@ -1417,15 +1437,15 @@ class _AddLabReportScreenState extends State<AddLabReportScreen> {
     return Scaffold(
       backgroundColor: HospitalTheme.background,
       appBar: AppBar(
-        title: Text('Add Lab Report'),
+        title: const Text('Add Lab Report'),
         backgroundColor: HospitalTheme.primary,
         foregroundColor: Colors.white,
       ),
       body: Center(
         child: Container(
           width: 600,
-          margin: EdgeInsets.all(32),
-          padding: EdgeInsets.all(32),
+          margin: const EdgeInsets.all(32),
+          padding: const EdgeInsets.all(32),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
@@ -1433,7 +1453,7 @@ class _AddLabReportScreenState extends State<AddLabReportScreen> {
               BoxShadow(
                 color: Colors.black.withOpacity(0.05),
                 blurRadius: 10,
-                offset: Offset(0, 4),
+                offset: const Offset(0, 4),
               ),
             ],
           ),
@@ -1452,35 +1472,35 @@ class _AddLabReportScreenState extends State<AddLabReportScreen> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                SizedBox(height: 32),
+                const SizedBox(height: 32),
                 TextFormField(
                   controller: _testNameController,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'Test Name',
                     prefixIcon: Icon(Icons.science),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.all(Radius.circular(8)),
                     ),
                   ),
                   validator: (value) =>
                       value?.isEmpty ?? true ? 'Please enter test name' : null,
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 TextFormField(
                   controller: _testTypeController,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'Test Type',
                     prefixIcon: Icon(Icons.category),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.all(Radius.circular(8)),
                     ),
                   ),
                   validator: (value) =>
                       value?.isEmpty ?? true ? 'Please enter test type' : null,
                 ),
-                SizedBox(height: 24),
+                const SizedBox(height: 24),
                 Container(
-                  padding: EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     border: Border.all(color: HospitalTheme.border),
                     borderRadius: BorderRadius.circular(8),
@@ -1493,7 +1513,7 @@ class _AddLabReportScreenState extends State<AddLabReportScreen> {
                         size: 48,
                         color: HospitalTheme.primary,
                       ),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       Text(
                         _selectedFile != null
                             ? 'Selected: ${_selectedFile!.path.split('/').last}'
@@ -1504,11 +1524,11 @@ class _AddLabReportScreenState extends State<AddLabReportScreen> {
                               : HospitalTheme.textMedium,
                         ),
                       ),
-                      SizedBox(height: 16),
+                      const SizedBox(height: 16),
                       ElevatedButton.icon(
                         onPressed: _pickFile,
-                        icon: Icon(Icons.folder_open),
-                        label: Text('Choose PDF'),
+                        icon: const Icon(Icons.folder_open),
+                        label: const Text('Choose PDF'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: HospitalTheme.secondary,
                         ),
@@ -1516,15 +1536,15 @@ class _AddLabReportScreenState extends State<AddLabReportScreen> {
                     ],
                   ),
                 ),
-                SizedBox(height: 32),
+                const SizedBox(height: 32),
                 ElevatedButton(
                   onPressed: _isUploading ? null : _uploadReport,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: HospitalTheme.primary,
-                    padding: EdgeInsets.symmetric(vertical: 16),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                   child: _isUploading
-                      ? SizedBox(
+                      ? const SizedBox(
                           height: 20,
                           width: 20,
                           child: CircularProgressIndicator(
@@ -1532,7 +1552,7 @@ class _AddLabReportScreenState extends State<AddLabReportScreen> {
                             color: Colors.white,
                           ),
                         )
-                      : Text('Upload Report',
+                      : const Text('Upload Report',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -1566,7 +1586,7 @@ class StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.all(20),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -1574,7 +1594,7 @@ class StatCard extends StatelessWidget {
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
-            offset: Offset(0, 4),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -1585,7 +1605,7 @@ class StatCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: EdgeInsets.all(8),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
@@ -1602,7 +1622,7 @@ class StatCard extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           Text(
             title,
             style: TextStyle(
@@ -1650,7 +1670,7 @@ class ReportStatusBadge extends StatelessWidget {
     }
 
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(16),
@@ -1659,7 +1679,7 @@ class ReportStatusBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 16, color: textColor),
-          SizedBox(width: 4),
+          const SizedBox(width: 4),
           Text(
             status,
             style: TextStyle(
@@ -1688,7 +1708,7 @@ class FilterOptions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -1696,7 +1716,7 @@ class FilterOptions extends StatelessWidget {
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
-            offset: Offset(0, 4),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -1711,13 +1731,13 @@ class FilterOptions extends StatelessWidget {
               color: HospitalTheme.textDark,
             ),
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
               FilterChip(
-                label: Text('All'),
+                label: const Text('All'),
                 selected: currentFilter == 'all',
                 onSelected: (_) => onFilterChanged('all'),
                 backgroundColor: HospitalTheme.surfaceLight,
@@ -1725,7 +1745,7 @@ class FilterOptions extends StatelessWidget {
                 checkmarkColor: HospitalTheme.primary,
               ),
               FilterChip(
-                label: Text('With Reports'),
+                label: const Text('With Reports'),
                 selected: currentFilter == 'with_reports',
                 onSelected: (_) => onFilterChanged('with_reports'),
                 backgroundColor: HospitalTheme.surfaceLight,
@@ -1733,7 +1753,7 @@ class FilterOptions extends StatelessWidget {
                 checkmarkColor: HospitalTheme.primary,
               ),
               FilterChip(
-                label: Text('No Reports'),
+                label: const Text('No Reports'),
                 selected: currentFilter == 'no_reports',
                 onSelected: (_) => onFilterChanged('no_reports'),
                 backgroundColor: HospitalTheme.surfaceLight,
@@ -1741,7 +1761,7 @@ class FilterOptions extends StatelessWidget {
                 checkmarkColor: HospitalTheme.primary,
               ),
               FilterChip(
-                label: Text('Discharged'),
+                label: const Text('Discharged'),
                 selected: currentFilter == 'discharged',
                 onSelected: (_) => onFilterChanged('discharged'),
                 backgroundColor: HospitalTheme.surfaceLight,
@@ -1772,7 +1792,7 @@ class SortOptions extends StatelessWidget {
     return PopupMenuButton<String>(
       onSelected: onSortChanged,
       itemBuilder: (context) => [
-        PopupMenuItem(
+        const PopupMenuItem(
           value: 'date_desc',
           child: Row(
             children: [
@@ -1782,7 +1802,7 @@ class SortOptions extends StatelessWidget {
             ],
           ),
         ),
-        PopupMenuItem(
+        const PopupMenuItem(
           value: 'date_asc',
           child: Row(
             children: [
@@ -1792,7 +1812,7 @@ class SortOptions extends StatelessWidget {
             ],
           ),
         ),
-        PopupMenuItem(
+        const PopupMenuItem(
           value: 'name_asc',
           child: Row(
             children: [
@@ -1802,7 +1822,7 @@ class SortOptions extends StatelessWidget {
             ],
           ),
         ),
-        PopupMenuItem(
+        const PopupMenuItem(
           value: 'name_desc',
           child: Row(
             children: [
@@ -1814,7 +1834,7 @@ class SortOptions extends StatelessWidget {
         ),
       ],
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           border: Border.all(color: HospitalTheme.border),
           borderRadius: BorderRadius.circular(8),
@@ -1822,7 +1842,7 @@ class SortOptions extends StatelessWidget {
         child: Row(
           children: [
             Icon(Icons.sort, size: 18, color: HospitalTheme.textMedium),
-            SizedBox(width: 8),
+            const SizedBox(width: 8),
             Text(
               'Sort',
               style: TextStyle(color: HospitalTheme.textMedium),

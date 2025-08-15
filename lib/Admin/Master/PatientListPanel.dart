@@ -371,6 +371,13 @@ class PaginationInfo {
     if (value is double) return value.toInt();
     return defaultValue;
   }
+
+  // Add helper properties for pagination UI
+  bool get hasNextPage => current < total;
+  bool get hasPreviousPage => current > 1;
+  int get startRecord => ((current - 1) * count) + 1;
+  int get endRecord =>
+      current * count > totalRecords ? totalRecords : current * count;
 }
 
 class NextAvailableNumbers {
@@ -487,6 +494,41 @@ class PatientListNotifier extends StateNotifier<PatientListState> {
     }
   }
 
+  // ADD: Pagination navigation methods
+  Future<void> goToPage(int page) async {
+    if (state.pagination != null &&
+        page >= 1 &&
+        page <= state.pagination!.total &&
+        page != state.pagination!.current) {
+      await loadPatients(page: page);
+    }
+  }
+
+  Future<void> goToNextPage() async {
+    if (state.pagination?.hasNextPage == true) {
+      await loadPatients(page: state.pagination!.current + 1);
+    }
+  }
+
+  Future<void> goToPreviousPage() async {
+    if (state.pagination?.hasPreviousPage == true) {
+      await loadPatients(page: state.pagination!.current - 1);
+    }
+  }
+
+  Future<void> goToFirstPage() async {
+    if (state.pagination != null && state.pagination!.current != 1) {
+      await loadPatients(page: 1);
+    }
+  }
+
+  Future<void> goToLastPage() async {
+    if (state.pagination != null &&
+        state.pagination!.current != state.pagination!.total) {
+      await loadPatients(page: state.pagination!.total);
+    }
+  }
+
   // FIX: Enhanced updatePatientBasicInfo method with proper state management
   Future<Patient> updatePatientBasicInfo(
       String patientId, Map<String, dynamic> updates) async {
@@ -577,7 +619,7 @@ class PatientListNotifier extends StateNotifier<PatientListState> {
 
   Future<void> searchPatients(String query) async {
     state = state.copyWith(searchQuery: query);
-    await loadPatients();
+    await loadPatients(page: 1); // Reset to first page when searching
   }
 
   void setSearchQuery(String query) {
@@ -585,7 +627,7 @@ class PatientListNotifier extends StateNotifier<PatientListState> {
   }
 
   Future<void> refreshPatients() async {
-    await loadPatients(page: 1);
+    await loadPatients(page: state.pagination?.current ?? 1);
   }
 
   void clearError() {
@@ -772,6 +814,251 @@ class _PatientManagementScreenState
   }
 }
 
+// ==================== ADD: PAGINATION WIDGETS ====================
+
+class _PaginationWidget extends ConsumerWidget {
+  const _PaginationWidget();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final patientListState = ref.watch(patientListProvider);
+    final pagination = patientListState.pagination;
+    final notifier = ref.read(patientListProvider.notifier);
+
+    if (pagination == null || pagination.total <= 1) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: HospitalTheme.border)),
+      ),
+      child: Column(
+        children: [
+          // Page info
+          Text(
+            'Page ${pagination.current} of ${pagination.total} • Showing ${pagination.startRecord}-${pagination.endRecord} of ${pagination.totalRecords}',
+            style: const TextStyle(
+              fontSize: 12,
+              color: HospitalTheme.textMedium,
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Navigation buttons
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _PaginationButton(
+                icon: Icons.first_page,
+                onPressed: pagination.hasPreviousPage
+                    ? () => notifier.goToFirstPage()
+                    : null,
+                tooltip: 'First Page',
+              ),
+              const SizedBox(width: 4),
+              _PaginationButton(
+                icon: Icons.chevron_left,
+                onPressed: pagination.hasPreviousPage
+                    ? () => notifier.goToPreviousPage()
+                    : null,
+                tooltip: 'Previous Page',
+              ),
+              const SizedBox(width: 8),
+
+              // Page numbers
+              ..._buildPageNumbers(pagination, notifier),
+
+              const SizedBox(width: 8),
+              _PaginationButton(
+                icon: Icons.chevron_right,
+                onPressed: pagination.hasNextPage
+                    ? () => notifier.goToNextPage()
+                    : null,
+                tooltip: 'Next Page',
+              ),
+              const SizedBox(width: 4),
+              _PaginationButton(
+                icon: Icons.last_page,
+                onPressed: pagination.hasNextPage
+                    ? () => notifier.goToLastPage()
+                    : null,
+                tooltip: 'Last Page',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildPageNumbers(
+      PaginationInfo pagination, PatientListNotifier notifier) {
+    const maxVisiblePages = 5;
+    final totalPages = pagination.total;
+    final currentPage = pagination.current;
+
+    if (totalPages <= maxVisiblePages) {
+      // Show all pages if total is small
+      return List.generate(totalPages, (index) {
+        final pageNumber = index + 1;
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: _PageNumberButton(
+            pageNumber: pageNumber,
+            isSelected: pageNumber == currentPage,
+            onPressed: () => notifier.goToPage(pageNumber),
+          ),
+        );
+      });
+    }
+
+    // Calculate which pages to show
+    final List<Widget> pageButtons = [];
+
+    int startPage = (currentPage - (maxVisiblePages ~/ 2)).clamp(1, totalPages);
+    int endPage = (startPage + maxVisiblePages - 1).clamp(1, totalPages);
+
+    // Adjust startPage if we're near the end
+    if (endPage == totalPages) {
+      startPage = (totalPages - maxVisiblePages + 1).clamp(1, totalPages);
+    }
+
+    // Add first page and ellipsis if needed
+    if (startPage > 1) {
+      pageButtons.add(Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: _PageNumberButton(
+          pageNumber: 1,
+          isSelected: false,
+          onPressed: () => notifier.goToPage(1),
+        ),
+      ));
+      if (startPage > 2) {
+        pageButtons.add(const _EllipsisWidget());
+      }
+    }
+
+    // Add visible page range
+    for (int i = startPage; i <= endPage; i++) {
+      pageButtons.add(Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: _PageNumberButton(
+          pageNumber: i,
+          isSelected: i == currentPage,
+          onPressed: () => notifier.goToPage(i),
+        ),
+      ));
+    }
+
+    // Add last page and ellipsis if needed
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) {
+        pageButtons.add(const _EllipsisWidget());
+      }
+      pageButtons.add(Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: _PageNumberButton(
+          pageNumber: totalPages,
+          isSelected: false,
+          onPressed: () => notifier.goToPage(totalPages),
+        ),
+      ));
+    }
+
+    return pageButtons;
+  }
+}
+
+class _PaginationButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback? onPressed;
+  final String? tooltip;
+
+  const _PaginationButton({
+    required this.icon,
+    this.onPressed,
+    this.tooltip,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 20,
+      height: 12,
+      child: IconButton(
+        onPressed: onPressed,
+        icon: Icon(icon),
+        iconSize: 10,
+        color:
+            onPressed != null ? HospitalTheme.primary : HospitalTheme.textLight,
+        tooltip: tooltip,
+        padding: EdgeInsets.zero,
+      ),
+    );
+  }
+}
+
+class _PageNumberButton extends StatelessWidget {
+  final int pageNumber;
+  final bool isSelected;
+  final VoidCallback onPressed;
+
+  const _PageNumberButton({
+    required this.pageNumber,
+    required this.isSelected,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: isSelected ? null : onPressed,
+      borderRadius: BorderRadius.circular(4),
+      child: Container(
+        width: 18,
+        height: 32,
+        decoration: BoxDecoration(
+          color: isSelected ? HospitalTheme.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(4),
+          border: isSelected ? null : Border.all(color: HospitalTheme.border),
+        ),
+        child: Center(
+          child: Text(
+            pageNumber.toString(),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              color: isSelected ? Colors.white : HospitalTheme.textDark,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EllipsisWidget extends StatelessWidget {
+  const _EllipsisWidget();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 32,
+      height: 32,
+      alignment: Alignment.center,
+      child: const Text(
+        '...',
+        style: TextStyle(
+          fontSize: 12,
+          color: HospitalTheme.textMedium,
+        ),
+      ),
+    );
+  }
+}
+
 // ==================== COLUMN 1: PATIENT LIST ====================
 
 class _PatientListColumn extends ConsumerStatefulWidget {
@@ -853,6 +1140,8 @@ class _PatientListColumnState extends ConsumerState<_PatientListColumn> {
           Expanded(
             child: _buildPatientList(patientListState, selectedPatient),
           ),
+          // ADD: Pagination widget at the bottom
+          const _PaginationWidget(),
         ],
       ),
     );
@@ -1076,6 +1365,7 @@ class _PatientListTile extends ConsumerWidget {
 }
 
 // ==================== COLUMN 2: PATIENT DETAILS ====================
+// (Keep all the rest of your existing code exactly the same)
 
 class _PatientDetailsColumn extends ConsumerWidget {
   const _PatientDetailsColumn();
@@ -1880,7 +2170,6 @@ class _AdmissionDetailsViewState extends ConsumerState<_AdmissionDetailsView> {
     _initializeControllers();
   }
 
-  @override
   @override
   void didUpdateWidget(_AdmissionDetailsView oldWidget) {
     super.didUpdateWidget(oldWidget);
