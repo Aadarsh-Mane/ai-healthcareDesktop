@@ -1517,34 +1517,34 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                                             );
                                           },
                                         ),
-                                        _buildEnhancedNavItem(
-                                          index: 11,
-                                          icon: Icons.home_rounded,
-                                          label: 'Home',
-                                          gradient: LinearGradient(
-                                            colors: [
-                                              HospitalTheme.info,
-                                              Colors.blue.shade400,
-                                            ],
-                                          ),
-                                          onCustomTap: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    GoogleSpeechToTextMedicalScreen(
-                                                  patientId:
-                                                      widget.patient.patientId,
-                                                  admissionId: widget
-                                                      .patient
-                                                      .admissionRecords
-                                                      .first
-                                                      .id,
-                                                ),
-                                              ),
-                                            );
-                                          },
-                                        ),
+                                        // _buildEnhancedNavItem(
+                                        //   index: 11,
+                                        //   icon: Icons.home_rounded,
+                                        //   label: 'Home',
+                                        //   gradient: LinearGradient(
+                                        //     colors: [
+                                        //       HospitalTheme.info,
+                                        //       Colors.blue.shade400,
+                                        //     ],
+                                        //   ),
+                                        //   onCustomTap: () {
+                                        //     Navigator.push(
+                                        //       context,
+                                        //       MaterialPageRoute(
+                                        //         builder: (context) =>
+                                        //             GoogleSpeechToTextMedicalScreen(
+                                        //           patientId:
+                                        //               widget.patient.patientId,
+                                        //           admissionId: widget
+                                        //               .patient
+                                        //               .admissionRecords
+                                        //               .first
+                                        //               .id,
+                                        //         ),
+                                        //       ),
+                                        //     );
+                                        //   },
+                                        // ),
                                       ],
                                     ),
                                   ),

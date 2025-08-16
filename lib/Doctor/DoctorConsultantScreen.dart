@@ -5,201 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-
-// AI Suggestion Service
-// AI Suggestion Service - UPDATED
-class AIConsultingService {
-  static const String _apiKey = 'AIzaSyBzHQvf_-z28gTf0poC2s8bvt83mingpHc';
-  static const String _baseUrl =
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
-
-  static Future<List<String>> getSuggestions(String fieldType,
-      String currentInput, Map<String, String> context) async {
-    try {
-      final prompt = _buildMedicalPrompt(fieldType, currentInput, context);
-
-      final response = await http.post(
-        Uri.parse('$_baseUrl?key=$_apiKey'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'contents': [
-            {
-              'parts': [
-                {'text': prompt}
-              ]
-            }
-          ],
-          'generationConfig': {
-            'temperature': 0.3,
-            'topK': 3,
-            'topP': 0.8,
-            'maxOutputTokens': 500,
-          }
-        }),
-      );
-
-      print('AI Suggestion Response Status: ${response.statusCode}');
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final content =
-            data['candidates']?[0]?['content']?['parts']?[0]?['text'] ?? '';
-        return _parseSuggestions(content);
-      } else {
-        print('AI Suggestion Error: ${response.body}');
-      }
-    } catch (e) {
-      print('AI Suggestion Error: $e');
-    }
-    return _getFallbackSuggestions(fieldType);
-  }
-
-  static String _buildMedicalPrompt(
-      String fieldType, String currentInput, Map<String, String> context) {
-    // Extract relevant context
-    String allergyContext = context['allergies'] ?? '';
-    String habitsContext = context['personalHabits'] ?? '';
-    String chiefComplaint = context['Chief Complaint'] ?? '';
-
-    String basePrompt = '''
-You are a medical AI assistant helping doctors with clinical documentation. 
-Based on the field "${fieldType}" and current input "${currentInput}", provide exactly 3-5 medically accurate suggestions.
-
-Patient Context:
-- Known Allergies: ${allergyContext.isNotEmpty ? allergyContext : 'Not specified'}
-- Personal Habits: ${habitsContext.isNotEmpty ? habitsContext : 'Not specified'}
-- Chief Complaint: ${chiefComplaint.isNotEmpty ? chiefComplaint : 'Not specified'}
-
-Instructions:
-- Provide complete, professional medical phrases
-- Use appropriate medical terminology
-- Each suggestion should be 1-2 sentences maximum
-- Format each suggestion on a new line
-- No numbering, bullets, or formatting
-- Focus on common clinical scenarios
-- Make suggestions contextually relevant
-
-Field: ${fieldType}
-Current input: "${currentInput}"
-
-Medical suggestions:''';
-
-    return basePrompt;
-  }
-
-  static List<String> _parseSuggestions(String content) {
-    return content
-        .split('\n')
-        .where((line) => line.trim().isNotEmpty)
-        .map((line) => line.trim())
-        .take(5)
-        .toList();
-  }
-
-  static List<String> _getFallbackSuggestions(String fieldType) {
-    final fallbacks = {
-      'Chief Complaint': [
-        'Patient presents with acute onset chest pain radiating to left arm',
-        'Patient complains of persistent cough with productive sputum for 2 weeks',
-        'Patient reports severe headache with associated nausea and photophobia',
-        'Patient experiencing progressive shortness of breath on exertion',
-        'Patient presents with abdominal pain localized to right lower quadrant'
-      ],
-      'Describe Allergies': [
-        'Patient reports rash and urticaria when exposed to penicillin',
-        'Patient experiences respiratory distress with shellfish consumption',
-        'Patient develops contact dermatitis with latex exposure',
-        'Patient reports gastrointestinal upset with NSAIDs',
-        'No known drug allergies or food intolerances reported'
-      ],
-      'History of Present Illness': [
-        'Symptoms began gradually over the past 3-4 days without precipitating factors',
-        'Pain described as sharp, stabbing, and intermittent in nature',
-        'No associated fever, chills, night sweats, or weight loss',
-        'Symptoms worsen with physical activity and improve with rest',
-        'Patient denies any recent trauma, travel, or sick contacts'
-      ],
-      'Past Medical History': [
-        'No significant past medical history, no previous hospitalizations',
-        'History of hypertension well controlled on ACE inhibitors',
-        'Previous appendectomy in childhood without complications',
-        'Type 2 diabetes mellitus managed with metformin',
-        'History of seasonal allergies managed with antihistamines'
-      ],
-      'Family History': [
-        'No significant family history of cardiovascular or malignant diseases',
-        'Father deceased from myocardial infarction at age 65',
-        'Mother alive with history of breast cancer and diabetes',
-        'Paternal grandfather with history of stroke and hypertension',
-        'No known genetic disorders or hereditary conditions in family'
-      ],
-      'Relevant Previous Investigations': [
-        'Recent CBC shows mild anemia with normal white cell count',
-        'Chest X-ray from last month showed clear lung fields',
-        'ECG performed shows normal sinus rhythm without abnormalities',
-        'Basic metabolic panel within normal limits',
-        'Urinalysis negative for protein, glucose, and blood'
-      ],
-      'Menstrual History': [
-        'Regular menstrual cycles, 28-day cycle with 5-day duration',
-        'Last menstrual period 2 weeks ago, normal flow and duration',
-        'History of dysmenorrhea managed with NSAIDs',
-        'Menopause at age 52, no hormone replacement therapy',
-        'Gravida 2, Para 2, no history of pregnancy complications'
-      ],
-      'Visual Analogue': [
-        'Pain scale 7/10, described as throbbing and constant',
-        'Mobility limited due to pain, requires assistance with ambulation',
-        'Pain partially relieved with rest and elevation',
-        'Visual analog scale 4/10 with current pain medication',
-        'Pain intensity varies from 3-8/10 throughout the day'
-      ],
-      'Immunization History': [
-        'Up to date with routine adult vaccinations including tetanus',
-        'COVID-19 vaccination completed with booster received',
-        'Annual influenza vaccination received last season',
-        'Childhood immunizations completed per schedule',
-        'Hepatitis B vaccination series completed for occupational exposure'
-      ],
-    };
-
-    return fallbacks[fieldType] ??
-        [
-          'No specific suggestions available for this field',
-          'Please consult medical guidelines for appropriate content',
-          'Consider patient-specific factors when documenting'
-        ];
-  }
-}
-
-// Suggestion Provider
-final suggestionProvider =
-    StateNotifierProvider.family<SuggestionNotifier, List<String>, String>(
-  (ref, fieldType) => SuggestionNotifier(fieldType),
-);
-
-class SuggestionNotifier extends StateNotifier<List<String>> {
-  final String fieldType;
-
-  SuggestionNotifier(this.fieldType) : super([]);
-
-  Future<void> getSuggestions(
-      String currentInput, Map<String, String> context) async {
-    if (currentInput.trim().isEmpty) {
-      state = [];
-      return;
-    }
-
-    final suggestions = await AIConsultingService.getSuggestions(
-        fieldType, currentInput, context);
-    state = suggestions;
-  }
-
-  void clearSuggestions() {
-    state = [];
-  }
-}
 
 class EnhancedDoctorConsultingScreen extends ConsumerStatefulWidget {
   final String patientId;
@@ -232,25 +37,141 @@ class _EnhancedDoctorConsultingScreenState
   String? selectedPersonalHabit;
   double _wongBakerValue = 5;
 
-  // Form fields configuration
+  // Form fields configuration - All fields are now optional
   final Map<String, Map<String, dynamic>> _formFields = {
-    'Chief Complaint': {'required': true, 'multiline': true, 'rows': 3},
-    'Describe Allergies': {'required': false, 'multiline': true, 'rows': 2},
-    'History of Present Illness': {
-      'required': true,
+    // Existing fields - all made optional
+    'Chief Complaint': {
+      'required': false,
       'multiline': true,
-      'rows': 4
+      'rows': 3,
+      'category': 'History'
     },
-    'Past Medical History': {'required': true, 'multiline': true, 'rows': 3},
-    'Family History': {'required': true, 'multiline': true, 'rows': 2},
+    'Describe Allergies': {
+      'required': false,
+      'multiline': true,
+      'rows': 2,
+      'category': 'History'
+    },
+    'History of Present Illness': {
+      'required': false,
+      'multiline': true,
+      'rows': 4,
+      'category': 'History'
+    },
+    'Past Medical History': {
+      'required': false,
+      'multiline': true,
+      'rows': 3,
+      'category': 'History'
+    },
+    'Family History': {
+      'required': false,
+      'multiline': true,
+      'rows': 2,
+      'category': 'History'
+    },
     'Relevant Previous Investigations': {
       'required': false,
       'multiline': true,
-      'rows': 3
+      'rows': 3,
+      'category': 'History'
     },
-    'Menstrual History': {'required': false, 'multiline': true, 'rows': 2},
-    'Visual Analogue': {'required': false, 'multiline': false, 'rows': 1},
-    'Immunization History': {'required': false, 'multiline': true, 'rows': 2},
+    'Menstrual History': {
+      'required': false,
+      'multiline': true,
+      'rows': 2,
+      'category': 'History'
+    },
+    'Visual Analogue': {
+      'required': false,
+      'multiline': false,
+      'rows': 1,
+      'category': 'History'
+    },
+    'Immunization History': {
+      'required': false,
+      'multiline': true,
+      'rows': 2,
+      'category': 'History'
+    },
+
+    // New General Examination fields
+    'Pulse': {
+      'required': false,
+      'multiline': false,
+      'rows': 1,
+      'category': 'General Examination'
+    },
+    'Blood Pressure': {
+      'required': false,
+      'multiline': false,
+      'rows': 1,
+      'category': 'General Examination'
+    },
+    'Temperature': {
+      'required': false,
+      'multiline': false,
+      'rows': 1,
+      'category': 'General Examination'
+    },
+    'Oxygen Saturation': {
+      'required': false,
+      'multiline': false,
+      'rows': 1,
+      'category': 'General Examination'
+    },
+
+    // New Systemic Examination fields
+    'Respiratory System': {
+      'required': false,
+      'multiline': true,
+      'rows': 2,
+      'category': 'Systemic Examination'
+    },
+    'Cardiovascular System': {
+      'required': false,
+      'multiline': true,
+      'rows': 2,
+      'category': 'Systemic Examination'
+    },
+    'Gastrointestinal System': {
+      'required': false,
+      'multiline': true,
+      'rows': 2,
+      'category': 'Systemic Examination'
+    },
+    'Genitourinary System': {
+      'required': false,
+      'multiline': true,
+      'rows': 2,
+      'category': 'Systemic Examination'
+    },
+    'Musculoskeletal System': {
+      'required': false,
+      'multiline': true,
+      'rows': 2,
+      'category': 'Systemic Examination'
+    },
+    'Neurological System': {
+      'required': false,
+      'multiline': true,
+      'rows': 2,
+      'category': 'Systemic Examination'
+    },
+    'Endocrine System': {
+      'required': false,
+      'multiline': true,
+      'rows': 2,
+      'category': 'Systemic Examination'
+    },
+
+    // Clinical Diagnosis
+    'Clinical Diagnosis': {
+      'required': false,
+      'multiline': true,
+      'rows': 3,
+      'category': 'Diagnosis'
+    },
   };
 
   @override
@@ -276,15 +197,6 @@ class _EnhancedDoctorConsultingScreenState
     }
     super.dispose();
   }
-
-  Map<String, String> get _contextData => {
-        'allergies': selectedAllergy ?? '',
-        'personalHabits': selectedPersonalHabit ?? '',
-        'patientId': widget.patientId,
-        'admissionId': widget.admissionId,
-        ..._controllers
-            .map((key, controller) => MapEntry(key, controller.text)),
-      };
 
   @override
   Widget build(BuildContext context) {
@@ -357,18 +269,8 @@ class _EnhancedDoctorConsultingScreenState
             _buildDropdownSection(),
             const SizedBox(height: 32),
 
-            // Form Fields
-            ..._formFields.entries.map((entry) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 24.0),
-                child: _buildEnhancedTextField(
-                  entry.key,
-                  entry.value['required'] as bool,
-                  entry.value['multiline'] as bool,
-                  entry.value['rows'] as int,
-                ),
-              );
-            }).toList(),
+            // Form Fields organized by categories
+            ..._buildCategorizedFields(),
 
             // Wong Baker Scale
             _buildWongBakerSection(),
@@ -381,6 +283,145 @@ class _EnhancedDoctorConsultingScreenState
         ),
       ),
     );
+  }
+
+  List<Widget> _buildCategorizedFields() {
+    final categories = <String, List<String>>{};
+
+    // Group fields by category
+    _formFields.forEach((field, config) {
+      final category = config['category'] as String;
+      if (!categories.containsKey(category)) {
+        categories[category] = [];
+      }
+      categories[category]!.add(field);
+    });
+
+    final widgets = <Widget>[];
+
+    // Define category order
+    final categoryOrder = [
+      'History',
+      'General Examination',
+      'Systemic Examination',
+      'Diagnosis',
+    ];
+
+    for (String category in categoryOrder) {
+      if (categories.containsKey(category)) {
+        widgets.add(_buildCategorySection(category, categories[category]!));
+        widgets.add(const SizedBox(height: 32));
+      }
+    }
+
+    return widgets;
+  }
+
+  Widget _buildCategorySection(String category, List<String> fields) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Category Header
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                HospitalTheme.primary.withOpacity(0.1),
+                HospitalTheme.primary.withOpacity(0.05),
+              ],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: HospitalTheme.primary.withOpacity(0.2)),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                _getCategoryIcon(category),
+                color: HospitalTheme.primary,
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                category,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: HospitalTheme.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // Fields in this category
+        if (category == 'General Examination')
+          _buildGeneralExaminationGrid(fields)
+        else
+          ...fields.map((field) {
+            final config = _formFields[field]!;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 24.0),
+              child: _buildTextField(
+                field,
+                config['required'] as bool,
+                config['multiline'] as bool,
+                config['rows'] as int,
+              ),
+            );
+          }).toList(),
+      ],
+    );
+  }
+
+  Widget _buildGeneralExaminationGrid(List<String> fields) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 800;
+        final crossAxisCount = isWide ? 2 : 1;
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            childAspectRatio: isWide ? 3.5 : 4.5,
+            crossAxisSpacing: 24,
+            mainAxisSpacing: 24,
+          ),
+          itemCount: fields.length,
+          itemBuilder: (context, index) {
+            final field = fields[index];
+            final config = _formFields[field]!;
+            return _buildTextField(
+              field,
+              config['required'] as bool,
+              config['multiline'] as bool,
+              config['rows'] as int,
+            );
+          },
+        );
+      },
+    );
+  }
+
+  IconData _getCategoryIcon(String category) {
+    switch (category) {
+      case 'History':
+        return Icons.history_outlined;
+      case 'General Examination':
+        return Icons.health_and_safety_outlined;
+      case 'Systemic Examination':
+        return Icons.medical_services_outlined;
+      case 'Diagnosis':
+        return Icons.dialer_sip;
+      default:
+        return Icons.notes_outlined;
+    }
   }
 
   Widget _buildPatientSummaryCard() {
@@ -542,13 +583,13 @@ class _EnhancedDoctorConsultingScreenState
             hintText: 'Select $label',
             prefixIcon: Icon(icon, color: HospitalTheme.primary),
           ),
-          validator: (val) => val == null ? 'Please select $label' : null,
+          // No validation required since all fields are optional
         ),
       ],
     );
   }
 
-  Widget _buildEnhancedTextField(
+  Widget _buildTextField(
       String fieldName, bool required, bool multiline, int rows) {
     final controller = _controllers[fieldName]!;
     final focusNode = _focusNodes[fieldName]!;
@@ -556,7 +597,7 @@ class _EnhancedDoctorConsultingScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Field Label
+        // Field Label - removed required asterisk since no fields are required
         Row(
           children: [
             Icon(
@@ -573,247 +614,36 @@ class _EnhancedDoctorConsultingScreenState
                 color: HospitalTheme.textDark,
               ),
             ),
-            if (required)
-              Text(
-                ' *',
-                style: TextStyle(
-                  color: HospitalTheme.error,
-                  fontSize: 16,
-                ),
-              ),
           ],
         ),
         const SizedBox(height: 12),
 
-        // Enhanced Text Field with AI Suggestions
-        _buildAIEnhancedTextField(
+        // Text Field - removed validation since all fields are optional
+        TextFormField(
+          cursorColor: Colors.black,
           controller: controller,
           focusNode: focusNode,
-          fieldName: fieldName,
-          multiline: multiline,
-          rows: rows,
-          required: required,
+          maxLines: multiline ? rows : 1,
+          minLines: multiline ? rows : 1,
+          style: const TextStyle(fontSize: 16),
+          decoration: InputDecoration(
+            hintText: _getFieldHint(fieldName),
+            suffixIcon: controller.text.isNotEmpty
+                ? IconButton(
+                    icon: Icon(Icons.clear, color: HospitalTheme.textMedium),
+                    onPressed: () {
+                      controller.clear();
+                      setState(() {}); // Rebuild to hide clear button
+                    },
+                  )
+                : null,
+          ),
+          onChanged: (value) {
+            setState(() {}); // Rebuild to show/hide clear button
+          },
         ),
       ],
     );
-  }
-
-  Widget _buildAIEnhancedTextField({
-    required TextEditingController controller,
-    required FocusNode focusNode,
-    required String fieldName,
-    required bool multiline,
-    required int rows,
-    required bool required,
-  }) {
-    return Consumer(
-      builder: (context, ref, child) {
-        final suggestions = ref.watch(suggestionProvider(fieldName));
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Text Field
-            KeyboardListener(
-              focusNode: FocusNode(),
-              onKeyEvent: (event) {
-                if (event is KeyDownEvent &&
-                    event.logicalKey == LogicalKeyboardKey.tab) {
-                  if (suggestions.isNotEmpty) {
-                    controller.text = suggestions.first;
-                    ref
-                        .read(suggestionProvider(fieldName).notifier)
-                        .clearSuggestions();
-                  }
-                }
-              },
-              child: TextFormField(
-                controller: controller,
-                focusNode: focusNode,
-                maxLines: multiline ? rows : 1,
-                minLines: multiline ? rows : 1,
-                style: const TextStyle(fontSize: 16),
-                decoration: InputDecoration(
-                  hintText: _getFieldHint(fieldName),
-                  suffixIcon: controller.text.isNotEmpty
-                      ? Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: Icon(Icons.auto_awesome,
-                                  color: HospitalTheme.accent),
-                              onPressed: () => _triggerAISuggestions(fieldName),
-                              tooltip: 'Get AI Suggestions',
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.clear,
-                                  color: HospitalTheme.textMedium),
-                              onPressed: () {
-                                controller.clear();
-                                ref
-                                    .read(
-                                        suggestionProvider(fieldName).notifier)
-                                    .clearSuggestions();
-                              },
-                            ),
-                          ],
-                        )
-                      : IconButton(
-                          icon: Icon(Icons.auto_awesome,
-                              color: HospitalTheme.accent),
-                          onPressed: () => _triggerAISuggestions(fieldName),
-                          tooltip: 'Get AI Suggestions',
-                        ),
-                ),
-                onChanged: (value) {
-                  if (value.length > 3) {
-                    _triggerAISuggestions(fieldName);
-                  } else {
-                    ref
-                        .read(suggestionProvider(fieldName).notifier)
-                        .clearSuggestions();
-                  }
-                },
-                validator: (value) {
-                  if (required && (value == null || value.trim().isEmpty)) {
-                    return 'This field is required';
-                  }
-                  return null;
-                },
-              ),
-            ),
-
-            // AI Suggestions
-            if (suggestions.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                constraints: const BoxConstraints(maxHeight: 200),
-                decoration: BoxDecoration(
-                  color: HospitalTheme.surfaceLight,
-                  borderRadius: BorderRadius.circular(8),
-                  border:
-                      Border.all(color: HospitalTheme.accent.withOpacity(0.3)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
-                        children: [
-                          Icon(Icons.auto_awesome,
-                              size: 16, color: HospitalTheme.accent),
-                          const SizedBox(width: 8),
-                          Text(
-                            'AI Suggestions (Press Tab to use first)',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: HospitalTheme.accent,
-                            ),
-                          ),
-                          const Spacer(),
-                          IconButton(
-                            icon: Icon(Icons.close, size: 16),
-                            onPressed: () => ref
-                                .read(suggestionProvider(fieldName).notifier)
-                                .clearSuggestions(),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        itemCount: suggestions.length,
-                        itemBuilder: (context, index) {
-                          return _buildSuggestionItem(
-                            suggestions[index],
-                            index == 0,
-                            () {
-                              controller.text = suggestions[index];
-                              ref
-                                  .read(suggestionProvider(fieldName).notifier)
-                                  .clearSuggestions();
-                            },
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildSuggestionItem(
-      String suggestion, bool isFirst, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        decoration: BoxDecoration(
-          color: isFirst ? HospitalTheme.primary.withOpacity(0.1) : null,
-          borderRadius: BorderRadius.circular(6),
-          border: isFirst
-              ? Border.all(color: HospitalTheme.primary.withOpacity(0.3))
-              : null,
-        ),
-        child: Row(
-          children: [
-            if (isFirst) ...[
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: HospitalTheme.primary,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  'TAB',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-            ],
-            Expanded(
-              child: Text(
-                suggestion,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: HospitalTheme.textDark,
-                  fontWeight: isFirst ? FontWeight.w600 : FontWeight.normal,
-                ),
-              ),
-            ),
-            Icon(
-              Icons.add_circle_outline,
-              size: 16,
-              color: HospitalTheme.primary,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _triggerAISuggestions(String fieldName) {
-    ref.read(suggestionProvider(fieldName).notifier).getSuggestions(
-          _controllers[fieldName]!.text,
-          _contextData,
-        );
   }
 
   Widget _buildWongBakerSection() {
@@ -1053,6 +883,19 @@ class _EnhancedDoctorConsultingScreenState
       'Menstrual History': Icons.calendar_month_outlined,
       'Visual Analogue': Icons.visibility_outlined,
       'Immunization History': Icons.vaccines_outlined,
+      // New field icons
+      'Pulse': Icons.favorite_outlined,
+      'Blood Pressure': Icons.monitor_heart_outlined,
+      'Temperature': Icons.thermostat_outlined,
+      'Oxygen Saturation': Icons.air_outlined,
+      'Respiratory System': Icons.air_outlined,
+      'Cardiovascular System': Icons.favorite_outlined,
+      'Gastrointestinal System': Icons.restaurant_outlined,
+      'Genitourinary System': Icons.water_drop_outlined,
+      'Musculoskeletal System': Icons.accessibility_outlined,
+      'Neurological System': Icons.psychology_outlined,
+      'Endocrine System': Icons.healing_outlined,
+      'Clinical Diagnosis': Icons.dialer_sip,
     };
     return icons[fieldName] ?? Icons.notes_outlined;
   }
@@ -1068,6 +911,19 @@ class _EnhancedDoctorConsultingScreenState
       'Menstrual History': 'Enter menstrual cycle details if applicable...',
       'Visual Analogue': 'Enter visual assessment details...',
       'Immunization History': 'List vaccination history...',
+      // New field hints
+      'Pulse': 'e.g., 72 bpm, regular rhythm...',
+      'Blood Pressure': 'e.g., 120/80 mmHg...',
+      'Temperature': 'e.g., 98.6°F (37°C)...',
+      'Oxygen Saturation': 'e.g., 98% on room air...',
+      'Respiratory System': 'e.g., Clear air entry bilaterally...',
+      'Cardiovascular System': 'e.g., Heart sounds S1 and S2 normal...',
+      'Gastrointestinal System': 'e.g., Abdomen soft, non-tender...',
+      'Genitourinary System': 'e.g., No costovertebral angle tenderness...',
+      'Musculoskeletal System': 'e.g., Full range of motion in all joints...',
+      'Neurological System': 'e.g., Alert and oriented times three...',
+      'Endocrine System': 'e.g., No signs of thyroid enlargement...',
+      'Clinical Diagnosis': 'e.g., Working diagnosis of...',
     };
     return hints[fieldName] ?? 'Enter details...';
   }
@@ -1106,50 +962,110 @@ class _EnhancedDoctorConsultingScreenState
   }
 
   Future<void> _submitForm() async {
-    if (_formKey.currentState?.validate() ?? false) {
-      try {
-        String currentDateTime =
-            DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+    // No form validation needed since all fields are optional
+    try {
+      String currentDateTime =
+          DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
 
-        final consulting = DoctorConsulting(
-          date: currentDateTime,
-          allergies: selectedAllergy ?? '',
-          personalHabits: selectedPersonalHabit ?? '',
-          cheifComplaint: _controllers['Chief Complaint']!.text,
-          describeAllergies: _controllers['Describe Allergies']!.text,
-          historyOfPresentIllness:
-              _controllers['History of Present Illness']!.text,
-          familyHistory: _controllers['Family History']!.text,
-          menstrualHistory: _controllers['Menstrual History']!.text,
-          wongBaker: _getEmojiForWongBaker(_wongBakerValue),
-          visualAnalogue: _controllers['Visual Analogue']!.text,
-          relevantPreviousInvestigations:
-              _controllers['Relevant Previous Investigations']!.text,
-          immunizationHistory: _controllers['Immunization History']!.text,
-          pastMedicalHistory: _controllers['Past Medical History']!.text,
+      final consulting = DoctorConsulting(
+        date: currentDateTime,
+        allergies: selectedAllergy ?? 'NA',
+        personalHabits: selectedPersonalHabit ?? 'NA',
+        cheifComplaint: _controllers['Chief Complaint']!.text.isNotEmpty
+            ? _controllers['Chief Complaint']!.text
+            : 'NA',
+        describeAllergies: _controllers['Describe Allergies']!.text.isNotEmpty
+            ? _controllers['Describe Allergies']!.text
+            : 'NA',
+        historyOfPresentIllness:
+            _controllers['History of Present Illness']!.text.isNotEmpty
+                ? _controllers['History of Present Illness']!.text
+                : 'NA',
+        familyHistory: _controllers['Family History']!.text.isNotEmpty
+            ? _controllers['Family History']!.text
+            : 'NA',
+        menstrualHistory: _controllers['Menstrual History']!.text.isNotEmpty
+            ? _controllers['Menstrual History']!.text
+            : 'NA',
+        wongBaker: _getEmojiForWongBaker(_wongBakerValue),
+        visualAnalogue: _controllers['Visual Analogue']!.text.isNotEmpty
+            ? _controllers['Visual Analogue']!.text
+            : 'NA',
+        relevantPreviousInvestigations:
+            _controllers['Relevant Previous Investigations']!.text.isNotEmpty
+                ? _controllers['Relevant Previous Investigations']!.text
+                : 'NA',
+        immunizationHistory:
+            _controllers['Immunization History']!.text.isNotEmpty
+                ? _controllers['Immunization History']!.text
+                : 'NA',
+        pastMedicalHistory:
+            _controllers['Past Medical History']!.text.isNotEmpty
+                ? _controllers['Past Medical History']!.text
+                : 'NA',
+        // New fields with NA default
+        pulse: _controllers['Pulse']!.text.isNotEmpty
+            ? _controllers['Pulse']!.text
+            : 'NA',
+        bloodPressure: _controllers['Blood Pressure']!.text.isNotEmpty
+            ? _controllers['Blood Pressure']!.text
+            : 'NA',
+        temperature: _controllers['Temperature']!.text.isNotEmpty
+            ? _controllers['Temperature']!.text
+            : 'NA',
+        oxygenSaturation: _controllers['Oxygen Saturation']!.text.isNotEmpty
+            ? _controllers['Oxygen Saturation']!.text
+            : 'NA',
+        respiratorySystem: _controllers['Respiratory System']!.text.isNotEmpty
+            ? _controllers['Respiratory System']!.text
+            : 'NA',
+        cardiovascularSystem:
+            _controllers['Cardiovascular System']!.text.isNotEmpty
+                ? _controllers['Cardiovascular System']!.text
+                : 'NA',
+        gastrointestinalSystem:
+            _controllers['Gastrointestinal System']!.text.isNotEmpty
+                ? _controllers['Gastrointestinal System']!.text
+                : 'NA',
+        genitourinarySystem:
+            _controllers['Genitourinary System']!.text.isNotEmpty
+                ? _controllers['Genitourinary System']!.text
+                : 'NA',
+        musculoskeletalSystem:
+            _controllers['Musculoskeletal System']!.text.isNotEmpty
+                ? _controllers['Musculoskeletal System']!.text
+                : 'NA',
+        neurologicalSystem: _controllers['Neurological System']!.text.isNotEmpty
+            ? _controllers['Neurological System']!.text
+            : 'NA',
+        endocrineSystem: _controllers['Endocrine System']!.text.isNotEmpty
+            ? _controllers['Endocrine System']!.text
+            : 'NA',
+        clinicalDiagnosis: _controllers['Clinical Diagnosis']!.text.isNotEmpty
+            ? _controllers['Clinical Diagnosis']!.text
+            : 'NA',
+      );
+
+      await doctor.addDoctorConsultant(
+          widget.patientId, widget.admissionId, consulting);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Consultation submitted successfully'),
+            backgroundColor: HospitalTheme.success,
+          ),
         );
-
-        await doctor.addDoctorConsultant(
-            widget.patientId, widget.admissionId, consulting);
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Consultation submitted successfully'),
-              backgroundColor: HospitalTheme.success,
-            ),
-          );
-          Navigator.pop(context, true);
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error: $e'),
-              backgroundColor: HospitalTheme.error,
-            ),
-          );
-        }
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: HospitalTheme.error,
+          ),
+        );
       }
     }
   }

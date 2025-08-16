@@ -8,23 +8,8 @@ import 'package:path_provider/path_provider.dart';
 
 class GoogleSpeechToTextService {
   // Service account credentials
-  static const Map<String, dynamic> _serviceAccountCredentials = {
-    "type": "service_account",
-    "project_id": "doctor-dd7e8",
-    "private_key_id": "81d1616c2a4d1072a227c80e37d922259dcb00fc",
-    "private_key":
-        "-----BEGIN PRIVATE KEY-----\nMIIEuwIBADANBgkqhkiG9w0BAQEFAASCBKUwggShAgEAAoIBAQC5BW6mgbvU4DKZ\niif/13EMRkHXdbGzv13dCsJS04XbFKBdwdddTjHdCAQylj3U6ZRWCHB3aLNSxh8z\nrEnVcpahWWoMbs4DR3hJFYMLZVc4M6O+7Nb6Lp4BynFoXdaplmll9r+8tG5jXn+2\nbr3vYZjLQWk+tiJqQdva0tZr8EwB0MBjn0fs0ZQjuvJdLGGdwE2zzLY/E77fPXEE\nmFJncytgt+pwxaZsz126Njwbsh3y1QDOwws60uIA1UlpJIf36PQs9hxhmB1L7DF5\niBXm9N60u/ZulxyRWEAJ1AHnNdlV6+aKXXSW0gCRKiHqe2Khbvb15o93REfiXxsr\nWiATb0vBAgMBAAECgf8RjwWeB6ors+Lb/r87HjMyD1T/po5J6ura71xgcxZWsvGe\nwQLHlsvVRnFSvPcPUNjvxv6JN8kKUKwEGNHPX0J5Gk68itbRmiD/kSNibaNS9e/I\nv2HqDOZa1xKNcnkUbmjce2QLV70xgFb9KJId5u4sZijDkTYHYg0jACRrJsBNR810\nw6aZb/u4WIems6TFns1FgLR3S4nBKhmTsm16/JxMjhdlwxRtC4oGSYhz0ztp98sT\nt2t6PojnpKuRBTMaHeB+2hIUb3hnmktvYMKLEqiGW+W9XXHqgREGFCP8Mq217pe2\nbFiWc0KotBZSrEwXp0BHBsKr3rKgdVcXTE7nKmkCgYEA5Pi3o3QwErQBkerk/O7k\nmhtXSbwhHYWCywatQ4CeldStXb+RiPLN6a7dAk8CciEnc0e3Jaq42aIKZUPGDjzT\nsM4RBjlYu54bgGmskpzGG1RjtNftv4rnHRzudQN9nomzeU3EmHeYm6fElnDA1mMy\nY/0gsYhooqIMKVmq0lgWj/kCgYEAztyU2m+Wd2ZACqcohXenjitnSfZ8yCGXg0Hc\n49UHXPQ/Vge66esflpwqutSOU3mWS5C+RWimQgSCjaOL04kSAfbafBYqTjyPvJ+b\n684u9SK7LRuP3eImgbqh9jiBqTBRQnXOCLywOIF1tOyiQgEdgWtWkHStFJxoJ+8a\nAB1NHAkCgYBZ/+kutlyu/VIgqNOZF82DRXvp36ikkfX3F4jDH6s1+YKrdsEds1J8\np973KVcsxRtclLPIenJuGOM9KoaO0hnjRRwr9h6KoHru3pqWhkjYNTN7weQRheeR\n6e1Q0S5vQnDpHUhJJbk2dZswBuHFYvhLlRNktNlsE4X0OuqKA1XbAQKBgE2gJtel\ngjBCFYwp2CHlmeHW1cbCkWbEfEfMImj4mu+91DqjYfe/vLXW2o4Lj3Exsj2fDleb\ngrBJYvhlw+XYjQJhsPFZm/yJ62Jb/rXJRIPGybiOnDkmUU7jSz3LTJTBxeyLqopK\nzFIX+qSvG+Bq7LiRIAXLUtvmKYu6xOYAGNyJAoGBAJ0PTV84n+KGRN/3T0MtXQr2\n/8ZFm0/lREHHVP7XV8WI/pGjvliR5rn9WtxteLNgM6DkATPKjQZxdWhimXKMTRrn\nzvWR5fLbH5+Ht7gXP2hVf4uQuwo2kJY1cQT/2oLtDjp+3t687debuTEBKe9N4Ox+\n6xYDRbktv5fDyyRZDtNH\n-----END PRIVATE KEY-----\n",
-    "client_email":
-        "speech-to-text-service@doctor-dd7e8.iam.gserviceaccount.com",
-    "client_id": "104979974808522631386",
-    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-    "token_uri": "https://oauth2.googleapis.com/token",
-    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-    "client_x509_cert_url":
-        "https://www.googleapis.com/robot/v1/metadata/x509/speech-to-text-service%40doctor-dd7e8.iam.gserviceaccount.com",
-    "universe_domain": "googleapis.com"
-  };
 
+//...
   speech.SpeechApi? _speechApi;
   final AudioRecorder _audioRecorder = AudioRecorder();
   String? _currentRecordingPath;
@@ -93,7 +78,7 @@ class GoogleSpeechToTextService {
 
       // Initialize Google Speech API with service account
       final accountCredentials =
-          ServiceAccountCredentials.fromJson(_serviceAccountCredentials);
+          ServiceAccountCredentials.fromJson('_serviceAccountCredentials');
       final authClient = await clientViaServiceAccount(
         accountCredentials,
         [speech.SpeechApi.cloudPlatformScope],

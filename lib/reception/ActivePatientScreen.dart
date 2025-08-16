@@ -8,9 +8,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:async';
 
 // ==================== MODELS ====================
-
+// [Keep all your existing models unchanged]
 class PatientInsuranceInfo {
   final bool hasInsurance;
   final String? eligibilityStatus;
@@ -254,6 +255,16 @@ class ActivePatientsNotifier extends StateNotifier<ActivePatientsState> {
   static const String baseUrl =
       '${BASE_URL}/reception/getActivePatientsWithAdmissions';
 
+  // Add debounce timer for search
+  Timer? _debounceTimer;
+  static const Duration _debounceDuration = Duration(milliseconds: 500);
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
+
   Future<void> loadActivePatients({
     int page = 1,
     String? searchTerm,
@@ -284,9 +295,9 @@ class ActivePatientsNotifier extends StateNotifier<ActivePatientsState> {
 
       final uri = Uri.parse(baseUrl).replace(queryParameters: queryParams);
 
-      print('Loading patients with URL: $uri'); // Debug log
+      print('Loading patients with URL: $uri');
       print(
-          'Filters - resetFilters: $resetFilters, searchTerm: $searchTerm, patientType: $patientType, hasInsurance: $hasInsurance'); // Debug log
+          'Filters - resetFilters: $resetFilters, searchTerm: $searchTerm, patientType: $patientType, hasInsurance: $hasInsurance');
 
       final response = await http.get(
         uri,
@@ -308,7 +319,6 @@ class ActivePatientsNotifier extends StateNotifier<ActivePatientsState> {
             isLoading: false,
             currentPage: activePatientsResponse.pagination['page'] ?? 1,
             totalPages: activePatientsResponse.pagination['pages'] ?? 1,
-            // Clear selected patient if list changes
             selectedPatient: activePatientsResponse.patients.isNotEmpty
                 ? activePatientsResponse.patients.first
                 : null,
@@ -329,7 +339,7 @@ class ActivePatientsNotifier extends StateNotifier<ActivePatientsState> {
         );
       }
     } catch (e) {
-      print('Error loading patients: $e'); // Debug log
+      print('Error loading patients: $e');
       state = state.copyWith(
         isLoading: false,
         error:
@@ -338,37 +348,45 @@ class ActivePatientsNotifier extends StateNotifier<ActivePatientsState> {
     }
   }
 
+  // Updated search method with debouncing
   void updateSearchQuery(String query) {
     state = state.copyWith(searchQuery: query);
+
+    // Cancel previous timer
+    _debounceTimer?.cancel();
+
+    // Set up new timer for debounced search
+    _debounceTimer = Timer(_debounceDuration, () {
+      _performSearch();
+    });
+  }
+
+  void _performSearch() {
+    loadActivePatients(
+      searchTerm: state.searchQuery.isNotEmpty ? state.searchQuery : null,
+      patientType: state.selectedPatientType,
+      hasInsurance: state.hasInsuranceFilter,
+    );
+  }
+
+  // Immediate search (for Enter key press)
+  void searchPatients() {
+    _debounceTimer?.cancel(); // Cancel any pending debounced search
+    _performSearch();
   }
 
   void updatePatientTypeFilter(String? patientType) {
     state = state.copyWith(selectedPatientType: patientType);
-    loadActivePatients(
-      searchTerm: state.searchQuery.isNotEmpty ? state.searchQuery : null,
-      patientType: patientType,
-      hasInsurance: state.hasInsuranceFilter,
-    );
+    _performSearch();
   }
 
   void updateInsuranceFilter(bool? hasInsurance) {
     state = state.copyWith(hasInsuranceFilter: hasInsurance);
-    loadActivePatients(
-      searchTerm: state.searchQuery.isNotEmpty ? state.searchQuery : null,
-      patientType: state.selectedPatientType,
-      hasInsurance: hasInsurance,
-    );
-  }
-
-  void searchPatients() {
-    loadActivePatients(
-      searchTerm: state.searchQuery.isNotEmpty ? state.searchQuery : null,
-      patientType: state.selectedPatientType,
-      hasInsurance: state.hasInsuranceFilter,
-    );
+    _performSearch();
   }
 
   void clearAllFilters() {
+    _debounceTimer?.cancel();
     state = state.copyWith(
       searchQuery: '',
       selectedPatientType: null,
@@ -378,7 +396,9 @@ class ActivePatientsNotifier extends StateNotifier<ActivePatientsState> {
   }
 
   void clearSearchQuery() {
+    _debounceTimer?.cancel();
     state = state.copyWith(searchQuery: '');
+    _performSearch();
   }
 
   void selectPatient(ActivePatient patient) {
@@ -397,6 +417,7 @@ class ActivePatientsNotifier extends StateNotifier<ActivePatientsState> {
   }
 
   void refreshData() {
+    _debounceTimer?.cancel();
     loadActivePatients(
       page: state.currentPage,
       searchTerm: state.searchQuery.isNotEmpty ? state.searchQuery : null,
@@ -436,12 +457,10 @@ class _ActivePatientScreenState extends ConsumerState<ActivePatientScreen> {
     super.initState();
     _searchFocusNode = FocusNode();
 
-    // Listen to search controller changes to update the search query state
+    // Listen to search controller changes and update search query with debouncing
     _searchController.addListener(() {
       final notifier = ref.read(activePatientsProvider.notifier);
-      if (_searchController.text != notifier.state.searchQuery) {
-        notifier.updateSearchQuery(_searchController.text);
-      }
+      notifier.updateSearchQuery(_searchController.text);
     });
   }
 
@@ -459,10 +478,15 @@ class _ActivePatientScreenState extends ConsumerState<ActivePatientScreen> {
     final screenSize = MediaQuery.of(context).size;
     final isWideScreen = screenSize.width > 1200;
 
-    // Sync search controller with state
-    if (_searchController.text != state.searchQuery) {
-      _searchController.text = state.searchQuery;
-    }
+    // Sync search controller with state only when needed
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_searchController.text != state.searchQuery) {
+        _searchController.value = _searchController.value.copyWith(
+          text: state.searchQuery,
+          selection: TextSelection.collapsed(offset: state.searchQuery.length),
+        );
+      }
+    });
 
     return PdfViewerWidget(
       primaryColor: HospitalTheme.primary,
@@ -499,6 +523,67 @@ class _ActivePatientScreenState extends ConsumerState<ActivePatientScreen> {
     );
   }
 
+  // Updated search field in _buildFilters method
+  Widget _buildFilters(BuildContext context, ActivePatientsState state,
+      ActivePatientsNotifier notifier, bool isCompact) {
+    return Column(
+      children: [
+        // Search Bar
+        TextFormField(
+          controller: _searchController,
+          focusNode: _searchFocusNode,
+          decoration: InputDecoration(
+            hintText: 'Search patients... (Ctrl+F)',
+            prefixIcon: state.isLoading && state.searchQuery.isNotEmpty
+                ? const Padding(
+                    padding: EdgeInsets.all(12.0),
+                    child: SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : const Icon(Icons.search),
+            suffixIcon: _searchController.text.isNotEmpty
+                ? IconButton(
+                    onPressed: () {
+                      _searchController.clear();
+                      notifier.clearSearchQuery();
+                    },
+                    icon: const Icon(Icons.clear),
+                  )
+                : null,
+          ),
+          onFieldSubmitted: (value) {
+            // Immediate search on Enter press
+            notifier.searchPatients();
+          },
+        ),
+
+        const SizedBox(height: 12),
+
+        // Filter Row
+        if (isCompact)
+          Column(
+            children: [
+              _buildPatientTypeFilter(state, notifier),
+              const SizedBox(height: 12),
+              _buildInsuranceFilter(state, notifier),
+            ],
+          )
+        else
+          Row(
+            children: [
+              Expanded(child: _buildPatientTypeFilter(state, notifier)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildInsuranceFilter(state, notifier)),
+            ],
+          ),
+      ],
+    );
+  }
+
+  // Keep all your existing methods unchanged below this point
   Widget _buildMasterDetailLayout(BuildContext context,
       ActivePatientsState state, ActivePatientsNotifier notifier) {
     return Row(
@@ -643,6 +728,9 @@ class _ActivePatientScreenState extends ConsumerState<ActivePatientScreen> {
     );
   }
 
+  // Add all your existing widget methods here...
+  // [Keep all the remaining methods exactly as they are]
+
   Widget _buildSummaryCards(
       BuildContext context, ActivePatientsState state, bool isCompact) {
     if (state.summary == null) return const SizedBox.shrink();
@@ -743,60 +831,6 @@ class _ActivePatientScreenState extends ConsumerState<ActivePatientScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildFilters(BuildContext context, ActivePatientsState state,
-      ActivePatientsNotifier notifier, bool isCompact) {
-    return Column(
-      children: [
-        // Search Bar
-        TextFormField(
-          controller: _searchController,
-          focusNode: _searchFocusNode,
-          decoration: InputDecoration(
-            hintText: 'Search patients... (Ctrl+F)',
-            prefixIcon: const Icon(Icons.search),
-            suffixIcon: _searchController.text.isNotEmpty
-                ? IconButton(
-                    onPressed: () {
-                      _searchController.clear();
-                      notifier.clearSearchQuery();
-                      notifier.searchPatients();
-                    },
-                    icon: const Icon(Icons.clear),
-                  )
-                : null,
-          ),
-          onChanged: (value) {
-            // The listener in initState will handle updating the search query
-            // notifier.updateSearchQuery(value); // Remove this to avoid duplicate updates
-          },
-          onFieldSubmitted: (value) {
-            notifier.searchPatients();
-          },
-        ),
-
-        const SizedBox(height: 12),
-
-        // Filter Row
-        if (isCompact)
-          Column(
-            children: [
-              _buildPatientTypeFilter(state, notifier),
-              const SizedBox(height: 12),
-              _buildInsuranceFilter(state, notifier),
-            ],
-          )
-        else
-          Row(
-            children: [
-              Expanded(child: _buildPatientTypeFilter(state, notifier)),
-              const SizedBox(width: 12),
-              Expanded(child: _buildInsuranceFilter(state, notifier)),
-            ],
-          ),
-      ],
     );
   }
 

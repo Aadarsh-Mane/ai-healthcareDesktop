@@ -3,8 +3,6 @@ PODS:
     - FlutterMacOS
   - device_info_plus (0.0.1):
     - FlutterMacOS
-  - flutter_tts (0.0.1):
-    - FlutterMacOS
   - FlutterMacOS (1.0.0)
   - network_info_plus (0.0.1):
     - FlutterMacOS
@@ -36,7 +34,6 @@ PODS:
 DEPENDENCIES:
   - connectivity_plus (from `Flutter/ephemeral/.symlinks/plugins/connectivity_plus/macos`)
   - device_info_plus (from `Flutter/ephemeral/.symlinks/plugins/device_info_plus/macos`)
-  - flutter_tts (from `Flutter/ephemeral/.symlinks/plugins/flutter_tts/macos`)
   - FlutterMacOS (from `Flutter/ephemeral`)
   - network_info_plus (from `Flutter/ephemeral/.symlinks/plugins/network_info_plus/macos`)
   - path_provider_foundation (from `Flutter/ephemeral/.symlinks/plugins/path_provider_foundation/darwin`)
@@ -55,8 +52,6 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/connectivity_plus/macos
   device_info_plus:
     :path: Flutter/ephemeral/.symlinks/plugins/device_info_plus/macos
-  flutter_tts:
-    :path: Flutter/ephemeral/.symlinks/plugins/flutter_tts/macos
   FlutterMacOS:
     :path: Flutter/ephemeral
   network_info_plus:
@@ -85,7 +80,6 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   connectivity_plus: 4adf20a405e25b42b9c9f87feff8f4b6fde18a4e
   device_info_plus: 4fb280989f669696856f8b129e4a5e3cd6c48f76
-  flutter_tts: ae915565cc6948444b513acc8ee021993281e027
   FlutterMacOS: 8f6f14fa908a6fb3fba0cd85dbd81ec4b251fb24
   network_info_plus: 21d1cd6a015ccb2fdff06a1fbfa88d54b4e92f61
   path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564

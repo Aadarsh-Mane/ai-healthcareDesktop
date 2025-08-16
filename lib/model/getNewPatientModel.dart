@@ -258,11 +258,12 @@ class Vitals {
 }
 
 class DoctorConsulting {
+  final String date;
   final String allergies;
+  final String personalHabits;
   final String cheifComplaint;
   final String describeAllergies;
   final String historyOfPresentIllness;
-  final String personalHabits;
   final String familyHistory;
   final String menstrualHistory;
   final String wongBaker;
@@ -270,14 +271,32 @@ class DoctorConsulting {
   final String relevantPreviousInvestigations;
   final String immunizationHistory;
   final String pastMedicalHistory;
-  final String date;
+
+  // New General Examination fields
+  final String pulse;
+  final String bloodPressure;
+  final String temperature;
+  final String oxygenSaturation;
+
+  // New Systemic Examination fields
+  final String respiratorySystem;
+  final String cardiovascularSystem;
+  final String gastrointestinalSystem;
+  final String genitourinarySystem;
+  final String musculoskeletalSystem;
+  final String neurologicalSystem;
+  final String endocrineSystem;
+
+  // Clinical Diagnosis
+  final String clinicalDiagnosis;
 
   DoctorConsulting({
+    required this.date,
     required this.allergies,
+    required this.personalHabits,
     required this.cheifComplaint,
     required this.describeAllergies,
     required this.historyOfPresentIllness,
-    required this.personalHabits,
     required this.familyHistory,
     required this.menstrualHistory,
     required this.wongBaker,
@@ -285,16 +304,58 @@ class DoctorConsulting {
     required this.relevantPreviousInvestigations,
     required this.immunizationHistory,
     required this.pastMedicalHistory,
-    required this.date,
+    required this.pulse,
+    required this.bloodPressure,
+    required this.temperature,
+    required this.oxygenSaturation,
+    required this.respiratorySystem,
+    required this.cardiovascularSystem,
+    required this.gastrointestinalSystem,
+    required this.genitourinarySystem,
+    required this.musculoskeletalSystem,
+    required this.neurologicalSystem,
+    required this.endocrineSystem,
+    required this.clinicalDiagnosis,
   });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'date': date,
+      'allergies': allergies,
+      'personalHabits': personalHabits,
+      'cheifComplaint': cheifComplaint,
+      'describeAllergies': describeAllergies,
+      'historyOfPresentIllness': historyOfPresentIllness,
+      'familyHistory': familyHistory,
+      'menstrualHistory': menstrualHistory,
+      'wongBaker': wongBaker,
+      'visualAnalogue': visualAnalogue,
+      'relevantPreviousInvestigations': relevantPreviousInvestigations,
+      'immunizationHistory': immunizationHistory,
+      'pastMedicalHistory': pastMedicalHistory,
+      'pulse': pulse,
+      'bloodPressure': bloodPressure,
+      'temperature': temperature,
+      'oxygenSaturation': oxygenSaturation,
+      'respiratorySystem': respiratorySystem,
+      'cardiovascularSystem': cardiovascularSystem,
+      'gastrointestinalSystem': gastrointestinalSystem,
+      'genitourinarySystem': genitourinarySystem,
+      'musculoskeletalSystem': musculoskeletalSystem,
+      'neurologicalSystem': neurologicalSystem,
+      'endocrineSystem': endocrineSystem,
+      'clinicalDiagnosis': clinicalDiagnosis,
+    };
+  }
 
   factory DoctorConsulting.fromJson(Map<String, dynamic> json) {
     return DoctorConsulting(
+      date: json['date'] ?? '',
       allergies: json['allergies'] ?? '',
+      personalHabits: json['personalHabits'] ?? '',
       cheifComplaint: json['cheifComplaint'] ?? '',
       describeAllergies: json['describeAllergies'] ?? '',
       historyOfPresentIllness: json['historyOfPresentIllness'] ?? '',
-      personalHabits: json['personalHabits'] ?? '',
       familyHistory: json['familyHistory'] ?? '',
       menstrualHistory: json['menstrualHistory'] ?? '',
       wongBaker: json['wongBaker'] ?? '',
@@ -303,7 +364,18 @@ class DoctorConsulting {
           json['relevantPreviousInvestigations'] ?? '',
       immunizationHistory: json['immunizationHistory'] ?? '',
       pastMedicalHistory: json['pastMedicalHistory'] ?? '',
-      date: json['date'] ?? '',
+      pulse: json['pulse'] ?? 'NA',
+      bloodPressure: json['bloodPressure'] ?? 'NA',
+      temperature: json['temperature'] ?? 'NA',
+      oxygenSaturation: json['oxygenSaturation'] ?? 'NA',
+      respiratorySystem: json['respiratorySystem'] ?? 'NA',
+      cardiovascularSystem: json['cardiovascularSystem'] ?? 'NA',
+      gastrointestinalSystem: json['gastrointestinalSystem'] ?? 'NA',
+      genitourinarySystem: json['genitourinarySystem'] ?? 'NA',
+      musculoskeletalSystem: json['musculoskeletalSystem'] ?? 'NA',
+      neurologicalSystem: json['neurologicalSystem'] ?? 'NA',
+      endocrineSystem: json['endocrineSystem'] ?? 'NA',
+      clinicalDiagnosis: json['clinicalDiagnosis'] ?? 'NA',
     );
   }
 }

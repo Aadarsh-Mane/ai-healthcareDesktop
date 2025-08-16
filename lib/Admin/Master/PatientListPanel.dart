@@ -769,7 +769,7 @@ class _PatientManagementScreenState
         backgroundColor: Colors.white,
         appBar: HospitalTheme.buildAppBar(
           context: context,
-          title: 'Patient Management',
+          title: 'Patient Managemen',
           showBackButton: false,
           actions: [
             IconButton(
