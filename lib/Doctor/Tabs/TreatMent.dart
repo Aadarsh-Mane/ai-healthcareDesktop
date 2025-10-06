@@ -649,7 +649,7 @@ class _EnhancedTreatmentScreenState
       ),
       automaticallyImplyLeading: false,
       title: Text(
-        'Treatment Management',
+        'Treatment Managemen',
         style: GoogleFonts.poppins(
           fontSize: 20,
           fontWeight: FontWeight.w600,

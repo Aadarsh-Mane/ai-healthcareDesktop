@@ -559,7 +559,7 @@ class _FollowUpsScreenState extends ConsumerState<FollowUpsScreen> {
               automaticallyImplyLeading: false,
               elevation: 2,
               title: const Text(
-                'Follow-ups Management',
+                ' Management',
                 style: TextStyle(
                   color: HospitalTheme.surfaceLight,
                   fontWeight: FontWeight.bold,

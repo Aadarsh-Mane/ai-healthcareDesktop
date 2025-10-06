@@ -38,9 +38,11 @@ class AuthRepository {
         final Map<String, dynamic> responseBody = jsonDecode(response.body);
         final token = responseBody['token'];
         final usertype = responseBody['user']['usertype'];
+        final userId = responseBody['user']['_id'];
 
         await storeToken(token);
         await storeUsertype(usertype);
+        await storeUserId(userId);
 
         return token;
       } else if (response.statusCode == 401) {
@@ -515,5 +517,10 @@ class AuthRepository {
       throw Exception(
           'Failed to load admitted patients: ${response.reasonPhrase}');
     }
+  }
+
+  Future<void> storeUserId(String userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('userId', userId);
   }
 }

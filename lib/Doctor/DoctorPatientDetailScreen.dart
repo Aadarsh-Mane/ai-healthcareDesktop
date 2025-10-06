@@ -8,6 +8,7 @@ import 'package:doctordesktop/Doctor/AddSymptomsScreen.dart';
 import 'package:doctordesktop/Doctor/AdmitNoteDialog.dart';
 import 'package:doctordesktop/Doctor/Animate.dart';
 import 'package:doctordesktop/Doctor/AssignedPatientScreen.dart';
+import 'package:doctordesktop/Doctor/ChatListScreen.dart';
 import 'package:doctordesktop/Doctor/DoctorAdmittedPatientScreen.dart';
 import 'package:doctordesktop/Doctor/DoctorConsultantScreen.dart';
 import 'package:doctordesktop/Doctor/DoctorMainScreen.dart';
@@ -2089,6 +2090,48 @@ class _PatientDetailScreen2State extends State<PatientDetailScreen4>
                                 admissionId:
                                     widget.patient.admissionRecords.first.id,
                               ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [
+                            Color.fromARGB(255, 206, 49, 185),
+                            Color(0xFF63B3ED)
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(28),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF3182CE).withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: FloatingActionButton.extended(
+                        label: const Text(
+                          'Chats',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        icon: const Icon(Icons.supervisor_account, size: 20),
+                        heroTag: 'fab4',
+                        backgroundColor: Colors.transparent,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ChatListScreen(),
                             ),
                           );
                         },

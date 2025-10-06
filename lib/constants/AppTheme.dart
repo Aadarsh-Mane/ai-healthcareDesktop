@@ -1,37 +1,35 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Primary color (Background)
-  static const Color primaryColor = Color(0xffE3F2FD); // Light blue
+  // Doctor Color Palette - "heartworthy"
+  static const Color primaryColor = Color(0xffffffff); // White background
+  static const Color lightGrayColor = Color(0xffdddddd); // Light gray
+  static const Color darkGrayColor = Color(0xff49535a); // Dark blue-gray
+  static const Color darkColor = Color(0xff222222); // Near black
+  static const Color blueAccentColor = Color(0xff2a7fba); // Medical blue
 
-  // Accent colors
-  static const Color secondaryColor = Color(0xff90CAF9); // Slightly darker blue
+  // Themed color assignments
+  static const Color secondaryColor =
+      lightGrayColor; // Light gray for secondary elements
   static const Color accentColor =
-      Color(0xff42A5F5); // Stronger blue for highlights
-
-  // Neutral colors
-  static const Color textColor = Color(0xff212121); // Dark grey for text
+      blueAccentColor; // Medical blue for highlights
+  static const Color textColor = darkColor; // Near black for primary text
   static const Color lightTextColor =
-      Color(0xff757575); // Lighter grey for secondary text
-  static const Color cardColor = Colors.white; // White for cards
-  static const Color borderColor = Color(0xffBDBDBD); // Grey for borders
+      darkGrayColor; // Dark blue-gray for secondary text
+  static const Color cardColor = primaryColor; // White for cards
+  static const Color borderColor = lightGrayColor; // Light gray for borders
 
-  // Error color
+  // Status colors (keeping original healthcare-appropriate colors)
   static const Color errorColor = Color(0xffD32F2F); // Red for error states
-
-  // Success color
   static const Color successColor =
       Color(0xff4CAF50); // Green for success messages
-
-  // Warning color
   static const Color warningColor = Color(0xffFFC107); // Amber for warnings
 
   // Icon colors
-  static const Color iconColor = Color(0xff616161); // Dark grey for icons
+  static const Color iconColor = darkGrayColor; // Dark blue-gray for icons
 
   // Divider color
-  static const Color dividerColor =
-      Color(0xffE0E0E0); // Light grey for dividers
+  static const Color dividerColor = lightGrayColor; // Light gray for dividers
 
   // Button themes
   static final ButtonStyle elevatedButtonStyle = ElevatedButton.styleFrom(

@@ -709,7 +709,7 @@ class _VitalsScreenState extends ConsumerState<VitalsScreen> {
                 ),
                 const SizedBox(height: 4),
                 const Text(
-                  'Track and monitor patient vital signs',
+                  'Track and monitor patient vital sign',
                   style: TextStyle(
                     fontSize: 14,
                     color: HospitalTheme.textMedium,
