@@ -20,8 +20,7 @@ class _AppointmentCreationScreenState extends State<AppointmentCreationScreen> {
   final _formKey = GlobalKey<FormState>();
 
   // Form controllers
-  int _selectedNavIndex = 1; // Default to Appointments tab
-
+  int _selectedNavIndex = 1;
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _contactController = TextEditingController();
   final TextEditingController _symptomsController = TextEditingController();
@@ -72,26 +71,44 @@ class _AppointmentCreationScreenState extends State<AppointmentCreationScreen> {
     });
 
     try {
-      final response = await http.get(
+      final response = await http
+          .get(
         Uri.parse('${KVM_URL}/reception/listExternalDoctors'),
+      )
+          .timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception('Request timed out. Please check your connection.');
+        },
       );
-      print(response.body);
+
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(response.body);
         final List<dynamic> data = responseData['doctors'] ?? [];
         setState(() {
           _doctors = data.map((doc) => Doctor.fromJson(doc)).toList();
           _isLoading = false;
+          // Check if no doctors are available
+          if (_doctors.isEmpty) {
+            _errorMessage = 'No doctors available. Please add doctors first.';
+          }
         });
       } else {
         setState(() {
-          _errorMessage = 'Failed to load doctors. Please try again.';
+          _errorMessage =
+              'Unable to fetch doctor list. Server returned error ${response.statusCode}.';
           _isLoading = false;
         });
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Network error: $e';
+        String message = 'Unable to connect to server.';
+        if (e.toString().contains('SocketException')) {
+          message = 'No internet connection. Please check your network.';
+        } else if (e.toString().contains('timeout')) {
+          message = 'Request timed out. Please check your connection.';
+        }
+        _errorMessage = message;
         _isLoading = false;
       });
     }
@@ -113,8 +130,15 @@ class _AppointmentCreationScreenState extends State<AppointmentCreationScreen> {
     });
 
     try {
-      final response = await http.get(
+      final response = await http
+          .get(
         Uri.parse('${KVM_URL}/reception/searchPatientAppointment?query=$query'),
+      )
+          .timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception('Search timed out');
+        },
       );
 
       if (response.statusCode == 200) {
@@ -136,7 +160,7 @@ class _AppointmentCreationScreenState extends State<AppointmentCreationScreen> {
         _isSearching = false;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Search error: $e'),
+            content: const Text('Unable to search patients. Please try again.'),
             backgroundColor: HospitalTheme.error,
           ),
         );
@@ -172,21 +196,30 @@ class _AppointmentCreationScreenState extends State<AppointmentCreationScreen> {
 
   // Submit appointment
   Future<void> _submitAppointment() async {
-    if (!_formKey.currentState!.validate() || _selectedDoctor == null) {
+    if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Please fill all required fields'),
+          content: const Text('Please fill all required fields'),
           backgroundColor: HospitalTheme.error,
         ),
       );
       return;
     }
 
-    // Check if patientId is provided for readmission cases
+    if (_selectedDoctor == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Please select a doctor'),
+          backgroundColor: HospitalTheme.error,
+        ),
+      );
+      return;
+    }
+
     if (_isReadmission && _patientIdController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Patient ID is required for readmission'),
+          content: const Text('Patient ID is required for readmission'),
           backgroundColor: HospitalTheme.error,
         ),
       );
@@ -216,26 +249,30 @@ class _AppointmentCreationScreenState extends State<AppointmentCreationScreen> {
     };
 
     try {
-      final response = await http.post(
+      final response = await http
+          .post(
         Uri.parse('${KVM_URL}/reception/createAppointment'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(appointmentData),
+      )
+          .timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception('Request timed out');
+        },
       );
-      print(response.body);
+
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // Success
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Appointment created successfully!'),
             backgroundColor: HospitalTheme.success,
           ),
         );
-
-        // Reset form
         _resetForm();
       } else {
         final errorMsg = json.decode(response.body)['message'] ??
-            'Failed to create appointment';
+            'Unable to create appointment. Please try again.';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMsg),
@@ -244,9 +281,15 @@ class _AppointmentCreationScreenState extends State<AppointmentCreationScreen> {
         );
       }
     } catch (e) {
+      String message = 'Unable to create appointment.';
+      if (e.toString().contains('SocketException')) {
+        message = 'No internet connection. Please check your network.';
+      } else if (e.toString().contains('timeout')) {
+        message = 'Request timed out. Please try again.';
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Network error: $e'),
+          content: Text(message),
           backgroundColor: HospitalTheme.error,
         ),
       );
@@ -275,14 +318,155 @@ class _AppointmentCreationScreenState extends State<AppointmentCreationScreen> {
     });
   }
 
+  Widget _buildEmptyState() {
+    return Center(
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 500),
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                color: HospitalTheme.surfaceLight,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.person_add_disabled,
+                size: 60,
+                color: HospitalTheme.textMedium,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'No Doctors Available',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: HospitalTheme.textDark,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'You need to add doctors before creating appointments.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: HospitalTheme.textMedium,
+              ),
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: () {
+                // Navigate to doctor registration
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ExternalDoctorRegister(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.person_add),
+              label: const Text('Add Doctor'),
+              style: ElevatedButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextButton.icon(
+              onPressed: _fetchDoctors,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Refresh'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 500),
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                color: HospitalTheme.error.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.error_outline,
+                size: 60,
+                color: HospitalTheme.error,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Something Went Wrong',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: HospitalTheme.textDark,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _errorMessage ?? 'An unexpected error occurred.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: HospitalTheme.textMedium,
+              ),
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: _fetchDoctors,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Try Again'),
+              style: ElevatedButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              ),
+            ),
+            if (_errorMessage?.contains('No doctors') ?? false) ...[
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ExternalDoctorRegister(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.person_add),
+                label: const Text('Add Doctor'),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget buildSearchResultsPanel() {
     return Container(
-      constraints: BoxConstraints(
-        maxHeight: 400, // Increased height to accommodate more information
+      constraints: const BoxConstraints(
+        maxHeight: 400,
       ),
       decoration: BoxDecoration(
+        color: Colors.white,
         border: Border.all(color: HospitalTheme.border),
         borderRadius: BorderRadius.circular(8),
+        boxShadow: HospitalTheme.shadowSmall,
       ),
       child: _searchResults.isEmpty
           ? Padding(
@@ -302,14 +486,13 @@ class _AppointmentCreationScreenState extends State<AppointmentCreationScreen> {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Patient header information
                     ListTile(
                       title: Row(
                         children: [
                           Expanded(
                             child: Text(
                               patient.patientName,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
                               ),
@@ -337,29 +520,29 @@ class _AppointmentCreationScreenState extends State<AppointmentCreationScreen> {
                                   size: 14,
                                   color: HospitalTheme.textMedium,
                                 ),
-                                SizedBox(width: 4),
+                                const SizedBox(width: 4),
                                 Text(
                                   'ID: ${patient.patientId}',
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
-                                SizedBox(width: 16),
+                                const SizedBox(width: 16),
                                 Icon(
                                   Icons.phone,
                                   size: 14,
                                   color: HospitalTheme.textMedium,
                                 ),
-                                SizedBox(width: 4),
+                                const SizedBox(width: 4),
                                 Text(
                                   patient.patientContact,
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ],
                             ),
-                            SizedBox(height: 4),
+                            const SizedBox(height: 4),
                             Text(
                               '${patient.appointments.length} previous appointment(s)',
                               style: TextStyle(
@@ -372,8 +555,6 @@ class _AppointmentCreationScreenState extends State<AppointmentCreationScreen> {
                       ),
                       isThreeLine: true,
                     ),
-
-                    // Appointment history section
                     if (patient.appointments.isNotEmpty) ...[
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -386,14 +567,12 @@ class _AppointmentCreationScreenState extends State<AppointmentCreationScreen> {
                           ),
                         ),
                       ),
-                      SizedBox(height: 8),
-
-                      // Appointment list with timeline visualization
+                      const SizedBox(height: 8),
                       ListView.builder(
                         shrinkWrap: true,
-                        physics: NeverScrollableScrollPhysics(),
+                        physics: const NeverScrollableScrollPhysics(),
                         itemCount: patient.appointments.length > 3
-                            ? 3 // Show only the 3 most recent appointments
+                            ? 3
                             : patient.appointments.length,
                         itemBuilder: (context, appIndex) {
                           final appointment = patient.appointments[appIndex];
@@ -412,7 +591,7 @@ class _AppointmentCreationScreenState extends State<AppointmentCreationScreen> {
                                 color:
                                     HospitalTheme.surfaceLight.withOpacity(0.5),
                               ),
-                              padding: EdgeInsets.all(12),
+                              padding: const EdgeInsets.all(12),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -427,17 +606,17 @@ class _AppointmentCreationScreenState extends State<AppointmentCreationScreen> {
                                         size: 16,
                                         color: HospitalTheme.primary,
                                       ),
-                                      SizedBox(width: 8),
+                                      const SizedBox(width: 8),
                                       Expanded(
                                         child: Text(
                                           'Dr. ${appointment.doctorName} (${appointment.doctorSpecialization})',
-                                          style: TextStyle(
+                                          style: const TextStyle(
                                             fontWeight: FontWeight.w500,
                                           ),
                                         ),
                                       ),
                                       Container(
-                                        padding: EdgeInsets.symmetric(
+                                        padding: const EdgeInsets.symmetric(
                                             horizontal: 8, vertical: 4),
                                         decoration: BoxDecoration(
                                           color: statusColor.withOpacity(0.1),
@@ -457,7 +636,7 @@ class _AppointmentCreationScreenState extends State<AppointmentCreationScreen> {
                                       ),
                                     ],
                                   ),
-                                  SizedBox(height: 8),
+                                  const SizedBox(height: 8),
                                   Row(
                                     children: [
                                       Icon(
@@ -465,20 +644,20 @@ class _AppointmentCreationScreenState extends State<AppointmentCreationScreen> {
                                         size: 16,
                                         color: HospitalTheme.textMedium,
                                       ),
-                                      SizedBox(width: 8),
+                                      const SizedBox(width: 8),
                                       Text(
                                         '${appointment.date} at ${appointment.time}',
                                         style: TextStyle(
                                           color: HospitalTheme.textDark,
                                         ),
                                       ),
-                                      SizedBox(width: 8),
+                                      const SizedBox(width: 8),
                                       Icon(
                                         Icons.payments_outlined,
                                         size: 16,
                                         color: HospitalTheme.textMedium,
                                       ),
-                                      SizedBox(width: 4),
+                                      const SizedBox(width: 4),
                                       Text(
                                         appointment.paymentStatus,
                                         style: TextStyle(
@@ -491,14 +670,12 @@ class _AppointmentCreationScreenState extends State<AppointmentCreationScreen> {
                                       ),
                                     ],
                                   ),
-
-                                  // Show rescheduling details if available
                                   if (appointment.rescheduledTo != null &&
                                       appointment
                                           .rescheduledTo!.isNotEmpty) ...[
-                                    SizedBox(height: 8),
+                                    const SizedBox(height: 8),
                                     Container(
-                                      padding: EdgeInsets.all(8),
+                                      padding: const EdgeInsets.all(8),
                                       decoration: BoxDecoration(
                                         color: HospitalTheme.warning
                                             .withOpacity(0.1),
@@ -511,7 +688,7 @@ class _AppointmentCreationScreenState extends State<AppointmentCreationScreen> {
                                             size: 16,
                                             color: HospitalTheme.warning,
                                           ),
-                                          SizedBox(width: 8),
+                                          const SizedBox(width: 8),
                                           Expanded(
                                             child: Text(
                                               'Rescheduled to: ${appointment.rescheduledTo}',
@@ -525,10 +702,8 @@ class _AppointmentCreationScreenState extends State<AppointmentCreationScreen> {
                                       ),
                                     ),
                                   ],
-
-                                  // Show symptoms if available
                                   if (appointment.symptoms.isNotEmpty) ...[
-                                    SizedBox(height: 8),
+                                    const SizedBox(height: 8),
                                     Text(
                                       'Symptoms: ${appointment.symptoms}',
                                       style: TextStyle(
@@ -545,16 +720,12 @@ class _AppointmentCreationScreenState extends State<AppointmentCreationScreen> {
                           );
                         },
                       ),
-
-                      // Show "See more" button if there are more than 3 appointments
                       if (patient.appointments.length > 3)
                         Padding(
                           padding: const EdgeInsets.symmetric(
                               vertical: 8.0, horizontal: 16.0),
                           child: TextButton.icon(
                             onPressed: () {
-                              // This would open a detailed appointment history view
-                              // For now, we'll just select the patient
                               _applyPatientData(patient);
                             },
                             icon: Icon(
@@ -571,8 +742,7 @@ class _AppointmentCreationScreenState extends State<AppointmentCreationScreen> {
                           ),
                         ),
                     ],
-
-                    Divider(height: 24, thickness: 1),
+                    const Divider(height: 24, thickness: 1),
                   ],
                 );
               },
@@ -580,8 +750,7 @@ class _AppointmentCreationScreenState extends State<AppointmentCreationScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildAppointmentForm() {
     final timeSlots = [
       '09:00 AM',
       '09:30 AM',
@@ -601,29 +770,415 @@ class _AppointmentCreationScreenState extends State<AppointmentCreationScreen> {
       '05:30 PM',
     ];
 
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Universal search field
+            HospitalTheme.buildCard(
+              hasShadow: true,
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  HospitalTheme.buildSectionHeader(
+                    'Patient Search',
+                    trailing: Text(
+                      'Find existing patients',
+                      style: TextStyle(
+                        color: HospitalTheme.textMedium,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search by name, ID, or contact number',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: _isSearching
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : _searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    setState(() {
+                                      _searchResults = [];
+                                      _showSearchResults = false;
+                                    });
+                                  },
+                                )
+                              : null,
+                    ),
+                    onChanged: (value) {
+                      _searchPatient(value);
+                    },
+                  ),
+                  if (_showSearchResults) ...[
+                    const SizedBox(height: 16),
+                    buildSearchResultsPanel(),
+                  ],
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Form sections
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Left column - Patient details
+                Expanded(
+                  child: HospitalTheme.buildCard(
+                    hasShadow: true,
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        HospitalTheme.buildSectionHeader('Patient Information'),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _patientIdController,
+                          decoration: const InputDecoration(
+                            labelText: 'Patient ID',
+                            prefixIcon: Icon(Icons.badge),
+                            hintText: 'For existing patients only',
+                          ),
+                          validator: (value) {
+                            if (_isReadmission &&
+                                (value == null || value.isEmpty)) {
+                              return 'Patient ID is required for readmission';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _nameController,
+                          decoration: const InputDecoration(
+                            labelText: 'Patient Name',
+                            prefixIcon: Icon(Icons.person),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter patient name';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _contactController,
+                          decoration: const InputDecoration(
+                            labelText: 'Contact Number',
+                            prefixIcon: Icon(Icons.phone),
+                          ),
+                          keyboardType: TextInputType.phone,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(10),
+                          ],
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter contact number';
+                            }
+                            if (value.length != 10) {
+                              return 'Contact number should be 10 digits';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _symptomsController,
+                          decoration: const InputDecoration(
+                            labelText: 'Symptoms',
+                            prefixIcon: Icon(Icons.medical_information),
+                          ),
+                          maxLines: 3,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter symptoms';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: _isReadmission,
+                              onChanged: (value) {
+                                setState(() {
+                                  _isReadmission = value ?? false;
+                                });
+                              },
+                            ),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'This is a readmission',
+                                    style:
+                                        Theme.of(context).textTheme.bodyMedium,
+                                  ),
+                                  if (_isReadmission)
+                                    Text(
+                                      'Patient ID is required for readmission',
+                                      style: TextStyle(
+                                        color: HospitalTheme.warning,
+                                        fontSize: 12,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Appointment Type:',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        Row(
+                          children: [
+                            Radio(
+                              value: 'offline',
+                              groupValue: _appointmentType,
+                              onChanged: (value) {
+                                setState(() {
+                                  _appointmentType = value.toString();
+                                });
+                              },
+                            ),
+                            const Text('In-person'),
+                            const SizedBox(width: 16),
+                            Radio(
+                              value: 'online',
+                              groupValue: _appointmentType,
+                              onChanged: (value) {
+                                setState(() {
+                                  _appointmentType = value.toString();
+                                });
+                              },
+                            ),
+                            const Text('Tele-consultation'),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(width: 24),
+
+                // Right column - Doctor selection and appointment time
+                Expanded(
+                  child: Column(
+                    children: [
+                      // Doctor selection
+                      HospitalTheme.buildCard(
+                        hasShadow: true,
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            HospitalTheme.buildSectionHeader('Select Doctor'),
+                            const SizedBox(height: 16),
+                            DropdownButtonFormField<Doctor>(
+                              decoration: const InputDecoration(
+                                labelText: 'Select Doctor',
+                                prefixIcon: Icon(Icons.medical_services),
+                              ),
+                              value: _selectedDoctor,
+                              items: _doctors.map((Doctor doctor) {
+                                return DropdownMenuItem<Doctor>(
+                                  value: doctor,
+                                  child: Text(
+                                    '${doctor.doctorName} (${doctor.speciality})',
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: _doctors.isEmpty
+                                  ? null
+                                  : (Doctor? newValue) {
+                                      setState(() {
+                                        _selectedDoctor = newValue;
+                                      });
+                                    },
+                              validator: (value) {
+                                if (value == null) {
+                                  return 'Please select a doctor';
+                                }
+                                return null;
+                              },
+                            ),
+                            if (_selectedDoctor != null) ...[
+                              const SizedBox(height: 24),
+                              DoctorCard(doctor: _selectedDoctor!),
+                            ],
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Appointment date and time
+                      HospitalTheme.buildCard(
+                        hasShadow: true,
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            HospitalTheme.buildSectionHeader(
+                                'Appointment Schedule'),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.calendar_today,
+                                  color: HospitalTheme.primary,
+                                ),
+                                const SizedBox(width: 16),
+                                Text(
+                                  'Date: ${DateFormat('yyyy-MM-dd').format(_selectedDate)}',
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                                const Spacer(),
+                                ElevatedButton(
+                                  onPressed: () async {
+                                    final DateTime? picked =
+                                        await showDatePicker(
+                                      context: context,
+                                      initialDate: _selectedDate,
+                                      firstDate: DateTime.now(),
+                                      lastDate: DateTime.now()
+                                          .add(const Duration(days: 90)),
+                                    );
+                                    if (picked != null) {
+                                      setState(() {
+                                        _selectedDate = picked;
+                                      });
+                                    }
+                                  },
+                                  child: const Text('Select Date'),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 24),
+                            Text(
+                              'Available Time Slots:',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 16),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: timeSlots.map((time) {
+                                final isSelected = _selectedTime == time;
+                                return InkWell(
+                                  onTap: () {
+                                    setState(() {
+                                      _selectedTime = time;
+                                    });
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? HospitalTheme.primary
+                                          : HospitalTheme.surfaceLight,
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? HospitalTheme.primary
+                                            : HospitalTheme.border,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      time,
+                                      style: TextStyle(
+                                        color: isSelected
+                                            ? HospitalTheme.textOnPrimary
+                                            : HospitalTheme.textDark,
+                                        fontWeight: isSelected
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 32),
+
+            // Action buttons
+            Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  HospitalTheme.buildGradientButton(
+                    label: 'Cancel',
+                    icon: Icons.close,
+                    onPressed: _resetForm,
+                    startColor: HospitalTheme.textLight,
+                    endColor: HospitalTheme.textMedium,
+                  ),
+                  const SizedBox(width: 24),
+                  HospitalTheme.buildGradientButton(
+                    label: 'Save',
+                    icon: Icons.save,
+                    onPressed: _doctors.isEmpty ? () {} : _submitAppointment,
+                    isLoading: _isSubmitting,
+                    startColor: _doctors.isEmpty
+                        ? HospitalTheme.textLight
+                        : HospitalTheme.success,
+                    endColor: _doctors.isEmpty
+                        ? HospitalTheme.textMedium
+                        : HospitalTheme.primary,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Theme(
       data: HospitalTheme.themeData,
       child: Scaffold(
         body: Row(
           children: [
-            // ImprovedSidebar(
-            //   navigationItems: [],
-            //   selectedIndex: _selectedNavIndex,
-            //   onDestinationSelected: (index) {
-            //     setState(() {
-            //       _selectedNavIndex = index;
-            //     });
-            //   },
-            // ),
-            // ImprovedSidebar(
-            //   navigationItems: [],
-            //   selectedIndex: _selectedNavIndex,
-            //   onDestinationSelected: (index) {
-            //     setState(() {
-            //       _selectedNavIndex = index;
-            //     });
-            //   },
-            // ),
             // Main content area
             Expanded(
               child: Container(
@@ -646,7 +1201,7 @@ class _AppointmentCreationScreenState extends State<AppointmentCreationScreen> {
                                   color: HospitalTheme.textOnPrimary),
                             ),
                             const SizedBox(width: 10),
-                            Column(
+                            const Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -666,8 +1221,8 @@ class _AppointmentCreationScreenState extends State<AppointmentCreationScreen> {
                               ],
                             ),
                             PopupMenuButton(
-                              icon: Icon(Icons.more_vert,
-                                  color: HospitalTheme.textDark),
+                              icon: const Icon(Icons.more_vert,
+                                  color: Colors.white),
                               itemBuilder: (context) => [
                                 const PopupMenuItem(
                                   value: 'profile',
@@ -684,588 +1239,19 @@ class _AppointmentCreationScreenState extends State<AppointmentCreationScreen> {
                       ],
                     ),
 
-                    // Main content with form
+                    // Main content with proper state handling
                     Expanded(
                       child: _isLoading
                           ? Center(
                               child: CircularProgressIndicator(
                                   color: HospitalTheme.primary))
                           : _errorMessage != null
-                              ? Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        _errorMessage!,
-                                        style: TextStyle(
-                                            color: HospitalTheme.error),
-                                      ),
-                                      const SizedBox(height: 16),
-                                      ElevatedButton(
-                                        onPressed: _fetchDoctors,
-                                        child: const Text('Retry'),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                              : SingleChildScrollView(
-                                  padding: const EdgeInsets.all(24),
-                                  child: Form(
-                                    key: _formKey,
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        // Universal search field
-                                        HospitalTheme.buildCard(
-                                          hasShadow: true,
-                                          padding: const EdgeInsets.all(24),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              HospitalTheme.buildSectionHeader(
-                                                'Patient Search',
-                                                trailing: Text(
-                                                  'Find existing patients',
-                                                  style: TextStyle(
-                                                    color: HospitalTheme
-                                                        .textMedium,
-                                                    fontSize: 14,
-                                                  ),
-                                                ),
-                                              ),
-                                              const SizedBox(height: 16),
-
-                                              // Search field
-                                              TextField(
-                                                controller: _searchController,
-                                                decoration: InputDecoration(
-                                                  hintText:
-                                                      'Search by name, ID, or contact number',
-                                                  prefixIcon:
-                                                      Icon(Icons.search),
-                                                  suffixIcon: _isSearching
-                                                      ? SizedBox(
-                                                          width: 20,
-                                                          height: 20,
-                                                          child:
-                                                              CircularProgressIndicator(
-                                                            strokeWidth: 2,
-                                                            color: HospitalTheme
-                                                                .primary,
-                                                          ),
-                                                        )
-                                                      : _searchController
-                                                              .text.isNotEmpty
-                                                          ? IconButton(
-                                                              icon: Icon(
-                                                                  Icons.clear),
-                                                              onPressed: () {
-                                                                _searchController
-                                                                    .clear();
-                                                                setState(() {
-                                                                  _searchResults =
-                                                                      [];
-                                                                  _showSearchResults =
-                                                                      false;
-                                                                });
-                                                              },
-                                                            )
-                                                          : null,
-                                                ),
-                                                onChanged: (value) {
-                                                  _searchPatient(value);
-                                                },
-                                              ),
-
-                                              // Search results
-                                              if (_showSearchResults) ...[
-                                                const SizedBox(height: 16),
-                                                buildSearchResultsPanel(),
-                                              ],
-                                            ],
-                                          ),
-                                        ),
-
-                                        const SizedBox(height: 24),
-
-                                        // Form sections
-                                        Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            // Left column - Patient details
-                                            Expanded(
-                                              child: HospitalTheme.buildCard(
-                                                hasShadow: true,
-                                                padding:
-                                                    const EdgeInsets.all(24),
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    HospitalTheme
-                                                        .buildSectionHeader(
-                                                            'Patient Information'),
-                                                    const SizedBox(height: 16),
-
-                                                    // Patient ID
-                                                    TextFormField(
-                                                      controller:
-                                                          _patientIdController,
-                                                      decoration:
-                                                          const InputDecoration(
-                                                        labelText: 'Patient ID',
-                                                        prefixIcon:
-                                                            Icon(Icons.badge),
-                                                        hintText:
-                                                            'For existing patients only',
-                                                      ),
-                                                      validator: (value) {
-                                                        if (_isReadmission &&
-                                                            (value == null ||
-                                                                value
-                                                                    .isEmpty)) {
-                                                          return 'Patient ID is required for readmission';
-                                                        }
-                                                        return null;
-                                                      },
-                                                    ),
-                                                    const SizedBox(height: 16),
-
-                                                    // Patient name
-                                                    TextFormField(
-                                                      controller:
-                                                          _nameController,
-                                                      decoration:
-                                                          const InputDecoration(
-                                                        labelText:
-                                                            'Patient Name',
-                                                        prefixIcon:
-                                                            Icon(Icons.person),
-                                                      ),
-                                                      validator: (value) {
-                                                        if (value == null ||
-                                                            value.isEmpty) {
-                                                          return 'Please enter patient name';
-                                                        }
-                                                        return null;
-                                                      },
-                                                    ),
-                                                    const SizedBox(height: 16),
-
-                                                    // Patient contact
-                                                    TextFormField(
-                                                      controller:
-                                                          _contactController,
-                                                      decoration:
-                                                          const InputDecoration(
-                                                        labelText:
-                                                            'Contact Number',
-                                                        prefixIcon:
-                                                            Icon(Icons.phone),
-                                                      ),
-                                                      keyboardType:
-                                                          TextInputType.phone,
-                                                      inputFormatters: [
-                                                        FilteringTextInputFormatter
-                                                            .digitsOnly,
-                                                        LengthLimitingTextInputFormatter(
-                                                            10),
-                                                      ],
-                                                      validator: (value) {
-                                                        if (value == null ||
-                                                            value.isEmpty) {
-                                                          return 'Please enter contact number';
-                                                        }
-                                                        if (value.length !=
-                                                            10) {
-                                                          return 'Contact number should be 10 digits';
-                                                        }
-                                                        return null;
-                                                      },
-                                                    ),
-                                                    const SizedBox(height: 16),
-
-                                                    // Symptoms
-                                                    TextFormField(
-                                                      controller:
-                                                          _symptomsController,
-                                                      decoration:
-                                                          const InputDecoration(
-                                                        labelText: 'Symptoms',
-                                                        prefixIcon: Icon(Icons
-                                                            .medical_information),
-                                                      ),
-                                                      maxLines: 3,
-                                                      validator: (value) {
-                                                        if (value == null ||
-                                                            value.isEmpty) {
-                                                          return 'Please enter symptoms';
-                                                        }
-                                                        return null;
-                                                      },
-                                                    ),
-                                                    const SizedBox(height: 16),
-
-                                                    // Is readmission
-                                                    Row(
-                                                      children: [
-                                                        Checkbox(
-                                                          value: _isReadmission,
-                                                          onChanged: (value) {
-                                                            setState(() {
-                                                              _isReadmission =
-                                                                  value ??
-                                                                      false;
-                                                            });
-                                                          },
-                                                        ),
-                                                        Expanded(
-                                                          child: Column(
-                                                            crossAxisAlignment:
-                                                                CrossAxisAlignment
-                                                                    .start,
-                                                            children: [
-                                                              Text(
-                                                                'This is a readmission',
-                                                                style: Theme.of(
-                                                                        context)
-                                                                    .textTheme
-                                                                    .bodyMedium,
-                                                              ),
-                                                              if (_isReadmission)
-                                                                Text(
-                                                                  'Patient ID is required for readmission',
-                                                                  style:
-                                                                      TextStyle(
-                                                                    color: HospitalTheme
-                                                                        .warning,
-                                                                    fontSize:
-                                                                        12,
-                                                                    fontStyle:
-                                                                        FontStyle
-                                                                            .italic,
-                                                                  ),
-                                                                ),
-                                                            ],
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-
-                                                    // Appointment type
-                                                    const SizedBox(height: 16),
-                                                    Text(
-                                                      'Appointment Type:',
-                                                      style: Theme.of(context)
-                                                          .textTheme
-                                                          .bodyMedium,
-                                                    ),
-                                                    Row(
-                                                      children: [
-                                                        Radio(
-                                                          value: 'offline',
-                                                          groupValue:
-                                                              _appointmentType,
-                                                          onChanged: (value) {
-                                                            setState(() {
-                                                              _appointmentType =
-                                                                  value
-                                                                      .toString();
-                                                            });
-                                                          },
-                                                        ),
-                                                        const Text('In-person'),
-                                                        const SizedBox(
-                                                            width: 16),
-                                                        Radio(
-                                                          value: 'online',
-                                                          groupValue:
-                                                              _appointmentType,
-                                                          onChanged: (value) {
-                                                            setState(() {
-                                                              _appointmentType =
-                                                                  value
-                                                                      .toString();
-                                                            });
-                                                          },
-                                                        ),
-                                                        const Text(
-                                                            'Tele-consultation'),
-                                                      ],
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
-
-                                            const SizedBox(width: 24),
-
-                                            // Right column - Doctor selection and appointment time
-                                            Expanded(
-                                              child: Column(
-                                                children: [
-                                                  // Doctor selection
-                                                  HospitalTheme.buildCard(
-                                                    hasShadow: true,
-                                                    padding:
-                                                        const EdgeInsets.all(
-                                                            24),
-                                                    child: Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                        HospitalTheme
-                                                            .buildSectionHeader(
-                                                                'Select Doctor'),
-                                                        const SizedBox(
-                                                            height: 16),
-
-                                                        // Doctor dropdown
-                                                        DropdownButtonFormField<
-                                                            Doctor>(
-                                                          decoration:
-                                                              const InputDecoration(
-                                                            labelText:
-                                                                'Select Doctor',
-                                                            prefixIcon: Icon(Icons
-                                                                .medical_services),
-                                                          ),
-                                                          value:
-                                                              _selectedDoctor,
-                                                          items: _doctors.map(
-                                                              (Doctor doctor) {
-                                                            return DropdownMenuItem<
-                                                                Doctor>(
-                                                              value: doctor,
-                                                              child: Text(
-                                                                '${doctor.doctorName} (${doctor.speciality})',
-                                                              ),
-                                                            );
-                                                          }).toList(),
-                                                          onChanged: (Doctor?
-                                                              newValue) {
-                                                            setState(() {
-                                                              _selectedDoctor =
-                                                                  newValue;
-                                                            });
-                                                          },
-                                                          validator: (value) {
-                                                            if (value == null) {
-                                                              return 'Please select a doctor';
-                                                            }
-                                                            return null;
-                                                          },
-                                                        ),
-
-                                                        if (_selectedDoctor !=
-                                                            null) ...[
-                                                          const SizedBox(
-                                                              height: 24),
-                                                          DoctorCard(
-                                                              doctor:
-                                                                  _selectedDoctor!),
-                                                        ],
-                                                      ],
-                                                    ),
-                                                  ),
-
-                                                  const SizedBox(height: 24),
-
-                                                  // Appointment date and time
-                                                  HospitalTheme.buildCard(
-                                                    hasShadow: true,
-                                                    padding:
-                                                        const EdgeInsets.all(
-                                                            24),
-                                                    child: Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                        HospitalTheme
-                                                            .buildSectionHeader(
-                                                                'Appointment Schedule'),
-                                                        const SizedBox(
-                                                            height: 16),
-
-                                                        // Date picker
-                                                        Row(
-                                                          children: [
-                                                            Icon(
-                                                              Icons
-                                                                  .calendar_today,
-                                                              color:
-                                                                  HospitalTheme
-                                                                      .primary,
-                                                            ),
-                                                            const SizedBox(
-                                                                width: 16),
-                                                            Text(
-                                                              'Date: ${DateFormat('yyyy-MM-dd').format(_selectedDate)}',
-                                                              style: Theme.of(
-                                                                      context)
-                                                                  .textTheme
-                                                                  .bodyMedium,
-                                                            ),
-                                                            const Spacer(),
-                                                            ElevatedButton(
-                                                              onPressed:
-                                                                  () async {
-                                                                final DateTime?
-                                                                    picked =
-                                                                    await showDatePicker(
-                                                                  context:
-                                                                      context,
-                                                                  initialDate:
-                                                                      _selectedDate,
-                                                                  firstDate:
-                                                                      DateTime
-                                                                          .now(),
-                                                                  lastDate: DateTime
-                                                                          .now()
-                                                                      .add(const Duration(
-                                                                          days:
-                                                                              90)),
-                                                                );
-                                                                if (picked !=
-                                                                    null) {
-                                                                  setState(() {
-                                                                    _selectedDate =
-                                                                        picked;
-                                                                  });
-                                                                }
-                                                              },
-                                                              child: const Text(
-                                                                  'Select Date'),
-                                                            ),
-                                                          ],
-                                                        ),
-
-                                                        const SizedBox(
-                                                            height: 24),
-
-                                                        // Time slots
-                                                        Text(
-                                                          'Available Time Slots:',
-                                                          style:
-                                                              Theme.of(context)
-                                                                  .textTheme
-                                                                  .titleMedium,
-                                                        ),
-                                                        const SizedBox(
-                                                            height: 16),
-
-                                                        // Wrap in rows of 4 slots
-                                                        Wrap(
-                                                          spacing: 8,
-                                                          runSpacing: 8,
-                                                          children: timeSlots
-                                                              .map((time) {
-                                                            final isSelected =
-                                                                _selectedTime ==
-                                                                    time;
-                                                            return InkWell(
-                                                              onTap: () {
-                                                                setState(() {
-                                                                  _selectedTime =
-                                                                      time;
-                                                                });
-                                                              },
-                                                              child: Container(
-                                                                padding:
-                                                                    const EdgeInsets
-                                                                        .symmetric(
-                                                                  horizontal:
-                                                                      12,
-                                                                  vertical: 8,
-                                                                ),
-                                                                decoration:
-                                                                    BoxDecoration(
-                                                                  color: isSelected
-                                                                      ? HospitalTheme
-                                                                          .primary
-                                                                      : HospitalTheme
-                                                                          .surfaceLight,
-                                                                  borderRadius:
-                                                                      BorderRadius
-                                                                          .circular(
-                                                                              20),
-                                                                  border: Border
-                                                                      .all(
-                                                                    color: isSelected
-                                                                        ? HospitalTheme
-                                                                            .primary
-                                                                        : HospitalTheme
-                                                                            .border,
-                                                                  ),
-                                                                ),
-                                                                child: Text(
-                                                                  time,
-                                                                  style:
-                                                                      TextStyle(
-                                                                    color: isSelected
-                                                                        ? HospitalTheme
-                                                                            .textOnPrimary
-                                                                        : HospitalTheme
-                                                                            .textDark,
-                                                                    fontWeight: isSelected
-                                                                        ? FontWeight
-                                                                            .bold
-                                                                        : FontWeight
-                                                                            .normal,
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                            );
-                                                          }).toList(),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-
-                                        const SizedBox(height: 32),
-
-                                        // Action buttons
-                                        Center(
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              HospitalTheme.buildGradientButton(
-                                                label: 'Cancel',
-                                                icon: Icons.close,
-                                                onPressed: _resetForm,
-                                                startColor:
-                                                    HospitalTheme.textLight,
-                                                endColor:
-                                                    HospitalTheme.textMedium,
-                                              ),
-                                              const SizedBox(width: 24),
-                                              HospitalTheme.buildGradientButton(
-                                                label: 'Save',
-                                                icon: Icons.save,
-                                                onPressed: _submitAppointment,
-                                                isLoading: _isSubmitting,
-                                                startColor:
-                                                    HospitalTheme.success,
-                                                endColor: HospitalTheme.primary,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
+                              ? (_doctors.isEmpty
+                                  ? _buildEmptyState()
+                                  : _buildErrorState())
+                              : _doctors.isEmpty
+                                  ? _buildEmptyState()
+                                  : _buildAppointmentForm(),
                     ),
                   ],
                 ),
@@ -1278,7 +1264,7 @@ class _AppointmentCreationScreenState extends State<AppointmentCreationScreen> {
   }
 }
 
-// Doctor model
+// Rest of the classes remain the same (Doctor, DoctorCard, PatientSearchResult, PatientAppointment)
 class Doctor {
   final String id;
   final String doctorName;
@@ -1311,7 +1297,6 @@ class Doctor {
   }
 }
 
-// Doctor card widget
 class DoctorCard extends StatelessWidget {
   final Doctor doctor;
 
@@ -1326,10 +1311,10 @@ class DoctorCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          CircleAvatar(
+          const CircleAvatar(
             radius: 30,
             backgroundColor: HospitalTheme.primaryLight,
-            child: const Icon(Icons.person,
+            child: Icon(Icons.person,
                 size: 36, color: HospitalTheme.textOnPrimary),
           ),
           const SizedBox(width: 16),
@@ -1374,7 +1359,6 @@ class DoctorCard extends StatelessWidget {
   }
 }
 
-// Patient search result model
 class PatientSearchResult {
   final String patientId;
   final String patientName;
@@ -1402,7 +1386,6 @@ class PatientSearchResult {
   }
 }
 
-// Patient appointment model
 class PatientAppointment {
   final String doctorName;
   final String doctorSpecialization;
@@ -1411,7 +1394,7 @@ class PatientAppointment {
   final String date;
   final String time;
   final String status;
-  final String? rescheduledTo; // Added field for rescheduled info
+  final String? rescheduledTo;
   final String paymentStatus;
   final String createdAt;
   final String updatedAt;

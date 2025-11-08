@@ -22,6 +22,7 @@ import 'package:doctordesktop/constants/AppTheme.dart';
 import 'package:doctordesktop/constants/Assets.dart';
 import 'package:doctordesktop/gamm.dart';
 import 'package:doctordesktop/model/getPatientHistory.dart';
+import 'package:doctordesktop/oet.dart';
 import 'package:doctordesktop/pharmacy/CreateSalesScreen.dart';
 import 'package:doctordesktop/pharmacy/PrescriptionScreen.dart';
 import 'package:doctordesktop/reception/PatientDischarge.dart';
