@@ -2,7 +2,6 @@ import 'package:doctordesktop/constants/HospitalTheme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:doctordesktop/constants/Url.dart';
@@ -128,7 +127,6 @@ class Section {
 }
 
 // Treatment Models
-// Update the TreatmentMedication model to include the new fields
 class TreatmentMedication {
   final String id;
   final String name;
@@ -172,17 +170,11 @@ class TreatmentMedication {
     );
   }
 
-  // Helper method to format administered time
   String get formattedAdministeredTime {
     if (administeredAt == null) return 'Not administered';
     try {
-      // Parse the UTC dateTime
       final dateTime = DateTime.parse(administeredAt!);
-
-      // Convert to IST (UTC+5:30)
       final istDateTime = dateTime.add(const Duration(hours: 5, minutes: 30));
-
-      // Format the time
       return '${istDateTime.day}/${istDateTime.month}/${istDateTime.year} ${istDateTime.hour.toString().padLeft(2, '0')}:${istDateTime.minute.toString().padLeft(2, '0')} IST';
     } catch (e) {
       return administeredAt ?? 'Invalid date';
@@ -216,7 +208,6 @@ class TreatmentMedication {
   }
 }
 
-// Update the IVFluid model to include the new fields
 class IVFluid {
   final String id;
   final String name;
@@ -254,7 +245,6 @@ class IVFluid {
     );
   }
 
-  // Helper method to format administered time
   String get formattedAdministeredTime {
     if (administeredAt == null) return 'Not administered';
     try {
@@ -279,7 +269,6 @@ class IVFluid {
   }
 }
 
-// Update the TreatmentProcedure model to include the new fields
 class TreatmentProcedure {
   final String id;
   final String name;
@@ -314,7 +303,6 @@ class TreatmentProcedure {
     );
   }
 
-  // Helper method to format administered time
   String get formattedAdministeredTime {
     if (administeredAt == null) return 'Not administered';
     try {
@@ -478,13 +466,11 @@ class _EnhancedTreatmentScreenState
     });
 
     try {
-      // Fetch treatment data
       final treatmentResponse = await http.get(
         Uri.parse(
             '${KVM_URL}/doctors/getDoctorTreatment/${widget.patientId}/${widget.admissionId}'),
       );
 
-      // Fetch medication status for patient info
       final medicationResponse = await http.get(
         Uri.parse(
             '${KVM_URL}/doctors/getMedicationStatus/${widget.patientId}/${widget.admissionId}'),
@@ -562,7 +548,7 @@ class _EnhancedTreatmentScreenState
             Expanded(
               child: Text(
                 message,
-                style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+                style: const TextStyle(fontWeight: FontWeight.w500),
               ),
             ),
           ],
@@ -648,9 +634,9 @@ class _EnhancedTreatmentScreenState
         ),
       ),
       automaticallyImplyLeading: false,
-      title: Text(
-        'Treatment Managemen',
-        style: GoogleFonts.poppins(
+      title: const Text(
+        'Treatment Management',
+        style: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w600,
           color: Colors.white,
@@ -710,7 +696,7 @@ class _EnhancedTreatmentScreenState
             const SizedBox(height: 24),
             Text(
               'Loading treatment data...',
-              style: GoogleFonts.poppins(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 color: HospitalTheme.textDark,
@@ -750,7 +736,7 @@ class _EnhancedTreatmentScreenState
             const SizedBox(height: 24),
             Text(
               'Failed to Load Data',
-              style: GoogleFonts.poppins(
+              style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: HospitalTheme.textDark,
@@ -759,7 +745,7 @@ class _EnhancedTreatmentScreenState
             const SizedBox(height: 12),
             Text(
               errorMessage,
-              style: GoogleFonts.poppins(
+              style: TextStyle(
                 fontSize: 16,
                 color: HospitalTheme.textMedium,
                 height: 1.5,
@@ -779,10 +765,9 @@ class _EnhancedTreatmentScreenState
                 elevation: 2,
               ),
               icon: const Icon(Icons.refresh_rounded),
-              label: Text(
+              label: const Text(
                 'Try Again',
-                style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.w600, fontSize: 16),
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
               ),
             ),
           ],
@@ -845,7 +830,7 @@ class _EnhancedTreatmentScreenState
               children: [
                 Text(
                   patientInfo!.name,
-                  style: GoogleFonts.poppins(
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: HospitalTheme.textDark,
@@ -854,7 +839,7 @@ class _EnhancedTreatmentScreenState
                 const SizedBox(height: 4),
                 Text(
                   'ID: ${patientInfo!.patientId} • ${admissionInfo!.section.name} • Bed ${admissionInfo!.bedNumber}',
-                  style: GoogleFonts.poppins(
+                  style: TextStyle(
                     fontSize: 14,
                     color: HospitalTheme.textMedium,
                   ),
@@ -879,7 +864,7 @@ class _EnhancedTreatmentScreenState
                   const SizedBox(width: 8),
                   Text(
                     '${treatmentData!.totalItems} Items',
-                    style: GoogleFonts.poppins(
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: HospitalTheme.primary,
@@ -914,23 +899,22 @@ class _EnhancedTreatmentScreenState
             ],
           ),
         ),
-        labelStyle:
-            GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 12),
+        labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
         tabs: [
           Tab(
-            icon: Icon(Icons.medication_rounded, size: 20),
+            icon: const Icon(Icons.medication_rounded, size: 20),
             text: 'Medications (${treatmentData?.medications.length ?? 0})',
           ),
           Tab(
-            icon: Icon(Icons.water_drop_rounded, size: 20),
+            icon: const Icon(Icons.water_drop_rounded, size: 20),
             text: 'IV Fluids (${treatmentData?.ivFluids.length ?? 0})',
           ),
           Tab(
-            icon: Icon(Icons.healing_rounded, size: 20),
+            icon: const Icon(Icons.healing_rounded, size: 20),
             text: 'Procedures (${treatmentData?.procedures.length ?? 0})',
           ),
           Tab(
-            icon: Icon(Icons.note_rounded, size: 20),
+            icon: const Icon(Icons.note_rounded, size: 20),
             text:
                 'Instructions (${treatmentData?.specialInstructions.length ?? 0})',
           ),
@@ -1043,7 +1027,7 @@ class _EnhancedTreatmentScreenState
             const SizedBox(height: 20),
             Text(
               message,
-              style: GoogleFonts.poppins(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: HospitalTheme.textDark,
@@ -1052,7 +1036,7 @@ class _EnhancedTreatmentScreenState
             const SizedBox(height: 8),
             Text(
               'Tap the + button to add new items',
-              style: GoogleFonts.poppins(
+              style: TextStyle(
                 fontSize: 14,
                 color: HospitalTheme.textMedium,
               ),
@@ -1096,7 +1080,7 @@ class _EnhancedTreatmentScreenState
                   children: [
                     Text(
                       medication.name,
-                      style: GoogleFonts.poppins(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: HospitalTheme.textDark,
@@ -1104,7 +1088,7 @@ class _EnhancedTreatmentScreenState
                     ),
                     Text(
                       medication.dosage,
-                      style: GoogleFonts.poppins(
+                      style: TextStyle(
                         fontSize: 13,
                         color: HospitalTheme.textMedium,
                       ),
@@ -1126,7 +1110,7 @@ class _EnhancedTreatmentScreenState
                     const SizedBox(width: 6),
                     Text(
                       medication.administrationStatus,
-                      style: GoogleFonts.poppins(
+                      style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                         fontSize: 11,
@@ -1158,7 +1142,6 @@ class _EnhancedTreatmentScreenState
                   'Time', medication.time, Icons.access_time_rounded),
             ],
           ),
-          // Show administered information if status is "Administered"
           if (medication.administrationStatus.toLowerCase() ==
               'administered') ...[
             const SizedBox(height: 12),
@@ -1180,7 +1163,7 @@ class _EnhancedTreatmentScreenState
                       const SizedBox(width: 8),
                       Text(
                         'Administration Details',
-                        style: GoogleFonts.poppins(
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                           color: HospitalTheme.success,
@@ -1250,7 +1233,7 @@ class _EnhancedTreatmentScreenState
                   children: [
                     Text(
                       fluid.name,
-                      style: GoogleFonts.poppins(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: HospitalTheme.textDark,
@@ -1258,7 +1241,7 @@ class _EnhancedTreatmentScreenState
                     ),
                     Text(
                       '${fluid.quantity} • ${fluid.duration}',
-                      style: GoogleFonts.poppins(
+                      style: TextStyle(
                         fontSize: 13,
                         color: HospitalTheme.textMedium,
                       ),
@@ -1275,7 +1258,7 @@ class _EnhancedTreatmentScreenState
                 ),
                 child: Text(
                   fluid.administrationStatus,
-                  style: GoogleFonts.poppins(
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 11,
@@ -1302,7 +1285,6 @@ class _EnhancedTreatmentScreenState
               _buildInfoChip('Duration', fluid.duration, Icons.timer_rounded),
             ],
           ),
-          // Show administered information if status is "Administered"
           if (fluid.administrationStatus.toLowerCase() == 'administered') ...[
             const SizedBox(height: 12),
             Container(
@@ -1323,7 +1305,7 @@ class _EnhancedTreatmentScreenState
                       const SizedBox(width: 8),
                       Text(
                         'Administration Details',
-                        style: GoogleFonts.poppins(
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                           color: HospitalTheme.success,
@@ -1393,7 +1375,7 @@ class _EnhancedTreatmentScreenState
                   children: [
                     Text(
                       procedure.name,
-                      style: GoogleFonts.poppins(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: HospitalTheme.textDark,
@@ -1401,7 +1383,7 @@ class _EnhancedTreatmentScreenState
                     ),
                     Text(
                       procedure.frequency,
-                      style: GoogleFonts.poppins(
+                      style: TextStyle(
                         fontSize: 13,
                         color: HospitalTheme.textMedium,
                       ),
@@ -1418,7 +1400,7 @@ class _EnhancedTreatmentScreenState
                 ),
                 child: Text(
                   procedure.administrationStatus,
-                  style: GoogleFonts.poppins(
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 11,
@@ -1436,7 +1418,6 @@ class _EnhancedTreatmentScreenState
               ),
             ],
           ),
-          // Show administered information if status is "Administered"
           if (procedure.administrationStatus.toLowerCase() ==
               'administered') ...[
             const SizedBox(height: 12),
@@ -1458,7 +1439,7 @@ class _EnhancedTreatmentScreenState
                       const SizedBox(width: 8),
                       Text(
                         'Administration Details',
-                        style: GoogleFonts.poppins(
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                           color: HospitalTheme.success,
@@ -1495,7 +1476,6 @@ class _EnhancedTreatmentScreenState
     );
   }
 
-// Helper method to build administration info
   Widget _buildAdministrationInfo(String label, String value, IconData icon) {
     return Row(
       children: [
@@ -1507,7 +1487,7 @@ class _EnhancedTreatmentScreenState
             children: [
               Text(
                 label,
-                style: GoogleFonts.poppins(
+                style: TextStyle(
                   fontSize: 10,
                   color: HospitalTheme.textMedium,
                   fontWeight: FontWeight.w500,
@@ -1515,7 +1495,7 @@ class _EnhancedTreatmentScreenState
               ),
               Text(
                 value,
-                style: GoogleFonts.poppins(
+                style: TextStyle(
                   fontSize: 11,
                   color: HospitalTheme.textDark,
                   fontWeight: FontWeight.w600,
@@ -1555,7 +1535,7 @@ class _EnhancedTreatmentScreenState
           Expanded(
             child: Text(
               instruction.instruction,
-              style: GoogleFonts.poppins(
+              style: TextStyle(
                 fontSize: 14,
                 color: HospitalTheme.textDark,
               ),
@@ -1569,7 +1549,7 @@ class _EnhancedTreatmentScreenState
             ),
             child: Text(
               instruction.status,
-              style: GoogleFonts.poppins(
+              style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
                 fontSize: 11,
@@ -1605,7 +1585,7 @@ class _EnhancedTreatmentScreenState
           const SizedBox(width: 4),
           Text(
             '$label: $value',
-            style: GoogleFonts.poppins(
+            style: TextStyle(
               fontSize: 10,
               color: HospitalTheme.textMedium,
               fontWeight: FontWeight.w500,
@@ -1626,20 +1606,19 @@ class _EnhancedTreatmentScreenState
           children: [
             Icon(Icons.warning_rounded, color: HospitalTheme.error),
             const SizedBox(width: 12),
-            Text(
+            const Text(
               'Delete Treatment',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ],
         ),
         content: Text(
           'Are you sure you want to delete "$itemName"? This action cannot be undone.',
-          style: GoogleFonts.poppins(),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: GoogleFonts.poppins()),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () {
@@ -1650,7 +1629,7 @@ class _EnhancedTreatmentScreenState
               backgroundColor: HospitalTheme.error,
               foregroundColor: Colors.white,
             ),
-            child: Text('Delete', style: GoogleFonts.poppins()),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -1680,9 +1659,9 @@ class _EnhancedTreatmentScreenState
       foregroundColor: Colors.white,
       elevation: 4,
       icon: const Icon(Icons.add_rounded),
-      label: Text(
+      label: const Text(
         'Add Treatment',
-        style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+        style: TextStyle(fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -1769,9 +1748,8 @@ class _AddTreatmentDialogState extends State<AddTreatmentDialog>
         'specialInstructions': <Map<String, dynamic>>[],
       };
 
-      // Add items based on current tab
       switch (_tabController.index) {
-        case 0: // Medications
+        case 0:
           if (medicationNameController.text.isNotEmpty &&
               medicationDosageController.text.isNotEmpty) {
             requestBody['medications'].add({
@@ -1781,7 +1759,7 @@ class _AddTreatmentDialogState extends State<AddTreatmentDialog>
             });
           }
           break;
-        case 1: // IV Fluids
+        case 1:
           if (ivFluidNameController.text.isNotEmpty &&
               ivFluidQuantityController.text.isNotEmpty &&
               ivFluidDurationController.text.isNotEmpty) {
@@ -1792,7 +1770,7 @@ class _AddTreatmentDialogState extends State<AddTreatmentDialog>
             });
           }
           break;
-        case 2: // Procedures
+        case 2:
           if (procedureNameController.text.isNotEmpty &&
               procedureFrequencyController.text.isNotEmpty) {
             requestBody['procedures'].add({
@@ -1801,7 +1779,7 @@ class _AddTreatmentDialogState extends State<AddTreatmentDialog>
             });
           }
           break;
-        case 3: // Special Instructions
+        case 3:
           if (specialInstructionController.text.isNotEmpty) {
             requestBody['specialInstructions'].add({
               'instruction': specialInstructionController.text,
@@ -1821,13 +1799,13 @@ class _AddTreatmentDialogState extends State<AddTreatmentDialog>
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Row(
+            content: const Row(
               children: [
                 Icon(Icons.check_circle, color: Colors.white, size: 20),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Text(
                   'Treatment added successfully',
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+                  style: TextStyle(fontWeight: FontWeight.w500),
                 ),
               ],
             ),
@@ -1846,12 +1824,12 @@ class _AddTreatmentDialogState extends State<AddTreatmentDialog>
         SnackBar(
           content: Row(
             children: [
-              Icon(Icons.error, color: Colors.white, size: 20),
+              const Icon(Icons.error, color: Colors.white, size: 20),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   'Failed to add treatment: $e',
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+                  style: const TextStyle(fontWeight: FontWeight.w500),
                 ),
               ),
             ],
@@ -1887,7 +1865,7 @@ class _AddTreatmentDialogState extends State<AddTreatmentDialog>
                 const SizedBox(width: 12),
                 Text(
                   'Add New Treatment',
-                  style: GoogleFonts.poppins(
+                  style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: HospitalTheme.textDark,
@@ -1916,8 +1894,8 @@ class _AddTreatmentDialogState extends State<AddTreatmentDialog>
                   color: Colors.white,
                   boxShadow: HospitalTheme.shadowSmall,
                 ),
-                labelStyle: GoogleFonts.poppins(
-                    fontWeight: FontWeight.w600, fontSize: 12),
+                labelStyle:
+                    const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
                 tabs: const [
                   Tab(icon: Icon(Icons.medication_rounded), text: 'Medication'),
                   Tab(icon: Icon(Icons.water_drop_rounded), text: 'IV Fluid'),
@@ -1951,7 +1929,7 @@ class _AddTreatmentDialogState extends State<AddTreatmentDialog>
                     ),
                     child: Text(
                       'Cancel',
-                      style: GoogleFonts.poppins(
+                      style: TextStyle(
                         fontWeight: FontWeight.w600,
                         color: HospitalTheme.textMedium,
                       ),
@@ -1980,9 +1958,9 @@ class _AddTreatmentDialogState extends State<AddTreatmentDialog>
                               color: Colors.white,
                             ),
                           )
-                        : Text(
+                        : const Text(
                             'Add Treatment',
-                            style: GoogleFonts.poppins(
+                            style: TextStyle(
                               fontWeight: FontWeight.w600,
                               fontSize: 16,
                             ),
@@ -2112,15 +2090,14 @@ class _AddTreatmentDialogState extends State<AddTreatmentDialog>
       child: TextFormField(
         controller: controller,
         maxLines: maxLines,
-        style: GoogleFonts.poppins(),
         decoration: InputDecoration(
           labelText: label,
           hintText: hint,
           prefixIcon: Icon(icon, color: HospitalTheme.primary),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.all(16),
-          labelStyle: GoogleFonts.poppins(color: HospitalTheme.textMedium),
-          hintStyle: GoogleFonts.poppins(color: HospitalTheme.textLight),
+          labelStyle: TextStyle(color: HospitalTheme.textMedium),
+          hintStyle: TextStyle(color: HospitalTheme.textLight),
         ),
       ),
     );
@@ -2146,13 +2123,13 @@ class _AddTreatmentDialogState extends State<AddTreatmentDialog>
             .map((item) => DropdownMenuItem(value: item, child: Text(item)))
             .toList(),
         onChanged: onChanged,
-        style: GoogleFonts.poppins(color: HospitalTheme.textDark),
+        style: TextStyle(color: HospitalTheme.textDark),
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: Icon(icon, color: HospitalTheme.primary),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.all(16),
-          labelStyle: GoogleFonts.poppins(color: HospitalTheme.textMedium),
+          labelStyle: TextStyle(color: HospitalTheme.textMedium),
         ),
       ),
     );
