@@ -20,6 +20,9 @@ jobs:
       - name: Enable Windows support
         run: flutter config --enable-windows-desktop
 
+      - name: Clean project
+        run: flutter clean
+
       - name: Get dependencies
         run: flutter pub get
 
