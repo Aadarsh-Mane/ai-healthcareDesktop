@@ -37,6 +37,8 @@ import 'package:doctordesktop/screens/NurseRegister.dart';
 import 'package:doctordesktop/Patient/fetchPatient.dart';
 import 'package:doctordesktop/reception/PatientRegister.dart';
 import 'package:doctordesktop/screens/login_screen.dart';
+import 'package:doctordesktop/screens/tess.dart';
+import 'package:doctordesktop/screens/theme_showcase_screen.dart';
 import 'package:doctordesktop/services/motion_control.dart';
 import 'package:doctordesktop/services/snackbar_service.dart';
 import 'package:flutter/material.dart';
@@ -93,6 +95,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    // return HmsApp();
+    // return ThemeShowcaseScreen();
     return HomePage();
     // MedicalRecordsScreen(
     //   patientId: 'LAL361', // Example patient ID
